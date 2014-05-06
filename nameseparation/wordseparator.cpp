@@ -110,14 +110,16 @@ QImage WordSeparator::trimBoundaries(QImage &img)
     int trimLeft=0;
     int trimRight=img.width();
     
-    int PROFILE_HORZ_THRESH = img.width()*.75;
-    int RUN_HORZ_THRESH = img.width()*.45;
-    //int PROFILE_VERT_THRESH = img.height()*.85;
+    int PROFILE_HORZ_THRESH = img.width()*.65;
+    int RUN_HORZ_THRESH = img.width()*.35;
+    int PROFILE_HORZ_THRESH_E = img.width()*.8;
+    int RUN_HORZ_THRESH_E = img.width()*.5;
+    int PROFILE_VERT_THRESH = img.height()*.85;
+    int RUN_VERT_THRESH = img.height()*.7;
     int i;
     int j;
     bool cont = true;
     
-    //TODO, remove all lines with wieght over .8?
     
 //    //top
 //    for (j=0; j<img.height()/2 && cont; j++)
@@ -186,9 +188,92 @@ QImage WordSeparator::trimBoundaries(QImage &img)
     
      QImage ret = img.copy(trimLeft,trimTop,trimRight-trimLeft,trimBottom-trimTop);
      
-     //horizontal
-     for (j=0; j<ret.height(); j++)
+     //veritcle
+     cont=true;
+     for (i=0; cont && i<ret.width()/2; i++)
      {
+         if (i>2)
+            cont=false;
+         int profile = 0;
+         int runLength=0;
+         for (j=0; j<ret.height(); j++)
+         {
+             if (qGray(ret.pixel(i,j)) == BLACK)
+             {
+                 profile++;
+                 runLength++;
+             }
+             else 
+             {
+                 if (runLength>RUN_VERT_THRESH)
+                 {
+                     cont=true;
+                     for (;runLength>0; runLength--)
+                         ret.setPixel(i,j-runLength,WHITE);
+                 }
+                 runLength=0;
+             }
+         }
+         if (runLength>RUN_VERT_THRESH)
+         {
+             cont=true;
+             for (;runLength>0; runLength--)
+                 ret.setPixel(i,j-runLength,WHITE);
+         }
+         if (profile > PROFILE_VERT_THRESH)
+         {
+             cont=true;
+             for (int j=0; j<ret.height(); j++)
+                 ret.setPixel(i,j,WHITE);
+         }
+     }
+     
+     cont=true;
+     for (i=ret.width()-1; cont && i>ret.width()/2; i--)
+     {
+         if (i>2)
+            cont=false;
+         int profile = 0;
+         int runLength=0;
+         for (j=0; j<ret.height(); j++)
+         {
+             if (qGray(ret.pixel(i,j)) == BLACK)
+             {
+                 profile++;
+                 runLength++;
+             }
+             else 
+             {
+                 if (runLength>RUN_VERT_THRESH)
+                 {
+                     cont=true;
+                     for (;runLength>0; runLength--)
+                         ret.setPixel(i,j-runLength,WHITE);
+                 }
+                 runLength=0;
+             }
+         }
+         if (runLength>RUN_VERT_THRESH)
+         {
+             cont=true;
+             for (;runLength>0; runLength--)
+                 ret.setPixel(i,j-runLength,WHITE);
+         }
+         
+         if (profile > PROFILE_VERT_THRESH)
+         {
+             cont=true;
+             for (int j=0; j<ret.height(); j++)
+                 ret.setPixel(i,j,WHITE);
+         }
+     }
+     
+     //horizontal
+     //left
+     cont = true;
+     for (j=0; cont && j<ret.height()/2; j++)
+     {
+         cont=false;
          int profile = 0;
          int runLength=0;
          for (i=0; i<ret.width(); i++)
@@ -202,211 +287,280 @@ QImage WordSeparator::trimBoundaries(QImage &img)
              {
                  if (runLength>RUN_HORZ_THRESH)
                  {
+                     cont=true;
                      for (;runLength>0; runLength--)
                          ret.setPixel(i-runLength,j,WHITE);
                  }
                  runLength=0;
              }
          }
+         if (runLength>RUN_HORZ_THRESH)
+         {
+             cont=true;
+             for (;runLength>0; runLength--)
+                 ret.setPixel(i-runLength,j,WHITE);
+         }
+         
          if (profile > PROFILE_HORZ_THRESH)
+         {
+             cont=true;
+             for (int i=0; i<ret.width(); i++)
+                 ret.setPixel(i,j,WHITE);
+         }
+     }
+     //right
+     cont = true;
+     for (j=ret.height()-1; cont && j>ret.height()/2; j--)
+     {
+         cont=false;
+         int profile = 0;
+         int runLength=0;
+         for (i=0; i<ret.width(); i++)
+         {
+             if (qGray(ret.pixel(i,j)) == BLACK)
+             {
+                 profile++;
+                 runLength++;
+             }
+             else 
+             {
+                 if (runLength>RUN_HORZ_THRESH)
+                 {
+                     cont=true;
+                     for (;runLength>0; runLength--)
+                         ret.setPixel(i-runLength,j,WHITE);
+                 }
+                 runLength=0;
+             }
+         }
+         if (runLength>RUN_HORZ_THRESH)
+         {
+             cont=true;
+             for (;runLength>0; runLength--)
+                 ret.setPixel(i-runLength,j,WHITE);
+         }
+         
+         if (profile > PROFILE_HORZ_THRESH)
+         {
+             cont=true;
+             for (int i=0; i<ret.width(); i++)
+                 ret.setPixel(i,j,WHITE);
+         }
+     }
+     
+     //EVERYWHERE
+     for (j=0; j<ret.height(); j++)
+     {
+         int profile = 0;
+         int runLength=0;
+         for (i=0; i<ret.width(); i++)
+         {
+             if (qGray(ret.pixel(i,j)) == BLACK)
+             {
+                 profile++;
+                 runLength++;
+             }
+             else 
+             {
+                 if (runLength>RUN_HORZ_THRESH_E)
+                 {
+                     for (;runLength>0; runLength--)
+                         ret.setPixel(i-runLength,j,WHITE);
+                 }
+                 runLength=0;
+             }
+         }
+         if (runLength>RUN_HORZ_THRESH_E)
+         {
+             for (;runLength>0; runLength--)
+                 ret.setPixel(i-runLength,j,WHITE);
+         }
+         
+         if (profile > PROFILE_HORZ_THRESH_E)
          {
              for (int i=0; i<ret.width(); i++)
                  ret.setPixel(i,j,WHITE);
          }
      }
      
-     //veritcle
-//     for (i=0; i<ret.width(); i++)
-//     {
-//         int profile = 0;
-//         for (j=0; j<ret.height(); j++)
-//         {
-//             if (qGray(ret.pixel(i,j)) == BLACK)
-//                 profile++;
-//         }
-//         if (profile > PROFILE_VERT_THRESH)
-//         {
-//             for (int j=0; j<ret.height(); j++)
-//                 ret.setPixel(i,j,WHITE);
-//         }
-//     }
+    
      
      
     
-    int LINE_THRESH = 25;
+//    int LINE_THRESH = 25;
     
-    //top
-    int currentRun = 0;
-    cont = true;
-    for (j=0; j<3 && cont; j++)
-    {
-        cont = false;
-        for (int i=0; i<ret.width(); i++)
-        {
-            if (qGray(ret.pixel(i,j)) != BLACK)
-            {
-                    if (currentRun > 0)
-                    {
-                        if (currentRun > LINE_THRESH)
-                        {   
-                            cont = true;
-                            for (int ri=1; ri<currentRun+1; ri++)
-                            {
-                                ret.setPixel(i-ri,j,WHITE);
-                            }
-                        }
+//    //top
+//    int currentRun = 0;
+//    cont = true;
+//    for (j=0; j<3 && cont; j++)
+//    {
+//        cont = false;
+//        for (int i=0; i<ret.width(); i++)
+//        {
+//            if (qGray(ret.pixel(i,j)) != BLACK)
+//            {
+//                    if (currentRun > 0)
+//                    {
+//                        if (currentRun > LINE_THRESH)
+//                        {   
+//                            cont = true;
+//                            for (int ri=1; ri<currentRun+1; ri++)
+//                            {
+//                                ret.setPixel(i-ri,j,WHITE);
+//                            }
+//                        }
                         
-                        currentRun=0;
-                    }
-            }
-            else
-            {
-                currentRun++;
-            }
-        }
-        if (currentRun > 0)
-        {
-            if (currentRun > LINE_THRESH)
-            {   
-                for (int ri=1; ri<currentRun+1; ri++)
-                {
-                    ret.setPixel(ret.width()-ri,j,WHITE);
-                }
-            }
+//                        currentRun=0;
+//                    }
+//            }
+//            else
+//            {
+//                currentRun++;
+//            }
+//        }
+//        if (currentRun > 0)
+//        {
+//            if (currentRun > LINE_THRESH)
+//            {   
+//                for (int ri=1; ri<currentRun+1; ri++)
+//                {
+//                    ret.setPixel(ret.width()-ri,j,WHITE);
+//                }
+//            }
             
-            currentRun=0;
-        }
-    }
+//            currentRun=0;
+//        }
+//    }
 
     
-    //bottom
-    currentRun=0;
-    cont = true;
-    for (j=ret.height()-1; j>ret.height()-4 && cont; j--)
-    {
-        cont = false;
-        for (int i=0; i<ret.width(); i++)
-        {
-            if (qGray(ret.pixel(i,j)) != BLACK)
-            {
-                    if (currentRun > 0)
-                    {
-                        if (currentRun > LINE_THRESH)
-                        {   
-                            cont = true;
-                            for (int ri=1; ri<currentRun+1; ri++)
-                            {
-                                ret.setPixel(i-ri,j,WHITE);
-                            }
-                        }
+//    //bottom
+//    currentRun=0;
+//    cont = true;
+//    for (j=ret.height()-1; j>ret.height()-4 && cont; j--)
+//    {
+//        cont = false;
+//        for (int i=0; i<ret.width(); i++)
+//        {
+//            if (qGray(ret.pixel(i,j)) != BLACK)
+//            {
+//                    if (currentRun > 0)
+//                    {
+//                        if (currentRun > LINE_THRESH)
+//                        {   
+//                            cont = true;
+//                            for (int ri=1; ri<currentRun+1; ri++)
+//                            {
+//                                ret.setPixel(i-ri,j,WHITE);
+//                            }
+//                        }
                         
-                        currentRun=0;
-                    }
-            }
-            else
-            {
-                currentRun++;
-            }
-        }
-        if (currentRun > 0)
-        {
-            if (currentRun > LINE_THRESH)
-            {   
-                for (int ri=1; ri<currentRun+1; ri++)
-                {
-                    ret.setPixel(ret.width()-ri,j,WHITE);
-                }
-            }
+//                        currentRun=0;
+//                    }
+//            }
+//            else
+//            {
+//                currentRun++;
+//            }
+//        }
+//        if (currentRun > 0)
+//        {
+//            if (currentRun > LINE_THRESH)
+//            {   
+//                for (int ri=1; ri<currentRun+1; ri++)
+//                {
+//                    ret.setPixel(ret.width()-ri,j,WHITE);
+//                }
+//            }
             
-            currentRun=0;
-        }
-    }
+//            currentRun=0;
+//        }
+//    }
     
-    //left
-    currentRun = 0;
-    cont = true;
-    for (i=0; i<3 && cont; i++)
-    {
-        cont = false;
-        for (int j=0; j<ret.height(); j++)
-        {
-            if (qGray(ret.pixel(i,j)) != BLACK)
-            {
-                    if (currentRun > 0)
-                    {
-                        if (currentRun > LINE_THRESH)
-                        {   
-                            cont = true;
-                            for (int rj=1; rj<currentRun+1; rj++)
-                            {
-                                ret.setPixel(i,j-rj,WHITE);
-                            }
-                        }
+//    //left
+//    currentRun = 0;
+//    cont = true;
+//    for (i=0; i<3 && cont; i++)
+//    {
+//        cont = false;
+//        for (int j=0; j<ret.height(); j++)
+//        {
+//            if (qGray(ret.pixel(i,j)) != BLACK)
+//            {
+//                    if (currentRun > 0)
+//                    {
+//                        if (currentRun > LINE_THRESH)
+//                        {   
+//                            cont = true;
+//                            for (int rj=1; rj<currentRun+1; rj++)
+//                            {
+//                                ret.setPixel(i,j-rj,WHITE);
+//                            }
+//                        }
                         
-                        currentRun=0;
-                    }
-            }
-            else
-            {
-                currentRun++;
-            }
-        }
-        if (currentRun > 0)
-        {
-            if (currentRun > LINE_THRESH)
-            {   
-                for (int rj=1; rj<currentRun+1; rj++)
-                {
-                    ret.setPixel(i,ret.height()-rj,WHITE);
-                }
-            }
+//                        currentRun=0;
+//                    }
+//            }
+//            else
+//            {
+//                currentRun++;
+//            }
+//        }
+//        if (currentRun > 0)
+//        {
+//            if (currentRun > LINE_THRESH)
+//            {   
+//                for (int rj=1; rj<currentRun+1; rj++)
+//                {
+//                    ret.setPixel(i,ret.height()-rj,WHITE);
+//                }
+//            }
             
-            currentRun=0;
-        }
-    }
+//            currentRun=0;
+//        }
+//    }
     
-    //left
-    currentRun = 0;
-    cont = true;
-    for (i=ret.width()-1; i>ret.width()-4 && cont; i--)
-    {
-        cont = false;
-        for (int j=0; j<ret.height(); j++)
-        {
-            if (qGray(ret.pixel(i,j)) != BLACK)
-            {
-                    if (currentRun > 0)
-                    {
-                        if (currentRun > LINE_THRESH)
-                        {   
-                            cont = true;
-                            for (int rj=1; rj<currentRun+1; rj++)
-                            {
-                                ret.setPixel(i,j-rj,WHITE);
-                            }
-                        }
+//    //left
+//    currentRun = 0;
+//    cont = true;
+//    for (i=ret.width()-1; i>ret.width()-4 && cont; i--)
+//    {
+//        cont = false;
+//        for (int j=0; j<ret.height(); j++)
+//        {
+//            if (qGray(ret.pixel(i,j)) != BLACK)
+//            {
+//                    if (currentRun > 0)
+//                    {
+//                        if (currentRun > LINE_THRESH)
+//                        {   
+//                            cont = true;
+//                            for (int rj=1; rj<currentRun+1; rj++)
+//                            {
+//                                ret.setPixel(i,j-rj,WHITE);
+//                            }
+//                        }
                         
-                        currentRun=0;
-                    }
-            }
-            else
-            {
-                currentRun++;
-            }
-        }
-        if (currentRun > 0)
-        {
-            if (currentRun > LINE_THRESH)
-            {   
-                for (int rj=1; rj<currentRun+1; rj++)
-                {
-                    ret.setPixel(i,ret.height()-rj,WHITE);
-                }
-            }
+//                        currentRun=0;
+//                    }
+//            }
+//            else
+//            {
+//                currentRun++;
+//            }
+//        }
+//        if (currentRun > 0)
+//        {
+//            if (currentRun > LINE_THRESH)
+//            {   
+//                for (int rj=1; rj<currentRun+1; rj++)
+//                {
+//                    ret.setPixel(i,ret.height()-rj,WHITE);
+//                }
+//            }
             
-            currentRun=0;
-        }
-    }
+//            currentRun=0;
+//        }
+//    }
     
     
     
@@ -416,42 +570,146 @@ QImage WordSeparator::trimBoundaries(QImage &img)
 
 QImage WordSeparator::removePixelNoise(QImage &img)
 {
+    int NOISE_BUFF = 6;
+    
     QImage ret = img.copy(0,0,img.width(),img.height());
+    
+    //corners
+    if (qGray(ret.pixel(0,1)) != BLACK && qGray(ret.pixel(1,0)) != BLACK && qGray(ret.pixel(1,1)) != BLACK)
+        ret.setPixel(0,0,WHITE);
+    if (qGray(ret.pixel(0,ret.height()-2)) != BLACK && qGray(ret.pixel(1,ret.height()-1)) != BLACK && qGray(ret.pixel(1,ret.height()-2)) != BLACK)
+        ret.setPixel(0,ret.height()-1,WHITE);
+    if (qGray(ret.pixel(ret.width()-1,1)) != BLACK && qGray(ret.pixel(ret.width()-2,0)) != BLACK && qGray(ret.pixel(ret.width()-2,1)) != BLACK)
+        ret.setPixel(ret.width()-1,0,WHITE);
+    if (qGray(ret.pixel(ret.width()-1,ret.height()-2)) != BLACK && qGray(ret.pixel(ret.width()-2,ret.height()-1)) != BLACK && qGray(ret.pixel(ret.width()-2,ret.height()-2)) != BLACK)
+        ret.setPixel(ret.width()-1,ret.height()-1,WHITE);
+    
+    
     //top and bottom
-    for (int i=0; i<ret.width(); i++)
+    for (int i=1; i<ret.width()-1; i++)
     {
-        if (qGray(ret.pixel(i,0)) == BLACK && qGray(ret.pixel(i,1)) != BLACK)
+        if (qGray(ret.pixel(i,0)) == BLACK && 
+                qGray(ret.pixel(i-1,1)) != BLACK && qGray(ret.pixel(i,1)) != BLACK && qGray(ret.pixel(i+1,1)) != BLACK)
             ret.setPixel(i,0,WHITE);
-        if (qGray(ret.pixel(i,img.height()-1)) == BLACK && qGray(ret.pixel(i,img.height()-2)) != BLACK)
+        if (qGray(ret.pixel(i,img.height()-1)) == BLACK && 
+                qGray(ret.pixel(i-1,img.height()-2)) != BLACK && qGray(ret.pixel(i,img.height()-2)) != BLACK && qGray(ret.pixel(i+1,img.height()-2)) != BLACK)
             ret.setPixel(i,img.height()-1,WHITE);
     }
     
     for (int j=1; j<ret.height()-1; j++)
     {
-        for (int i=0; i<ret.width(); i++)
+        for (int i=1; i<ret.width()-1; i++)
         {
-            if (qGray(ret.pixel(i,j)) == BLACK && qGray(ret.pixel(i,j+1)) != BLACK && qGray(ret.pixel(i,j-1)) != BLACK)
+            if (qGray(ret.pixel(i,j)) == BLACK && 
+                    qGray(ret.pixel(i-1,j+1)) != BLACK && qGray(ret.pixel(i,j+1)) != BLACK && qGray(ret.pixel(i+1,j+1)) != BLACK && 
+                    qGray(ret.pixel(i-1,j-1)) != BLACK && qGray(ret.pixel(i,j-1)) != BLACK && qGray(ret.pixel(i+1,j-1)) != BLACK)
                 ret.setPixel(i,j,WHITE);
         }
     }
     
     //left and right
-    for (int j=0; j<ret.height(); j++)
+    for (int j=1; j<ret.height()-1; j++)
     {
-        if (qGray(ret.pixel(0,j)) == BLACK && qGray(ret.pixel(1,j)) != BLACK)
+        if (qGray(ret.pixel(0,j)) == BLACK && qGray(ret.pixel(1,j-1)) != BLACK && qGray(ret.pixel(1,j)) != BLACK && qGray(ret.pixel(1,j+1)) != BLACK)
             ret.setPixel(0,j,WHITE);
-        if (qGray(ret.pixel(img.width()-1,j)) == BLACK && qGray(ret.pixel(img.width()-2,j)) != BLACK)
+        if (qGray(ret.pixel(img.width()-1,j)) == BLACK && qGray(ret.pixel(img.width()-2,j-1)) != BLACK && qGray(ret.pixel(img.width()-2,j)) != BLACK && qGray(ret.pixel(img.width()-2,j+1)) != BLACK)
             ret.setPixel(img.width()-1,j,WHITE);
     }
     
     for (int i=1; i<ret.width()-1; i++)
     {
-        for (int j=0; j<ret.height(); j++)
+        for (int j=1; j<ret.height()-1; j++)
         {
-            if (qGray(ret.pixel(i,j)) == BLACK && qGray(ret.pixel(i+1,j)) != BLACK && qGray(ret.pixel(i-1,j)) != BLACK)
+            if (qGray(ret.pixel(i,j)) == BLACK && 
+                    qGray(ret.pixel(i+1,j-1)) != BLACK && qGray(ret.pixel(i+1,j)) != BLACK && qGray(ret.pixel(i+1,j+1)) != BLACK && 
+                    qGray(ret.pixel(i-1,j-1)) != BLACK && qGray(ret.pixel(i-1,j)) != BLACK && qGray(ret.pixel(i-1,j+1)) != BLACK)
                 ret.setPixel(i,j,WHITE);
         }
     }
+    
+    
+    //Flood fill filter
+    int BLOB_THRESH = 45;
+    QImage mark = ret.copy(0,0,ret.width(),ret.height());
+    QVector<QPoint> workingStack;
+    QVector<QPoint> toClearStack;
+    
+    for (int i=0; i<mark.width(); i++)
+    {
+        for (int j=0; j<mark.height(); j++)
+        {
+            if (qGray(mark.pixel(i,j)) == BLACK)
+            {
+                int num=0;
+                QPoint p(i,j);
+                workingStack.push_back(p);
+                while (!workingStack.isEmpty())
+                {   
+                    QPoint cur = workingStack.back();
+                    workingStack.pop_back();
+                    toClearStack.push_back(cur);
+                    
+                    mark.setPixel(cur,WHITE);
+                    num++;
+                    if (cur.x()<mark.width()-1 && qGray(mark.pixel(cur.x()+1,cur.y())) == BLACK)
+                    {
+                        QPoint pp(cur.x()+1,cur.y());
+                        workingStack.push_back(pp);
+                    }
+                    if (cur.y()<mark.height()-1 && qGray(mark.pixel(cur.x(),cur.y()+1)) == BLACK)
+                    {
+                        QPoint pp(cur.x(),cur.y()+1);
+                        workingStack.push_back(pp);
+                    }
+                    if (cur.x()>0 && qGray(mark.pixel(cur.x()-1,cur.y())) == BLACK)
+                    {
+                        QPoint pp(cur.x()-1,cur.y());
+                        workingStack.push_back(pp);
+                    }
+                    if (cur.y()>0 && qGray(mark.pixel(cur.x(),cur.y()-1)) == BLACK)
+                    {
+                        QPoint pp(cur.x(),cur.y()-1);
+                        workingStack.push_back(pp);
+                    }
+                    //diagonals
+                    if (cur.x()<mark.width()-1 && cur.y()<mark.height()-1 && qGray(mark.pixel(cur.x()+1,cur.y()+1)) == BLACK)
+                    {
+                        QPoint pp(cur.x()+1,cur.y()+1);
+                        workingStack.push_back(pp);
+                    }
+                    if (cur.y()<mark.height()-1 && cur.x()>0 && qGray(mark.pixel(cur.x()-1,cur.y()+1)) == BLACK)
+                    {
+                        QPoint pp(cur.x()-1,cur.y()+1);
+                        workingStack.push_back(pp);
+                    }
+                    if (cur.x()>0 && cur.y()<mark.height()-1 && qGray(mark.pixel(cur.x()-1,cur.y()+1)) == BLACK)
+                    {
+                        QPoint pp(cur.x()-1,cur.y()+1);
+                        workingStack.push_back(pp);
+                    }
+                    if (cur.y()>0 && cur.x()>0 && qGray(mark.pixel(cur.x()-1,cur.y()-1)) == BLACK)
+                    {
+                        QPoint pp(cur.x()-1,cur.y()-1);
+                        workingStack.push_back(pp);
+                    }
+                }
+                if (num>BLOB_THRESH)
+                {
+                    toClearStack.clear();
+                }
+                
+                while (!toClearStack.isEmpty())
+                {
+                    QPoint r = toClearStack.back();
+                    toClearStack.pop_back();
+                    
+                    //printf("remove p(%d,%d)\n",r.x(),r.y());
+                    ret.setPixel(r,WHITE);
+                }
+            }
+        }
+    }
+    
     return ret;
 }
 
