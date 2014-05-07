@@ -9,6 +9,7 @@
 
 #define BLACK 0
 #define WHITE 255
+#define ARCHOR_M 5.25
 
 WordSeparator::WordSeparator()
 {
@@ -110,10 +111,10 @@ QImage WordSeparator::trimBoundaries(QImage &img)
     int trimLeft=0;
     int trimRight=img.width();
     
-    int PROFILE_HORZ_THRESH = img.width()*.65;
-    int RUN_HORZ_THRESH = img.width()*.35;
+    int PROFILE_HORZ_THRESH = img.width()*.75;
+    int RUN_HORZ_THRESH = img.width()*.55;   
     int PROFILE_HORZ_THRESH_E = img.width()*.8;
-    int RUN_HORZ_THRESH_E = img.width()*.5;
+    int RUN_HORZ_THRESH_E = img.width()*.65;
     int PROFILE_VERT_THRESH = img.height()*.85;
     int RUN_VERT_THRESH = img.height()*.7;
     int i;
@@ -348,6 +349,19 @@ QImage WordSeparator::trimBoundaries(QImage &img)
          }
      }
      
+     
+     //edge/line filter
+     
+     for (j=0; j<9; j++)
+     {
+         lineFilterAtJ(j,ret);
+     }
+     for (j=ret.height()-1; j>ret.height()-10; j--)
+     {
+         lineFilterAtJ(j,ret);
+     }
+     
+     
      //EVERYWHERE
      for (j=0; j<ret.height(); j++)
      {
@@ -568,6 +582,56 @@ QImage WordSeparator::trimBoundaries(QImage &img)
     //return img.copy(trimLeft,trimTop,img.width()-(trimLeft+trimRight),img.height()-(trimTop+trimBottom));
 }
 
+
+void WordSeparator::lineFilterAtJ(int j, QImage &ret)
+{
+    int FILTER_RUN_HORZ_THRESH = ret.width()*.05;
+    int runLength=0;
+    int i;
+    for (i=0; i<ret.width(); i++)
+    {
+        if (qGray(ret.pixel(i,j)) == BLACK)
+        {
+            int filterSum = 2;
+            if (j > 3 && qGray(ret.pixel(i,j-3)) == BLACK)
+                filterSum -= 2;
+            if (j > 2 && qGray(ret.pixel(i,j-2)) == BLACK)
+                filterSum -= 2;
+            if (j > 1 && qGray(ret.pixel(i,j-1)) == BLACK)
+                filterSum += 1;
+            if (j < ret.height()-1 && qGray(ret.pixel(i,j+1)) == BLACK)
+                filterSum += 1;
+            if (j < ret.height()-2 && qGray(ret.pixel(i,j+2)) == BLACK)
+                filterSum -= 2;
+            if (j < ret.height()-3 && qGray(ret.pixel(i,j+3)) == BLACK)
+                filterSum -= 2;
+            
+            if (filterSum > 0)
+            {
+                runLength++;
+            }
+            else
+            {
+                if (runLength>FILTER_RUN_HORZ_THRESH)
+                {
+                    for (;runLength>0; runLength--)
+                        ret.setPixel(i-runLength,j,WHITE);
+                }
+                runLength=0;
+            }
+        }
+        else
+        {
+            if (runLength>FILTER_RUN_HORZ_THRESH)
+            {
+                for (;runLength>0; runLength--)
+                    ret.setPixel(i-runLength,j,WHITE);
+            }
+            runLength=0;
+        }
+    }
+}
+
 QImage WordSeparator::removePixelNoise(QImage &img)
 {
     int NOISE_BUFF = 6;
@@ -634,9 +698,11 @@ QImage WordSeparator::removePixelNoise(QImage &img)
     QVector<QPoint> workingStack;
     QVector<QPoint> toClearStack;
     
-    for (int i=0; i<mark.width(); i++)
+    for (int j=0; j<mark.height(); j++)
     {
-        for (int j=0; j<mark.height(); j++)
+        if (j > 10 && j < 12)
+            j = mark.height()-12;
+        for (int i=0; i<mark.width(); i++)
         {
             if (qGray(mark.pixel(i,j)) == BLACK)
             {
@@ -764,6 +830,42 @@ QVector<QImage> WordSeparator::minCut(QImage &img)
     
     firstImg = firstImg.copy(0,0,firstFarthestRightPixel+1,firstImg.height());
     secondImg = secondImg.copy(secondFarthestLeftPixel, 0, secondImg.width()-secondFarthestLeftPixel, secondImg.height());
+    
+    
+    
+    /*
+    //find source pixels
+    bool finish = false;
+    int count_source = firstImg.height()*ARCHOR_M;
+    for (int i=0; count_source>0 && i<firstImg.width(); i++)
+    {
+        for (int j=0; count_source>0 && j<firstImg.height(); j++)
+        {
+            if (qGray(firstImg.pixel(i,j))==BLACK)
+            {
+                firstImg.setPixel(i,j,150);
+                count_source--;
+            }
+        }
+    }
+    
+    int count_sink=secondImg.height()*ARCHOR_M;
+    
+    //find sink pixels
+    finish = false;
+    for (int i=secondImg.width()-1; count_sink>0 && i>=0; i--)
+    {
+        for (int j=secondImg.height()-1; count_sink>0 && j>=0; j--)
+        {
+            if (qGray(secondImg.pixel(i,j))==0)
+            {
+                secondImg.setPixel(i,j,150);
+                count_sink--;
+            }
+        }
+    }*/
+    
+    
    
     QVector<QImage> ret;
     ret.append(firstImg);
@@ -878,26 +980,19 @@ void WordSeparator::computeInverseDistanceMap(QImage &img, int* out)
     //invert
     //printf("maxDist=%d\n",maxDist);
     maxDist++;
-    double normalizer = (20.0/pow(maxDist,7));
+    //double normalizer = (255.0/pow(maxDist,10));
+    double normalizer = (24.0/maxDist);
     int newmax = 0;
     for (int q = 0; q < img.width()*img.height(); q++)
-    {
-        
-        /*if (q%img.width()==0)
-        {
-            printf("\n");
-        }
-        if (q%img.width() < 20)
-        {
-            printf ("%d,",out[q]);
-        }*/
-        
-        out[q] = pow(maxDist - out[q],7)*normalizer;
+    {   
+        //out[q] = pow(maxDist - out[q],10)*normalizer;
+        out[q] = pow(6,24-out[q]*normalizer)/pow(6,20);
         
         if (out[q]>newmax)
             newmax=out[q];
     }
     
+    //printf("newMax:%d\n",newmax);
     QImage debug=img.copy(0,0,img.width(),img.height());//(img.width(),img.height(),img.format());
     for (int i=0; i<debug.width(); i++)
     {
@@ -1022,8 +1117,6 @@ int WordSeparator::pixelsOfSeparation(int* invDistMap, int width, int height, QI
     {
         g->add_node();
     }
-    
-    float ARCHOR_M = 1.25;
     
     //find source pixels
     bool finish = false;

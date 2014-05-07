@@ -22,6 +22,7 @@ private:
     static int pixelsOfSeparation(int* invDistMap, int width, int height, QImage &img, QVector<int> &out);
     static int f(int x, int i, int y, int m, int* g);
     static int SepPlusOne(int i, int u, int y, int m, int* g);
+    static void lineFilterAtJ(int j, QImage &ret);
 };
 
 #endif // WORDSEPERATOR_H

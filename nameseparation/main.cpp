@@ -41,6 +41,13 @@ int main(int argc, char** argv)
     if (!test)
         cout << "ERROR split!!" << endl;
     
+    
+    /*Typically, the first cut (along a space) is <5000, often close to 0
+      A second cut along a dash is around 20000
+      A second cut between letters is >20000
+      These last two are often relative to each other. Meaning if both are below 20000, the smaller is the dash
+      */
+    
     return 0;
 }
 
