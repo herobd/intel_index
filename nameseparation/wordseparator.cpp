@@ -9,7 +9,7 @@
 
 #define BLACK 0
 #define WHITE 255
-#define ARCHOR_M 5.25
+#define ARCHOR_M 2.75
 
 WordSeparator::WordSeparator()
 {
@@ -1152,7 +1152,7 @@ int WordSeparator::pixelsOfSeparation(int* invDistMap, int width, int height, QI
     {
         for (int j=height-1; count_sink>0 && j>=0; j--)
         {
-            if (qGray(img.pixel(i,j))==0)
+            if (qGray(img.pixel(i,j))==BLACK)
             {
                 finish=true;
                 int index = i+width*j;
@@ -1173,6 +1173,9 @@ int WordSeparator::pixelsOfSeparation(int* invDistMap, int width, int height, QI
     
     //printf("num source:%d, num sink:%d\n",count_source,count_sink);
     
+    double BLACK_TO_BLACK_BIAS = .5;
+    
+    //connect all pixels
     for (int i=0; i<width; i++)
     {
         for (int j=0; j<height; j++)
@@ -1181,10 +1184,41 @@ int WordSeparator::pixelsOfSeparation(int* invDistMap, int width, int height, QI
 //                g -> add_edge(i+j*width, (i+1)+j*width, invDistMap[(i+1)+j*width], invDistMap[i+j*width]);
 //            if (j+1<height)
 //                g -> add_edge(i+j*width, i+(j+1)*width, invDistMap[i+(j+1)*width], invDistMap[i+j*width]);
+            
+            //double wieght between black pixels?
+            
+            
             if (i+1<width)
-                g -> add_edge(i+j*width, (i+1)+j*width, (invDistMap[(i+1)+j*width]+invDistMap[i+j*width])/2, (invDistMap[i+j*width]+invDistMap[(i+1)+j*width])/2);
+            {
+                if (qGray(img.pixel(i,j))==BLACK && qGray(img.pixel(i+1,j))==BLACK)
+                    g -> add_edge(i+j*width, (i+1)+j*width, (invDistMap[(i+1)+j*width]+invDistMap[i+j*width])*BLACK_TO_BLACK_BIAS, (invDistMap[i+j*width]+invDistMap[(i+1)+j*width])*BLACK_TO_BLACK_BIAS);
+                else
+                    g -> add_edge(i+j*width, (i+1)+j*width, (invDistMap[(i+1)+j*width]+invDistMap[i+j*width])/BLACK_TO_BLACK_BIAS, (invDistMap[i+j*width]+invDistMap[(i+1)+j*width])/BLACK_TO_BLACK_BIAS);
+            }
+            
             if (j+1<height)
-                g -> add_edge(i+j*width, i+(j+1)*width, (invDistMap[i+(j+1)*width]+invDistMap[i+j*width])/2, (invDistMap[i+j*width]+invDistMap[i+(j+1)*width])/2);
+            {
+                if (qGray(img.pixel(i,j))==BLACK && qGray(img.pixel(i,j+1))==BLACK)
+                    g -> add_edge(i+j*width, i+(j+1)*width, (invDistMap[i+(j+1)*width]+invDistMap[i+j*width])*BLACK_TO_BLACK_BIAS, (invDistMap[i+j*width]+invDistMap[i+(j+1)*width])*BLACK_TO_BLACK_BIAS);
+                else
+                    g -> add_edge(i+j*width, i+(j+1)*width, (invDistMap[i+(j+1)*width]+invDistMap[i+j*width])/2, (invDistMap[i+j*width]+invDistMap[i+(j+1)*width])/2);
+            }
+            
+            if (j>0 && i<width-1)
+            {
+                if (qGray(img.pixel(i,j))==BLACK && qGray(img.pixel(i+1,j-1))==BLACK)
+                    g -> add_edge(i+j*width, (i+1)+(j-1)*width, (invDistMap[(i+1)+(j-1)*width]+invDistMap[i+j*width])*BLACK_TO_BLACK_BIAS, (invDistMap[i+j*width]+invDistMap[(i+1)+(j-1)*width])*BLACK_TO_BLACK_BIAS);
+                else
+                    g -> add_edge(i+j*width, (i+1)+(j-1)*width, (invDistMap[(i+1)+(j-1)*width]+invDistMap[i+j*width])/2, (invDistMap[i+j*width]+invDistMap[(i+1)+(j-1)*width])/2);
+            }
+            
+            if (j<height-1 && i<width-1)
+            {
+                if (qGray(img.pixel(i,j))==BLACK && qGray(img.pixel(i+1,j+1))==BLACK)
+                    g -> add_edge(i+j*width, (i+1)+(j+1)*width, (invDistMap[(i+1)+(j+1)*width]+invDistMap[i+j*width])*BLACK_TO_BLACK_BIAS, (invDistMap[i+j*width]+invDistMap[(i+1)+(j+1)*width])*BLACK_TO_BLACK_BIAS);
+                else
+                    g -> add_edge(i+j*width, (i+1)+(j+1)*width, (invDistMap[(i+1)+(j+1)*width]+invDistMap[i+j*width])/2, (invDistMap[i+j*width]+invDistMap[(i+1)+(j+1)*width])/2);
+            }
         }
     }
     
