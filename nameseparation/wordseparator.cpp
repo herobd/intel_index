@@ -634,7 +634,7 @@ void WordSeparator::lineFilterAtJ(int j, QImage &ret)
 
 QImage WordSeparator::removePixelNoise(QImage &img)
 {
-    int NOISE_BUFF = 6;
+    //int NOISE_BUFF = 6;
     
     QImage ret = img.copy(0,0,img.width(),img.height());
     
@@ -826,7 +826,7 @@ QVector<QImage> WordSeparator::minCut(QImage &img)
         }
     }
     
-    printf("maxflow= %d, first right border:%d, second left border:%d\n",maxflow,firstFarthestRightPixel,secondFarthestLeftPixel);
+    //printf("maxflow= %d, first right border:%d, second left border:%d\n",maxflow,firstFarthestRightPixel,secondFarthestLeftPixel);
     
     firstImg = firstImg.copy(0,0,firstFarthestRightPixel+1,firstImg.height());
     secondImg = secondImg.copy(secondFarthestLeftPixel, 0, secondImg.width()-secondFarthestLeftPixel, secondImg.height());
@@ -871,6 +871,87 @@ QVector<QImage> WordSeparator::minCut(QImage &img)
     ret.append(firstImg);
     ret.append(secondImg);
     return ret;
+}
+
+
+/* There are two parameters to evaluate if we have the correct cut:
+   maxflow of the cut and surronding cuts and the number of pixels in the cut.
+   for a decision tree, these 
+   -num of pixels in cut
+   -difference between maxflow and maxflow of all other cuts
+   -width of cut, or relative width of cut
+   -
+   
+  */
+QImage WordSeparator::recursiveCutWordToFirstLetter(QImage &img)
+{
+    QVector<QImage> cuts;
+    QVector<int> cutFlows;
+    QVector<int> sizeOfCuts;
+    int numOfCuts = 0;
+    
+    cuts.append(img);
+    cutFlows.append(0);
+    sizeOfCuts.append(0);
+    
+    int num_pix = img.width()*img.height();
+    int invDistMap[num_pix];
+    
+    QVector<int> firstImgBlackPixelIndexes;
+    while(true)
+    {
+        firstImgBlackPixelIndexes.clear();
+        num_pix = cuts[numOfCuts].width()*cuts[numOfCuts].height();
+        
+        computeInverseDistanceMap(cuts[numOfCuts],invDistMap);//do we need a new distance map each cut?
+        
+        int maxflow = pixelsOfSeparation(invDistMap,cuts[numOfCuts].width(),cuts[numOfCuts].height(),cuts[numOfCuts],firstImgBlackPixelIndexes);
+        
+        int firstFarthestRightPixel = 0;
+        
+        QImage firstImg = cuts[numOfCuts].copy(0,0,cuts[numOfCuts].width(),cuts[numOfCuts].height());
+        firstImg.fill(255);
+        
+        foreach(int index, firstImgBlackPixelIndexes)
+        {
+            int x = index%cuts[numOfCuts].width();
+            int y = index/cuts[numOfCuts].width();
+            firstImg.setPixel(x,y,0);
+            
+            if (x>firstFarthestRightPixel)
+                firstFarthestRightPixel=x;
+        }
+        
+        cuts.push_back(firstImg.copy(0,0,firstFarthestRightPixel+1,firstImg.height()));
+        if (maxflow<0)
+            maxflow = INT_POS_INFINITY;
+        cutFlows.append(maxflow);
+        sizeOfCuts.append(firstImgBlackPixelIndexes.size());
+        numOfCuts++;
+        
+        //printf("Cut %d: maxflow=%d, size=%d\n",numOfCuts,cutFlows[numOfCuts],sizeOfCuts[numOfCuts]);
+        QString numstr;
+        numstr.setNum(numOfCuts);
+        QString filename = "cut";
+        filename+=numstr;
+        filename+=".pgm";
+        cuts[numOfCuts].save(filename);
+        
+        
+        if (numOfCuts>4)
+        {
+            break;
+        }
+    }
+    
+    
+    printf("%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,\n",
+           cuts[1].width(),cuts[2].width(),cuts[3].width(),cuts[4].width(),cuts[5].width(),
+           sizeOfCuts[1],sizeOfCuts[2],sizeOfCuts[3],sizeOfCuts[4],sizeOfCuts[5],
+           cutFlows[1],cutFlows[2],cutFlows[3],cutFlows[4],cutFlows[5],
+           cutFlows[2]-cutFlows[1],cutFlows[3]-cutFlows[2],cutFlows[4]-cutFlows[3],cutFlows[5]-cutFlows[4]);
+    
+    return cuts[0];
 }
 
 //Meijster distance <http://fab.cba.mit.edu/classes/S62.12/docs/Meijster_distance.pdf>
@@ -1119,7 +1200,6 @@ int WordSeparator::pixelsOfSeparation(int* invDistMap, int width, int height, QI
     }
     
     //find source pixels
-    bool finish = false;
     int count_source = height*ARCHOR_M;
     for (int i=0; count_source>0 && i<width; i++)
     {
@@ -1127,53 +1207,32 @@ int WordSeparator::pixelsOfSeparation(int* invDistMap, int width, int height, QI
         {
             if (qGray(img.pixel(i,j))==BLACK)
             {
-                finish=true;
                 int index = i+width*j;
                 g -> add_tweights(index, INT_POS_INFINITY,0);//invDistMap[index], 0);
                 count_source--;
             }
         }
-//        if (finish)
-//        {
-////            for (int j=0; j<height; j++)
-////            {
-////                int index = i+width*j;
-////                g -> add_tweights(index, INT_POS_INFINITY,0);//invDistMap[index], 0);
-////            }
-//            break;
-//        }
     }
     
     int count_sink=height*ARCHOR_M;
     
     //find sink pixels
-    finish = false;
     for (int i=width-1; count_sink>0 && i>=0; i--)
     {
         for (int j=height-1; count_sink>0 && j>=0; j--)
         {
             if (qGray(img.pixel(i,j))==BLACK)
             {
-                finish=true;
                 int index = i+width*j;
                 g -> add_tweights(index, 0, INT_POS_INFINITY);//invDistMap[index]);
                 count_sink--;
             }
         }
-//        if (finish)
-//        {
-////            for (int j=0; j<height; j++)
-////            {
-////                int index = i+width*j;
-////                g -> add_tweights(index, 0, INT_POS_INFINITY);//invDistMap[index]);
-////            }
-//            break;
-//        }
     }
     
     //printf("num source:%d, num sink:%d\n",count_source,count_sink);
     
-    double BLACK_TO_BLACK_BIAS = .5;
+    double BLACK_TO_BLACK_BIAS = 1;
     
     //connect all pixels
     for (int i=0; i<width; i++)
@@ -1191,9 +1250,9 @@ int WordSeparator::pixelsOfSeparation(int* invDistMap, int width, int height, QI
             if (i+1<width)
             {
                 if (qGray(img.pixel(i,j))==BLACK && qGray(img.pixel(i+1,j))==BLACK)
-                    g -> add_edge(i+j*width, (i+1)+j*width, (invDistMap[(i+1)+j*width]+invDistMap[i+j*width])*BLACK_TO_BLACK_BIAS, (invDistMap[i+j*width]+invDistMap[(i+1)+j*width])*BLACK_TO_BLACK_BIAS);
+                    g -> add_edge(i+j*width, (i+1)+j*width, (invDistMap[(i+1)+j*width]+invDistMap[i+j*width])*(BLACK_TO_BLACK_BIAS+1), (invDistMap[i+j*width]+invDistMap[(i+1)+j*width])*(BLACK_TO_BLACK_BIAS+1));
                 else
-                    g -> add_edge(i+j*width, (i+1)+j*width, (invDistMap[(i+1)+j*width]+invDistMap[i+j*width])/BLACK_TO_BLACK_BIAS, (invDistMap[i+j*width]+invDistMap[(i+1)+j*width])/BLACK_TO_BLACK_BIAS);
+                    g -> add_edge(i+j*width, (i+1)+j*width, (invDistMap[(i+1)+j*width]+invDistMap[i+j*width])*BLACK_TO_BLACK_BIAS, (invDistMap[i+j*width]+invDistMap[(i+1)+j*width])*BLACK_TO_BLACK_BIAS);
             }
             
             if (j+1<height)
