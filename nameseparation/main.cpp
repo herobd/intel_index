@@ -20,14 +20,15 @@ int main(int argc, char** argv)
     if (!test)
        cout << "ERROR nonoise!!" << endl;
     
+    WordSeparator::cutNames(nonoise);
     
-    QVector<QImage> split = WordSeparator::minCut(nonoise);
-    //cout << "Save first" << endl;
-    test = split[0].save("./testimg_first_left.pgm");
-    // cout << "Save second" << endl;
-    test &= split[1].save("./testimg_1first_right.pgm");
-    if (!test)
-        cout << "ERROR split!!" << endl;
+//    QVector<QImage> split = WordSeparator::minCut(nonoise);
+//    //cout << "Save first" << endl;
+//    test = split[0].save("./testimg_first_left.pgm");
+//    // cout << "Save second" << endl;
+//    test &= split[1].save("./testimg_1first_right.pgm");
+//    if (!test)
+//        cout << "ERROR split!!" << endl;
     
 //    QVector<QImage> split2 = WordSeparator::minCut(split[0]);
 //    test = split2[0].save("./testimg_second0_left.pgm");
@@ -35,7 +36,7 @@ int main(int argc, char** argv)
 //    if (!test)
 //        cout << "ERROR split!!" << endl;
     
-    WordSeparator::recursiveCutWordToFirstLetter(split[1]);
+    //WordSeparator::recursiveCutWordToFirstLetter(split[1]);
     
 //    QVector<QImage> split2 = WordSeparator::minCut(split[1]);
 //    test = split2[0].save("./testimg_2second1_left.pgm");

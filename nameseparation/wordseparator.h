@@ -15,6 +15,7 @@ public:
     static QVector<QImage> minCut(QImage &img);
     static QImage trimBoundaries(QImage &img);
     static QImage removePixelNoise(QImage &img);
+    static QVector<QImage> cutNames(QImage &img);
     static QImage recursiveCutWordToFirstLetter(QImage &img);
     
 private:

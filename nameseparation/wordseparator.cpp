@@ -874,6 +874,198 @@ QVector<QImage> WordSeparator::minCut(QImage &img)
 }
 
 
+QVector<QImage> WordSeparator::cutNames(QImage &img)
+{
+    
+    int maxFlow_firstCut;
+    int pixelWidth_firstCut_left;
+    int pixelWidth_firstCut_right;
+    int pixelCount_firstCut_left;
+    int pixelCount_firstCut_right;
+    
+    int num_pix = img.width()*img.height();
+    int invDistMap[num_pix];
+    
+    QVector<int> firstImgBlackPixelIndexes;
+    
+    firstImgBlackPixelIndexes.clear();
+    
+    computeInverseDistanceMap(img,invDistMap);//do we need a new distance map each cut?
+    
+    maxFlow_firstCut = pixelsOfSeparation(invDistMap,img.width(),img.height(),img,firstImgBlackPixelIndexes);
+    
+    int firstFarthestRightPixel = 0;
+    int secondFarthestLeftPixel = 0;
+    
+    QImage firstImg = img.copy(0,0,img.width(),img.height());
+    firstImg.fill(255);
+    QImage secondImg = img.copy(0,0,img.width(),img.height());
+    
+    foreach(int index, firstImgBlackPixelIndexes)
+    {
+        int x = index%img.width();
+        int y = index/img.width();
+        firstImg.setPixel(x,y,0);
+        secondImg.setPixel(x,y,255);
+        
+        if (x>firstFarthestRightPixel)
+            firstFarthestRightPixel=x;
+    }
+    bool notFound = true;
+    for (int i=0; i<img.width() && notFound; i++)
+    {
+        for (int j=0; j<img.height() && notFound; j++)
+        {
+            if (qGray(secondImg.pixel(i,j))==0)
+            {
+                secondFarthestLeftPixel=i;
+                notFound = false;
+            }
+        }
+    }
+    
+    QImage leftImg = firstImg.copy(0,0,firstFarthestRightPixel+1,firstImg.height());
+    QImage rightImg = secondImg.copy(secondFarthestLeftPixel, 0, secondImg.width()-secondFarthestLeftPixel, secondImg.height());
+    if (maxFlow_firstCut<0)
+        maxFlow_firstCut = INT_POS_INFINITY;
+    pixelWidth_firstCut_left = leftImg.width();
+    pixelWidth_firstCut_right = rightImg.width();
+    pixelCount_firstCut_left = firstImgBlackPixelIndexes.size();
+    pixelCount_firstCut_right = num_pix - pixelCount_firstCut_left;
+    
+    //////
+    int maxFlow_secondCutL;
+    int pixelWidth_secondCutL_left;
+    int pixelWidth_secondCutL_right;
+    int pixelCount_secondCutL_left;
+    int pixelCount_secondCutL_right;
+    
+    num_pix = leftImg.width()*leftImg.height();
+    
+    firstImgBlackPixelIndexes.clear();
+    
+    computeInverseDistanceMap(leftImg,invDistMap);//do we need a new distance map each cut?
+    
+    maxFlow_secondCutL = pixelsOfSeparation(invDistMap,leftImg.width(),leftImg.height(),leftImg,firstImgBlackPixelIndexes);
+    
+    firstFarthestRightPixel = 0;
+    secondFarthestLeftPixel = 0;
+    
+    firstImg = leftImg.copy(0,0,leftImg.width(),leftImg.height());
+    firstImg.fill(255);
+    secondImg = leftImg.copy(0,0,leftImg.width(),leftImg.height());
+    
+    foreach(int index, firstImgBlackPixelIndexes)
+    {
+        int x = index%leftImg.width();
+        int y = index/leftImg.width();
+        firstImg.setPixel(x,y,0);
+        secondImg.setPixel(x,y,255);
+        
+        if (x>firstFarthestRightPixel)
+            firstFarthestRightPixel=x;
+    }
+    notFound = true;
+    for (int i=0; i<leftImg.width() && notFound; i++)
+    {
+        for (int j=0; j<leftImg.height() && notFound; j++)
+        {
+            if (qGray(secondImg.pixel(i,j))==0)
+            {
+                secondFarthestLeftPixel=i;
+                notFound = false;
+            }
+        }
+    }
+    
+    QImage leftImg2L = firstImg.copy(0,0,firstFarthestRightPixel+1,firstImg.height());
+    QImage rightImg2L = secondImg.copy(secondFarthestLeftPixel, 0, secondImg.width()-secondFarthestLeftPixel, secondImg.height());
+    if (maxFlow_secondCutL<0)
+        maxFlow_secondCutL = INT_POS_INFINITY;
+    pixelWidth_secondCutL_right = rightImg2L.width();
+    pixelWidth_secondCutL_left = leftImg2L.width();
+    pixelCount_secondCutL_left = firstImgBlackPixelIndexes.size();
+    pixelCount_secondCutL_right = pixelCount_firstCut_left - pixelCount_secondCutL_left;
+    
+    ////////b
+    
+    int maxFlow_secondCutR;
+    int pixelWidth_secondCutR_left;
+    int pixelWidth_secondCutR_right;
+    int pixelCount_secondCutR_left;
+    int pixelCount_secondCutR_right;
+    
+    num_pix = rightImg.width()*rightImg.height();
+    
+    firstImgBlackPixelIndexes.clear();
+    
+    computeInverseDistanceMap(rightImg,invDistMap);//do we need a new distance map each cut?
+    
+    maxFlow_secondCutR = pixelsOfSeparation(invDistMap,rightImg.width(),rightImg.height(),rightImg,firstImgBlackPixelIndexes);
+    
+    firstFarthestRightPixel = 0;
+    secondFarthestLeftPixel = 0;
+    
+    firstImg = rightImg.copy(0,0,rightImg.width(),rightImg.height());
+    firstImg.fill(255);
+    secondImg = rightImg.copy(0,0,rightImg.width(),rightImg.height());
+    
+    foreach(int index, firstImgBlackPixelIndexes)
+    {
+        int x = index%rightImg.width();
+        int y = index/rightImg.width();
+        firstImg.setPixel(x,y,0);
+        secondImg.setPixel(x,y,255);
+        
+        if (x>firstFarthestRightPixel)
+            firstFarthestRightPixel=x;
+    }
+    notFound = true;
+    for (int i=0; i<rightImg.width() && notFound; i++)
+    {
+        for (int j=0; j<rightImg.height() && notFound; j++)
+        {
+            if (qGray(secondImg.pixel(i,j))==0)
+            {
+                secondFarthestLeftPixel=i;
+                notFound = false;
+            }
+        }
+    }
+    
+    QImage leftImg2R = firstImg.copy(0,0,firstFarthestRightPixel+1,firstImg.height());
+    QImage rightImg2R = secondImg.copy(secondFarthestLeftPixel, 0, secondImg.width()-secondFarthestLeftPixel, secondImg.height());
+    if (maxFlow_secondCutR<0)
+        maxFlow_secondCutR = INT_POS_INFINITY;
+    pixelWidth_secondCutR_right = rightImg2R.width();
+    pixelWidth_secondCutR_left = leftImg2R.width();
+    pixelCount_secondCutR_left = firstImgBlackPixelIndexes.size();
+    pixelCount_secondCutR_right = pixelCount_firstCut_right - pixelCount_secondCutR_left;
+    ////////
+    
+    
+    
+    //printf("Cut %d: maxflow=%d, size=%d\n",numOfCuts,cutFlows[numOfCuts],sizeOfCuts[numOfCuts]);
+    
+    leftImg.save("first_left.pgm");
+    rightImg.save("first_right.pgm");
+    leftImg2L.save("secondL_left.pgm");
+    rightImg2L.save("secondL_right.pgm");
+    leftImg2R.save("secondR_left.pgm");
+    rightImg2R.save("secondR_right.pgm");
+    
+    
+    QVector<QImage> ret;
+    ret.append(leftImg);
+    printf("%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,\n",
+           maxFlow_firstCut,pixelWidth_firstCut_left,pixelWidth_firstCut_right,pixelCount_firstCut_left,pixelCount_firstCut_right,
+           maxFlow_secondCutL,pixelWidth_secondCutL_left,pixelWidth_secondCutL_right,pixelCount_secondCutL_left,pixelCount_secondCutL_right,
+           maxFlow_secondCutR,pixelWidth_secondCutR_left,pixelWidth_secondCutR_right,pixelCount_secondCutR_left,pixelCount_secondCutR_right,
+           maxFlow_firstCut-maxFlow_secondCutL,maxFlow_firstCut-maxFlow_secondCutR);
+    
+    return ret;
+}
+
 /* There are two parameters to evaluate if we have the correct cut:
    maxflow of the cut and surronding cuts and the number of pixels in the cut.
    for a decision tree, these 
@@ -1063,25 +1255,25 @@ void WordSeparator::computeInverseDistanceMap(QImage &img, int* out)
     maxDist++;
     //double normalizer = (255.0/pow(maxDist,10));
     double normalizer = (24.0/maxDist);
-    int newmax = 0;
+//    int newmax = 0;
     for (int q = 0; q < img.width()*img.height(); q++)
     {   
         //out[q] = pow(maxDist - out[q],10)*normalizer;
         out[q] = pow(6,24-out[q]*normalizer)/pow(6,20);
         
-        if (out[q]>newmax)
-            newmax=out[q];
+//        if (out[q]>newmax)
+//            newmax=out[q];
     }
     
     //printf("newMax:%d\n",newmax);
-    QImage debug=img.copy(0,0,img.width(),img.height());//(img.width(),img.height(),img.format());
-    for (int i=0; i<debug.width(); i++)
-    {
-        for (int j=0; j<debug.height(); j++)
-            debug.setPixel(i,j,(int)(out[i+j*debug.width()]/((double)newmax)*255));
+//    QImage debug=img.copy(0,0,img.width(),img.height());//(img.width(),img.height(),img.format());
+//    for (int i=0; i<debug.width(); i++)
+//    {
+//        for (int j=0; j<debug.height(); j++)
+//            debug.setPixel(i,j,(int)(out[i+j*debug.width()]/((double)newmax)*255));
         
-    }
-    debug.save("./inv_dist_map.pgm");
+//    }
+//    debug.save("./inv_dist_map.pgm");
 }
 
 int WordSeparator::f(int x, int i, int y, int m, int* g)
