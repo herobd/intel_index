@@ -16,7 +16,7 @@ public:
     static QImage trimBoundaries(QImage &img);
     static QImage removePixelNoise(QImage &img);
     static QVector<QImage> cutNames(QImage &img);
-    static QImage recursiveCutWordToFirstLetter(QImage &img);
+    static QVector<QImage> recursiveCutWordToFirstLetter(QImage &img);
     
 private:
     //static void computeInverseDistanceMap(double* in, double* out, int size);

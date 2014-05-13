@@ -16,12 +16,34 @@ int main(int argc, char** argv)
        cout << "ERROR trim!!" << endl;
     
     QImage nonoise = WordSeparator::removePixelNoise(trimmed);
-    test = nonoise.save("./testimg_noiseRemoved.pgm");
+    test = nonoise.save("./output/full_img.pgm");
     if (!test)
        cout << "ERROR nonoise!!" << endl;
     
-    WordSeparator::cutNames(nonoise);
-    
+    QVector<QImage> names = WordSeparator::cutNames(nonoise);
+    if (names.size()==3)
+    {
+        names[0].save("./output/last_name.pgm");
+        names[1].save("./output/first_name.pgm");
+        names[2].save("./output/middle_initail.pgm");
+        
+        QVector<QImage> firstLetterGuesses = WordSeparator::recursiveCutWordToFirstLetter(names[1]);
+        firstLetterGuesses[0].save("./output/first_letter_guess1.pgm");
+        firstLetterGuesses[1].save("./output/first_letter_guess2.pgm");
+    }
+    else if (names.size()==2)
+    {
+        names[0].save("./output/last_name.pgm");
+        names[1].save("./output/first_name.pgm");
+        
+        QVector<QImage> firstLetterGuesses = WordSeparator::recursiveCutWordToFirstLetter(names[1]);
+        firstLetterGuesses[0].save("./output/first_letter_guess1.pgm");
+        firstLetterGuesses[1].save("./output/first_letter_guess2.pgm");
+    }
+    else
+    {
+        names[0].save("./output/failed.pgm");
+    }
 //    QVector<QImage> split = WordSeparator::minCut(nonoise);
 //    //cout << "Save first" << endl;
 //    test = split[0].save("./testimg_first_left.pgm");
