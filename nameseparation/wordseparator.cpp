@@ -9,7 +9,7 @@
 
 #define BLACK 0
 #define WHITE 255
-#define ARCHOR_M 2.75
+#define ARCHOR_M 2.85
 
 WordSeparator::WordSeparator()
 {
@@ -58,18 +58,6 @@ QImage WordSeparator::removeFirstWord(QImage &from)
     else
     {
         selectedCut=windowScanWidestMin(profile,5);
-        /*double avg = sum/(double)mins.size();
-        //I don't know if this is really the best way to go about this
-        int min = abs((from.width()/2)-mins[0]);
-        selectedCut = mins[0];
-        for (int i=1; i<mins.size(); i++)
-        {
-            if (values[i] <= avg && abs((from.width()/2)-mins[i]) < min)
-            {
-                min = abs((from.width()/2)-mins[i]);
-                selectedCut = mins[i];
-            }
-        }*/
     }
 
     printf("Cut at %d\n",selectedCut);
@@ -120,72 +108,6 @@ QImage WordSeparator::trimBoundaries(QImage &img)
     int i;
     int j;
     bool cont = true;
-    
-    
-//    //top
-//    for (j=0; j<img.height()/2 && cont; j++)
-//    {
-//        cont = false;
-//        int profile = 0;
-//        for (int i=0; i<img.width(); i++)
-//        {
-//            if (qGray(img.pixel(i,j)) == BLACK)
-//                profile++;
-//        }
-//        if (profile > PROFILE_HORZ_THRESH)
-//            cont = true;
-//    }
-//    trimTop = j-1;
-    
-//    //bottom
-//    cont = true;
-//    for (j=img.height()-1; j>img.height()/2 && cont; j--)
-//    {
-//        cont = false;
-//        int profile = 0;
-//        for (int i=0; i<img.width(); i++)
-//        {
-//            if (qGray(img.pixel(i,j)) == BLACK)
-//                profile++;
-//        }
-//        if (profile > PROFILE_HORZ_THRESH)
-//            cont = true;
-//    }
-//    trimBottom = j+2;
-    
-//    int i;
-//    //left
-//    cont = true;
-//    for (i=0; i<img.width()/2 && cont; i++)
-//    {
-//        cont = false;
-//        int profile = 0;
-//        for (int j=0; j<img.height(); j++)
-//        {
-//            if (qGray(img.pixel(i,j)) == BLACK)
-//                profile++;
-//        }
-//        if (profile > PROFILE_VERT_THRESH)
-//            cont = true;
-//    }
-//    trimLeft = i-1;
-    
-    
-//    //right
-//    cont = true;
-//    for (i=img.width()-1; i>img.width()/2 && cont; i--)
-//    {
-//        cont = false;
-//        int profile = 0;
-//        for (int j=0; j<img.height(); j++)
-//        {
-//            if (qGray(img.pixel(i,j)) == BLACK)
-//                profile++;
-//        }
-//        if (profile > PROFILE_VERT_THRESH)
-//            cont = true;
-//    }
-//    trimRight = i+1;
     
      QImage ret = img.copy(trimLeft,trimTop,trimRight-trimLeft,trimBottom-trimTop);
      
@@ -397,189 +319,8 @@ QImage WordSeparator::trimBoundaries(QImage &img)
          }
      }
      
-    
-     
-     
-    
-//    int LINE_THRESH = 25;
-    
-//    //top
-//    int currentRun = 0;
-//    cont = true;
-//    for (j=0; j<3 && cont; j++)
-//    {
-//        cont = false;
-//        for (int i=0; i<ret.width(); i++)
-//        {
-//            if (qGray(ret.pixel(i,j)) != BLACK)
-//            {
-//                    if (currentRun > 0)
-//                    {
-//                        if (currentRun > LINE_THRESH)
-//                        {   
-//                            cont = true;
-//                            for (int ri=1; ri<currentRun+1; ri++)
-//                            {
-//                                ret.setPixel(i-ri,j,WHITE);
-//                            }
-//                        }
-                        
-//                        currentRun=0;
-//                    }
-//            }
-//            else
-//            {
-//                currentRun++;
-//            }
-//        }
-//        if (currentRun > 0)
-//        {
-//            if (currentRun > LINE_THRESH)
-//            {   
-//                for (int ri=1; ri<currentRun+1; ri++)
-//                {
-//                    ret.setPixel(ret.width()-ri,j,WHITE);
-//                }
-//            }
-            
-//            currentRun=0;
-//        }
-//    }
-
-    
-//    //bottom
-//    currentRun=0;
-//    cont = true;
-//    for (j=ret.height()-1; j>ret.height()-4 && cont; j--)
-//    {
-//        cont = false;
-//        for (int i=0; i<ret.width(); i++)
-//        {
-//            if (qGray(ret.pixel(i,j)) != BLACK)
-//            {
-//                    if (currentRun > 0)
-//                    {
-//                        if (currentRun > LINE_THRESH)
-//                        {   
-//                            cont = true;
-//                            for (int ri=1; ri<currentRun+1; ri++)
-//                            {
-//                                ret.setPixel(i-ri,j,WHITE);
-//                            }
-//                        }
-                        
-//                        currentRun=0;
-//                    }
-//            }
-//            else
-//            {
-//                currentRun++;
-//            }
-//        }
-//        if (currentRun > 0)
-//        {
-//            if (currentRun > LINE_THRESH)
-//            {   
-//                for (int ri=1; ri<currentRun+1; ri++)
-//                {
-//                    ret.setPixel(ret.width()-ri,j,WHITE);
-//                }
-//            }
-            
-//            currentRun=0;
-//        }
-//    }
-    
-//    //left
-//    currentRun = 0;
-//    cont = true;
-//    for (i=0; i<3 && cont; i++)
-//    {
-//        cont = false;
-//        for (int j=0; j<ret.height(); j++)
-//        {
-//            if (qGray(ret.pixel(i,j)) != BLACK)
-//            {
-//                    if (currentRun > 0)
-//                    {
-//                        if (currentRun > LINE_THRESH)
-//                        {   
-//                            cont = true;
-//                            for (int rj=1; rj<currentRun+1; rj++)
-//                            {
-//                                ret.setPixel(i,j-rj,WHITE);
-//                            }
-//                        }
-                        
-//                        currentRun=0;
-//                    }
-//            }
-//            else
-//            {
-//                currentRun++;
-//            }
-//        }
-//        if (currentRun > 0)
-//        {
-//            if (currentRun > LINE_THRESH)
-//            {   
-//                for (int rj=1; rj<currentRun+1; rj++)
-//                {
-//                    ret.setPixel(i,ret.height()-rj,WHITE);
-//                }
-//            }
-            
-//            currentRun=0;
-//        }
-//    }
-    
-//    //left
-//    currentRun = 0;
-//    cont = true;
-//    for (i=ret.width()-1; i>ret.width()-4 && cont; i--)
-//    {
-//        cont = false;
-//        for (int j=0; j<ret.height(); j++)
-//        {
-//            if (qGray(ret.pixel(i,j)) != BLACK)
-//            {
-//                    if (currentRun > 0)
-//                    {
-//                        if (currentRun > LINE_THRESH)
-//                        {   
-//                            cont = true;
-//                            for (int rj=1; rj<currentRun+1; rj++)
-//                            {
-//                                ret.setPixel(i,j-rj,WHITE);
-//                            }
-//                        }
-                        
-//                        currentRun=0;
-//                    }
-//            }
-//            else
-//            {
-//                currentRun++;
-//            }
-//        }
-//        if (currentRun > 0)
-//        {
-//            if (currentRun > LINE_THRESH)
-//            {   
-//                for (int rj=1; rj<currentRun+1; rj++)
-//                {
-//                    ret.setPixel(i,ret.height()-rj,WHITE);
-//                }
-//            }
-            
-//            currentRun=0;
-//        }
-//    }
-    
-    
-    
+  
     return ret;
-    //return img.copy(trimLeft,trimTop,img.width()-(trimLeft+trimRight),img.height()-(trimTop+trimBottom));
 }
 
 
@@ -784,14 +525,7 @@ QVector<QImage> WordSeparator::minCut(QImage &img)
     int num_pix = img.width()*img.height();
     //double pix_vals[num_pix];
     int invDistMap[num_pix];
-    /*int index = 0;
-    for (int j=0; j<img.height(); j++)
-    {
-        for (int i=0; i<img.width(); i++)
-        {
-            pix_vals[index++]=img.pixel(i,j);
-        }
-    }*/
+    
     computeInverseDistanceMap(img,invDistMap);
     QVector<int> firstImgBlackPixelIndexes;
     int maxflow = pixelsOfSeparation(invDistMap,img.width(),img.height(),img,firstImgBlackPixelIndexes);
@@ -830,40 +564,6 @@ QVector<QImage> WordSeparator::minCut(QImage &img)
     
     firstImg = firstImg.copy(0,0,firstFarthestRightPixel+1,firstImg.height());
     secondImg = secondImg.copy(secondFarthestLeftPixel, 0, secondImg.width()-secondFarthestLeftPixel, secondImg.height());
-    
-    
-    
-    /*
-    //find source pixels
-    bool finish = false;
-    int count_source = firstImg.height()*ARCHOR_M;
-    for (int i=0; count_source>0 && i<firstImg.width(); i++)
-    {
-        for (int j=0; count_source>0 && j<firstImg.height(); j++)
-        {
-            if (qGray(firstImg.pixel(i,j))==BLACK)
-            {
-                firstImg.setPixel(i,j,150);
-                count_source--;
-            }
-        }
-    }
-    
-    int count_sink=secondImg.height()*ARCHOR_M;
-    
-    //find sink pixels
-    finish = false;
-    for (int i=secondImg.width()-1; count_sink>0 && i>=0; i--)
-    {
-        for (int j=secondImg.height()-1; count_sink>0 && j>=0; j--)
-        {
-            if (qGray(secondImg.pixel(i,j))==0)
-            {
-                secondImg.setPixel(i,j,150);
-                count_sink--;
-            }
-        }
-    }*/
     
     
    
@@ -1359,7 +1059,7 @@ void WordSeparator::computeInverseDistanceMap(QImage &img, int* out)
     int g[img.width()*img.height()];
     for (int x=0; x<img.width(); x++)
     {
-        if (qGray(img.pixel(x,0))==0)
+        if (qGray(img.pixel(x,0))==BLACK)
         {
             g[x+0*img.width()]=0;
         }
@@ -1444,41 +1144,92 @@ void WordSeparator::computeInverseDistanceMap(QImage &img, int* out)
             if (u==t[q])
                 q--;
         }
-        
-       /* if(y==0 || y==1 || y==2)
-        {
-            for (int x=260; x<img.width(); x++)
-            {
-                printf("%d .. %d\n",qGray(img.pixel(x,y)),out[x+y*img.width()]);
-            }
-            printf("===========-----\n");
-        }*/
     }
     
     //invert
     //printf("maxDist=%d\n",maxDist);
     maxDist++;
-    //double normalizer = (255.0/pow(maxDist,10));
     double normalizer = (24.0/maxDist);
-//    int newmax = 0;
+    QImage mark = img.copy(0,0,img.width(),img.height());
+    QVector<QPoint> workingStack;
+    QVector<QPoint> growingComponent;
+    
+    
+    int newmax = 0;
     for (int q = 0; q < img.width()*img.height(); q++)
     {   
-        //out[q] = pow(maxDist - out[q],10)*normalizer;
-        out[q] = pow(6,24-out[q]*normalizer)/pow(6,20);
-        
-//        if (out[q]>newmax)
-//            newmax=out[q];
+        //out[q] = pow(6,24-out[q]*normalizer)/pow(6,20);
+        if (qGray(img.pixel(q%img.width(),q/img.width()))==BLACK && qGray(mark.pixel(q%img.width(),q/img.width()))==BLACK)
+        {
+            //fill bias
+            QPoint p(q%img.width(),q/img.width());
+            workingStack.push_back(p);
+            mark.setPixel(p,WHITE);
+            while (!workingStack.isEmpty())
+            {   
+                QPoint cur = workingStack.back();
+                workingStack.pop_back();
+                growingComponent.append(cur);
+                
+                
+                
+                
+                if (cur.x()>0 && qGray(mark.pixel(cur.x()-1,cur.y())) == BLACK)
+                {
+                    QPoint pp(cur.x()-1,cur.y());
+                    workingStack.push_back(pp);
+                    mark.setPixel(pp,WHITE);
+                }
+                
+                
+                if (cur.x()<mark.width()-1 && qGray(mark.pixel(cur.x()+1,cur.y())) == BLACK)
+                {
+                    QPoint pp(cur.x()+1,cur.y());
+                    workingStack.push_back(pp);
+                    mark.setPixel(pp,WHITE);
+                    
+                }
+                if (cur.y()<mark.height()-1 && qGray(mark.pixel(cur.x(),cur.y()+1)) == BLACK)
+                {
+                    QPoint pp(cur.x(),cur.y()+1);
+                    workingStack.push_back(pp);
+                    mark.setPixel(pp,WHITE);
+                }
+                if (cur.y()>0 && qGray(mark.pixel(cur.x(),cur.y()-1)) == BLACK)
+                {
+                    QPoint pp(cur.x(),cur.y()-1);
+                    workingStack.push_back(pp);
+                    mark.setPixel(pp,WHITE);
+                }
+            }
+            int cc_size = growingComponent.size();
+            while (!growingComponent.isEmpty())
+            {
+                QPoint cur = growingComponent.back();
+                growingComponent.pop_back();
+                int index = cur.x()+img.width()*cur.y();
+                out[index] = pow(6,24-out[index]*normalizer)/pow(6,20) + 4*std::min(cc_size,500);
+            }
+            
+        }
+        else if (qGray(img.pixel(q%img.width(),q/img.width()))!=BLACK)
+        {
+            out[q] = pow(6,24-out[q]*normalizer)/pow(6,20);
+        }
+
+        if (out[q]>newmax)
+            newmax=out[q];
     }
     
-    //printf("newMax:%d\n",newmax);
-//    QImage debug=img.copy(0,0,img.width(),img.height());//(img.width(),img.height(),img.format());
-//    for (int i=0; i<debug.width(); i++)
-//    {
-//        for (int j=0; j<debug.height(); j++)
-//            debug.setPixel(i,j,(int)(out[i+j*debug.width()]/((double)newmax)*255));
+    printf("newMax:%d\n",newmax);
+    QImage debug=img.copy(0,0,img.width(),img.height());//(img.width(),img.height(),img.format());
+    for (int i=0; i<debug.width(); i++)
+    {
+        for (int j=0; j<debug.height(); j++)
+            debug.setPixel(i,j,(int)((out[i+j*debug.width()]/((double)newmax))*255));
         
-//    }
-//    debug.save("./inv_dist_map.pgm");
+    }
+    debug.save("./inv_dist_map.pgm");
 }
 
 int WordSeparator::f(int x, int i, int y, int m, int* g)
@@ -1498,92 +1249,6 @@ int WordSeparator::SepPlusOne(int i, int u, int y, int m, int* g)
     return 1 + ((u*u)-(i*i)+g[u+y*m]*g[u+y*m]-(g[i+y*m]*g[i+y*m])) / (2*(u-i));
 }
 
-/*int G(int i, int y, int n, QImage &img)
-{
-    int min = INT_POS_INFINITY;
-    for (int j=0; j<n; j++)
-    {
-        int val = abs(y-j);
-        if (img.pixel(i,j)==0 && val < min)
-        {
-            min = val; 
-        }
-    }
-    return min;
-}*/
-
-/*void WordSeparator::computeInverseDistanceMap(double* in, double* out, int width, int height)
-{
-    double maxDist = 0;
-    
-    for (int )
-    
-    //invert
-    maxDist++;
-    for (int q = 0; q < width*height; q++)
-    {
-        out[q] = maxDist - out[q];
-    }
-}
-
-//Felzenszwald & Huttenlocher's 1D squared euclidean distance transfrom
-double WordSeparator::distanceTransform1D(double* in, double* out, int size)
-{
-    double maxDist = 0;
-    
-    int n = size;
-    
-    int k = 0;
-    int v[n];
-    double z[n + 1];
-
-    v[0] = 0;
-    z[0] = DOUBLE_NEG_INFINITY;
-    z[1] = DOUBLE_POS_INFINITY;
-
-    double s;
-
-    for (int q = 1; q < n; q++)
-    {
-        while (true)
-        {
-            s = (((in[q] + q * q) - (in[v[k]] + v[k] * v[k])) / (2.0 * q - 2.0 * v[k]));
-
-            if (s <= z[k])
-            {
-                k--;
-            }
-            else
-            {
-                break;
-            }
-        }
-
-        k++;
-
-        v[k] = q;
-        z[k] = s;
-        z[k + 1] = DOUBLE_POS_INFINITY;
-    }
-
-    k = 0;
-
-    for (int q = 0; q < n; q++)
-    {
-        while (z[k + 1] < q)
-        {
-            k++;
-        }
-
-        out[q] = ((q - v[k]) * (q - v[k]) + in[v[k]]);
-        
-        if (out[q] > maxDist)
-            maxDist = out[q];
-    }
-    
-    return maxDist;
-}*/
-
 
 //Uses Boykov graph cut
 int WordSeparator::pixelsOfSeparation(int* invDistMap, int width, int height, QImage &img, QVector<int> &out)
@@ -1596,33 +1261,152 @@ int WordSeparator::pixelsOfSeparation(int* invDistMap, int width, int height, QI
         g->add_node();
     }
     
+//    QImage debug = img;
+    
     //find source pixels
     int count_source = height*ARCHOR_M;
-    for (int i=0; count_source>0 && i<width; i++)
+//    for (int i=0; count_source>0 && i<width; i++)
+//    {
+//        for (int j=0; count_source>0 && j<height; j++)
+//        {
+//            if (qGray(img.pixel(i,j))==BLACK)
+//            {
+//                int index = i+width*j;
+//                g -> add_tweights(index, INT_POS_INFINITY,0);//invDistMap[index], 0);
+//                debug.setPixel(i,j,150);
+//                count_source--;
+//            }
+//        }
+//    }
+    
+    
+    
+    
+    //diag method
+//    QImage mark = img.copy(0,0,img.width(),img.height());
+//    QVector<QPoint> workingStack;
+    for (int o=0; o<width && count_source>0; o++)
     {
-        for (int j=0; count_source>0 && j<height; j++)
+        for (int i=0; i<=o && i<height && count_source>0; i++)
         {
-            if (qGray(img.pixel(i,j))==BLACK)
+            if (qGray(img.pixel(o-i,i))==BLACK)
             {
-                int index = i+width*j;
-                g -> add_tweights(index, INT_POS_INFINITY,0);//invDistMap[index], 0);
+                int index = (o-i)+width*i;
+                g -> add_tweights(index, INT_POS_INFINITY,0);
                 count_source--;
+//                debug.setPixel((o-i),i,150);
+                
+                //fill
+//                QPoint p(o-i,i);
+//                workingStack.push_back(p);
+//                while (!workingStack.isEmpty() && count_source>0)
+//                {   
+//                    QPoint cur = workingStack.back();
+//                    workingStack.pop_back();
+//                    int index = cur.x()+width*cur.y();
+//                    g -> add_tweights(index, INT_POS_INFINITY,0);
+//                    //debug.setPixel(cur,150);
+//                    count_source--;
+                    
+//                    mark.setPixel(cur,WHITE);
+                    
+//                    if (cur.x()>0 && qGray(mark.pixel(cur.x()-1,cur.y())) == BLACK)
+//                    {
+//                        QPoint pp(cur.x()-1,cur.y());
+//                        workingStack.push_back(pp);
+//                    }
+                    
+                    
+//                    if (cur.x()<mark.width()-1 && qGray(mark.pixel(cur.x()+1,cur.y())) == BLACK)
+//                    {
+//                        QPoint pp(cur.x()+1,cur.y());
+//                        workingStack.push_back(pp);
+                        
+//                    }
+//                    if (cur.y()<mark.height()-1 && qGray(mark.pixel(cur.x(),cur.y()+1)) == BLACK)
+//                    {
+//                        QPoint pp(cur.x(),cur.y()+1);
+//                        workingStack.push_back(pp);
+//                    }
+//                    if (cur.y()>0 && qGray(mark.pixel(cur.x(),cur.y()-1)) == BLACK)
+//                    {
+//                        QPoint pp(cur.x(),cur.y()-1);
+//                        workingStack.push_back(pp);
+//                    }
+//                }
             }
         }
     }
+//    workingStack.clear();
     
     int count_sink=height*ARCHOR_M;
     
     //find sink pixels
-    for (int i=width-1; count_sink>0 && i>=0; i--)
+//    for (int i=width-1; count_sink>0 && i>=0; i--)
+//    {
+//        for (int j=height-1; count_sink>0 && j>=0; j--)
+//        {
+//            if (qGray(img.pixel(i,j))==BLACK)
+//            {
+//                int index = i+width*j;
+//                g -> add_tweights(index, 0, INT_POS_INFINITY);//invDistMap[index]);
+//                debug.setPixel(i,j,150);
+//                count_sink--;
+//            }
+//        }
+//    }
+    
+    //diag method
+    for (int o=0; o<width && count_sink>0; o++)
     {
-        for (int j=height-1; count_sink>0 && j>=0; j--)
+        for (int i=0; i<=o && i<height && count_sink>0; i++)
         {
-            if (qGray(img.pixel(i,j))==BLACK)
+            //debug.setPixel((width-1)-(o-i),(height-1)-i,220);
+            if (qGray(img.pixel((width-1)-(o-i),(height-1)-i))==BLACK)
             {
-                int index = i+width*j;
-                g -> add_tweights(index, 0, INT_POS_INFINITY);//invDistMap[index]);
+                int index = ((width-1)-(o-i))+width*((height-1)-i);
+                g -> add_tweights(index, 0, INT_POS_INFINITY);
                 count_sink--;
+//                debug.setPixel((width-1)-(o-i),(height-1)-i,150);
+                
+                //fill
+//                QPoint p((width-1)-(o-i),(height-1)-i);
+//                workingStack.push_back(p);
+//                while (!workingStack.isEmpty() && count_sink>0)
+//                {   
+//                    QPoint cur = workingStack.back();
+//                    workingStack.pop_back();
+//                    int index = cur.x()+width*cur.y();
+//                    g -> add_tweights(index, 0, INT_POS_INFINITY);
+//                    //debug.setPixel(cur,150);
+//                    count_sink--;
+                    
+//                    mark.setPixel(cur,WHITE);
+                    
+//                    if (cur.x()<mark.width()-1 && qGray(mark.pixel(cur.x()+1,cur.y())) == BLACK)
+//                    {
+//                        QPoint pp(cur.x()+1,cur.y());
+//                        workingStack.push_back(pp);
+                        
+//                    }
+                    
+                    
+//                    if (cur.x()>0 && qGray(mark.pixel(cur.x()-1,cur.y())) == BLACK)
+//                    {
+//                        QPoint pp(cur.x()-1,cur.y());
+//                        workingStack.push_back(pp);
+//                    }
+//                    if (cur.y()>0 && qGray(mark.pixel(cur.x(),cur.y()-1)) == BLACK)
+//                    {
+//                        QPoint pp(cur.x(),cur.y()-1);
+//                        workingStack.push_back(pp);
+//                    }
+//                    if (cur.y()<mark.height()-1 && qGray(mark.pixel(cur.x(),cur.y()+1)) == BLACK)
+//                    {
+//                        QPoint pp(cur.x(),cur.y()+1);
+//                        workingStack.push_back(pp);
+//                    }
+//                }
             }
         }
     }
@@ -1630,50 +1414,95 @@ int WordSeparator::pixelsOfSeparation(int* invDistMap, int width, int height, QI
     //printf("num source:%d, num sink:%d\n",count_source,count_sink);
     
     double BLACK_TO_BLACK_BIAS = 1;
+    double WHITE_TO_BLACK_BIAS = .5;
+    double BLACK_TO_WHITE_BIAS = .5;
     
     //connect all pixels
     for (int i=0; i<width; i++)
     {
         for (int j=0; j<height; j++)
-        {
-//            if (i+1<width)
-//                g -> add_edge(i+j*width, (i+1)+j*width, invDistMap[(i+1)+j*width], invDistMap[i+j*width]);
-//            if (j+1<height)
-//                g -> add_edge(i+j*width, i+(j+1)*width, invDistMap[i+(j+1)*width], invDistMap[i+j*width]);
-            
+        {   
             //double wieght between black pixels?
             
             
             if (i+1<width)
             {
                 if (qGray(img.pixel(i,j))==BLACK && qGray(img.pixel(i+1,j))==BLACK)
-                    g -> add_edge(i+j*width, (i+1)+j*width, (invDistMap[(i+1)+j*width]+invDistMap[i+j*width])*(BLACK_TO_BLACK_BIAS+1), (invDistMap[i+j*width]+invDistMap[(i+1)+j*width])*(BLACK_TO_BLACK_BIAS+1));
+                    g -> add_edge(i+j*width, (i+1)+j*width,
+                                  (invDistMap[(i+1)+j*width]+invDistMap[i+j*width])*(BLACK_TO_BLACK_BIAS),
+                                  (invDistMap[i+j*width]+invDistMap[(i+1)+j*width])*(BLACK_TO_BLACK_BIAS));
+                else if (qGray(img.pixel(i,j))==BLACK && qGray(img.pixel(i+1,j))==WHITE)
+                    g -> add_edge(i+j*width, (i+1)+j*width,
+                                  (invDistMap[(i+1)+j*width]+invDistMap[i+j*width])*(BLACK_TO_WHITE_BIAS),
+                                  (invDistMap[i+j*width]+invDistMap[(i+1)+j*width])*(WHITE_TO_BLACK_BIAS));
+                else if (qGray(img.pixel(i,j))==WHITE && qGray(img.pixel(i+1,j))==BLACK)
+                    g -> add_edge(i+j*width, (i+1)+j*width,
+                                  (invDistMap[(i+1)+j*width]+invDistMap[i+j*width])*(WHITE_TO_BLACK_BIAS),
+                                  (invDistMap[i+j*width]+invDistMap[(i+1)+j*width])*(BLACK_TO_WHITE_BIAS));
                 else
-                    g -> add_edge(i+j*width, (i+1)+j*width, (invDistMap[(i+1)+j*width]+invDistMap[i+j*width])*BLACK_TO_BLACK_BIAS, (invDistMap[i+j*width]+invDistMap[(i+1)+j*width])*BLACK_TO_BLACK_BIAS);
+                    g -> add_edge(i+j*width, (i+1)+j*width,
+                                  (invDistMap[(i+1)+j*width]+invDistMap[i+j*width])/2,
+                                  (invDistMap[i+j*width]+invDistMap[(i+1)+j*width])/2);
             }
             
             if (j+1<height)
             {
                 if (qGray(img.pixel(i,j))==BLACK && qGray(img.pixel(i,j+1))==BLACK)
-                    g -> add_edge(i+j*width, i+(j+1)*width, (invDistMap[i+(j+1)*width]+invDistMap[i+j*width])*BLACK_TO_BLACK_BIAS, (invDistMap[i+j*width]+invDistMap[i+(j+1)*width])*BLACK_TO_BLACK_BIAS);
+                    g -> add_edge(i+j*width, i+(j+1)*width,
+                                  (invDistMap[i+(j+1)*width]+invDistMap[i+j*width])*BLACK_TO_BLACK_BIAS,
+                                  (invDistMap[i+j*width]+invDistMap[i+(j+1)*width])*BLACK_TO_BLACK_BIAS);
+                else if (qGray(img.pixel(i,j))==BLACK && qGray(img.pixel(i,j+1))==WHITE)
+                    g -> add_edge(i+j*width, i+(j+1)*width,
+                                  (invDistMap[i+(j+1)*width]+invDistMap[i+j*width])*BLACK_TO_WHITE_BIAS,
+                                  (invDistMap[i+j*width]+invDistMap[i+(j+1)*width])*WHITE_TO_BLACK_BIAS);
+                else if (qGray(img.pixel(i,j))==WHITE && qGray(img.pixel(i,j+1))==BLACK)
+                    g -> add_edge(i+j*width, i+(j+1)*width,
+                                  (invDistMap[i+(j+1)*width]+invDistMap[i+j*width])*WHITE_TO_BLACK_BIAS,
+                                  (invDistMap[i+j*width]+invDistMap[i+(j+1)*width])*BLACK_TO_WHITE_BIAS);
                 else
-                    g -> add_edge(i+j*width, i+(j+1)*width, (invDistMap[i+(j+1)*width]+invDistMap[i+j*width])/2, (invDistMap[i+j*width]+invDistMap[i+(j+1)*width])/2);
+                    g -> add_edge(i+j*width, i+(j+1)*width,
+                                  (invDistMap[i+(j+1)*width]+invDistMap[i+j*width])/2,
+                                  (invDistMap[i+j*width]+invDistMap[i+(j+1)*width])/2);
             }
             
             if (j>0 && i<width-1)
             {
                 if (qGray(img.pixel(i,j))==BLACK && qGray(img.pixel(i+1,j-1))==BLACK)
-                    g -> add_edge(i+j*width, (i+1)+(j-1)*width, (invDistMap[(i+1)+(j-1)*width]+invDistMap[i+j*width])*BLACK_TO_BLACK_BIAS, (invDistMap[i+j*width]+invDistMap[(i+1)+(j-1)*width])*BLACK_TO_BLACK_BIAS);
+                    g -> add_edge(i+j*width, (i+1)+(j-1)*width,
+                                  (invDistMap[(i+1)+(j-1)*width]+invDistMap[i+j*width])*BLACK_TO_BLACK_BIAS,
+                                  (invDistMap[i+j*width]+invDistMap[(i+1)+(j-1)*width])*BLACK_TO_BLACK_BIAS);
+                else if (qGray(img.pixel(i,j))==BLACK && qGray(img.pixel(i+1,j-1))==WHITE)
+                    g -> add_edge(i+j*width, (i+1)+(j-1)*width,
+                                  (invDistMap[(i+1)+(j-1)*width]+invDistMap[i+j*width])*BLACK_TO_WHITE_BIAS,
+                                  (invDistMap[i+j*width]+invDistMap[(i+1)+(j-1)*width])*WHITE_TO_BLACK_BIAS);
+                else if (qGray(img.pixel(i,j))==WHITE && qGray(img.pixel(i+1,j-1))==BLACK)
+                    g -> add_edge(i+j*width, (i+1)+(j-1)*width,
+                                  (invDistMap[(i+1)+(j-1)*width]+invDistMap[i+j*width])*WHITE_TO_BLACK_BIAS,
+                                  (invDistMap[i+j*width]+invDistMap[(i+1)+(j-1)*width])*BLACK_TO_WHITE_BIAS);
                 else
-                    g -> add_edge(i+j*width, (i+1)+(j-1)*width, (invDistMap[(i+1)+(j-1)*width]+invDistMap[i+j*width])/2, (invDistMap[i+j*width]+invDistMap[(i+1)+(j-1)*width])/2);
+                    g -> add_edge(i+j*width, (i+1)+(j-1)*width,
+                                  (invDistMap[(i+1)+(j-1)*width]+invDistMap[i+j*width])/2,
+                                  (invDistMap[i+j*width]+invDistMap[(i+1)+(j-1)*width])/2);
             }
             
             if (j<height-1 && i<width-1)
             {
                 if (qGray(img.pixel(i,j))==BLACK && qGray(img.pixel(i+1,j+1))==BLACK)
-                    g -> add_edge(i+j*width, (i+1)+(j+1)*width, (invDistMap[(i+1)+(j+1)*width]+invDistMap[i+j*width])*BLACK_TO_BLACK_BIAS, (invDistMap[i+j*width]+invDistMap[(i+1)+(j+1)*width])*BLACK_TO_BLACK_BIAS);
+                    g -> add_edge(i+j*width, (i+1)+(j+1)*width,
+                                  (invDistMap[(i+1)+(j+1)*width]+invDistMap[i+j*width])*BLACK_TO_BLACK_BIAS,
+                                  (invDistMap[i+j*width]+invDistMap[(i+1)+(j+1)*width])*BLACK_TO_BLACK_BIAS);
+                else if (qGray(img.pixel(i,j))==BLACK && qGray(img.pixel(i+1,j+1))==WHITE)
+                    g -> add_edge(i+j*width, (i+1)+(j+1)*width,
+                                  (invDistMap[(i+1)+(j+1)*width]+invDistMap[i+j*width])*BLACK_TO_WHITE_BIAS,
+                                  (invDistMap[i+j*width]+invDistMap[(i+1)+(j+1)*width])*WHITE_TO_BLACK_BIAS);
+                else if (qGray(img.pixel(i,j))==WHITE && qGray(img.pixel(i+1,j+1))==BLACK)
+                    g -> add_edge(i+j*width, (i+1)+(j+1)*width,
+                                  (invDistMap[(i+1)+(j+1)*width]+invDistMap[i+j*width])*WHITE_TO_BLACK_BIAS,
+                                  (invDistMap[i+j*width]+invDistMap[(i+1)+(j+1)*width])*BLACK_TO_WHITE_BIAS);
                 else
-                    g -> add_edge(i+j*width, (i+1)+(j+1)*width, (invDistMap[(i+1)+(j+1)*width]+invDistMap[i+j*width])/2, (invDistMap[i+j*width]+invDistMap[(i+1)+(j+1)*width])/2);
+                    g -> add_edge(i+j*width, (i+1)+(j+1)*width,
+                                  (invDistMap[(i+1)+(j+1)*width]+invDistMap[i+j*width])/2,
+                                  (invDistMap[i+j*width]+invDistMap[(i+1)+(j+1)*width])/2);
             }
         }
     }
@@ -1681,14 +1510,40 @@ int WordSeparator::pixelsOfSeparation(int* invDistMap, int width, int height, QI
     //I don't know if this needs called
     int ret = g -> maxflow();
     
+//    QImage debug2 = debug.convertToFormat(QImage::Format_RGB16);
+//    QRgb lw = qRgb(255, 100, 100);
+//    QRgb lb = qRgb(155, 0, 0);
+//    QRgb rw = qRgb(100,255, 100);
+//    QRgb rb = qRgb(0, 155, 0);
+//    QRgb a = qRgb(255, 255, 255);
+    
     //add all black pixels which
     for (int index=0; index<width*height; index++)
     {
-        if (g->what_segment(index) == GraphType::SOURCE && qGray(img.pixel(index%width,index/width))==BLACK)
+        /*if (qGray(debug.pixel(index%width,index/width))!=BLACK && qGray(debug.pixel(index%width,index/width))!=WHITE)
+        {
+            debug2.setPixel(index%width,index/width,a);
+        }
+        else*/ if (g->what_segment(index) == GraphType::SOURCE && qGray(img.pixel(index%width,index/width))==BLACK)
         {
             out.append(index);
+//            debug2.setPixel(index%width,index/width,lb);
         }
+//        else if (g->what_segment(index) == GraphType::SOURCE)
+//            debug2.setPixel(index%width,index/width,lw);
+//        else if (qGray(img.pixel(index%width,index/width))==BLACK)
+//            debug2.setPixel(index%width,index/width,rb);
+//        else
+//            debug2.setPixel(index%width,index/width,rw);
     }
+    
+//    QString debugfile = "./cut_";
+//    QString num;
+//    num.setNum(width);
+//    debugfile.append(num);
+//    debugfile.append(".ppm");
+//    debug2.save(debugfile);
+    
     delete g;
     return ret;
 }
@@ -1745,12 +1600,3 @@ QImage WordSeparator::removeFirstCapitalLetter(QImage &from)
     from = from.copy(selectedCut,0,from.width()-selectedCut,from.height());
     return toReturn;
 }
-
-/*?? WordSeparator::findCapitalCandidates(QImage &from)
-{
-    WordProfile profile(from,true,0);
-    QVector<int> mins = profile.getLocalMins();
-    //Two params: pixel density and area
-    
-    
-}*/
