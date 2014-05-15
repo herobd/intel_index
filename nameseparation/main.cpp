@@ -22,6 +22,7 @@ int main(int argc, char** argv)
         
         nonoise= WordSeparator::removePixelNoise(trimmed);
         test = nonoise.save("./output/full_img.pgm");
+        test = nonoise.save("./noise_removed.pgm");
         if (!test)
            cout << "ERROR nonoise!!" << endl;
     }

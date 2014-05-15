@@ -9,7 +9,8 @@
 
 #define BLACK 0
 #define WHITE 255
-#define ARCHOR_M 2.85
+#define ANCHOR_L 3.05
+#define ANCHOR_R 2.4
 
 WordSeparator::WordSeparator()
 {
@@ -211,6 +212,7 @@ QImage WordSeparator::trimBoundaries(QImage &img)
                  if (runLength>RUN_HORZ_THRESH)
                  {
                      cont=true;
+                     //TODO add check for choping and add reconnect
                      for (;runLength>0; runLength--)
                          ret.setPixel(i-runLength,j,WHITE);
                  }
@@ -227,6 +229,7 @@ QImage WordSeparator::trimBoundaries(QImage &img)
          if (profile > PROFILE_HORZ_THRESH)
          {
              cont=true;
+             //TODO add check for choping and add reconnect
              for (int i=0; i<ret.width(); i++)
                  ret.setPixel(i,j,WHITE);
          }
@@ -326,6 +329,7 @@ QImage WordSeparator::trimBoundaries(QImage &img)
 
 void WordSeparator::lineFilterAtJ(int j, QImage &ret)
 {
+    //TODO add check for choping and add reconnect. Not sure with unidirection method
     int FILTER_RUN_HORZ_THRESH = ret.width()*.05;
     int runLength=0;
     int i;
@@ -434,15 +438,18 @@ QImage WordSeparator::removePixelNoise(QImage &img)
     
     
     //Flood fill filter
-    int BLOB_THRESH = 45;
+    int BLOB_THRESH = 35;
+    int HORZ_MARK_THRESH = 900;
+    int LONGNESS_RATIO = 2.4;
+    int STD_DEV_LIMIT = 38;
     QImage mark = ret.copy(0,0,ret.width(),ret.height());
     QVector<QPoint> workingStack;
     QVector<QPoint> toClearStack;
     
     for (int j=0; j<mark.height(); j++)
     {
-        if (j > 10 && j < 12)
-            j = mark.height()-12;
+//        if (j > 10 && j < 12)
+//            j = mark.height()-12;
         for (int i=0; i<mark.width(); i++)
         {
             if (qGray(mark.pixel(i,j)) == BLACK)
@@ -450,6 +457,9 @@ QImage WordSeparator::removePixelNoise(QImage &img)
                 int num=0;
                 QPoint p(i,j);
                 workingStack.push_back(p);
+                int min_x, min_y, max_x, max_y;
+                min_x = min_y = INT_POS_INFINITY;
+                max_x = max_y = 0;
                 while (!workingStack.isEmpty())
                 {   
                     QPoint cur = workingStack.back();
@@ -458,6 +468,15 @@ QImage WordSeparator::removePixelNoise(QImage &img)
                     
                     mark.setPixel(cur,WHITE);
                     num++;
+                    if (cur.x()<min_x)
+                        min_x=cur.x();
+                    if (cur.y()<min_y)
+                        min_y=cur.y();
+                    if (cur.x()>max_x)
+                        max_x=cur.x();
+                    if (cur.y()>max_y)
+                        max_y=cur.y();
+                    
                     if (cur.x()<mark.width()-1 && qGray(mark.pixel(cur.x()+1,cur.y())) == BLACK)
                     {
                         QPoint pp(cur.x()+1,cur.y());
@@ -500,9 +519,39 @@ QImage WordSeparator::removePixelNoise(QImage &img)
                         workingStack.push_back(pp);
                     }
                 }
-                if (num>BLOB_THRESH)
+                if (num>HORZ_MARK_THRESH)
                 {
                     toClearStack.clear();
+                }
+                else if (num>BLOB_THRESH)
+                {
+                    //check if horizontal mark, in which case we allow it to be bigger
+                    QVector<int> v_profile(1+max_y-min_y);
+                    v_profile.fill(0);
+                    QVector<int> h_profile(1+max_x-min_x);
+                    h_profile.fill(0);
+                    foreach (QPoint p , toClearStack)
+                    {
+                        h_profile[p.x()-min_x]++;
+                        v_profile[p.y()-min_y]++;
+                    }
+                    double v_avg=0;
+                    for (int v = 0; v<v_profile.size(); v++)
+                        v_avg+=v_profile[v];
+                    v_avg/=v_profile.size();
+                    double h_avg=0;
+                    for (int h = 0; h<h_profile.size(); h++)
+                        h_avg+=h_profile[h];
+                    h_avg/=h_profile.size();
+                    
+                    double h_std_dev = 0;
+                    for (int h = 0; h<h_profile.size(); h++)
+                        h_std_dev += pow(h_profile[h]-h_avg,2);
+                    h_std_dev/=h_profile.size();
+                    
+                    printf("ratio: %f, std dev: %f\n",v_avg/h_avg,h_std_dev);
+                    if (v_avg/h_avg < LONGNESS_RATIO || h_std_dev>STD_DEV_LIMIT)
+                        toClearStack.clear();
                 }
                 
                 while (!toClearStack.isEmpty())
@@ -1147,9 +1196,10 @@ void WordSeparator::computeInverseDistanceMap(QImage &img, int* out)
     }
     
     //invert
-    //printf("maxDist=%d\n",maxDist);
+//    printf("maxDist=%d\n",maxDist);
     maxDist++;
-    double normalizer = (24.0/maxDist);
+//    double normalizer = (24.0/maxDist);
+    double normalizer = (20.0/2000);
     QImage mark = img.copy(0,0,img.width(),img.height());
     QVector<QPoint> workingStack;
     QVector<QPoint> growingComponent;
@@ -1208,20 +1258,20 @@ void WordSeparator::computeInverseDistanceMap(QImage &img, int* out)
                 QPoint cur = growingComponent.back();
                 growingComponent.pop_back();
                 int index = cur.x()+img.width()*cur.y();
-                out[index] = pow(6,24-out[index]*normalizer)/pow(6,20) + 4*std::min(cc_size,500);
+                out[index] = pow(6,20-out[index]*normalizer)/pow(6,16) + 4*std::min(cc_size,500);
             }
             
         }
         else if (qGray(img.pixel(q%img.width(),q/img.width()))!=BLACK)
         {
-            out[q] = pow(6,24-out[q]*normalizer)/pow(6,20);
+            out[q] = pow(6,20-out[q]*normalizer)/pow(6,16);
         }
 
         if (out[q]>newmax)
             newmax=out[q];
     }
     
-    printf("newMax:%d\n",newmax);
+//    printf("newMax:%d\n",newmax);
     QImage debug=img.copy(0,0,img.width(),img.height());//(img.width(),img.height(),img.format());
     for (int i=0; i<debug.width(); i++)
     {
@@ -1261,23 +1311,23 @@ int WordSeparator::pixelsOfSeparation(int* invDistMap, int width, int height, QI
         g->add_node();
     }
     
-//    QImage debug = img;
+    QImage debug = img.copy(0,0,img.width(),img.height());
     
     //find source pixels
-    int count_source = height*ARCHOR_M;
-//    for (int i=0; count_source>0 && i<width; i++)
-//    {
-//        for (int j=0; count_source>0 && j<height; j++)
-//        {
-//            if (qGray(img.pixel(i,j))==BLACK)
-//            {
-//                int index = i+width*j;
-//                g -> add_tweights(index, INT_POS_INFINITY,0);//invDistMap[index], 0);
+    int count_source = height*ANCHOR_L;
+    for (int i=0; count_source>0 && i<width; i++)
+    {
+        for (int j=0; count_source>0 && j<height; j++)
+        {
+            if (qGray(img.pixel(i,j))==BLACK)
+            {
+                int index = i+width*j;
+                g -> add_tweights(index, INT_POS_INFINITY,0);//invDistMap[index], 0);
 //                debug.setPixel(i,j,150);
-//                count_source--;
-//            }
-//        }
-//    }
+                count_source--;
+            }
+        }
+    }
     
     
     
@@ -1285,15 +1335,15 @@ int WordSeparator::pixelsOfSeparation(int* invDistMap, int width, int height, QI
     //diag method
 //    QImage mark = img.copy(0,0,img.width(),img.height());
 //    QVector<QPoint> workingStack;
-    for (int o=0; o<width && count_source>0; o++)
-    {
-        for (int i=0; i<=o && i<height && count_source>0; i++)
-        {
-            if (qGray(img.pixel(o-i,i))==BLACK)
-            {
-                int index = (o-i)+width*i;
-                g -> add_tweights(index, INT_POS_INFINITY,0);
-                count_source--;
+//    for (int o=0; o<width && count_source>0; o++)
+//    {
+//        for (int i=0; i<=o && i<height && count_source>0; i++)
+//        {
+//            if (qGray(img.pixel(o-i,i))==BLACK)
+//            {
+//                int index = (o-i)+width*i;
+//                g -> add_tweights(index, INT_POS_INFINITY,0);
+//                count_source--;
 //                debug.setPixel((o-i),i,150);
                 
                 //fill
@@ -1334,12 +1384,12 @@ int WordSeparator::pixelsOfSeparation(int* invDistMap, int width, int height, QI
 //                        workingStack.push_back(pp);
 //                    }
 //                }
-            }
-        }
-    }
+//            }
+//        }
+//    }
 //    workingStack.clear();
     
-    int count_sink=height*ARCHOR_M;
+    int count_sink=height*ANCHOR_R;
     
     //find sink pixels
 //    for (int i=width-1; count_sink>0 && i>=0; i--)
@@ -1350,7 +1400,7 @@ int WordSeparator::pixelsOfSeparation(int* invDistMap, int width, int height, QI
 //            {
 //                int index = i+width*j;
 //                g -> add_tweights(index, 0, INT_POS_INFINITY);//invDistMap[index]);
-//                debug.setPixel(i,j,150);
+////                debug.setPixel(i,j,150);
 //                count_sink--;
 //            }
 //        }
@@ -1413,7 +1463,9 @@ int WordSeparator::pixelsOfSeparation(int* invDistMap, int width, int height, QI
     
     //printf("num source:%d, num sink:%d\n",count_source,count_sink);
     
-    double BLACK_TO_BLACK_BIAS = 1;
+    double BLACK_TO_BLACK_V_BIAS = 1;
+    double BLACK_TO_BLACK_H_BIAS = 2;
+    double BLACK_TO_BLACK_D_BIAS = 2.23;
     double WHITE_TO_BLACK_BIAS = .5;
     double BLACK_TO_WHITE_BIAS = .5;
     
@@ -1429,8 +1481,8 @@ int WordSeparator::pixelsOfSeparation(int* invDistMap, int width, int height, QI
             {
                 if (qGray(img.pixel(i,j))==BLACK && qGray(img.pixel(i+1,j))==BLACK)
                     g -> add_edge(i+j*width, (i+1)+j*width,
-                                  (invDistMap[(i+1)+j*width]+invDistMap[i+j*width])*(BLACK_TO_BLACK_BIAS),
-                                  (invDistMap[i+j*width]+invDistMap[(i+1)+j*width])*(BLACK_TO_BLACK_BIAS));
+                                  (invDistMap[(i+1)+j*width]+invDistMap[i+j*width])*(BLACK_TO_BLACK_H_BIAS),
+                                  (invDistMap[i+j*width]+invDistMap[(i+1)+j*width])*(BLACK_TO_BLACK_H_BIAS));
                 else if (qGray(img.pixel(i,j))==BLACK && qGray(img.pixel(i+1,j))==WHITE)
                     g -> add_edge(i+j*width, (i+1)+j*width,
                                   (invDistMap[(i+1)+j*width]+invDistMap[i+j*width])*(BLACK_TO_WHITE_BIAS),
@@ -1441,16 +1493,16 @@ int WordSeparator::pixelsOfSeparation(int* invDistMap, int width, int height, QI
                                   (invDistMap[i+j*width]+invDistMap[(i+1)+j*width])*(BLACK_TO_WHITE_BIAS));
                 else
                     g -> add_edge(i+j*width, (i+1)+j*width,
-                                  (invDistMap[(i+1)+j*width]+invDistMap[i+j*width])/2,
-                                  (invDistMap[i+j*width]+invDistMap[(i+1)+j*width])/2);
+                                  (invDistMap[(i+1)+j*width]+invDistMap[i+j*width])/1,
+                                  (invDistMap[i+j*width]+invDistMap[(i+1)+j*width])/1);
             }
             
             if (j+1<height)
             {
                 if (qGray(img.pixel(i,j))==BLACK && qGray(img.pixel(i,j+1))==BLACK)
                     g -> add_edge(i+j*width, i+(j+1)*width,
-                                  (invDistMap[i+(j+1)*width]+invDistMap[i+j*width])*BLACK_TO_BLACK_BIAS,
-                                  (invDistMap[i+j*width]+invDistMap[i+(j+1)*width])*BLACK_TO_BLACK_BIAS);
+                                  (invDistMap[i+(j+1)*width]+invDistMap[i+j*width])*BLACK_TO_BLACK_V_BIAS,
+                                  (invDistMap[i+j*width]+invDistMap[i+(j+1)*width])*BLACK_TO_BLACK_V_BIAS);
                 else if (qGray(img.pixel(i,j))==BLACK && qGray(img.pixel(i,j+1))==WHITE)
                     g -> add_edge(i+j*width, i+(j+1)*width,
                                   (invDistMap[i+(j+1)*width]+invDistMap[i+j*width])*BLACK_TO_WHITE_BIAS,
@@ -1461,16 +1513,16 @@ int WordSeparator::pixelsOfSeparation(int* invDistMap, int width, int height, QI
                                   (invDistMap[i+j*width]+invDistMap[i+(j+1)*width])*BLACK_TO_WHITE_BIAS);
                 else
                     g -> add_edge(i+j*width, i+(j+1)*width,
-                                  (invDistMap[i+(j+1)*width]+invDistMap[i+j*width])/2,
-                                  (invDistMap[i+j*width]+invDistMap[i+(j+1)*width])/2);
+                                  (invDistMap[i+(j+1)*width]+invDistMap[i+j*width])/3,
+                                  (invDistMap[i+j*width]+invDistMap[i+(j+1)*width])/3);
             }
             
             if (j>0 && i<width-1)
             {
                 if (qGray(img.pixel(i,j))==BLACK && qGray(img.pixel(i+1,j-1))==BLACK)
                     g -> add_edge(i+j*width, (i+1)+(j-1)*width,
-                                  (invDistMap[(i+1)+(j-1)*width]+invDistMap[i+j*width])*BLACK_TO_BLACK_BIAS,
-                                  (invDistMap[i+j*width]+invDistMap[(i+1)+(j-1)*width])*BLACK_TO_BLACK_BIAS);
+                                  (invDistMap[(i+1)+(j-1)*width]+invDistMap[i+j*width])*BLACK_TO_BLACK_D_BIAS,
+                                  (invDistMap[i+j*width]+invDistMap[(i+1)+(j-1)*width])*BLACK_TO_BLACK_D_BIAS);
                 else if (qGray(img.pixel(i,j))==BLACK && qGray(img.pixel(i+1,j-1))==WHITE)
                     g -> add_edge(i+j*width, (i+1)+(j-1)*width,
                                   (invDistMap[(i+1)+(j-1)*width]+invDistMap[i+j*width])*BLACK_TO_WHITE_BIAS,
@@ -1489,8 +1541,8 @@ int WordSeparator::pixelsOfSeparation(int* invDistMap, int width, int height, QI
             {
                 if (qGray(img.pixel(i,j))==BLACK && qGray(img.pixel(i+1,j+1))==BLACK)
                     g -> add_edge(i+j*width, (i+1)+(j+1)*width,
-                                  (invDistMap[(i+1)+(j+1)*width]+invDistMap[i+j*width])*BLACK_TO_BLACK_BIAS,
-                                  (invDistMap[i+j*width]+invDistMap[(i+1)+(j+1)*width])*BLACK_TO_BLACK_BIAS);
+                                  (invDistMap[(i+1)+(j+1)*width]+invDistMap[i+j*width])*BLACK_TO_BLACK_D_BIAS,
+                                  (invDistMap[i+j*width]+invDistMap[(i+1)+(j+1)*width])*BLACK_TO_BLACK_D_BIAS);
                 else if (qGray(img.pixel(i,j))==BLACK && qGray(img.pixel(i+1,j+1))==WHITE)
                     g -> add_edge(i+j*width, (i+1)+(j+1)*width,
                                   (invDistMap[(i+1)+(j+1)*width]+invDistMap[i+j*width])*BLACK_TO_WHITE_BIAS,
@@ -1507,15 +1559,14 @@ int WordSeparator::pixelsOfSeparation(int* invDistMap, int width, int height, QI
         }
     }
     
-    //I don't know if this needs called
     int ret = g -> maxflow();
     
-//    QImage debug2 = debug.convertToFormat(QImage::Format_RGB16);
-//    QRgb lw = qRgb(255, 100, 100);
-//    QRgb lb = qRgb(155, 0, 0);
-//    QRgb rw = qRgb(100,255, 100);
-//    QRgb rb = qRgb(0, 155, 0);
-//    QRgb a = qRgb(255, 255, 255);
+    QImage debug2 = debug.convertToFormat(QImage::Format_RGB16);
+    QRgb lw = qRgb(255, 100, 100);
+    QRgb lb = qRgb(155, 0, 0);
+    QRgb rw = qRgb(100,255, 100);
+    QRgb rb = qRgb(0, 155, 0);
+    QRgb a = qRgb(255, 255, 255);
     
     //add all black pixels which
     for (int index=0; index<width*height; index++)
@@ -1527,14 +1578,14 @@ int WordSeparator::pixelsOfSeparation(int* invDistMap, int width, int height, QI
         else*/ if (g->what_segment(index) == GraphType::SOURCE && qGray(img.pixel(index%width,index/width))==BLACK)
         {
             out.append(index);
-//            debug2.setPixel(index%width,index/width,lb);
+            debug2.setPixel(index%width,index/width,lb);
         }
-//        else if (g->what_segment(index) == GraphType::SOURCE)
-//            debug2.setPixel(index%width,index/width,lw);
-//        else if (qGray(img.pixel(index%width,index/width))==BLACK)
-//            debug2.setPixel(index%width,index/width,rb);
-//        else
-//            debug2.setPixel(index%width,index/width,rw);
+        else if (g->what_segment(index) == GraphType::SOURCE)
+            debug2.setPixel(index%width,index/width,lw);
+        else if (qGray(img.pixel(index%width,index/width))==BLACK)
+            debug2.setPixel(index%width,index/width,rb);
+        else
+            debug2.setPixel(index%width,index/width,rw);
     }
     
 //    QString debugfile = "./cut_";
