@@ -3,6 +3,7 @@
 #include <QImage>
 #include "wordprofile.h"
 #include "maxflow/graph.h"
+#include "Constants.h"
 
 class WordSeparator
 {
@@ -13,8 +14,7 @@ public:
     static QImage removeFirstCapitalLetter(QImage &from);
     static int windowScanWidestMin(WordProfile &profile, int size);
     static QVector<QImage> minCut(QImage &img);
-    static QImage trimBoundaries(QImage &img);
-    static QImage removePixelNoise(QImage &img);
+    
     static QVector<QImage> cutNames(QImage &img);
     static QVector<QImage> recursiveCutWordToFirstLetter(QImage &img);
     
@@ -24,7 +24,7 @@ private:
     static int pixelsOfSeparation(int* invDistMap, int width, int height, QImage &img, QVector<int> &out);
     static int f(int x, int i, int y, int m, int* g);
     static int SepPlusOne(int i, int u, int y, int m, int* g);
-    static void lineFilterAtJ(int j, QImage &ret);
+    
 };
 
 #endif // WORDSEPERATOR_H
