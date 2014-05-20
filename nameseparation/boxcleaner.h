@@ -9,11 +9,12 @@ public:
     BoxCleaner();
     static QImage trimBoundaries(QImage &img);
     static QImage removePixelNoise(QImage &img);
-    static QImage clearLineAndCloseLetters(QImage &src, int est_y);
+    static QImage clearLineAndCloseLetters(QImage &src, int est_y, int* vert_divide);
     
 private:
     static void lineFilterAtJ(int j, QImage &ret);
     static void cond_clear_line(int runLength, int i, int j, QImage &ret);
+    static void floodFilter(QImage &on, int fromY, int toY, int blobThresh, int horzMarkThresh, double horzLongRatio, double stdDevLimit);
 };
 
 #endif // BOXCLEANER_H

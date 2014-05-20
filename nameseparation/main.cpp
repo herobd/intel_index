@@ -13,8 +13,26 @@ int main(int argc, char** argv)
     QImage nonoise;
     bool test;
     
-    nonoise=BoxCleaner::clearLineAndCloseLetters(testimg,40);
-    nonoise.save("./lineremoved.pgm");
+//    QImage trimmed = BoxCleaner::trimBoundaries(testimg);
+//    nonoise= trimmed;//BoxCleaner::removePixelNoise(trimmed);
+//    test = nonoise.save("./noise_removed.pgm");
+//    if (!test)
+//        cout << "ERROR trim!!" << endl;
+    int vert_divide;
+    QImage lineremoved=BoxCleaner::clearLineAndCloseLetters(testimg,40,&vert_divide);
+//    lineremoved=BoxCleaner::clearLineAndCloseLetters(lineremoved,88,&vert_divide);
+//    lineremoved=BoxCleaner::clearLineAndCloseLetters(lineremoved,131,&vert_divide);
+//    lineremoved=BoxCleaner::clearLineAndCloseLetters(lineremoved,170,&vert_divide);
+//    lineremoved=BoxCleaner::clearLineAndCloseLetters(lineremoved,210,&vert_divide);
+    test = lineremoved.save("./lineremoved.pgm");
+    if (!test)
+        cout << "ERROR lineremove!!" << endl;
+    
+    QVector<QImage> cuts = WordSeparator::horzCutEntries(lineremoved,vert_divide);
+    cuts[0].save("./cut1_top.pgm");
+    cuts[1].save("./cut2_bottom.pgm");
+    
+    
     
 //    if (argc < 3 || argv[2][0]!='n')
 //    {

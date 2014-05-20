@@ -414,13 +414,21 @@ QImage BoxCleaner::removePixelNoise(QImage &img)
     QImage ret = img.copy(0,0,img.width(),img.height());
     
     //corners
-    if (qGray(ret.pixel(0,1)) != BLACK && qGray(ret.pixel(1,0)) != BLACK && qGray(ret.pixel(1,1)) != BLACK)
+    if (qGray(ret.pixel(0,1)) != BLACK && 
+            qGray(ret.pixel(1,0)) != BLACK && 
+            qGray(ret.pixel(1,1)) != BLACK)
         ret.setPixel(0,0,WHITE);
-    if (qGray(ret.pixel(0,ret.height()-2)) != BLACK && qGray(ret.pixel(1,ret.height()-1)) != BLACK && qGray(ret.pixel(1,ret.height()-2)) != BLACK)
+    if (qGray(ret.pixel(0,ret.height()-2)) != BLACK && 
+            qGray(ret.pixel(1,ret.height()-1)) != BLACK && 
+            qGray(ret.pixel(1,ret.height()-2)) != BLACK)
         ret.setPixel(0,ret.height()-1,WHITE);
-    if (qGray(ret.pixel(ret.width()-1,1)) != BLACK && qGray(ret.pixel(ret.width()-2,0)) != BLACK && qGray(ret.pixel(ret.width()-2,1)) != BLACK)
+    if (qGray(ret.pixel(ret.width()-1,1)) != BLACK && 
+            qGray(ret.pixel(ret.width()-2,0)) != BLACK && 
+            qGray(ret.pixel(ret.width()-2,1)) != BLACK)
         ret.setPixel(ret.width()-1,0,WHITE);
-    if (qGray(ret.pixel(ret.width()-1,ret.height()-2)) != BLACK && qGray(ret.pixel(ret.width()-2,ret.height()-1)) != BLACK && qGray(ret.pixel(ret.width()-2,ret.height()-2)) != BLACK)
+    if (qGray(ret.pixel(ret.width()-1,ret.height()-2)) != BLACK &&
+            qGray(ret.pixel(ret.width()-2,ret.height()-1)) != BLACK &&
+            qGray(ret.pixel(ret.width()-2,ret.height()-2)) != BLACK)
         ret.setPixel(ret.width()-1,ret.height()-1,WHITE);
     
     
@@ -428,10 +436,14 @@ QImage BoxCleaner::removePixelNoise(QImage &img)
     for (int i=1; i<ret.width()-1; i++)
     {
         if (qGray(ret.pixel(i,0)) == BLACK && 
-                qGray(ret.pixel(i-1,1)) != BLACK && qGray(ret.pixel(i,1)) != BLACK && qGray(ret.pixel(i+1,1)) != BLACK)
+                qGray(ret.pixel(i-1,1)) != BLACK && 
+                qGray(ret.pixel(i,1)) != BLACK && 
+                qGray(ret.pixel(i+1,1)) != BLACK)
             ret.setPixel(i,0,WHITE);
         if (qGray(ret.pixel(i,img.height()-1)) == BLACK && 
-                qGray(ret.pixel(i-1,img.height()-2)) != BLACK && qGray(ret.pixel(i,img.height()-2)) != BLACK && qGray(ret.pixel(i+1,img.height()-2)) != BLACK)
+                qGray(ret.pixel(i-1,img.height()-2)) != BLACK && 
+                qGray(ret.pixel(i,img.height()-2)) != BLACK && 
+                qGray(ret.pixel(i+1,img.height()-2)) != BLACK)
             ret.setPixel(i,img.height()-1,WHITE);
     }
     
@@ -440,8 +452,12 @@ QImage BoxCleaner::removePixelNoise(QImage &img)
         for (int i=1; i<ret.width()-1; i++)
         {
             if (qGray(ret.pixel(i,j)) == BLACK && 
-                    qGray(ret.pixel(i-1,j+1)) != BLACK && qGray(ret.pixel(i,j+1)) != BLACK && qGray(ret.pixel(i+1,j+1)) != BLACK && 
-                    qGray(ret.pixel(i-1,j-1)) != BLACK && qGray(ret.pixel(i,j-1)) != BLACK && qGray(ret.pixel(i+1,j-1)) != BLACK)
+                    qGray(ret.pixel(i-1,j+1)) != BLACK && 
+                    qGray(ret.pixel(i,j+1)) != BLACK && 
+                    qGray(ret.pixel(i+1,j+1)) != BLACK && 
+                    qGray(ret.pixel(i-1,j-1)) != BLACK && 
+                    qGray(ret.pixel(i,j-1)) != BLACK && 
+                    qGray(ret.pixel(i+1,j-1)) != BLACK)
                 ret.setPixel(i,j,WHITE);
         }
     }
@@ -449,9 +465,16 @@ QImage BoxCleaner::removePixelNoise(QImage &img)
     //left and right
     for (int j=1; j<ret.height()-1; j++)
     {
-        if (qGray(ret.pixel(0,j)) == BLACK && qGray(ret.pixel(1,j-1)) != BLACK && qGray(ret.pixel(1,j)) != BLACK && qGray(ret.pixel(1,j+1)) != BLACK)
+        if (qGray(ret.pixel(0,j)) == BLACK && 
+                qGray(ret.pixel(1,j-1)) != BLACK && 
+                qGray(ret.pixel(1,j)) != BLACK && 
+                qGray(ret.pixel(1,j+1)) != BLACK)
             ret.setPixel(0,j,WHITE);
-        if (qGray(ret.pixel(img.width()-1,j)) == BLACK && qGray(ret.pixel(img.width()-2,j-1)) != BLACK && qGray(ret.pixel(img.width()-2,j)) != BLACK && qGray(ret.pixel(img.width()-2,j+1)) != BLACK)
+        
+        if (qGray(ret.pixel(img.width()-1,j)) == BLACK && 
+                qGray(ret.pixel(img.width()-2,j-1)) != BLACK && 
+                qGray(ret.pixel(img.width()-2,j)) != BLACK && 
+                qGray(ret.pixel(img.width()-2,j+1)) != BLACK)
             ret.setPixel(img.width()-1,j,WHITE);
     }
     
@@ -460,8 +483,12 @@ QImage BoxCleaner::removePixelNoise(QImage &img)
         for (int j=1; j<ret.height()-1; j++)
         {
             if (qGray(ret.pixel(i,j)) == BLACK && 
-                    qGray(ret.pixel(i+1,j-1)) != BLACK && qGray(ret.pixel(i+1,j)) != BLACK && qGray(ret.pixel(i+1,j+1)) != BLACK && 
-                    qGray(ret.pixel(i-1,j-1)) != BLACK && qGray(ret.pixel(i-1,j)) != BLACK && qGray(ret.pixel(i-1,j+1)) != BLACK)
+                    qGray(ret.pixel(i+1,j-1)) != BLACK && 
+                    qGray(ret.pixel(i+1,j)) != BLACK && 
+                    qGray(ret.pixel(i+1,j+1)) != BLACK && 
+                    qGray(ret.pixel(i-1,j-1)) != BLACK && 
+                    qGray(ret.pixel(i-1,j)) != BLACK && 
+                    qGray(ret.pixel(i-1,j+1)) != BLACK)
                 ret.setPixel(i,j,WHITE);
         }
     }
@@ -472,14 +499,177 @@ QImage BoxCleaner::removePixelNoise(QImage &img)
     int HORZ_MARK_THRESH = 900;
     int LONGNESS_RATIO = 2.4;
     int STD_DEV_LIMIT = 38;
-    QImage mark = ret.copy(0,0,ret.width(),ret.height());
+    floodFilter(ret,0,ret.height()-1,BLOB_THRESH,HORZ_MARK_THRESH,LONGNESS_RATIO,STD_DEV_LIMIT);
+    
+    return ret;
+}
+
+QImage BoxCleaner::clearLineAndCloseLetters(QImage &src, int est_y, int* vert_divide)
+{
+    int SEARCH_BAND = 10;
+    int STRUCT_ELE_SIZE = 6;
+    int LINE_THRESH = src.width() * .6;
+    
+    double STRUCT_ELE_CORNER = 1.5*STRUCT_ELE_SIZE;
+    
+    QImage ret = src.copy(0,0,src.width(),src.height());
+    if (src.height()-est_y>SEARCH_BAND && est_y>SEARCH_BAND)
+    {
+        QVector<int> profile(SEARCH_BAND*2 + 1);
+        bool erasing = false;
+        QVector<QPoint> pointsToClose;
+        int aboveLine;
+        int belowLine;
+        for (int j=0; j<=SEARCH_BAND*2 + 1; j++)
+        {
+            //create profile for row
+            for (int i=0; i<src.width(); i++)
+            {
+                if (qGray(ret.pixel(i,j+(est_y-SEARCH_BAND))) == BLACK)
+                    profile[j]++;
+            }
+            
+            //evaluate profile
+            if (profile[j] > LINE_THRESH)
+            {
+                
+                if (!erasing)
+                {
+                    //first row we are removing
+                    erasing=true;
+                    aboveLine=j+(est_y-SEARCH_BAND)-1;
+                    for (int i=0; i<src.width(); i++)
+                    {
+                        if (qGray(ret.pixel(i,aboveLine)) == BLACK && 
+                                (i<=0 || qGray(ret.pixel(i-1,aboveLine-1)) != BLACK) && 
+                                qGray(ret.pixel(i,aboveLine-1)) != BLACK && 
+                                (i>=src.width()-1 || qGray(ret.pixel(i+1,aboveLine-1)) != BLACK))
+                        {
+                            ret.setPixel(i,aboveLine,WHITE);
+                        }
+                        else if (qGray(ret.pixel(i,j+(est_y-SEARCH_BAND))) == BLACK && 
+                                qGray(ret.pixel(i,aboveLine)) == BLACK)
+                        {
+                            QPoint p(i,j+(est_y-SEARCH_BAND)-1);
+                            pointsToClose.append(p);
+                        }
+                        ret.setPixel(i,j+(est_y-SEARCH_BAND),WHITE);
+                    }
+                }
+                else
+                {
+                    for (int i=0; i<src.width(); i++)
+                    {
+                        ret.setPixel(i,j+(est_y-SEARCH_BAND),WHITE);
+                    }
+                }
+                
+            }
+            else if (erasing)
+            {
+                belowLine=j+(est_y-SEARCH_BAND);
+                for (int i=0; i<src.width(); i++)
+                {
+                    if (qGray(ret.pixel(i,belowLine)) == BLACK && 
+                            (i<=0 || qGray(ret.pixel(i-1,belowLine+1)) != BLACK) && 
+                            qGray(ret.pixel(i,belowLine+1)) != BLACK && 
+                            (i>=src.width()-1 || qGray(ret.pixel(i+1,belowLine+1)) != BLACK))
+                    {
+                        ret.setPixel(i,belowLine,WHITE);
+                    }
+                    else if (qGray(src.pixel(i,belowLine-1)) == BLACK && 
+                            qGray(src.pixel(i,belowLine)) == BLACK)
+                    {
+                        QPoint p(i,belowLine);
+                        pointsToClose.append(p);
+                    }
+                }
+                break;                
+            }
+        }
+        
+        *vert_divide = (belowLine+aboveLine)/2;
+        
+        //Flood fill filter
+        int BLOB_THRESH = 8;
+        int HORZ_MARK_THRESH = 100;
+        int LONGNESS_RATIO = 3;
+        int STD_DEV_LIMIT = 38;
+        floodFilter(ret,aboveLine-1,belowLine+1,BLOB_THRESH,HORZ_MARK_THRESH,LONGNESS_RATIO,STD_DEV_LIMIT);
+        
+        
+        //Morphology stuff
+        
+        QVector<QPoint> pointsToErrode;
+        QImage close_tmp = ret.copy(0,0,ret.width(),ret.height());
+        //dialate
+        foreach (QPoint p, pointsToClose)
+        {
+            if (qGray(ret.pixel(p.x(),p.y())) != BLACK)
+                continue;
+            
+            for (int ri=-STRUCT_ELE_SIZE; ri<=STRUCT_ELE_SIZE; ri++)
+            {
+                for (int rj=-STRUCT_ELE_SIZE; rj<=STRUCT_ELE_SIZE; rj++)
+                {
+                    if (abs(ri)+abs(rj)<STRUCT_ELE_CORNER)
+                    {
+                        if (ri+p.x()>=0 && ri+p.x()<ret.width() &&
+                                rj+p.y()>=0 && rj+p.y()<ret.height())
+                        {
+                            QPoint toBlack(ri+p.x(),rj+p.y());
+                            close_tmp.setPixel(toBlack,BLACK);
+                            pointsToErrode.append(toBlack);
+                        }
+                    }
+                }
+            }
+        }
+        
+        //errode
+        foreach (QPoint p, pointsToErrode)
+        {
+            bool allBlack = true;
+            for (int ri=-STRUCT_ELE_SIZE; ri<=STRUCT_ELE_SIZE && allBlack; ri++)
+            {
+                for (int rj=-STRUCT_ELE_SIZE; rj<=STRUCT_ELE_SIZE; rj++)
+                {
+                    if (abs(ri)+abs(rj)<STRUCT_ELE_CORNER)
+                    {
+                        if (ri+p.x()>=0 && ri+p.x()<ret.width() &&
+                                rj+p.y()>=0 && rj+p.y()<ret.height())
+                        {
+                            if (qGray(close_tmp.pixel(p.x()+ri,p.y()+rj)) != BLACK)
+                            {
+                                    allBlack=false;
+                                    break;
+                            }
+                        }
+                    }
+                }
+            }
+            if (allBlack)
+            {
+                ret.setPixel(p,BLACK);
+            }
+//            else
+//            {
+//                ret.setPixel(p,WHITE);
+//            }
+        }
+        
+    }
+    return ret;
+}
+
+void BoxCleaner::floodFilter(QImage &on, int fromY, int toY, int blobThresh, int horzMarkThresh, double horzLongRatio, double stdDevLimit)
+{
+    QImage mark = on.copy(0,0,on.width(),on.height());
     QVector<QPoint> workingStack;
     QVector<QPoint> toClearStack;
     
-    for (int j=0; j<mark.height(); j++)
+    for (int j=fromY; j<=toY; j++)
     {
-//        if (j > 10 && j < 12)
-//            j = mark.height()-12;
         for (int i=0; i<mark.width(); i++)
         {
             if (qGray(mark.pixel(i,j)) == BLACK)
@@ -549,11 +739,11 @@ QImage BoxCleaner::removePixelNoise(QImage &img)
                         workingStack.push_back(pp);
                     }
                 }
-                if (num>HORZ_MARK_THRESH)
+                if (num>horzMarkThresh)
                 {
                     toClearStack.clear();
                 }
-                else if (num>BLOB_THRESH)
+                else if (num>blobThresh)
                 {
                     //check if horizontal mark, in which case we allow it to be bigger
                     QVector<int> v_profile(1+max_y-min_y);
@@ -580,7 +770,7 @@ QImage BoxCleaner::removePixelNoise(QImage &img)
                     h_std_dev/=h_profile.size();
                     
                     printf("ratio: %f, std dev: %f\n",v_avg/h_avg,h_std_dev);
-                    if (v_avg/h_avg < LONGNESS_RATIO || h_std_dev>STD_DEV_LIMIT)
+                    if (v_avg/h_avg < horzLongRatio || h_std_dev>stdDevLimit)
                         toClearStack.clear();
                 }
                 
@@ -590,152 +780,9 @@ QImage BoxCleaner::removePixelNoise(QImage &img)
                     toClearStack.pop_back();
                     
                     //printf("remove p(%d,%d)\n",r.x(),r.y());
-                    ret.setPixel(r,WHITE);
+                    on.setPixel(r,WHITE);
                 }
             }
         }
     }
-    
-    return ret;
-}
-
-QImage BoxCleaner::clearLineAndCloseLetters(QImage &src, int est_y)
-{
-    int SEARCH_BAND = 10;
-    int STRUCT_ELE_SIZE = 3;
-    int LINE_THRESH = src.width() * .6;
-    
-    double STRUCT_ELE_CORNER = 1.5*STRUCT_ELE_SIZE;
-    
-    QImage ret = src.copy(0,0,src.width(),src.height());
-    if (src.height()-est_y>SEARCH_BAND && est_y>SEARCH_BAND)
-    {
-        QVector<int> profile(SEARCH_BAND*2 + 1);
-        bool erasing = false;
-        QVector<QPoint> pointsToClose;
-        int aboveLine;
-        int belowLine;
-        for (int j=0; j<=SEARCH_BAND*2 + 1; j++)
-        {
-            for (int i=0; i<src.width(); i++)
-            {
-                if (qGray(ret.pixel(i,j+(est_y-SEARCH_BAND))) == BLACK)
-                    profile[j]++;
-            }
-            if (profile[j] > LINE_THRESH)
-            {
-                
-                if (!erasing)
-                {
-                    erasing=true;
-                    aboveLine=j+(est_y-SEARCH_BAND)-1;
-                    for (int i=0; i<src.width(); i++)
-                    {
-                        if (qGray(ret.pixel(i,j+(est_y-SEARCH_BAND))) == BLACK && 
-                                qGray(ret.pixel(i,j+(est_y-SEARCH_BAND)-1)) == BLACK)
-                        {
-                            QPoint p(i,j+(est_y-SEARCH_BAND)-1);
-                            pointsToClose.append(p);
-                        }
-                        ret.setPixel(i,j+(est_y-SEARCH_BAND),WHITE);
-                    }
-                }
-                else
-                {
-                    for (int i=0; i<src.width(); i++)
-                    {
-                        ret.setPixel(i,j+(est_y-SEARCH_BAND),WHITE);
-                    }
-                }
-                
-            }
-            else if (erasing)
-            {
-                belowLine=j+(est_y-SEARCH_BAND);
-                for (int i=0; i<src.width(); i++)
-                {
-                    if (qGray(src.pixel(i,j+(est_y-SEARCH_BAND)-1)) == BLACK && 
-                            qGray(src.pixel(i,j+(est_y-SEARCH_BAND))) == BLACK)
-                    {
-                        QPoint p(i,j+(est_y-SEARCH_BAND));
-                        pointsToClose.append(p);
-                    }
-                }
-                break;                
-            }
-        }
-        printf("ablove:%d, below:%d\n",aboveLine,belowLine);
-        //top and bottom or line clean up
-        for (int i=1; i<ret.width()-1; i++)
-        {
-            if (qGray(ret.pixel(i,aboveLine)) == BLACK && 
-                    qGray(ret.pixel(i-1,aboveLine-1)) != BLACK && 
-                    qGray(ret.pixel(i,aboveLine-1)) != BLACK && 
-                    qGray(ret.pixel(i+1,aboveLine-1)) != BLACK)
-                ret.setPixel(i,aboveLine,WHITE);
-            
-//            if (qGray(ret.pixel(i,belowLine)) == BLACK && 
-//                    qGray(ret.pixel(i-1,belowLine+1)) != BLACK && 
-//                    qGray(ret.pixel(i,belowLine+1)) != BLACK && 
-//                    qGray(ret.pixel(i+1,belowLine+1)) != BLACK)
-                ret.setPixel(i,belowLine,WHITE);
-        }
-        
-//        QVector<QPoint> pointsToErrode;
-//        QImage close_tmp = ret.copy(0,0,ret.width(),ret.height());
-//        //dialate
-//        foreach (QPoint p, pointsToClose)
-//        {
-//            for (int ri=-STRUCT_ELE_SIZE; ri<=STRUCT_ELE_SIZE; ri++)
-//            {
-//                for (int rj=-STRUCT_ELE_SIZE; rj<=STRUCT_ELE_SIZE; rj++)
-//                {
-//                    if (abs(ri)+abs(rj)<STRUCT_ELE_CORNER)
-//                    {
-//                        if (ri+p.x()>=0 && ri+p.x()<ret.width() &&
-//                                rj+p.y()>=0 && rj+p.y()<ret.height())
-//                        {
-//                            QPoint toBlack(ri+p.x(),rj+p.y());
-//                            close_tmp.setPixel(toBlack,BLACK);
-//                            pointsToErrode.append(toBlack);
-//                        }
-//                    }
-//                }
-//            }
-//        }
-        
-//        //errode
-//        foreach (QPoint p, pointsToErrode)
-//        {
-//            bool allBlack = true;
-//            for (int ri=-STRUCT_ELE_SIZE; ri<=STRUCT_ELE_SIZE && allBlack; ri++)
-//            {
-//                for (int rj=-STRUCT_ELE_SIZE; rj<=STRUCT_ELE_SIZE; rj++)
-//                {
-//                    if (abs(ri)+abs(rj)<STRUCT_ELE_CORNER)
-//                    {
-//                        if (ri+p.x()>=0 && ri+p.x()<ret.width() &&
-//                                rj+p.y()>=0 && rj+p.y()<ret.height())
-//                        {
-//                            if (qGray(close_tmp.pixel(p.x()+ri,p.y()+rj)) != BLACK)
-//                            {
-//                                    allBlack=false;
-//                                    break;
-//                            }
-//                        }
-//                    }
-//                }
-//            }
-//            if (allBlack)
-//            {
-//                ret.setPixel(p,BLACK);
-//            }
-////            else
-////            {
-////                ret.setPixel(p,WHITE);
-////            }
-//        }
-        
-    }
-    return ret;
 }
