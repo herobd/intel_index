@@ -7,7 +7,8 @@ SOURCES += main.cpp \
     maxflow/maxflow.cpp \
     maxflow/graph.cpp \
     wordseparator.cpp \
-    boxcleaner.cpp
+    boxcleaner.cpp \
+    imageaverager.cpp
 
 HEADERS += \
     ./wordprofile.h \
@@ -15,7 +16,8 @@ HEADERS += \
     maxflow/block.h \
     wordseparator.h \
     boxcleaner.h \
-    Constants.h
+    Constants.h \
+    imageaverager.h
 
 OTHER_FILES += \
     maxflow/instances.inc

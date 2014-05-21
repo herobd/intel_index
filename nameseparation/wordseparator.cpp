@@ -157,7 +157,7 @@ QVector<QImage> WordSeparator::horzCutEntries(QImage &img, int vert_divide)
     QVector<int> firstImgBlackPixelIndexes;
     
     //best anchor weight:300 - 425
-    int maxflow = pixelsOfSeparation(invDistMap,img.width(),img.height(),img,firstImgBlackPixelIndexes,425,SPLIT_VERT,vert_divide);
+    int maxflow = pixelsOfSeparation(invDistMap,img.width(),img.height(),img,firstImgBlackPixelIndexes,700,SPLIT_VERT,vert_divide);
     
     int firstLowestPixel = 0;
     int secondHighestPixel = 0;
@@ -775,6 +775,18 @@ void WordSeparator::computeInverseDistanceMap(QImage &img, int* out)
         }
     }
     
+    
+    //    QImage debug(img.width(),img.height(),img.format());
+    //    debug.setColorTable(img.colorTable());
+    //    for (int i=0; i<debug.width(); i++)
+    //    {
+    //        for (int j=0; j<debug.height(); j++)
+    //            debug.setPixel(i,j,(int)((pow(out[i+j*debug.width()],.2)/((double)pow(maxDist,.2)))*255));
+            
+    //    }
+    //    debug.save("./reg_dist_map.pgm");
+    //    printf("image format:%d\n",debug.format());
+    
     //invert
 //    printf("maxDist=%d\n",maxDist);
     maxDist++;
@@ -873,7 +885,6 @@ int WordSeparator::SepPlusOne(int i, int u, int y, int m, int* g)
 {
     if (g[u+y*m] == INT_POS_INFINITY)// && g[i+y*m] != INT_POS_INFINITY)
     {
-        //printf("Sep is inginite\n");
         return INT_POS_INFINITY;
     }
     return 1 + ((u*u)-(i*i)+g[u+y*m]*g[u+y*m]-(g[i+y*m]*g[i+y*m])) / (2*(u-i));
@@ -1048,24 +1059,28 @@ int WordSeparator::pixelsOfSeparation(int* invDistMap, int width, int height, QI
         //all pixels are either source or sink
         for (int j=0; j<vert_divide; j++)
         {
+            double anchor_weight_for_level = anchor_weight * ((vert_divide + vert_divide-j)/(double)(2*vert_divide));
+            //printf("%f, ",((vert_divide-j)/(double)vert_divide));
             for (int i=0; i<width; i++)
             {
                 if (qGray(img.pixel(i,j))==BLACK)
                 {
                     int index = i+width*j;
-                    g -> add_tweights(index, anchor_weight,0);
+                    g -> add_tweights(index, (int)anchor_weight_for_level,0);
     //                debug.setPixel(i,j,150);
                 }
             }
         }
-        for (int j=vert_divide; j<height; j++)
+        for (int j=height-1; j>=vert_divide; j--)
         {
+            double anchor_weight_for_level = anchor_weight * ((((height-1) -(double)vert_divide) + j-vert_divide)/(2.*((height-1) -(double)vert_divide)));
+            //printf("%f- ",((j-vert_divide)/((height-1) -vert_divide)));
             for (int i=0; i<width; i++)
             {
                 if (qGray(img.pixel(i,j))==BLACK)
                 {
                     int index = i+width*j;
-                    g -> add_tweights(index, 0, anchor_weight);
+                    g -> add_tweights(index, 0, (int)anchor_weight_for_level);
     //                debug.setPixel(i,j,150);
                 }
             }
@@ -1083,20 +1098,44 @@ int WordSeparator::pixelsOfSeparation(int* invDistMap, int width, int height, QI
     double WHITE_TO_WHITE_H_BIAS = .333;
     double WHITE_TO_WHITE_D_BIAS = .5;
     
+    if (split_method==SPLIT_VERT)
+    {
+        BLACK_TO_BLACK_V_BIAS = 3;
+        BLACK_TO_BLACK_H_BIAS = 3;
+        BLACK_TO_BLACK_D_BIAS = 3;
+        WHITE_TO_BLACK_BIAS = .5;
+        BLACK_TO_WHITE_BIAS = .5;
+        WHITE_TO_WHITE_V_BIAS = .5;
+        WHITE_TO_WHITE_H_BIAS = .5;
+        WHITE_TO_WHITE_D_BIAS = .5;
+    }
+    
+    double reducer = 1;
+    
     //connect all pixels
     for (int i=0; i<width; i++)
     {
         for (int j=0; j<height; j++)
         {   
-            //double wieght between black pixels?
+            if (split_method==SPLIT_VERT)
+            {
+                if (j<vert_divide)
+                {
+                    reducer = ((vert_divide + vert_divide-j)/(double)(2*vert_divide));
+                }
+                else
+                {
+                    reducer = ((((height-1) -(double)vert_divide) + j-vert_divide)/(2.*((height-1) -(double)vert_divide)));
+                }
+            }
             
             
             if (i+1<width)
             {
                 if (qGray(img.pixel(i,j))==BLACK && qGray(img.pixel(i+1,j))==BLACK)
                     g -> add_edge(i+j*width, (i+1)+j*width,
-                                  (invDistMap[(i+1)+j*width]+invDistMap[i+j*width])*(BLACK_TO_BLACK_H_BIAS),
-                                  (invDistMap[i+j*width]+invDistMap[(i+1)+j*width])*(BLACK_TO_BLACK_H_BIAS));
+                                  (invDistMap[(i+1)+j*width]+invDistMap[i+j*width])*(reducer*BLACK_TO_BLACK_H_BIAS),
+                                  (invDistMap[i+j*width]+invDistMap[(i+1)+j*width])*(reducer*BLACK_TO_BLACK_H_BIAS));
                 else if (qGray(img.pixel(i,j))==BLACK && qGray(img.pixel(i+1,j))==WHITE)
                     g -> add_edge(i+j*width, (i+1)+j*width,
                                   (invDistMap[(i+1)+j*width]+invDistMap[i+j*width])*(BLACK_TO_WHITE_BIAS),
@@ -1115,8 +1154,8 @@ int WordSeparator::pixelsOfSeparation(int* invDistMap, int width, int height, QI
             {
                 if (qGray(img.pixel(i,j))==BLACK && qGray(img.pixel(i,j+1))==BLACK)
                     g -> add_edge(i+j*width, i+(j+1)*width,
-                                  (invDistMap[i+(j+1)*width]+invDistMap[i+j*width])*BLACK_TO_BLACK_V_BIAS,
-                                  (invDistMap[i+j*width]+invDistMap[i+(j+1)*width])*BLACK_TO_BLACK_V_BIAS);
+                                  (invDistMap[i+(j+1)*width]+invDistMap[i+j*width])*reducer*BLACK_TO_BLACK_V_BIAS,
+                                  (invDistMap[i+j*width]+invDistMap[i+(j+1)*width])*reducer*BLACK_TO_BLACK_V_BIAS);
                 else if (qGray(img.pixel(i,j))==BLACK && qGray(img.pixel(i,j+1))==WHITE)
                     g -> add_edge(i+j*width, i+(j+1)*width,
                                   (invDistMap[i+(j+1)*width]+invDistMap[i+j*width])*BLACK_TO_WHITE_BIAS,
@@ -1135,8 +1174,8 @@ int WordSeparator::pixelsOfSeparation(int* invDistMap, int width, int height, QI
             {
                 if (qGray(img.pixel(i,j))==BLACK && qGray(img.pixel(i+1,j-1))==BLACK)
                     g -> add_edge(i+j*width, (i+1)+(j-1)*width,
-                                  (invDistMap[(i+1)+(j-1)*width]+invDistMap[i+j*width])*BLACK_TO_BLACK_D_BIAS,
-                                  (invDistMap[i+j*width]+invDistMap[(i+1)+(j-1)*width])*BLACK_TO_BLACK_D_BIAS);
+                                  (invDistMap[(i+1)+(j-1)*width]+invDistMap[i+j*width])*reducer*BLACK_TO_BLACK_D_BIAS,
+                                  (invDistMap[i+j*width]+invDistMap[(i+1)+(j-1)*width])*reducer*BLACK_TO_BLACK_D_BIAS);
                 else if (qGray(img.pixel(i,j))==BLACK && qGray(img.pixel(i+1,j-1))==WHITE)
                     g -> add_edge(i+j*width, (i+1)+(j-1)*width,
                                   (invDistMap[(i+1)+(j-1)*width]+invDistMap[i+j*width])*BLACK_TO_WHITE_BIAS,
@@ -1155,8 +1194,8 @@ int WordSeparator::pixelsOfSeparation(int* invDistMap, int width, int height, QI
             {
                 if (qGray(img.pixel(i,j))==BLACK && qGray(img.pixel(i+1,j+1))==BLACK)
                     g -> add_edge(i+j*width, (i+1)+(j+1)*width,
-                                  (invDistMap[(i+1)+(j+1)*width]+invDistMap[i+j*width])*BLACK_TO_BLACK_D_BIAS,
-                                  (invDistMap[i+j*width]+invDistMap[(i+1)+(j+1)*width])*BLACK_TO_BLACK_D_BIAS);
+                                  (invDistMap[(i+1)+(j+1)*width]+invDistMap[i+j*width])*reducer*BLACK_TO_BLACK_D_BIAS,
+                                  (invDistMap[i+j*width]+invDistMap[(i+1)+(j+1)*width])*reducer*BLACK_TO_BLACK_D_BIAS);
                 else if (qGray(img.pixel(i,j))==BLACK && qGray(img.pixel(i+1,j+1))==WHITE)
                     g -> add_edge(i+j*width, (i+1)+(j+1)*width,
                                   (invDistMap[(i+1)+(j+1)*width]+invDistMap[i+j*width])*BLACK_TO_WHITE_BIAS,

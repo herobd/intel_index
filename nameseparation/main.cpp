@@ -3,6 +3,7 @@
 #include <QImage>
 #include "wordseparator.h"
 #include "boxcleaner.h"
+#include "imageaverager.h"
 
 using namespace std;
 
@@ -12,6 +13,15 @@ int main(int argc, char** argv)
     QImage testimg(argv[1]);
     QImage nonoise;
     bool test;
+    
+    
+//    QVector<int> pics;
+//    pics<< 1<<2<<3<<5<<8<<9<<10<<11<<12<<13<<14<<15<<16<<17<<18;
+//    ImageAverager averager(120,44);
+//    QImage avg = averager.averageImages("./descenders_edited/",pics);
+//    avg.save("./average.pgm");
+    
+    
     
 //    QImage trimmed = BoxCleaner::trimBoundaries(testimg);
 //    nonoise= trimmed;//BoxCleaner::removePixelNoise(trimmed);
@@ -96,6 +106,7 @@ int main(int argc, char** argv)
 ////        if (!test)
 ////            cout << "ERROR split!!" << endl;
 //    }
+    
     
     //WordSeparator::recursiveCutWordToFirstLetter(split[1]);
     
