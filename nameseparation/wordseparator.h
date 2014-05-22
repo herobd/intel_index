@@ -20,7 +20,7 @@ public:
     
     static QVector<QImage> cutNames(QImage &img);
     static QVector<QImage> recursiveCutWordToFirstLetter(QImage &img);
-    static QVector<QImage> horzCutEntries(QImage &img, int vert_divide);
+    static QVector<QImage> horzCutEntries(QImage &img, int vert_divide, QVector<QPoints> aboveBoundaryPoints, QVector<QPoints> belowBoundaryPoints);
     
 private:
     //static void computeInverseDistanceMap(double* in, double* out, int size);

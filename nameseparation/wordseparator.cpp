@@ -147,7 +147,7 @@ QVector<QImage> WordSeparator::minCut(QImage &img)
     return ret;
 }
 
-QVector<QImage> WordSeparator::horzCutEntries(QImage &img, int vert_divide)
+QVector<QImage> WordSeparator::horzCutEntries(QImage &img, int vert_divide, QVector<QPoints> aboveBoundaryPoints, QVector<QPoints> belowBoundaryPoints)
 {
     int num_pix = img.width()*img.height();
     //double pix_vals[num_pix];
@@ -157,7 +157,104 @@ QVector<QImage> WordSeparator::horzCutEntries(QImage &img, int vert_divide)
     QVector<int> firstImgBlackPixelIndexes;
     
     //best anchor weight:300 - 425
-    int maxflow = pixelsOfSeparation(invDistMap,img.width(),img.height(),img,firstImgBlackPixelIndexes,700,SPLIT_VERT,vert_divide);
+    int ANCHOR_WEIGHT = 1000;
+    int maxflow = pixelsOfSeparation(invDistMap,img.width(),img.height(),img,firstImgBlackPixelIndexes,ANCHOR_WEIGHT,SPLIT_VERT,vert_divide);
+    
+    
+    QImage twoColorImg = img.copy(0,0,img.width(),img.height());
+    foreach(int index, firstImgBlackPixelIndexes)
+    {
+        int x = index%img.width();
+        int y = index/img.width();
+        twoColorImg.setPixel(x,y,100);
+    }
+    
+    //Find cross-over contected components
+    QImage mark = img.copy(0,0,on.width(),on.height());
+    QVector<QPoint> workingStack;
+    QVector<QPoint> toClearStack;
+    
+    foreach (QPoint keyPoint, aboveBoundaryPoints+belowBoundaryPoints)
+    {
+        if (qGray(mark.pixel(keyPoint)) == BLACK)
+        {
+            int num=0;
+            workingStack.push_back(keyPoint);
+            int min_x, min_y, max_x, max_y;
+            min_x = min_y = INT_POS_INFINITY;
+            max_x = max_y = 0;
+            while (!workingStack.isEmpty())
+            {   
+                QPoint cur = workingStack.back();
+                workingStack.pop_back();
+                toClearStack.push_back(cur);
+                
+                mark.setPixel(cur,WHITE);
+                num++;
+                if (cur.x()<min_x)
+                    min_x=cur.x();
+                if (cur.y()<min_y)
+                    min_y=cur.y();
+                if (cur.x()>max_x)
+                    max_x=cur.x();
+                if (cur.y()>max_y)
+                    max_y=cur.y();
+                
+                if (cur.x()<mark.width()-1 && qGray(mark.pixel(cur.x()+1,cur.y())) == BLACK)
+                {
+                    QPoint pp(cur.x()+1,cur.y());
+                    workingStack.push_back(pp);
+                    mark.setPixel(pp,WHITE);
+                }
+                if (cur.y()<mark.height()-1 && qGray(mark.pixel(cur.x(),cur.y()+1)) == BLACK)
+                {
+                    QPoint pp(cur.x(),cur.y()+1);
+                    workingStack.push_back(pp);
+                    mark.setPixel(pp,WHITE);
+                }
+                if (cur.x()>0 && qGray(mark.pixel(cur.x()-1,cur.y())) == BLACK)
+                {
+                    QPoint pp(cur.x()-1,cur.y());
+                    workingStack.push_back(pp);
+                    mark.setPixel(pp,WHITE);
+                }
+                if (cur.y()>0 && qGray(mark.pixel(cur.x(),cur.y()-1)) == BLACK)
+                {
+                    QPoint pp(cur.x(),cur.y()-1);
+                    workingStack.push_back(pp);
+                    mark.setPixel(pp,WHITE);
+                }
+                //diagonals
+                if (cur.x()<mark.width()-1 && cur.y()<mark.height()-1 && qGray(mark.pixel(cur.x()+1,cur.y()+1)) == BLACK)
+                {
+                    QPoint pp(cur.x()+1,cur.y()+1);
+                    workingStack.push_back(pp);
+                    mark.setPixel(pp,WHITE);
+                }
+                if (cur.y()<mark.height()-1 && cur.x()>0 && qGray(mark.pixel(cur.x()-1,cur.y()+1)) == BLACK)
+                {
+                    QPoint pp(cur.x()-1,cur.y()+1);
+                    workingStack.push_back(pp);
+                    mark.setPixel(pp,WHITE);
+                }
+                if (cur.x()>0 && cur.y()<mark.height()-1 && qGray(mark.pixel(cur.x()-1,cur.y()+1)) == BLACK)
+                {
+                    QPoint pp(cur.x()-1,cur.y()+1);
+                    workingStack.push_back(pp);
+                    mark.setPixel(pp,WHITE);
+                }
+                if (cur.y()>0 && cur.x()>0 && qGray(mark.pixel(cur.x()-1,cur.y()-1)) == BLACK)
+                {
+                    QPoint pp(cur.x()-1,cur.y()-1);
+                    workingStack.push_back(pp);
+                    mark.setPixel(pp,WHITE);
+                }
+            }
+                
+            
+        }
+    }
+    ////
     
     int firstLowestPixel = 0;
     int secondHighestPixel = 0;
@@ -1100,14 +1197,14 @@ int WordSeparator::pixelsOfSeparation(int* invDistMap, int width, int height, QI
     
     if (split_method==SPLIT_VERT)
     {
-        BLACK_TO_BLACK_V_BIAS = 3;
-        BLACK_TO_BLACK_H_BIAS = 3;
-        BLACK_TO_BLACK_D_BIAS = 3;
+        BLACK_TO_BLACK_V_BIAS = 1.7;
+        BLACK_TO_BLACK_H_BIAS = 1.7;
+        BLACK_TO_BLACK_D_BIAS = sqrt(pow(BLACK_TO_BLACK_V_BIAS,2)+pow(BLACK_TO_BLACK_H_BIAS,2));
         WHITE_TO_BLACK_BIAS = .5;
         BLACK_TO_WHITE_BIAS = .5;
         WHITE_TO_WHITE_V_BIAS = .5;
         WHITE_TO_WHITE_H_BIAS = .5;
-        WHITE_TO_WHITE_D_BIAS = .5;
+        WHITE_TO_WHITE_D_BIAS = sqrt(pow(WHITE_TO_WHITE_V_BIAS,2)+pow(WHITE_TO_WHITE_H_BIAS,2));
     }
     
     double reducer = 1;

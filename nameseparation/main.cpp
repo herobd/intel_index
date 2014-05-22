@@ -29,7 +29,9 @@ int main(int argc, char** argv)
 //    if (!test)
 //        cout << "ERROR trim!!" << endl;
     int vert_divide;
-    QImage lineremoved=BoxCleaner::clearLineAndCloseLetters(testimg,40,&vert_divide);
+    QVector<QPoints> aboveBoundaryPoints;
+    QVector<QPoints> belowBoundaryPoints;
+    QImage lineremoved=BoxCleaner::clearLineAndCloseLetters(testimg,40,&vert_divide,&aboveBoundaryPoints,&belowBoundaryPoints);
 //    lineremoved=BoxCleaner::clearLineAndCloseLetters(lineremoved,88,&vert_divide);
 //    lineremoved=BoxCleaner::clearLineAndCloseLetters(lineremoved,131,&vert_divide);
 //    lineremoved=BoxCleaner::clearLineAndCloseLetters(lineremoved,170,&vert_divide);
@@ -38,7 +40,13 @@ int main(int argc, char** argv)
     if (!test)
         cout << "ERROR lineremove!!" << endl;
     
-    QVector<QImage> cuts = WordSeparator::horzCutEntries(lineremoved,vert_divide);
+    QImage trimmed = BoxCleaner::trimBoundaries(lineremoved);
+    nonoise= BoxCleaner::removePixelNoise(trimmed);
+    test = nonoise.save("./noise_removed.pgm");
+    if (!test)
+        cout << "ERROR trim!!" << endl;
+    
+    QVector<QImage> cuts = WordSeparator::horzCutEntries(nonoise,vert_divide);
     cuts[0].save("./cut1_top.pgm");
     cuts[1].save("./cut2_bottom.pgm");
     

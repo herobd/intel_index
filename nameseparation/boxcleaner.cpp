@@ -499,12 +499,12 @@ QImage BoxCleaner::removePixelNoise(QImage &img)
     int HORZ_MARK_THRESH = 900;
     int LONGNESS_RATIO = 2.4;
     int STD_DEV_LIMIT = 38;
-    floodFilter(ret,0,ret.height()-1,BLOB_THRESH,HORZ_MARK_THRESH,LONGNESS_RATIO,STD_DEV_LIMIT);
+    blobFilter(ret,0,ret.height()-1,BLOB_THRESH,HORZ_MARK_THRESH,LONGNESS_RATIO,STD_DEV_LIMIT);
     
     return ret;
 }
 
-QImage BoxCleaner::clearLineAndCloseLetters(QImage &src, int est_y, int* vert_divide)
+QImage BoxCleaner::clearLineAndCloseLetters(QImage &src, int est_y, int* vert_divide, QVector<QPoint>* aboveBoundaryCrossPoints, QVector<QPoint>* belowBoundaryCrossPoints)
 {
     int SEARCH_BAND = 10;
     int STRUCT_ELE_SIZE = 6;
@@ -520,7 +520,9 @@ QImage BoxCleaner::clearLineAndCloseLetters(QImage &src, int est_y, int* vert_di
         QVector<QPoint> pointsToClose;
         int aboveLine;
         int belowLine;
-        for (int j=0; j<=SEARCH_BAND*2 + 1; j++)
+        int maxProfile=0;
+        int maxProfileIndex=0;
+        for (int j=0; j<=SEARCH_BAND*2; j++)
         {
             //create profile for row
             for (int i=0; i<src.width(); i++)
@@ -528,77 +530,112 @@ QImage BoxCleaner::clearLineAndCloseLetters(QImage &src, int est_y, int* vert_di
                 if (qGray(ret.pixel(i,j+(est_y-SEARCH_BAND))) == BLACK)
                     profile[j]++;
             }
-            
-            //evaluate profile
-            if (profile[j] > LINE_THRESH)
+            if (profile[j]>maxProfile)
             {
-                
-                if (!erasing)
+                maxProfile=profile[j];
+                maxProfileIndex=j;
+            }
+        }
+        aboveLine = maxProfileIndex-1;
+        while (profile[aboveLine]>LINE_THRESH)
+            aboveLine--;
+        aboveLine+=(est_y-SEARCH_BAND);
+        
+        belowLine = maxProfileIndex+1;
+        while (profile[belowLine]>LINE_THRESH)
+            belowLine++;
+        belowLine+=(est_y-SEARCH_BAND);
+        
+        int startOfBoundary = -1;
+        bool onBoundary = false;
+        
+        for (int i=0; i<src.width(); i++)
+        {
+            if (qGray(ret.pixel(i,aboveLine)) == BLACK && 
+                    (i<=0 || qGray(ret.pixel(i-1,aboveLine-1)) != BLACK) && 
+                    qGray(ret.pixel(i,aboveLine-1)) != BLACK && 
+                    (i>=src.width()-1 || qGray(ret.pixel(i+1,aboveLine-1)) != BLACK))
+            {
+                ret.setPixel(i,aboveLine,WHITE);
+            }
+            
+            if (qGray(ret.pixel(i,aboveLine-1)) == BLACK && 
+                    qGray(ret.pixel(i,aboveLine)) == BLACK)
+            {
+                QPoint p(i,aboveLine);
+                pointsToClose.append(p);
+                if (!onBoundary)
                 {
-                    //first row we are removing
-                    erasing=true;
-                    aboveLine=j+(est_y-SEARCH_BAND)-1;
-                    for (int i=0; i<src.width(); i++)
-                    {
-                        if (qGray(ret.pixel(i,aboveLine)) == BLACK && 
-                                (i<=0 || qGray(ret.pixel(i-1,aboveLine-1)) != BLACK) && 
-                                qGray(ret.pixel(i,aboveLine-1)) != BLACK && 
-                                (i>=src.width()-1 || qGray(ret.pixel(i+1,aboveLine-1)) != BLACK))
-                        {
-                            ret.setPixel(i,aboveLine,WHITE);
-                        }
-                        else if (qGray(ret.pixel(i,j+(est_y-SEARCH_BAND))) == BLACK && 
-                                qGray(ret.pixel(i,aboveLine)) == BLACK)
-                        {
-                            QPoint p(i,j+(est_y-SEARCH_BAND)-1);
-                            pointsToClose.append(p);
-                        }
-                        ret.setPixel(i,j+(est_y-SEARCH_BAND),WHITE);
-                    }
+                    onBoundary=true;
+                    startOfBoundary=i;
                 }
-                else
-                {
-                    for (int i=0; i<src.width(); i++)
-                    {
-                        ret.setPixel(i,j+(est_y-SEARCH_BAND),WHITE);
-                    }
-                }
+            }
+            else if (onBoundary && aboveBoundaryCrossPoints != NULL)
+            {
+                onBoundary=false;
+                QPoint keypoint((i+startOfBoundary)/2,aboveLine);
+                aboveBoundaryCrossPoints->append(keypoint);
                 
             }
-            else if (erasing)
+            ret.setPixel(i,aboveLine+1,WHITE);
+        }
+            
+        
+        for (int j=aboveLine+2; j<belowLine; j++)
+        {
+            for (int i=0; i<src.width(); i++)
             {
-                belowLine=j+(est_y-SEARCH_BAND);
-                for (int i=0; i<src.width(); i++)
-                {
-                    if (qGray(ret.pixel(i,belowLine)) == BLACK && 
-                            (i<=0 || qGray(ret.pixel(i-1,belowLine+1)) != BLACK) && 
-                            qGray(ret.pixel(i,belowLine+1)) != BLACK && 
-                            (i>=src.width()-1 || qGray(ret.pixel(i+1,belowLine+1)) != BLACK))
-                    {
-                        ret.setPixel(i,belowLine,WHITE);
-                    }
-                    else if (qGray(src.pixel(i,belowLine-1)) == BLACK && 
-                            qGray(src.pixel(i,belowLine)) == BLACK)
-                    {
-                        QPoint p(i,belowLine);
-                        pointsToClose.append(p);
-                    }
-                }
-                break;                
+                ret.setPixel(i,j,WHITE);
             }
         }
         
-        *vert_divide = (belowLine+aboveLine)/2;
+        startOfBoundary = -1;
+        onBoundary = false;
+        
+        for (int i=0; i<src.width(); i++)
+        {
+            if (qGray(ret.pixel(i,belowLine)) == BLACK && 
+                    (i<=0 || qGray(ret.pixel(i-1,belowLine+1)) != BLACK) && 
+                    qGray(ret.pixel(i,belowLine+1)) != BLACK && 
+                    (i>=src.width()-1 || qGray(ret.pixel(i+1,belowLine+1)) != BLACK))
+            {
+                ret.setPixel(i,belowLine,WHITE);
+            }
+            
+            if (qGray(src.pixel(i,belowLine+1)) == BLACK && 
+                    qGray(src.pixel(i,belowLine)) == BLACK)
+            {
+                QPoint p(i,belowLine);
+                pointsToClose.append(p);
+                if (!onBoundary)
+                {
+                    onBoundary=true;
+                    startOfBoundary=i;
+                }
+            }
+            else if (onBoundary && belowBoundaryCrossPoints != NULL)
+            {
+                onBoundary=false;
+                QPoint keypoint((i+startOfBoundary)/2,aboveLine);
+                belowBoundaryCrossPoints->append(keypoint);
+                
+            }
+            ret.setPixel(i,aboveLine+1,WHITE);
+        }
+            
+        if (vert_divide != NULL)
+            *vert_divide = (belowLine+aboveLine)/2;
         
         //Flood fill filter
         int BLOB_THRESH = 8;
         int HORZ_MARK_THRESH = 100;
         int LONGNESS_RATIO = 3;
         int STD_DEV_LIMIT = 38;
-        floodFilter(ret,aboveLine-1,belowLine+1,BLOB_THRESH,HORZ_MARK_THRESH,LONGNESS_RATIO,STD_DEV_LIMIT);
+        blobFilter(ret,aboveLine-1,belowLine+1,BLOB_THRESH,HORZ_MARK_THRESH,LONGNESS_RATIO,STD_DEV_LIMIT);
         
         
-        //Morphology stuff
+        
+        //Morphological close
         
         QVector<QPoint> pointsToErrode;
         QImage close_tmp = ret.copy(0,0,ret.width(),ret.height());
@@ -659,10 +696,47 @@ QImage BoxCleaner::clearLineAndCloseLetters(QImage &src, int est_y, int* vert_di
         }
         
     }
+    
+    if (aboveBoundaryCrossPoints != NULL && belowBoundaryCrossPoints != NULL)
+    {
+        //pair the boundary points and remove the single ones
+        QImage mark = ret.copy(0,0,on.width(),on.height());
+        QVector<QPoint> workingStack;
+        int belowIndex=0;
+        for(int aboveIndex=0; aboveIndex<aboveBoundaryCrossPoints->size(); aboveIndex++)
+        {
+            workingStack.push_back(aboveBoundaryCrossPoints[aboveIndex]);
+            while(!workingStack.isEmpty())
+            {
+                QPoint cur = workingStack.front();
+                workingStack.pop_front();
+                bool found = false;
+                for (int ind=belowIndex; ind < belowBoundaryCrossPoints->size(); ind++)
+                {
+                    if (cur == belowBoundaryCrossPoints[i])
+                    {
+                        belowBoundaryCrossPoints->remove(belowIndex,ind-belowIndex);
+                        belowIndex=below-(ind-belowIndex);
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found)
+                {
+                    aboveBoundaryCrossPoints->remove(aboveIndex);
+                    aboveIndex--;
+                }
+                
+                //add points for fill
+            }
+        }
+        belowBoundaryCrossPoints->remove(belowIndex,belowBoundaryCrossPoints->size()-(1+belowIndex));
+    }
+    
     return ret;
 }
 
-void BoxCleaner::floodFilter(QImage &on, int fromY, int toY, int blobThresh, int horzMarkThresh, double horzLongRatio, double stdDevLimit)
+void BoxCleaner::blobFilter(QImage &on, int fromY, int toY, int blobThresh, int horzMarkThresh, double horzLongRatio, double stdDevLimit)
 {
     QImage mark = on.copy(0,0,on.width(),on.height());
     QVector<QPoint> workingStack;
@@ -686,7 +760,6 @@ void BoxCleaner::floodFilter(QImage &on, int fromY, int toY, int blobThresh, int
                     workingStack.pop_back();
                     toClearStack.push_back(cur);
                     
-                    mark.setPixel(cur,WHITE);
                     num++;
                     if (cur.x()<min_x)
                         min_x=cur.x();
@@ -701,42 +774,50 @@ void BoxCleaner::floodFilter(QImage &on, int fromY, int toY, int blobThresh, int
                     {
                         QPoint pp(cur.x()+1,cur.y());
                         workingStack.push_back(pp);
+                        mark.setPixel(pp,WHITE);
                     }
                     if (cur.y()<mark.height()-1 && qGray(mark.pixel(cur.x(),cur.y()+1)) == BLACK)
                     {
                         QPoint pp(cur.x(),cur.y()+1);
                         workingStack.push_back(pp);
+                        mark.setPixel(pp,WHITE);
                     }
                     if (cur.x()>0 && qGray(mark.pixel(cur.x()-1,cur.y())) == BLACK)
                     {
                         QPoint pp(cur.x()-1,cur.y());
                         workingStack.push_back(pp);
+                        mark.setPixel(pp,WHITE);
                     }
                     if (cur.y()>0 && qGray(mark.pixel(cur.x(),cur.y()-1)) == BLACK)
                     {
                         QPoint pp(cur.x(),cur.y()-1);
                         workingStack.push_back(pp);
+                        mark.setPixel(pp,WHITE);
                     }
                     //diagonals
                     if (cur.x()<mark.width()-1 && cur.y()<mark.height()-1 && qGray(mark.pixel(cur.x()+1,cur.y()+1)) == BLACK)
                     {
                         QPoint pp(cur.x()+1,cur.y()+1);
                         workingStack.push_back(pp);
+                        mark.setPixel(pp,WHITE);
                     }
                     if (cur.y()<mark.height()-1 && cur.x()>0 && qGray(mark.pixel(cur.x()-1,cur.y()+1)) == BLACK)
                     {
                         QPoint pp(cur.x()-1,cur.y()+1);
                         workingStack.push_back(pp);
+                        mark.setPixel(pp,WHITE);
                     }
                     if (cur.x()>0 && cur.y()<mark.height()-1 && qGray(mark.pixel(cur.x()-1,cur.y()+1)) == BLACK)
                     {
                         QPoint pp(cur.x()-1,cur.y()+1);
                         workingStack.push_back(pp);
+                        mark.setPixel(pp,WHITE);
                     }
                     if (cur.y()>0 && cur.x()>0 && qGray(mark.pixel(cur.x()-1,cur.y()-1)) == BLACK)
                     {
                         QPoint pp(cur.x()-1,cur.y()-1);
                         workingStack.push_back(pp);
+                        mark.setPixel(pp,WHITE);
                     }
                 }
                 if (num>horzMarkThresh)
