@@ -10,16 +10,16 @@ using namespace std;
 int main(int argc, char** argv)
 {
     cout << "Starting" << endl;
-    QImage testimg(argv[1]);
-    QImage nonoise;
-    bool test;
+//    QImage testimg(argv[1]);
+//    QImage nonoise;
+//    bool test;
     
     
-//    QVector<int> pics;
-//    pics<< 1<<2<<3<<5<<8<<9<<10<<11<<12<<13<<14<<15<<16<<17<<18;
-//    ImageAverager averager(120,44);
-//    QImage avg = averager.averageImages("./descenders_edited/",pics);
-//    avg.save("./average.pgm");
+    QVector<int> pics;
+    pics<< 1<<2<<3<<4<<5<<6<<7<<8<<9<<10<<11<<12<<13<<14<<15<<16<<17<<18<<19;
+    ImageAverager averager(120,42);
+    QImage avg = averager.averageImages("./descenders_justimage/",pics);
+    avg.save("./average.pgm");
     
     
     
@@ -28,27 +28,31 @@ int main(int argc, char** argv)
 //    test = nonoise.save("./noise_removed.pgm");
 //    if (!test)
 //        cout << "ERROR trim!!" << endl;
-    int vert_divide;
-    QVector<QPoints> aboveBoundaryPoints;
-    QVector<QPoints> belowBoundaryPoints;
-    QImage lineremoved=BoxCleaner::clearLineAndCloseLetters(testimg,40,&vert_divide,&aboveBoundaryPoints,&belowBoundaryPoints);
-//    lineremoved=BoxCleaner::clearLineAndCloseLetters(lineremoved,88,&vert_divide);
-//    lineremoved=BoxCleaner::clearLineAndCloseLetters(lineremoved,131,&vert_divide);
-//    lineremoved=BoxCleaner::clearLineAndCloseLetters(lineremoved,170,&vert_divide);
-//    lineremoved=BoxCleaner::clearLineAndCloseLetters(lineremoved,210,&vert_divide);
-    test = lineremoved.save("./lineremoved.pgm");
-    if (!test)
-        cout << "ERROR lineremove!!" << endl;
+//    int vert_divide;
+//    QVector<QPoint> crossPoints;
+//    QImage lineremoved=BoxCleaner::clearLineAndCloseLetters(testimg,40,&vert_divide,&crossPoints);
+////    lineremoved=BoxCleaner::clearLineAndCloseLetters(lineremoved,88,&vert_divide);
+////    lineremoved=BoxCleaner::clearLineAndCloseLetters(lineremoved,131,&vert_divide);
+////    lineremoved=BoxCleaner::clearLineAndCloseLetters(lineremoved,170,&vert_divide);
+////    lineremoved=BoxCleaner::clearLineAndCloseLetters(lineremoved,210,&vert_divide);
+//    for (int i=0; i<crossPoints.size(); i++)
+//    {
+//        lineremoved.setPixel(crossPoints[i],200);
+//    }
     
-    QImage trimmed = BoxCleaner::trimBoundaries(lineremoved);
-    nonoise= BoxCleaner::removePixelNoise(trimmed);
-    test = nonoise.save("./noise_removed.pgm");
-    if (!test)
-        cout << "ERROR trim!!" << endl;
+//    test = lineremoved.save("./lineremoved.pgm");
+//    if (!test)
+//        cout << "ERROR lineremove!!" << endl;
     
-    QVector<QImage> cuts = WordSeparator::horzCutEntries(nonoise,vert_divide);
-    cuts[0].save("./cut1_top.pgm");
-    cuts[1].save("./cut2_bottom.pgm");
+//    QImage trimmed = BoxCleaner::trimBoundaries(lineremoved);
+//    nonoise= BoxCleaner::removePixelNoise(trimmed);
+//    test = nonoise.save("./noise_removed.pgm");
+//    if (!test)
+//        cout << "ERROR trim!!" << endl;
+    
+//    QVector<QImage> cuts = WordSeparator::horzCutEntries(nonoise,vert_divide);
+//    cuts[0].save("./cut1_top.pgm");
+//    cuts[1].save("./cut2_bottom.pgm");
     
     
     

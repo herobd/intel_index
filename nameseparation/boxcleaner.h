@@ -9,7 +9,7 @@ public:
     BoxCleaner();
     static QImage trimBoundaries(QImage &img);
     static QImage removePixelNoise(QImage &img);
-    static QImage clearLineAndCloseLetters(QImage &src, int est_y, int* vert_divide=NULL, QVector<QPoint>* aboveBoundaryCrossPoints=NULL, QVector<QPoint>* belowBoundaryCrossPoints=NULL);
+    static QImage clearLineAndCloseLetters(QImage &src, int est_y, int* vert_divide=NULL, QVector<QPoint>* crossPoints=NULL);
     
 private:
     static void lineFilterAtJ(int j, QImage &ret);

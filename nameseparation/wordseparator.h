@@ -4,6 +4,7 @@
 #include "wordprofile.h"
 #include "maxflow/graph.h"
 #include "Constants.h"
+#include <QPoint>
 
 #define SPLIT_HORZ 1
 #define SPLIT_VERT 2
@@ -20,7 +21,7 @@ public:
     
     static QVector<QImage> cutNames(QImage &img);
     static QVector<QImage> recursiveCutWordToFirstLetter(QImage &img);
-    static QVector<QImage> horzCutEntries(QImage &img, int vert_divide, QVector<QPoints> aboveBoundaryPoints, QVector<QPoints> belowBoundaryPoints);
+    static QVector<QImage> horzCutEntries(QImage &img, int vert_divide, QVector<QPoint> crossPoints);
     
 private:
     //static void computeInverseDistanceMap(double* in, double* out, int size);

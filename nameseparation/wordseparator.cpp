@@ -11,7 +11,7 @@
 WordSeparator::WordSeparator()
 {
 }
-
+//old
 QImage WordSeparator::removeFirstWord(QImage &from)
 {
     WordProfile profile(from,true,0);
@@ -62,7 +62,7 @@ QImage WordSeparator::removeFirstWord(QImage &from)
     from = from.copy(selectedCut,0,from.width()-selectedCut,from.height());
     return toReturn;
 }
-
+//old
 int WordSeparator::windowScanWidestMin(WordProfile &profile, int size)
 {
     QVector<int> mins = profile.getLocalMins();
@@ -93,7 +93,7 @@ int WordSeparator::windowScanWidestMin(WordProfile &profile, int size)
 
 
 
-
+//This performs a horizontal separation of the image by creating a distance map and then doing a graph cut on it.
 QVector<QImage> WordSeparator::minCut(QImage &img)
 {
     int num_pix = img.width()*img.height();
@@ -147,7 +147,8 @@ QVector<QImage> WordSeparator::minCut(QImage &img)
     return ret;
 }
 
-QVector<QImage> WordSeparator::horzCutEntries(QImage &img, int vert_divide, QVector<QPoints> aboveBoundaryPoints, QVector<QPoints> belowBoundaryPoints)
+//This performs a verticle separation of two words, it identifys descenders in an attempt to increase accuracy
+QVector<QImage> WordSeparator::horzCutEntries(QImage &img, int vert_divide, QVector<QPoint> crossPoints)
 {
     int num_pix = img.width()*img.height();
     //double pix_vals[num_pix];
@@ -170,35 +171,34 @@ QVector<QImage> WordSeparator::horzCutEntries(QImage &img, int vert_divide, QVec
     }
     
     //Find cross-over contected components
-    QImage mark = img.copy(0,0,on.width(),on.height());
+    QImage mark = img.copy(0,0,img.width(),img.height());
     QVector<QPoint> workingStack;
-    QVector<QPoint> toClearStack;
+    QVector<QPoint> ccccKeyPoints;
+    QVector<QVector<QPoint> > ccccLowerPoints;
     
-    foreach (QPoint keyPoint, aboveBoundaryPoints+belowBoundaryPoints)
+    foreach (QPoint keyPoint, crossPoints)
     {
         if (qGray(mark.pixel(keyPoint)) == BLACK)
         {
-            int num=0;
             workingStack.push_back(keyPoint);
-            int min_x, min_y, max_x, max_y;
-            min_x = min_y = INT_POS_INFINITY;
-            max_x = max_y = 0;
+            int startingColor = qGray(twoColorImg.pixel(keyPoint));
+            QVector<QPoint> lowerPoints;
+            crossover=false;
             while (!workingStack.isEmpty())
             {   
                 QPoint cur = workingStack.back();
                 workingStack.pop_back();
-                toClearStack.push_back(cur);
                 
-                mark.setPixel(cur,WHITE);
-                num++;
-                if (cur.x()<min_x)
-                    min_x=cur.x();
-                if (cur.y()<min_y)
-                    min_y=cur.y();
-                if (cur.x()>max_x)
-                    max_x=cur.x();
-                if (cur.y()>max_y)
-                    max_y=cur.y();
+                if (qGray(twoColorImg.pixel(cur)) == BLACK)
+                {
+                    lowerPoints.append(cur);
+                }
+                
+                //this needs changed
+                if (qGray(twoColorImg.pixel(cur)) != startingColor && !crossover)
+                {
+                    crossover=true;
+                }
                 
                 if (cur.x()<mark.width()-1 && qGray(mark.pixel(cur.x()+1,cur.y())) == BLACK)
                 {
@@ -237,9 +237,9 @@ QVector<QImage> WordSeparator::horzCutEntries(QImage &img, int vert_divide, QVec
                     workingStack.push_back(pp);
                     mark.setPixel(pp,WHITE);
                 }
-                if (cur.x()>0 && cur.y()<mark.height()-1 && qGray(mark.pixel(cur.x()-1,cur.y()+1)) == BLACK)
+                if (cur.x()<mark.width()-1 && cur.y()>0 && qGray(mark.pixel(cur.x()+1,cur.y()-1)) == BLACK)
                 {
-                    QPoint pp(cur.x()-1,cur.y()+1);
+                    QPoint pp(cur.x()+1,cur.y()-1);
                     workingStack.push_back(pp);
                     mark.setPixel(pp,WHITE);
                 }
@@ -250,11 +250,59 @@ QVector<QImage> WordSeparator::horzCutEntries(QImage &img, int vert_divide, QVec
                     mark.setPixel(pp,WHITE);
                 }
             }
-                
+            
+            if (crossover)
+            {
+                ccccKeyPoints.append(keyPoint);
+                ccccLowerPoints.append(lowerPoints);    
+            }
             
         }
     }
     ////
+    
+    //Perhaps we ought to gather the entire cccc into a collection, then iterate over all the points
+    //But we only need the lower points, and only the ones on the map
+    //What about only the points of the the regular black(lower)?
+    //we still need the keypoint for alignment, but that should sort of work. Most will get a zero map score
+    //
+    
+    //apply prob map
+    QImage probMapI;
+    QVector<QVector<double> > probMap;
+    
+    foreach(QPoint canidate, cccc)
+    {
+        QVector<QVector<double> > scoreMap;
+        double scoreTotal=0;
+        int num_of_points=0;
+        for(int i=0; i<probMap.size(); i++)
+        {
+            for(int j=0; j<probMap[0].size(); j++)
+            {
+                int x = canidate.x()+probMap.size()/2;
+                int y = canidate.y()+probMap[0].size()/2;
+                if (qGray(mark.pixel(x,y)) == BLACK)//This might not even be part of the cccc!
+                {
+                    scoreMap[i][j] = probMap[i][j];
+                    num_of_points++;
+                }
+                else
+                    scoreMap[i][j]=0;
+                
+                scoreTotal+=scoreMap[i][j];
+            }
+        }
+        
+        if (scoreTotal>DESCENDER_SCORE_THRESH)
+        {
+            //if this is disconnected (all pixels are important in map) we can add all
+            //but what if we are intersected with something else?
+            
+            //expiriment
+            if ()
+        }
+    }
     
     int firstLowestPixel = 0;
     int secondHighestPixel = 0;
