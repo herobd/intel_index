@@ -7,6 +7,12 @@ BoxCleaner::BoxCleaner()
 }
 
 QImage BoxCleaner::trimBoundaries(QImage &img)
+{
+    QImage vt = trimVerticleBoundaries(img);
+    return trimHorizontalBoundaries(vt);
+}
+
+QImage BoxCleaner::trimHorizontalBoundaries(QImage &img)
 {   
     int trimTop=0;
     int trimBottom=img.height();
@@ -17,97 +23,13 @@ QImage BoxCleaner::trimBoundaries(QImage &img)
     int RUN_HORZ_THRESH = img.width()*.55;   
     int PROFILE_HORZ_THRESH_E = img.width()*.8;
     int RUN_HORZ_THRESH_E = img.width()*.65;
-    int PROFILE_VERT_THRESH = img.height()*.85;
-    int RUN_VERT_THRESH = img.height()*.7;
     int i;
     int j;
     bool cont = true;
     
      QImage ret = img.copy(trimLeft,trimTop,trimRight-trimLeft,trimBottom-trimTop);
      
-     
-     //veritcle lines
-     
-     //left side
-     cont=true;
-     for (i=0; cont && i<ret.width()/2; i++)
-     {
-         if (i>2)
-            cont=false;
-         int profile = 0;
-         int runLength=0;
-         for (j=0; j<ret.height(); j++)
-         {
-             if (qGray(ret.pixel(i,j)) == BLACK)
-             {
-                 profile++;
-                 runLength++;
-             }
-             else 
-             {
-                 if (runLength>RUN_VERT_THRESH)
-                 {
-                     cont=true;
-                     for (;runLength>0; runLength--)
-                         ret.setPixel(i,j-runLength,WHITE);
-                 }
-                 runLength=0;
-             }
-         }
-         if (runLength>RUN_VERT_THRESH)
-         {
-             cont=true;
-             for (;runLength>0; runLength--)
-                 ret.setPixel(i,j-runLength,WHITE);
-         }
-         if (profile > PROFILE_VERT_THRESH)
-         {
-             cont=true;
-             for (int j=0; j<ret.height(); j++)
-                 ret.setPixel(i,j,WHITE);
-         }
-     }
-     
-     //right side
-     cont=true;
-     for (i=ret.width()-1; cont && i>ret.width()/2; i--)
-     {
-         if (i>2)
-            cont=false;
-         int profile = 0;
-         int runLength=0;
-         for (j=0; j<ret.height(); j++)
-         {
-             if (qGray(ret.pixel(i,j)) == BLACK)
-             {
-                 profile++;
-                 runLength++;
-             }
-             else 
-             {
-                 if (runLength>RUN_VERT_THRESH)
-                 {
-                     cont=true;
-                     for (;runLength>0; runLength--)
-                         ret.setPixel(i,j-runLength,WHITE);
-                 }
-                 runLength=0;
-             }
-         }
-         if (runLength>RUN_VERT_THRESH)
-         {
-             cont=true;
-             for (;runLength>0; runLength--)
-                 ret.setPixel(i,j-runLength,WHITE);
-         }
-         
-         if (profile > PROFILE_VERT_THRESH)
-         {
-             cont=true;
-             for (int j=0; j<ret.height(); j++)
-                 ret.setPixel(i,j,WHITE);
-         }
-     }
+    
      
      //horizontal
      //top
@@ -244,6 +166,109 @@ QImage BoxCleaner::trimBoundaries(QImage &img)
 //             for (int i=0; i<ret.width(); i++)
 //                 ret.setPixel(i,j,WHITE);
              cond_clear_line(ret.width()-1,ret.width(),j,ret);
+         }
+     }
+     
+  
+    return ret;
+}
+
+QImage BoxCleaner::trimVerticleBoundaries(QImage &img)
+{   
+    int trimTop=0;
+    int trimBottom=img.height();
+    int trimLeft=0;
+    int trimRight=img.width();
+    
+    int PROFILE_VERT_THRESH = img.height()*.85;
+    int RUN_VERT_THRESH = 40*.7;
+    int i;
+    int j;
+    bool cont = true;
+    
+     QImage ret = img.copy(trimLeft,trimTop,trimRight-trimLeft,trimBottom-trimTop);
+     
+     
+     //veritcle lines
+     
+     //left side
+     cont=true;
+     for (i=0; cont && i<ret.width()/2; i++)
+     {
+         if (i>2)
+            cont=false;
+         int profile = 0;
+         int runLength=0;
+         for (j=0; j<ret.height(); j++)
+         {
+             if (qGray(ret.pixel(i,j)) == BLACK)
+             {
+                 profile++;
+                 runLength++;
+             }
+             else 
+             {
+                 if (runLength>RUN_VERT_THRESH)
+                 {
+                     cont=true;
+                     for (;runLength>0; runLength--)
+                         ret.setPixel(i,j-runLength,WHITE);
+                 }
+                 runLength=0;
+             }
+         }
+         if (runLength>RUN_VERT_THRESH)
+         {
+             cont=true;
+             for (;runLength>0; runLength--)
+                 ret.setPixel(i,j-runLength,WHITE);
+         }
+         if (profile > PROFILE_VERT_THRESH)
+         {
+             cont=true;
+             for (int j=0; j<ret.height(); j++)
+                 ret.setPixel(i,j,WHITE);
+         }
+     }
+     
+     //right side
+     cont=true;
+     for (i=ret.width()-1; cont && i>ret.width()/2; i--)
+     {
+         if (i>2)
+            cont=false;
+         int profile = 0;
+         int runLength=0;
+         for (j=0; j<ret.height(); j++)
+         {
+             if (qGray(ret.pixel(i,j)) == BLACK)
+             {
+                 profile++;
+                 runLength++;
+             }
+             else 
+             {
+                 if (runLength>RUN_VERT_THRESH)
+                 {
+                     cont=true;
+                     for (;runLength>0; runLength--)
+                         ret.setPixel(i,j-runLength,WHITE);
+                 }
+                 runLength=0;
+             }
+         }
+         if (runLength>RUN_VERT_THRESH)
+         {
+             cont=true;
+             for (;runLength>0; runLength--)
+                 ret.setPixel(i,j-runLength,WHITE);
+         }
+         
+         if (profile > PROFILE_VERT_THRESH)
+         {
+             cont=true;
+             for (int j=0; j<ret.height(); j++)
+                 ret.setPixel(i,j,WHITE);
          }
      }
      
@@ -414,6 +439,24 @@ QImage BoxCleaner::removePixelNoise(QImage &img)
         }
     }
     
+    ret = removeVerticlePixelNoise(ret);
+    
+    
+    //Now we remove any connected components that are below a certain size.
+    int BLOB_THRESH = 35;
+    int HORZ_MARK_THRESH = 500;
+    int LONGNESS_RATIO = 2.4;
+    int STD_DEV_LIMIT = 38;
+    blobFilter(ret,0,ret.height()-1,BLOB_THRESH,HORZ_MARK_THRESH,LONGNESS_RATIO,STD_DEV_LIMIT);
+    
+    return ret;
+}
+
+QImage BoxCleaner::removeVerticlePixelNoise(QImage &img)
+{
+    QImage ret = img.copy(0,0,img.width(),img.height());
+    
+    
     //left and right
     for (int j=1; j<ret.height()-1; j++)
     {
@@ -445,14 +488,6 @@ QImage BoxCleaner::removePixelNoise(QImage &img)
         }
     }
     
-    
-    //Now we remove any connected components that are below a certain size.
-    int BLOB_THRESH = 35;
-    int HORZ_MARK_THRESH = 900;
-    int LONGNESS_RATIO = 2.4;
-    int STD_DEV_LIMIT = 38;
-    blobFilter(ret,0,ret.height()-1,BLOB_THRESH,HORZ_MARK_THRESH,LONGNESS_RATIO,STD_DEV_LIMIT);
-    
     return ret;
 }
 
@@ -463,7 +498,7 @@ QImage BoxCleaner::removePixelNoise(QImage &img)
 //restored by the close.
 QImage BoxCleaner::clearLineAndCloseLetters(QImage &src, int est_y, int* vert_divide, QVector<QPoint>* crossPoints)
 {
-    int SEARCH_BAND = 10;
+    int SEARCH_BAND = 15;
     int STRUCT_ELE_SIZE = 6;
     int LINE_THRESH = src.width() * .6;
     
@@ -473,12 +508,11 @@ QImage BoxCleaner::clearLineAndCloseLetters(QImage &src, int est_y, int* vert_di
     if (src.height()-est_y>SEARCH_BAND && est_y>SEARCH_BAND)
     {
         QVector<int> profile(SEARCH_BAND*2 + 1);
-        bool erasing = false;
         QVector<QPoint> pointsToClose;
         int aboveLine;
         int belowLine;
         int maxProfile=0;
-        int maxProfileIndex=0;
+        int maxProfileIndex=-1;
         for (int j=0; j<=SEARCH_BAND*2; j++)
         {
             //create profile for row
@@ -493,6 +527,31 @@ QImage BoxCleaner::clearLineAndCloseLetters(QImage &src, int est_y, int* vert_di
                 maxProfileIndex=j;
             }
         }
+        
+        if (maxProfileIndex<0)
+        {
+            SEARCH_BAND *= 2;
+            profile.insert(0,SEARCH_BAND*2,0);
+            profile.fill(0);
+            for (int j=0; j<=SEARCH_BAND*2; j++)
+            {
+                //create profile for row
+                for (int i=0; i<src.width(); i++)
+                {
+                    if (qGray(ret.pixel(i,j+(est_y-SEARCH_BAND))) == BLACK)
+                        profile[j]++;
+                }
+                if (profile[j]>maxProfile)
+                {
+                    maxProfile=profile[j];
+                    maxProfileIndex=j;
+                }
+            }
+        }
+        
+        if (maxProfileIndex < 1)
+            return ret;
+        
         aboveLine = maxProfileIndex-1;
         while (profile[aboveLine]>LINE_THRESH)
             aboveLine--;
@@ -786,7 +845,7 @@ void BoxCleaner::blobFilter(QImage &on, int fromY, int toY, int blobThresh, int 
                     QPoint r = toClearStack.back();
                     toClearStack.pop_back();
                     
-                    //printf("remove p(%d,%d)\n",r.x(),r.y());
+//                    printf("remove p(%d,%d)\n",r.x(),r.y());
                     on.setPixel(r,WHITE);
                 }
             }

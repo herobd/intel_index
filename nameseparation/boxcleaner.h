@@ -8,7 +8,10 @@ class BoxCleaner
 public:
     BoxCleaner();
     static QImage trimBoundaries(QImage &img);
+    static QImage trimVerticleBoundaries(QImage &img);
+    static QImage trimHorizontalBoundaries(QImage &img);
     static QImage removePixelNoise(QImage &img);
+    static QImage removeVerticlePixelNoise(QImage &img);
     static QImage clearLineAndCloseLetters(QImage &src, int est_y, int* vert_divide=NULL, QVector<QPoint>* crossPoints=NULL);
     
 private:

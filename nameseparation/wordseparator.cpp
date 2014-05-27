@@ -148,7 +148,7 @@ QVector<QImage> WordSeparator::minCut(QImage &img)
 }
 
 //This performs a verticle separation of two words, it identifys descenders in an attempt to increase accuracy
-QVector<QImage> WordSeparator::horzCutEntries(QImage &img, int vert_divide, QVector<QPoint> crossPoints)
+QVector<QImage> WordSeparator::horzCutEntries(QImage &img, int vert_divide, QVector<QPoint> crossPoints, QVector<QVector<double> > &probMap)
 {
     int num_pix = img.width()*img.height();
     //double pix_vals[num_pix];
@@ -158,7 +158,7 @@ QVector<QImage> WordSeparator::horzCutEntries(QImage &img, int vert_divide, QVec
     QVector<int> firstImgBlackPixelIndexes;
     
     //best anchor weight:300 - 425
-    int ANCHOR_WEIGHT = 1000;
+    int ANCHOR_WEIGHT = 1200;
     int maxflow = pixelsOfSeparation(invDistMap,img.width(),img.height(),img,firstImgBlackPixelIndexes,ANCHOR_WEIGHT,SPLIT_VERT,vert_divide);
     
     
@@ -183,19 +183,19 @@ QVector<QImage> WordSeparator::horzCutEntries(QImage &img, int vert_divide, QVec
             workingStack.push_back(keyPoint);
             int startingColor = qGray(twoColorImg.pixel(keyPoint));
             QVector<QPoint> lowerPoints;
-            crossover=false;
+            bool crossover=false;
             while (!workingStack.isEmpty())
             {   
                 QPoint cur = workingStack.back();
                 workingStack.pop_back();
                 
-                if (qGray(twoColorImg.pixel(cur)) == BLACK)
+                if (cur.y() >= keyPoint.y() || qGray(twoColorImg.pixel(cur)) == BLACK)
                 {
                     lowerPoints.append(cur);
                 }
                 
                 //this needs changed
-                if (qGray(twoColorImg.pixel(cur)) != startingColor && !crossover)
+                if (!crossover && qGray(twoColorImg.pixel(cur)) != startingColor)
                 {
                     crossover=true;
                 }
@@ -265,34 +265,41 @@ QVector<QImage> WordSeparator::horzCutEntries(QImage &img, int vert_divide, QVec
     //But we only need the lower points, and only the ones on the map
     //What about only the points of the the regular black(lower)?
     //we still need the keypoint for alignment, but that should sort of work. Most will get a zero map score
-    //
+    //started...
     
     //apply prob map
-    QImage probMapI;
-    QVector<QVector<double> > probMap;
+    double DESCENDER_SCORE_THRESH = 50;
     
-    foreach(QPoint canidate, cccc)
+    for (int ci=0; ci<ccccKeyPoints.size(); ci++)
     {
-        QVector<QVector<double> > scoreMap;
+        QPoint candidate = ccccKeyPoints[ci];
+        QVector<QPoint> candidateComponent = ccccLowerPoints[ci];
+        QVector<QVector<double> > scoreMap(probMap.size());
+        QVector<double> temp(probMap[0].size());
+        temp.fill(0);
+        scoreMap.fill(temp);
         double scoreTotal=0;
-        int num_of_points=0;
-        for(int i=0; i<probMap.size(); i++)
+        int num_points_outside=0;
+        foreach (QPoint ccccP, candidateComponent)
         {
-            for(int j=0; j<probMap[0].size(); j++)
+            int x = ccccP.x()-candidate.x() + probMap.size()/2;
+            int y = ccccP.y()-candidate.y();
+            
+            if(x>=0 && x<probMap.size() && y>=0 && y<probMap[0].size())
             {
-                int x = canidate.x()+probMap.size()/2;
-                int y = canidate.y()+probMap[0].size()/2;
-                if (qGray(mark.pixel(x,y)) == BLACK)//This might not even be part of the cccc!
-                {
-                    scoreMap[i][j] = probMap[i][j];
-                    num_of_points++;
-                }
-                else
-                    scoreMap[i][j]=0;
-                
-                scoreTotal+=scoreMap[i][j];
+                scoreMap[x][y] = probMap[x][y]-.4;
+                scoreTotal+=scoreMap[x][y];
             }
+            else
+            {
+                scoreTotal-=.4;
+                num_points_outside++;
+            }
+            
+            
         }
+        
+        printf("total score for point (%d,%d): %f\n",candidate.x(),candidate.y(),scoreTotal);
         
         if (scoreTotal>DESCENDER_SCORE_THRESH)
         {
@@ -300,7 +307,10 @@ QVector<QImage> WordSeparator::horzCutEntries(QImage &img, int vert_divide, QVec
             //but what if we are intersected with something else?
             
             //expiriment
-            if ()
+            foreach (QPoint p, candidateComponent)
+            {
+                firstImgBlackPixelIndexes.append(p.x()+p.y()*img.width());
+            }
         }
     }
     
@@ -1245,8 +1255,8 @@ int WordSeparator::pixelsOfSeparation(int* invDistMap, int width, int height, QI
     
     if (split_method==SPLIT_VERT)
     {
-        BLACK_TO_BLACK_V_BIAS = 1.7;
-        BLACK_TO_BLACK_H_BIAS = 1.7;
+        BLACK_TO_BLACK_V_BIAS = 1.5;
+        BLACK_TO_BLACK_H_BIAS = 1.5;
         BLACK_TO_BLACK_D_BIAS = sqrt(pow(BLACK_TO_BLACK_V_BIAS,2)+pow(BLACK_TO_BLACK_H_BIAS,2));
         WHITE_TO_BLACK_BIAS = .5;
         BLACK_TO_WHITE_BIAS = .5;

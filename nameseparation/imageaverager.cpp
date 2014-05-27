@@ -63,3 +63,16 @@ QImage ImageAverager::averageImages(QString dir, QVector<int> picIds)
     return avg;
 }
 
+QVector<QVector<double> > ImageAverager::produceProbabilityMap(QImage &src)
+{
+    QVector<QVector<double> > ret(src.width());
+    for (int i=0; i<src.width(); i++)
+    {
+        for (int j=0; j<src.height(); j++)
+        {
+            double val = (255-qGray(src.pixel(i,j)))/255.0;
+            ret[i].append(val);
+        }
+    }
+    return ret;
+}

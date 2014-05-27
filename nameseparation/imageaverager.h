@@ -9,6 +9,7 @@ public:
     ImageAverager();
     ImageAverager(int width, int height);
     QImage averageImages(QString dir, QVector<int> picIds);
+    static QVector<QVector<double> > produceProbabilityMap(QImage &src);
     
 private:
     int final_width;

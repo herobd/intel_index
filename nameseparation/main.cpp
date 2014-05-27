@@ -9,17 +9,18 @@ using namespace std;
 
 int main(int argc, char** argv)
 {
-    cout << "Starting" << endl;
-//    QImage testimg(argv[1]);
-//    QImage nonoise;
-//    bool test;
+    cout << "Starting..." << endl;
+    QImage testimg(argv[1]);
+    QImage nonoise;
+    bool test;
     
     
-    QVector<int> pics;
-    pics<< 1<<2<<3<<4<<5<<6<<7<<8<<9<<10<<11<<12<<13<<14<<15<<16<<17<<18<<19;
-    ImageAverager averager(120,42);
-    QImage avg = averager.averageImages("./descenders_justimage/",pics);
-    avg.save("./average.pgm");
+//    QVector<int> pics;
+//    pics<< 1<<2<<3<<4<<5<<6<<7<<8<<9<<10<<11<<12<<13<<14<<15<<16<<17<<18<<19;
+//    ImageAverager averager(120,42);
+//    QImage avg = averager.averageImages("./descenders_justimage/",pics);
+//    avg.save("./average.pgm");
+    //Use guassian filter to smooth out prob map
     
     
     
@@ -28,33 +29,63 @@ int main(int argc, char** argv)
 //    test = nonoise.save("./noise_removed.pgm");
 //    if (!test)
 //        cout << "ERROR trim!!" << endl;
-//    int vert_divide;
-//    QVector<QPoint> crossPoints;
-//    QImage lineremoved=BoxCleaner::clearLineAndCloseLetters(testimg,40,&vert_divide,&crossPoints);
-////    lineremoved=BoxCleaner::clearLineAndCloseLetters(lineremoved,88,&vert_divide);
-////    lineremoved=BoxCleaner::clearLineAndCloseLetters(lineremoved,131,&vert_divide);
-////    lineremoved=BoxCleaner::clearLineAndCloseLetters(lineremoved,170,&vert_divide);
-////    lineremoved=BoxCleaner::clearLineAndCloseLetters(lineremoved,210,&vert_divide);
+    int vert_divide;
+    QVector<QPoint> crossPoints;
+    QImage lineremoved=BoxCleaner::clearLineAndCloseLetters(testimg,40,&vert_divide,&crossPoints);
+//    lineremoved=BoxCleaner::clearLineAndCloseLetters(lineremoved,88,&vert_divide);
+//    lineremoved=BoxCleaner::clearLineAndCloseLetters(lineremoved,131,&vert_divide);
+//    lineremoved=BoxCleaner::clearLineAndCloseLetters(lineremoved,170,&vert_divide);
+//    lineremoved=BoxCleaner::clearLineAndCloseLetters(lineremoved,210,&vert_divide);
 //    for (int i=0; i<crossPoints.size(); i++)
 //    {
 //        lineremoved.setPixel(crossPoints[i],200);
 //    }
     
-//    test = lineremoved.save("./lineremoved.pgm");
-//    if (!test)
-//        cout << "ERROR lineremove!!" << endl;
+    test = lineremoved.save("./lineremoved.pgm");
+    if (!test)
+        cout << "ERROR lineremove!!" << endl;
     
-//    QImage trimmed = BoxCleaner::trimBoundaries(lineremoved);
-//    nonoise= BoxCleaner::removePixelNoise(trimmed);
-//    test = nonoise.save("./noise_removed.pgm");
-//    if (!test)
-//        cout << "ERROR trim!!" << endl;
+    QImage trimmed = BoxCleaner::trimVerticleBoundaries(lineremoved);
+    test = trimmed.save("./trimmed.pgm");
+    nonoise= BoxCleaner::removeVerticlePixelNoise(trimmed);
+    test &= nonoise.save("./noise_removed.pgm");
+    if (!test)
+        cout << "ERROR trim!!" << endl;
     
-//    QVector<QImage> cuts = WordSeparator::horzCutEntries(nonoise,vert_divide);
-//    cuts[0].save("./cut1_top.pgm");
-//    cuts[1].save("./cut2_bottom.pgm");
+    QImage average_desc("./average_desc.pgm");
+    QVector<QVector<double> > probMap = ImageAverager::produceProbabilityMap(average_desc);
     
+    QVector<QImage> cuts = WordSeparator::horzCutEntries(trimmed,vert_divide,crossPoints,probMap);
+    cuts[0].save("./output/cut1a_top.pgm");
+    cuts[1].save("./output/cut1b_bottom.pgm");
     
+//    QString pre = "./output/cut";
+//    QString posta = "a_top.pgm";
+//    QString postb = "b_bottom.pgm";
+    
+//    int lastCutSize = cuts[1].height();
+//    int lastCutDif = nonoise.height() - cuts[1].height();
+    
+//    for (int i=2; i<=50; i++)
+//    {
+//        lineremoved=BoxCleaner::clearLineAndCloseLetters(cuts[1],80-lastCutDif,&vert_divide,&crossPoints);
+//        cuts = WordSeparator::horzCutEntries(lineremoved,vert_divide,crossPoints,probMap);
+//        QString num;
+//        num.setNum(i);
+//        QString savepatha;
+//        savepatha += pre;
+//        savepatha += num;
+//        savepatha += posta;
+//        QString savepathb;
+//        savepathb += pre;
+//        savepathb += num;
+//        savepathb += postb;
+//        cuts[0].save(savepatha);
+//        cuts[1].save(savepathb);
+        
+//        lastCutDif = lastCutSize - cuts[1].height();
+//        lastCutSize = cuts[1].height();
+//    }
     
 //    if (argc < 3 || argv[2][0]!='n')
 //    {
