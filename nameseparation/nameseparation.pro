@@ -8,7 +8,9 @@ SOURCES += main.cpp \
     maxflow/graph.cpp \
     wordseparator.cpp \
     boxcleaner.cpp \
-    imageaverager.cpp
+    imageaverager.cpp \
+    bimage.cpp \
+    bpartition.cpp
 
 HEADERS += \
     ./wordprofile.h \
@@ -17,7 +19,9 @@ HEADERS += \
     wordseparator.h \
     boxcleaner.h \
     Constants.h \
-    imageaverager.h
+    imageaverager.h \
+    bimage.h \
+    bpartition.h
 
 OTHER_FILES += \
     maxflow/instances.inc
