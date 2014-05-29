@@ -6,6 +6,7 @@
 #include "Constants.h"
 #include <QPoint>
 #include "bimage.h"
+#include "bpartition.h"
 
 #define SPLIT_HORZ 1
 #define SPLIT_VERT 2
@@ -18,7 +19,7 @@ public:
     
 //    static QVector<QImage> cutNames(QImage &img);
 //    static QVector<QImage> recursiveCutWordToFirstLetter(QImage &img);
-//    static QVector<QImage> horzCutEntries(QImage &img, int vert_divide, QVector<QPoint> crossPoints, QVector<QVector<double> > &probMap);
+    static QVector<BPartition*> horzCutEntries(BPartition &img, int vert_divide, QVector<QPoint> crossPoints, QVector<QVector<double> > &probMap);
     
 private:
     //static void computeInverseDistanceMap(double* in, double* out, int size);

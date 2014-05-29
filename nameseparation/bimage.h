@@ -26,10 +26,12 @@ public:
     BImage();
     BImage(QImage &src);
     BImage(int width, int height);
+    BImage(const BImage &other);
     BImage copy();
     ~BImage();
     
-    
+    int width() const;
+    int height() const;
     
     void save(const QString& filepath);
     void saveOwners(const QString& filepath);
@@ -40,21 +42,24 @@ public:
 //    ownerData pixelOwnership(int x, int y);
     bPixel pixelFull(const QPoint &p) const;
     bPixel pixelFull(int x, int y) const;
-    float pixelOwnerPortion(const QPoint &p, const BPartition* owner) const;
-    float pixelOwnerPortion(int x, int y, const BPartition* owner) const;
+    float pixelOwnerPortion(const QPoint &p, BPartition* owner) const;
+    float pixelOwnerPortion(int x, int y, BPartition* owner) const;
+    BPartition* pixelMajorityOwner(const QPoint &p) const;
+    BPartition* pixelMajorityOwner(int x, int y) const;
     
     void setPixel(const QPoint &p, bool val);
     void setPixel(int x, int y, bool val);
-    void setPixelFull(const QPoint &p, bPixel strct);
-    void setPixelFull(int x, int y, bPixel strct);
+    void setPixelFull(const QPoint &p, const bPixel &strct);
+    void setPixelFull(int x, int y, const bPixel &strct);
     void setPixelOwner(const QPoint &p, BPartition* owner, float portion);
     void setPixelOwner(int x, int y, BPartition* owner, float portion);
+    
+    void setPixelCombineOwner(int x, int y, BPartition* to, BPartition* with);
     
     QImage getImage();
     QImage getOwnersImage();
     
-    int width();
-    int height();
+    
     
     BPartition* getFullPartition();
     

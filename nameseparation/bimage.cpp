@@ -1,5 +1,7 @@
 #include "bimage.h"
 
+#include <stdio.h>
+
 BImage::BImage()
 {
 }
@@ -30,6 +32,21 @@ BImage::BImage(int width, int height)
         for (int y=0; y<myHeight; y++)
         {
             pixels[x][y].val= false;
+        }
+    }
+}
+
+BImage::BImage(const BImage &other)
+{
+    myWidth = other.width();
+    myHeight = other.height();
+    pixels = new bPixel*[myWidth];
+    for (int x=0; x<myWidth; x++)
+    {
+        pixels[x] = new bPixel[myHeight];
+        for (int y=0; y<myHeight; y++)
+        {
+            pixels[x][y].val= other.pixel(x,y);
         }
     }
 }
@@ -91,7 +108,7 @@ bPixel BImage::pixelFull(int x, int y) const
     return pixels[x][y];
 }
 
-float BImage::pixelOwnerPortion(const QPoint &p, const BPartition* owner) const
+float BImage::pixelOwnerPortion(const QPoint &p, BPartition* owner) const
 {
     assert(p.x()>=0 && p.x()<myWidth && p.y()>=0 && p.y()<myHeight);
     if (pixels[p.x()][p.y()].ownership.contains(owner))
@@ -99,13 +116,36 @@ float BImage::pixelOwnerPortion(const QPoint &p, const BPartition* owner) const
     else 
         return 0;
 }
-float BImage::pixelOwnerPortion(int x, int y, const BPartition* owner) const
+float BImage::pixelOwnerPortion(int x, int y, BPartition* owner) const
 {
     assert(x>=0 && x<myWidth && y>=0 && y<myHeight);
     if (pixels[x][y].ownership.contains(owner))
         return pixels[x][y].ownership[owner];
     else 
         return 0;
+}
+
+BPartition* BImage::pixelMajorityOwner(const QPoint &p) const
+{
+    return pixelMajorityOwner(p.x(),p.y());
+}
+
+BPartition* BImage::pixelMajorityOwner(int x, int y) const
+{
+    assert(x>=0 && x<myWidth && y>=0 && y<myHeight);
+    BPartition* mostId=0x0;
+    float most=0;
+    QMap<BPartition*,float>::const_iterator i = pixels[x][y].ownership.constBegin();
+    while (i != pixels[x][y].ownership.constEnd())
+    {
+        if (i.value() > most)
+        {
+            most = i.value();
+            mostId = i.key();
+        }
+        ++i;
+    }
+    return mostId;
 }
 
 void BImage::setPixel(const QPoint &p, bool val)
@@ -120,16 +160,18 @@ void BImage::setPixel(int x, int y, bool val)
     pixels[x][y].val=val;
 }
 
-void BImage::setPixelFull(const QPoint &p, bPixel strct)
+void BImage::setPixelFull(const QPoint &p, const bPixel &strct)
 {
     assert(p.x()<myWidth && p.y()<myHeight);
-    pixels[p.x()][p.y()]=strct;
+    pixels[p.x()][p.y()].val=strct.val;
+    pixels[p.x()][p.y()].ownership.unite(strct.ownership);
 }
 
-void BImage::setPixelFull(int x, int y, bPixel strct)
+void BImage::setPixelFull(int x, int y, const bPixel &strct)
 {
     assert(x<myWidth && y<myHeight);
-    pixels[x][y]=strct;
+    pixels[x][y].val=strct.val;
+    pixels[x][y].ownership.unite(strct.ownership);
 }
 
 void BImage::setPixelOwner(const QPoint &p, BPartition* owner, float portion)
@@ -152,14 +194,17 @@ void BImage::setPixelOwner(int x, int y, BPartition* owner, float portion)
         if (i.key() != owner)
         {
             float oldother = i.value();
-            i.value()=oldother*converter;
-            (i.key())->changePortion(x,y,i.value(),oldother);
+            if (oldother!=0)
+            {
+                i.value()=oldother*converter;
+                (i.key())->changedPortion(x,y,i.value(),oldother);
+            }
         }
         ++i;
     }
     
     pixels[x][y].ownership[owner]=portion;
-    owner->changePortion(x,y,portion,old);
+    owner->changedPortion(x,y,portion,old);
 }
 
 QImage BImage::getImage()
@@ -221,34 +266,39 @@ QImage BImage::getOwnersImage()
                     }
                     ++i;
                 }
-                if (!partitionIndex.contains(mostId))
-                {
-                    currentIndex = (1+currentIndex)%5;
-                    partitionIndex[mostId]=currentIndex;
-                }
                 
-                if (pixels[x][y].val)
-                    ret.setPixel(x,y,2+partitionIndex[mostId]*2);
-                else
-                    ret.setPixel(x,y,2+partitionIndex[mostId]*2 + 1);
+                if (mostId!=0x0)
+                {
+                    if (!partitionIndex.contains(mostId))
+                    {
+                        currentIndex = (1+currentIndex)%5;
+                        partitionIndex[mostId]=currentIndex;
+                    }
+                    
+                    if (pixels[x][y].val)
+                        ret.setPixel(x,y,2+partitionIndex[mostId]*2);
+                    else
+                        ret.setPixel(x,y,2+partitionIndex[mostId]*2 + 1);
+                    
+                    continue;
+                }
             }
+            
+            if (pixels[x][y].val)
+                ret.setPixel(x,y,0);
             else
-            {
-                if (pixels[x][y].val)
-                    ret.setPixel(x,y,0);
-                else
-                    ret.setPixel(x,y,1);
-            }
+                ret.setPixel(x,y,1);
+            
         }
     
     return ret;
 }
 
-int BImage::width()
+int BImage::width() const
 {
     return myWidth;
 }
-int BImage::height()
+int BImage::height() const
 {
     return myHeight;
 }

@@ -16,30 +16,35 @@ WordSeparator::WordSeparator()
 //This performs a horizontal separation of the image by creating a distance map and then doing a graph cut on it.
 QVector<BPartition*> WordSeparator::minCut(BPartition &toCut)
 {
-    int num_pix = toCut.width()*toCut.height();
+    int toCut_width = toCut.width();
+    int toCut_height = toCut.height();
+    int num_pix = toCut_width*toCut_height;
     //double pix_vals[num_pix];
     int invDistMap[num_pix];
     
     computeInverseDistanceMap(toCut,invDistMap);
     QVector<int> firstImgPixelIndexes;
     QVector<int> secondImgPixelIndexes;
-    int maxflow = pixelsOfSeparation(invDistMap,toCut.width(),toCut.height(),toCut,firstImgPixelIndexes,secondImgPixelIndexes);
+    int maxflow = pixelsOfSeparation(invDistMap,toCut_width,toCut_height,toCut,firstImgPixelIndexes,secondImgPixelIndexes);
     
     BPartition* firstPart = new BPartition(toCut.getSrc());
     BPartition* secondPart = new BPartition(toCut.getSrc());
     
+    int xOffset = toCut.getXOffset();
+    int yOffset = toCut.getYOffset();
+    
     foreach (int index, firstImgPixelIndexes)
     {
-        int x = index%toCut.width();
-        int y = index/toCut.width();
-        toCut.getSrc()->setPixelOwner(x,y,firstPart,1);
+        int x = index%toCut_width;
+        int y = index/toCut_width;
+        toCut.getSrc()->setPixelOwner(x+xOffset,y+yOffset,firstPart,1);
     }
     
     foreach (int index, secondImgPixelIndexes)
     {
-        int x = index%toCut.width();
-        int y = index/toCut.width();
-        toCut.getSrc()->setPixelOwner(x,y,secondPart,1);
+        int x = index%toCut_width;
+        int y = index/toCut_width;
+        toCut.getSrc()->setPixelOwner(x+xOffset,y+yOffset,secondPart,1);
     }
     
     
@@ -51,126 +56,142 @@ QVector<BPartition*> WordSeparator::minCut(BPartition &toCut)
 }
 
 //This performs a verticle separation of two words, it identifys descenders in an attempt to increase accuracy
-//QVector<QImage> WordSeparator::horzCutEntries(QImage &img, int vert_divide, QVector<QPoint> crossPoints, QVector<QVector<double> > &probMap)
-//{
-//    int num_pix = img.width()*img.height();
-//    //double pix_vals[num_pix];
-//    int invDistMap[num_pix];
+QVector<BPartition*> WordSeparator::horzCutEntries(BPartition &img, int vert_divide, QVector<QPoint> crossPoints, QVector<QVector<double> > &probMap)
+{
+    int num_pix = img.width()*img.height();
+    //double pix_vals[num_pix];
+    int invDistMap[num_pix];
     
-//    computeInverseDistanceMap(img,invDistMap);
-//    QVector<int> firstImgBlackPixelIndexes;
+    computeInverseDistanceMap(img,invDistMap);
+    QVector<int> firstImgIndexes;
+    QVector<int> secondImgIndexes;
     
-//    //best anchor weight:300 - 425
-//    int ANCHOR_WEIGHT = 1200;
-//    int maxflow = pixelsOfSeparation(invDistMap,img.width(),img.height(),img,firstImgBlackPixelIndexes,ANCHOR_WEIGHT,SPLIT_VERT,vert_divide);
+    //best anchor weight:300 - 425
+    int ANCHOR_WEIGHT = 1200;
+    int maxflow = pixelsOfSeparation(invDistMap,img.width(),img.height(),img,firstImgIndexes,secondImgIndexes,ANCHOR_WEIGHT,SPLIT_VERT,vert_divide);
+    
+    BPartition* firstPart = new BPartition(img.getSrc());
+    BPartition* secondPart = new BPartition(img.getSrc());
+    
+    int xOffset = img.getXOffset();
+    int yOffset = img.getYOffset();
+    int img_width = img.width();
+    int img_height = img.height();
+    BImage mark = img.makeImage();
+    
+    foreach (int index, firstImgIndexes)
+    {
+        int x = index%img_width;
+        int y = index/img_width;
+        img.getSrc()->setPixelOwner(x+xOffset,y+yOffset,firstPart,1);
+    }
+    
+    foreach (int index, secondImgIndexes)
+    {
+        int x = index%img_width;
+        int y = index/img_width;
+        img.getSrc()->setPixelOwner(x+xOffset,y+yOffset,secondPart,1);
+    }
     
     
-//    QImage twoColorImg = img.copy(0,0,img.width(),img.height());
-//    foreach(int index, firstImgBlackPixelIndexes)
-//    {
-//        int x = index%img.width();
-//        int y = index/img.width();
-//        twoColorImg.setPixel(x,y,100);
-//    }
+    //Find cross-over contected components
     
-//    //Find cross-over contected components
-//    QImage mark = img.copy(0,0,img.width(),img.height());
-//    QVector<QPoint> workingStack;
-//    QVector<QPoint> ccccKeyPoints;
-//    QVector<QVector<QPoint> > ccccLowerPoints;
+    QVector<QPoint> workingStack;
+    QVector<QPoint> ccccKeyPoints;
+    QVector<QVector<QPoint> > ccccLowerPoints;
     
-//    foreach (QPoint keyPoint, crossPoints)
-//    {
-//        if (qGray(mark.pixel(keyPoint)) == BLACK)
-//        {
-//            workingStack.push_back(keyPoint);
-//            int startingColor = qGray(twoColorImg.pixel(keyPoint));
-//            QVector<QPoint> lowerPoints;
-//            bool crossover=false;
-//            while (!workingStack.isEmpty())
-//            {   
-//                QPoint cur = workingStack.back();
-//                workingStack.pop_back();
+    foreach (QPoint keyPoint, crossPoints)
+    {
+        if (mark.pixel(keyPoint))
+        {
+            workingStack.push_back(keyPoint);
+            BPartition* startingOwner = img.getSrc()->pixelMajorityOwner(keyPoint);
+            QVector<QPoint> lowerPoints;
+            bool crossover=false;
+            while (!workingStack.isEmpty())
+            {   
+                QPoint cur = workingStack.back();
+                workingStack.pop_back();
                 
-//                if (cur.y() >= keyPoint.y() || qGray(twoColorImg.pixel(cur)) == BLACK)
-//                {
-//                    lowerPoints.append(cur);
-//                }
+                if (cur.y() >= keyPoint.y() || img.getSrc()->pixelMajorityOwner(cur)==secondPart)
+                {
+                    lowerPoints.append(cur);
+                }
                 
-//                //this needs changed
-//                if (!crossover && qGray(twoColorImg.pixel(cur)) != startingColor)
-//                {
-//                    crossover=true;
-//                }
+                //this needs changed
+                if (!crossover && img.getSrc()->pixelMajorityOwner(cur) != startingOwner)
+                {
+                    crossover=true;
+                }
                 
-//                if (cur.x()<mark.width()-1 && qGray(mark.pixel(cur.x()+1,cur.y())) == BLACK)
-//                {
-//                    QPoint pp(cur.x()+1,cur.y());
-//                    workingStack.push_back(pp);
-//                    mark.setPixel(pp,WHITE);
-//                }
-//                if (cur.y()<mark.height()-1 && qGray(mark.pixel(cur.x(),cur.y()+1)) == BLACK)
-//                {
-//                    QPoint pp(cur.x(),cur.y()+1);
-//                    workingStack.push_back(pp);
-//                    mark.setPixel(pp,WHITE);
-//                }
-//                if (cur.x()>0 && qGray(mark.pixel(cur.x()-1,cur.y())) == BLACK)
-//                {
-//                    QPoint pp(cur.x()-1,cur.y());
-//                    workingStack.push_back(pp);
-//                    mark.setPixel(pp,WHITE);
-//                }
-//                if (cur.y()>0 && qGray(mark.pixel(cur.x(),cur.y()-1)) == BLACK)
-//                {
-//                    QPoint pp(cur.x(),cur.y()-1);
-//                    workingStack.push_back(pp);
-//                    mark.setPixel(pp,WHITE);
-//                }
-//                //diagonals
-//                if (cur.x()<mark.width()-1 && cur.y()<mark.height()-1 && qGray(mark.pixel(cur.x()+1,cur.y()+1)) == BLACK)
-//                {
-//                    QPoint pp(cur.x()+1,cur.y()+1);
-//                    workingStack.push_back(pp);
-//                    mark.setPixel(pp,WHITE);
-//                }
-//                if (cur.y()<mark.height()-1 && cur.x()>0 && qGray(mark.pixel(cur.x()-1,cur.y()+1)) == BLACK)
-//                {
-//                    QPoint pp(cur.x()-1,cur.y()+1);
-//                    workingStack.push_back(pp);
-//                    mark.setPixel(pp,WHITE);
-//                }
-//                if (cur.x()<mark.width()-1 && cur.y()>0 && qGray(mark.pixel(cur.x()+1,cur.y()-1)) == BLACK)
-//                {
-//                    QPoint pp(cur.x()+1,cur.y()-1);
-//                    workingStack.push_back(pp);
-//                    mark.setPixel(pp,WHITE);
-//                }
-//                if (cur.y()>0 && cur.x()>0 && qGray(mark.pixel(cur.x()-1,cur.y()-1)) == BLACK)
-//                {
-//                    QPoint pp(cur.x()-1,cur.y()-1);
-//                    workingStack.push_back(pp);
-//                    mark.setPixel(pp,WHITE);
-//                }
-//            }
+                if (cur.x()<mark.width()-1 && mark.pixel(cur.x()+1,cur.y()))
+                {
+                    QPoint pp(cur.x()+1,cur.y());
+                    workingStack.push_back(pp);
+                    mark.setPixel(pp,false);
+                }
+                if (cur.y()<mark.height()-1 && mark.pixel(cur.x(),cur.y()+1))
+                {
+                    QPoint pp(cur.x(),cur.y()+1);
+                    workingStack.push_back(pp);
+                    mark.setPixel(pp,false);
+                }
+                if (cur.x()>0 && mark.pixel(cur.x()-1,cur.y()))
+                {
+                    QPoint pp(cur.x()-1,cur.y());
+                    workingStack.push_back(pp);
+                    mark.setPixel(pp,false);
+                }
+                if (cur.y()>0 && mark.pixel(cur.x(),cur.y()-1))
+                {
+                    QPoint pp(cur.x(),cur.y()-1);
+                    workingStack.push_back(pp);
+                    mark.setPixel(pp,false);
+                }
+                //diagonals
+                if (cur.x()<mark.width()-1 && cur.y()<mark.height()-1 && mark.pixel(cur.x()+1,cur.y()+1))
+                {
+                    QPoint pp(cur.x()+1,cur.y()+1);
+                    workingStack.push_back(pp);
+                    mark.setPixel(pp,false);
+                }
+                if (cur.y()<mark.height()-1 && cur.x()>0 && mark.pixel(cur.x()-1,cur.y()+1))
+                {
+                    QPoint pp(cur.x()-1,cur.y()+1);
+                    workingStack.push_back(pp);
+                    mark.setPixel(pp,false);
+                }
+                if (cur.x()<mark.width()-1 && cur.y()>0 && mark.pixel(cur.x()+1,cur.y()-1))
+                {
+                    QPoint pp(cur.x()+1,cur.y()-1);
+                    workingStack.push_back(pp);
+                    mark.setPixel(pp,false);
+                }
+                if (cur.y()>0 && cur.x()>0 && mark.pixel(cur.x()-1,cur.y()-1))
+                {
+                    QPoint pp(cur.x()-1,cur.y()-1);
+                    workingStack.push_back(pp);
+                    mark.setPixel(pp,false);
+                }
+            }
             
-//            if (crossover)
-//            {
-//                ccccKeyPoints.append(keyPoint);
-//                ccccLowerPoints.append(lowerPoints);    
-//            }
+            if (crossover)
+            {
+                ccccKeyPoints.append(keyPoint);
+                ccccLowerPoints.append(lowerPoints);    
+            }
             
-//        }
-//    }
-//    ////
+        }
+    }
+    ////
     
-//    //Perhaps we ought to gather the entire cccc into a collection, then iterate over all the points
-//    //But we only need the lower points, and only the ones on the map
-//    //What about only the points of the the regular black(lower)?
-//    //we still need the keypoint for alignment, but that should sort of work. Most will get a zero map score
-//    //started...
+    //Perhaps we ought to gather the entire cccc into a collection, then iterate over all the points
+    //But we only need the lower points, and only the ones on the map
+    //What about only the points of the the regular black(lower)?
+    //we still need the keypoint for alignment, but that should sort of work. Most will get a zero map score
+    //started...
     
-//    //apply prob map
+    //apply prob map
 //    double DESCENDER_SCORE_THRESH = 50;
     
 //    for (int ci=0; ci<ccccKeyPoints.size(); ci++)
@@ -249,16 +270,14 @@ QVector<BPartition*> WordSeparator::minCut(BPartition &toCut)
     
 //    printf("maxflow= %d\n",maxflow);
     
-//    firstImg = firstImg.copy(0,0,firstImg.width(),firstLowestPixel+1);
-//    secondImg = secondImg.copy(0, secondHighestPixel, secondImg.width(), secondImg.height()-secondHighestPixel);
     
     
    
-//    QVector<QImage> ret;
-//    ret.append(firstImg);
-//    ret.append(secondImg);
-//    return ret;
-//}
+    QVector<BPartition*> ret;
+    ret.append(firstPart);
+    ret.append(secondPart);
+    return ret;
+}
 
 
 //QVector<QImage> WordSeparator::cutNames(QImage &img)
@@ -922,14 +941,14 @@ void WordSeparator::computeInverseDistanceMap(BPartition &src, int* out)
     }
     
 //    printf("newMax:%d\n",newmax);
-    QImage debug=src.makeImage().getImage();
-    for (int i=0; i<debug.width(); i++)
-    {
-        for (int j=0; j<debug.height(); j++)
-            debug.setPixel(i,j,(int)((out[i+j*debug.width()]/((double)newmax))*255));
+//    QImage debug=src.makeImage().getImage();
+//    for (int i=0; i<debug.width(); i++)
+//    {
+//        for (int j=0; j<debug.height(); j++)
+//            debug.setPixel(i,j,(int)((out[i+j*debug.width()]/((double)newmax))*255));
         
-    }
-    debug.save("./inv_dist_map.pgm");
+//    }
+//    debug.save("./inv_dist_map.pgm");
 }
 
 int WordSeparator::f(int x, int i, int y, int m, int* g)
@@ -1282,25 +1301,28 @@ int WordSeparator::pixelsOfSeparation(int* invDistMap, int width, int height, BP
     //add all black pixels which
     for (int index=0; index<width*height; index++)
     {
-        /*if (qGray(debug.pixel(index%width,index/width))!=BLACK && qGray(debug.pixel(index%width,index/width))!=WHITE)
+        if (img.pixelIsMine(index%width,index/width))
         {
-            debug2.setPixel(index%width,index/width,a);
+            /*if (qGray(debug.pixel(index%width,index/width))!=BLACK && qGray(debug.pixel(index%width,index/width))!=WHITE)
+            {
+                debug2.setPixel(index%width,index/width,a);
+            }
+            else*/ if (g->what_segment(index) == GraphType::SOURCE)
+            {
+                outSource.append(index);
+    //            debug2.setPixel(index%width,index/width,lb);
+            }
+            else
+            {
+                outSink.append(index);
+            }
+    //        else if (g->what_segment(index) == GraphType::SOURCE)
+    //            debug2.setPixel(index%width,index/width,lw);
+    //        else if (qGray(img.pixel(index%width,index/width))==BLACK)
+    //            debug2.setPixel(index%width,index/width,rb);
+    //        else
+    //            debug2.setPixel(index%width,index/width,rw);
         }
-        else*/ if (g->what_segment(index) == GraphType::SOURCE)
-        {
-            outSource.append(index);
-//            debug2.setPixel(index%width,index/width,lb);
-        }
-        else
-        {
-            outSink.append(index);
-        }
-//        else if (g->what_segment(index) == GraphType::SOURCE)
-//            debug2.setPixel(index%width,index/width,lw);
-//        else if (qGray(img.pixel(index%width,index/width))==BLACK)
-//            debug2.setPixel(index%width,index/width,rb);
-//        else
-//            debug2.setPixel(index%width,index/width,rw);
     }
     
 //    QString debugfile = "./cut_";

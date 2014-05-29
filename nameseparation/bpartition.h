@@ -14,11 +14,20 @@ public:
     
     int width() const;
     int height() const;
-    bool pixel(const QPoint &p) const;
-    bool pixel(int x, int y) const;
-    void changePortion(const QPoint &, float newPortion, float oldPortion);
-    void changePortion(int x, int y, float newPortion, float oldPortion);
+    int getXOffset();
+    int getYOffset();
+    bool pixel(const QPoint &p);
+    bool pixel(int x, int y);
+    bool pixelIsMine(const QPoint &p);
+    bool pixelIsMine(int x, int y);
+//    void setPixelOwner(const QPoint &p, BPartition* owner, float portion);
+//    void setPixelOwner(int x, int y, BPartition* owner, float portion);
+    void changedPortion(const QPoint &, float newPortion, float oldPortion);
+    void changedPortion(int x, int y, float newPortion, float oldPortion);
     BImage makeImage();
+    
+    void joinInto(BPartition* other);
+    void remove();
    
 private:
     int leftX;
