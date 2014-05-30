@@ -21,7 +21,8 @@ HEADERS += \
     Constants.h \
     imageaverager.h \
     bimage.h \
-    bpartition.h
+    bpartition.h \
+    BPixelCollection.h
 
 OTHER_FILES += \
     maxflow/instances.inc

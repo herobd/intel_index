@@ -6,7 +6,7 @@ BImage::BImage()
 {
 }
 
-BImage::BImage(QImage &src)
+BImage::BImage(const QImage &src)
 {
     myWidth = src.width();
     myHeight = src.height();
@@ -50,6 +50,22 @@ BImage::BImage(const BImage &other)
         }
     }
 }
+
+//BImage::BImage(const BPartition* src1, const BPartition* src2)
+//{
+//    assert(src1->getSrc()==src2->getSrc());
+//    myWidth = src1->getSrc()->width();
+//    myHeight = src1->getSrc()->height();
+//    for (int x=0; x<myWidth; x++)
+//    {
+//        for (int y=0; y<myHeight; y++)
+//        {
+//            if (src1->pixel(x,y) || src2->pixel(x,y))
+//                ret.setPixel(x,y,true);
+//        }
+//    }
+//    return ret;
+//}
 
 BImage::~BImage()
 {
@@ -197,15 +213,23 @@ void BImage::setPixelOwner(int x, int y, BPartition* owner, float portion)
             if (oldother!=0)
             {
                 i.value()=oldother*converter;
-                (i.key())->changedPortion(x,y,i.value(),oldother);
+//                (i.key())->changedPortion(x,y,i.value(),oldother);
             }
         }
         ++i;
     }
     
     pixels[x][y].ownership[owner]=portion;
-    owner->changedPortion(x,y,portion,old);
+//    owner->changedPortion(x,y,portion,old);
 }
+
+//void BImage::setPixelCombineOwner(int x, int y, BPartition* to, BPartition* with)
+//{
+//    assert(x>=0 && x<myWidth && y>=0 && y<myHeight);
+    
+//    pixels[x][y].ownership[to] += pixels[x][y].ownership[with];
+//    pixels[x][y].ownership[with] = 0;
+//}
 
 QImage BImage::getImage()
 {
@@ -294,6 +318,19 @@ QImage BImage::getOwnersImage()
     return ret;
 }
 
+void BImage::claimOwnership(BPartition* claimer, float amount)
+{
+    assert(claimer->getSrc() == this);
+    for (int x=0; x<claimer->width(); x++)
+    {
+         for (int y=0; y<claimer->height(); y++)
+         {
+             if (claimer->pixelIsMine(x,y))
+                setPixelOwner(x+claimer->getXOffset(),y+claimer->getYOffset(),claimer,amount);
+         }
+    }
+}
+
 int BImage::width() const
 {
     return myWidth;
@@ -313,5 +350,16 @@ BPartition* BImage::getFullPartition()
             setPixelOwner(x,y,ret,1);
         }
     }
+    return ret;
+}
+
+bool BImage::pixelIsMine(int x, int y) const
+{
+    return true;
+}
+
+BImage BImage::makeImage() const
+{
+    BImage ret(*this);
     return ret;
 }

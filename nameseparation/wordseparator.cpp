@@ -14,7 +14,7 @@ WordSeparator::WordSeparator()
 
 
 //This performs a horizontal separation of the image by creating a distance map and then doing a graph cut on it.
-QVector<BPartition*> WordSeparator::minCut(BPartition &toCut)
+QVector<BPartition*> WordSeparator::minCut(BPixelCollection &toCut, float claimPortion)
 {
     int toCut_width = toCut.width();
     int toCut_height = toCut.height();
@@ -27,24 +27,24 @@ QVector<BPartition*> WordSeparator::minCut(BPartition &toCut)
     QVector<int> secondImgPixelIndexes;
     int maxflow = pixelsOfSeparation(invDistMap,toCut_width,toCut_height,toCut,firstImgPixelIndexes,secondImgPixelIndexes);
     
-    BPartition* firstPart = new BPartition(toCut.getSrc());
-    BPartition* secondPart = new BPartition(toCut.getSrc());
+    BPartition* firstPart = new BPartition(&toCut);
+    BPartition* secondPart = new BPartition(&toCut);
     
-    int xOffset = toCut.getXOffset();
-    int yOffset = toCut.getYOffset();
     
     foreach (int index, firstImgPixelIndexes)
     {
         int x = index%toCut_width;
         int y = index/toCut_width;
-        toCut.getSrc()->setPixelOwner(x+xOffset,y+yOffset,firstPart,1);
+        firstPart->addPixelFromSrc(x,y);
+//        toCut.getSrc()->setPixelOwner(x+xOffset,y+yOffset,firstPart,claimPortion);
     }
     
     foreach (int index, secondImgPixelIndexes)
     {
         int x = index%toCut_width;
         int y = index/toCut_width;
-        toCut.getSrc()->setPixelOwner(x+xOffset,y+yOffset,secondPart,1);
+        secondPart->addPixelFromSrc(x,y);
+//        toCut.getSrc()->setPixelOwner(x+xOffset,y+yOffset,secondPart,claimPortion);
     }
     
     
@@ -56,7 +56,7 @@ QVector<BPartition*> WordSeparator::minCut(BPartition &toCut)
 }
 
 //This performs a verticle separation of two words, it identifys descenders in an attempt to increase accuracy
-QVector<BPartition*> WordSeparator::horzCutEntries(BPartition &img, int vert_divide, QVector<QPoint> crossPoints, QVector<QVector<double> > &probMap)
+QVector<BPartition*> WordSeparator::horzCutEntries(BPixelCollection &img, int vert_divide)
 {
     int num_pix = img.width()*img.height();
     //double pix_vals[num_pix];
@@ -70,119 +70,30 @@ QVector<BPartition*> WordSeparator::horzCutEntries(BPartition &img, int vert_div
     int ANCHOR_WEIGHT = 1200;
     int maxflow = pixelsOfSeparation(invDistMap,img.width(),img.height(),img,firstImgIndexes,secondImgIndexes,ANCHOR_WEIGHT,SPLIT_VERT,vert_divide);
     
-    BPartition* firstPart = new BPartition(img.getSrc());
-    BPartition* secondPart = new BPartition(img.getSrc());
+    BPartition* firstPart = new BPartition(&img);
+    BPartition* secondPart = new BPartition(&img);
     
-    int xOffset = img.getXOffset();
-    int yOffset = img.getYOffset();
     int img_width = img.width();
     int img_height = img.height();
-    BImage mark = img.makeImage();
     
     foreach (int index, firstImgIndexes)
     {
         int x = index%img_width;
         int y = index/img_width;
-        img.getSrc()->setPixelOwner(x+xOffset,y+yOffset,firstPart,1);
+        firstPart->addPixelFromSrc(x,y);
+//        img.getSrc()->setPixelOwner(x+xOffset,y+yOffset,firstPart,claimPortion);
     }
     
     foreach (int index, secondImgIndexes)
     {
         int x = index%img_width;
         int y = index/img_width;
-        img.getSrc()->setPixelOwner(x+xOffset,y+yOffset,secondPart,1);
+        secondPart->addPixelFromSrc(x,y);
+//        img.getSrc()->setPixelOwner(x+xOffset,y+yOffset,secondPart,claimPortion);
     }
     
     
-    //Find cross-over contected components
     
-    QVector<QPoint> workingStack;
-    QVector<QPoint> ccccKeyPoints;
-    QVector<QVector<QPoint> > ccccLowerPoints;
-    
-    foreach (QPoint keyPoint, crossPoints)
-    {
-        if (mark.pixel(keyPoint))
-        {
-            workingStack.push_back(keyPoint);
-            BPartition* startingOwner = img.getSrc()->pixelMajorityOwner(keyPoint);
-            QVector<QPoint> lowerPoints;
-            bool crossover=false;
-            while (!workingStack.isEmpty())
-            {   
-                QPoint cur = workingStack.back();
-                workingStack.pop_back();
-                
-                if (cur.y() >= keyPoint.y() || img.getSrc()->pixelMajorityOwner(cur)==secondPart)
-                {
-                    lowerPoints.append(cur);
-                }
-                
-                //this needs changed
-                if (!crossover && img.getSrc()->pixelMajorityOwner(cur) != startingOwner)
-                {
-                    crossover=true;
-                }
-                
-                if (cur.x()<mark.width()-1 && mark.pixel(cur.x()+1,cur.y()))
-                {
-                    QPoint pp(cur.x()+1,cur.y());
-                    workingStack.push_back(pp);
-                    mark.setPixel(pp,false);
-                }
-                if (cur.y()<mark.height()-1 && mark.pixel(cur.x(),cur.y()+1))
-                {
-                    QPoint pp(cur.x(),cur.y()+1);
-                    workingStack.push_back(pp);
-                    mark.setPixel(pp,false);
-                }
-                if (cur.x()>0 && mark.pixel(cur.x()-1,cur.y()))
-                {
-                    QPoint pp(cur.x()-1,cur.y());
-                    workingStack.push_back(pp);
-                    mark.setPixel(pp,false);
-                }
-                if (cur.y()>0 && mark.pixel(cur.x(),cur.y()-1))
-                {
-                    QPoint pp(cur.x(),cur.y()-1);
-                    workingStack.push_back(pp);
-                    mark.setPixel(pp,false);
-                }
-                //diagonals
-                if (cur.x()<mark.width()-1 && cur.y()<mark.height()-1 && mark.pixel(cur.x()+1,cur.y()+1))
-                {
-                    QPoint pp(cur.x()+1,cur.y()+1);
-                    workingStack.push_back(pp);
-                    mark.setPixel(pp,false);
-                }
-                if (cur.y()<mark.height()-1 && cur.x()>0 && mark.pixel(cur.x()-1,cur.y()+1))
-                {
-                    QPoint pp(cur.x()-1,cur.y()+1);
-                    workingStack.push_back(pp);
-                    mark.setPixel(pp,false);
-                }
-                if (cur.x()<mark.width()-1 && cur.y()>0 && mark.pixel(cur.x()+1,cur.y()-1))
-                {
-                    QPoint pp(cur.x()+1,cur.y()-1);
-                    workingStack.push_back(pp);
-                    mark.setPixel(pp,false);
-                }
-                if (cur.y()>0 && cur.x()>0 && mark.pixel(cur.x()-1,cur.y()-1))
-                {
-                    QPoint pp(cur.x()-1,cur.y()-1);
-                    workingStack.push_back(pp);
-                    mark.setPixel(pp,false);
-                }
-            }
-            
-            if (crossover)
-            {
-                ccccKeyPoints.append(keyPoint);
-                ccccLowerPoints.append(lowerPoints);    
-            }
-            
-        }
-    }
     ////
     
     //Perhaps we ought to gather the entire cccc into a collection, then iterate over all the points
@@ -277,6 +188,133 @@ QVector<BPartition*> WordSeparator::horzCutEntries(BPartition &img, int vert_div
     ret.append(firstPart);
     ret.append(secondPart);
     return ret;
+}
+
+void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bottom, QVector<QPoint> crossPoints)
+{
+    //Find cross-over contected components
+    assert(top->getSrc() == bottom->getSrc());
+    BImage mark = (top->getSrc())->makeImage();
+    
+    QVector<QPoint> workingStack;
+    QVector<QPoint> ccccKeyPoints;
+    QVector<QVector<QPoint> > ccccPoints;
+    
+    foreach (QPoint keyPoint, crossPoints)
+    {
+        if (mark.pixel(keyPoint))
+        {
+            workingStack.push_back(keyPoint);
+            bool topStarted = ((BPixelCollection*)top)->pixelIsMine(keyPoint);
+            QVector<QPoint> points;
+            BPartition subsection(top->getSrc());
+            bool crossover=false;
+            while (!workingStack.isEmpty())
+            {   
+                QPoint cur = workingStack.back();
+                workingStack.pop_back();
+                
+                points.append(cur);
+                subsection.addPixelFromSrc(cur);
+                
+                //this needs changed
+                if (!crossover && ((BPixelCollection*)top)->pixelIsMine(cur) != topStarted)
+                {
+                    crossover=true;
+                }
+                
+                if (cur.x()<mark.width()-1 && mark.pixel(cur.x()+1,cur.y()))
+                {
+                    QPoint pp(cur.x()+1,cur.y());
+                    workingStack.push_back(pp);
+                    mark.setPixel(pp,false);
+                }
+                if (cur.y()<mark.height()-1 && mark.pixel(cur.x(),cur.y()+1))
+                {
+                    QPoint pp(cur.x(),cur.y()+1);
+                    workingStack.push_back(pp);
+                    mark.setPixel(pp,false);
+                }
+                if (cur.x()>0 && mark.pixel(cur.x()-1,cur.y()))
+                {
+                    QPoint pp(cur.x()-1,cur.y());
+                    workingStack.push_back(pp);
+                    mark.setPixel(pp,false);
+                }
+                if (cur.y()>0 && mark.pixel(cur.x(),cur.y()-1))
+                {
+                    QPoint pp(cur.x(),cur.y()-1);
+                    workingStack.push_back(pp);
+                    mark.setPixel(pp,false);
+                }
+                //diagonals
+                if (cur.x()<mark.width()-1 && cur.y()<mark.height()-1 && mark.pixel(cur.x()+1,cur.y()+1))
+                {
+                    QPoint pp(cur.x()+1,cur.y()+1);
+                    workingStack.push_back(pp);
+                    mark.setPixel(pp,false);
+                }
+                if (cur.y()<mark.height()-1 && cur.x()>0 && mark.pixel(cur.x()-1,cur.y()+1))
+                {
+                    QPoint pp(cur.x()-1,cur.y()+1);
+                    workingStack.push_back(pp);
+                    mark.setPixel(pp,false);
+                }
+                if (cur.x()<mark.width()-1 && cur.y()>0 && mark.pixel(cur.x()+1,cur.y()-1))
+                {
+                    QPoint pp(cur.x()+1,cur.y()-1);
+                    workingStack.push_back(pp);
+                    mark.setPixel(pp,false);
+                }
+                if (cur.y()>0 && cur.x()>0 && mark.pixel(cur.x()-1,cur.y()-1))
+                {
+                    QPoint pp(cur.x()-1,cur.y()-1);
+                    workingStack.push_back(pp);
+                    mark.setPixel(pp,false);
+                }
+            }
+            
+            if (crossover)
+            {
+                ccccKeyPoints.append(keyPoint);
+                ccccPoints.append(points);
+                
+                QVector<BPartition*> newTopBottom = horzCutEntries(subsection,keyPoint.y());
+                top->clear(&subsection);
+                bottom->clear(&subsection);
+//                top->add(newTopBottom[0]);
+//                bottom->add(newTopBottom[1]);
+                for (int x=0; x<newTopBottom[0]->width(); x++)
+                {
+                    for (int y=0; y<newTopBottom[0]->height(); y++)
+                    {
+                        if (newTopBottom[0]->pixelIsMine(x,y))
+                            top->addPixelFromSrc(x+newTopBottom[0]->getXOffset()+subsection.getXOffset(),y+newTopBottom[0]->getYOffset()+subsection.getYOffset());
+                    }
+                }
+                
+                for (int x=0; x<newTopBottom[1]->width(); x++)
+                {
+                    for (int y=0; y<newTopBottom[1]->height(); y++)
+                    {
+                        if (newTopBottom[1]->pixelIsMine(x,y))
+                            bottom->addPixelFromSrc(x+newTopBottom[1]->getXOffset()+subsection.getXOffset(),y+newTopBottom[1]->getYOffset()+subsection.getYOffset());
+                    }
+                }
+                
+                delete newTopBottom[0];
+                delete newTopBottom[1];
+            }
+            
+        }
+        else
+        {
+            //TODO this case still needs handled
+        }
+        
+        
+        
+    }
 }
 
 
@@ -759,7 +797,7 @@ QVector<BPartition*> WordSeparator::horzCutEntries(BPartition &img, int vert_div
 
 //Meijster distance <http://fab.cba.mit.edu/classes/S62.12/docs/Meijster_distance.pdf>
 //This can be parallelized. Should probably flip from column to row first
-void WordSeparator::computeInverseDistanceMap(BPartition &src, int* out)
+void WordSeparator::computeInverseDistanceMap(BPixelCollection &src, int* out)
 {
     int maxDist=0;
     int g[src.width()*src.height()];
@@ -969,7 +1007,7 @@ int WordSeparator::SepPlusOne(int i, int u, int y, int m, int* g)
 
 
 //Uses Boykov graph cut
-int WordSeparator::pixelsOfSeparation(int* invDistMap, int width, int height, BPartition &img, QVector<int> &outSource, QVector<int> &outSink, int anchor_weight, int split_method, int vert_divide)
+int WordSeparator::pixelsOfSeparation(int* invDistMap, int width, int height, BPixelCollection &img, QVector<int> &outSource, QVector<int> &outSink, int anchor_weight, int split_method, int vert_divide)
 {
     typedef Graph<int,int,int> GraphType;
     GraphType *g = new GraphType(width*height, 2*(width-1)*(height-1)-(height+width)); 

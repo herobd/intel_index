@@ -6,11 +6,7 @@
 #include "bpartition.h"
 #include <assert.h>
 #include "bpartition.h"
-//struct ownerData
-//{
-//    BPartition* owner;
-//    float portion;
-//};
+#include "BPixelCollection.h"
 
 class BPartition;
 
@@ -20,13 +16,14 @@ struct bPixel
     QMap<BPartition*, float> ownership;
 };
 
-class BImage
+class BImage : public BPixelCollection
 {
 public:
     BImage();
-    BImage(QImage &src);
+    BImage(const QImage &src);
     BImage(int width, int height);
     BImage(const BImage &other);
+//    BImage(const BPartition* src1, const BPartition* src2);
     BImage copy();
     ~BImage();
     
@@ -38,8 +35,6 @@ public:
     
     bool pixel(const QPoint &p) const;
     bool pixel(int x, int y) const;
-//    ownerData pixelOwnership(const QPoint &p);
-//    ownerData pixelOwnership(int x, int y);
     bPixel pixelFull(const QPoint &p) const;
     bPixel pixelFull(int x, int y) const;
     float pixelOwnerPortion(const QPoint &p, BPartition* owner) const;
@@ -54,14 +49,17 @@ public:
     void setPixelOwner(const QPoint &p, BPartition* owner, float portion);
     void setPixelOwner(int x, int y, BPartition* owner, float portion);
     
-    void setPixelCombineOwner(int x, int y, BPartition* to, BPartition* with);
+//    void setPixelCombineOwner(int x, int y, BPartition* to, BPartition* with);
     
     QImage getImage();
     QImage getOwnersImage();
     
-    
+    void claimOwnership(BPartition* claimer, float amount);
     
     BPartition* getFullPartition();
+    
+    BImage makeImage() const;
+    bool pixelIsMine(int x, int y) const;
     
 private:
     bPixel** pixels;
