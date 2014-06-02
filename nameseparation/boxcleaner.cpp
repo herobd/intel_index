@@ -23,7 +23,8 @@ BImage BoxCleaner::trimHorizontalBoundaries(BImage &img)
     int j;
     bool cont = true;
     
-     BImage ret = img.copy();
+//     BImage ret = img.copy();
+    BImage ret(img);
      
     
      
@@ -178,7 +179,8 @@ BImage BoxCleaner::trimVerticleBoundaries(BImage &img)
     int j;
     bool cont = true;
     
-     BImage ret = img.copy();
+//     BImage ret = img.copy();
+    BImage ret(img);
      
      
      //veritcle lines
@@ -378,8 +380,8 @@ BImage BoxCleaner::removePixelNoise(BImage &img)
 {
     //int NOISE_BUFF = 6;
     
-    BImage ret = img.copy();
-    
+    //BImage ret = img.copy();
+    BImage ret(img);
     //This first part picks up any stray singel pixel lines that might be floating around
     
     //corners
@@ -438,7 +440,8 @@ BImage BoxCleaner::removePixelNoise(BImage &img)
 
 BImage BoxCleaner::removeVerticlePixelNoise(BImage &img)
 {
-    BImage ret = img.copy();
+//    BImage ret = img.copy();
+    BImage ret(img);
     
     
     //left and right
@@ -488,7 +491,8 @@ BImage BoxCleaner::clearLineAndCloseLetters(BImage &src, int est_y, int* vert_di
     
     double STRUCT_ELE_CORNER = 1.5*STRUCT_ELE_SIZE;
     
-    BImage ret = src.copy();
+//    BImage ret = src.copy();
+    BImage ret(src);
     if (src.height()-est_y>SEARCH_BAND && est_y>SEARCH_BAND)
     {
         QVector<int> profile(SEARCH_BAND*2 + 1);
@@ -700,7 +704,8 @@ void BoxCleaner::blobFilter(BImage &on, int fromY, int toY, int blobThresh, int 
 {
     
     
-    BImage mark = on.copy();
+//    BImage mark = on.copy();
+    BImage mark(on);
     QVector<QPoint> workingStack;
     QVector<QPoint> toClearStack;
     

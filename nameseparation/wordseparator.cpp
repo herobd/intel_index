@@ -74,7 +74,7 @@ QVector<BPartition*> WordSeparator::horzCutEntries(BPixelCollection &img, int ve
     BPartition* secondPart = new BPartition(&img);
     
     int img_width = img.width();
-    int img_height = img.height();
+//    int img_height = img.height();
     
     foreach (int index, firstImgIndexes)
     {
@@ -94,95 +94,6 @@ QVector<BPartition*> WordSeparator::horzCutEntries(BPixelCollection &img, int ve
     
     
     
-    ////
-    
-    //Perhaps we ought to gather the entire cccc into a collection, then iterate over all the points
-    //But we only need the lower points, and only the ones on the map
-    //What about only the points of the the regular black(lower)?
-    //we still need the keypoint for alignment, but that should sort of work. Most will get a zero map score
-    //started...
-    
-    //apply prob map
-//    double DESCENDER_SCORE_THRESH = 50;
-    
-//    for (int ci=0; ci<ccccKeyPoints.size(); ci++)
-//    {
-//        QPoint candidate = ccccKeyPoints[ci];
-//        QVector<QPoint> candidateComponent = ccccLowerPoints[ci];
-//        QVector<QVector<double> > scoreMap(probMap.size());
-//        QVector<double> temp(probMap[0].size());
-//        temp.fill(0);
-//        scoreMap.fill(temp);
-//        double scoreTotal=0;
-//        int num_points_outside=0;
-//        foreach (QPoint ccccP, candidateComponent)
-//        {
-//            int x = ccccP.x()-candidate.x() + probMap.size()/2;
-//            int y = ccccP.y()-candidate.y();
-            
-//            if(x>=0 && x<probMap.size() && y>=0 && y<probMap[0].size())
-//            {
-//                scoreMap[x][y] = probMap[x][y]-.4;
-//                scoreTotal+=scoreMap[x][y];
-//            }
-//            else
-//            {
-//                scoreTotal-=.4;
-//                num_points_outside++;
-//            }
-            
-            
-//        }
-        
-//        printf("total score for point (%d,%d): %f\n",candidate.x(),candidate.y(),scoreTotal);
-        
-//        if (scoreTotal>DESCENDER_SCORE_THRESH)
-//        {
-//            //if this is disconnected (all pixels are important in map) we can add all
-//            //but what if we are intersected with something else?
-            
-//            //expiriment
-//            foreach (QPoint p, candidateComponent)
-//            {
-//                firstImgBlackPixelIndexes.append(p.x()+p.y()*img.width());
-//            }
-//        }
-//    }
-    
-//    int firstLowestPixel = 0;
-//    int secondHighestPixel = 0;
-    
-//    QImage firstImg = img.copy(0,0,img.width(),img.height());
-//    firstImg.fill(255);
-//    QImage secondImg = img.copy(0,0,img.width(),img.height());
-    
-//    foreach(int index, firstImgBlackPixelIndexes)
-//    {
-//        int x = index%img.width();
-//        int y = index/img.width();
-//        firstImg.setPixel(x,y,0);
-//        secondImg.setPixel(x,y,255);
-        
-//        if (y>firstLowestPixel)
-//            firstLowestPixel=y;
-//    }
-//    bool notFound = true;
-//    for (int j=0; j<img.height() && notFound; j++)
-//    {
-//        for (int i=0; i<img.width() && notFound; i++)
-//        {
-//            if (qGray(secondImg.pixel(i,j))==0)
-//            {
-//                secondHighestPixel=j;
-//                notFound = false;
-//            }
-//        }
-//    }
-    
-//    printf("maxflow= %d\n",maxflow);
-    
-    
-    
    
     QVector<BPartition*> ret;
     ret.append(firstPart);
@@ -190,7 +101,7 @@ QVector<BPartition*> WordSeparator::horzCutEntries(BPixelCollection &img, int ve
     return ret;
 }
 
-void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bottom, QVector<QPoint> crossPoints)
+void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bottom, QVector<QPoint> crossPoints, QVector<QVector<double> > descenderProbMap)
 {
     //Find cross-over contected components
     assert(top->getSrc() == bottom->getSrc());
@@ -198,27 +109,30 @@ void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bot
     
     QVector<QPoint> workingStack;
     QVector<QPoint> ccccKeyPoints;
-    QVector<QVector<QPoint> > ccccPoints;
+    QVector<QVector<QPoint> > ccccLowerPoints;
     
     foreach (QPoint keyPoint, crossPoints)
     {
         if (mark.pixel(keyPoint))
         {
             workingStack.push_back(keyPoint);
-            bool topStarted = ((BPixelCollection*)top)->pixelIsMine(keyPoint);
-            QVector<QPoint> points;
+            bool topStarted = top->pixelIsMineSrc(keyPoint);
+            QVector<QPoint> lowerPoints;
             BPartition subsection(top->getSrc());
             bool crossover=false;
             while (!workingStack.isEmpty())
             {   
                 QPoint cur = workingStack.back();
                 workingStack.pop_back();
+                int bottomX = cur.x()-bottom->getXOffset();
+                int bottomY = cur.y()-bottom->getYOffset();
+                if ((bottomX>=0 && bottomX<bottom->width() && bottomY>=0 && bottomY<bottom->height() && bottom->pixelIsMine(bottomX, bottomY)))
+                    lowerPoints.append(cur);
                 
-                points.append(cur);
                 subsection.addPixelFromSrc(cur);
                 
                 //this needs changed
-                if (!crossover && ((BPixelCollection*)top)->pixelIsMine(cur) != topStarted)
+                if (!crossover && top->pixelIsMineSrc(cur) != topStarted)
                 {
                     crossover=true;
                 }
@@ -277,33 +191,121 @@ void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bot
             if (crossover)
             {
                 ccccKeyPoints.append(keyPoint);
-                ccccPoints.append(points);
+                ccccLowerPoints.append(lowerPoints);
                 
-                QVector<BPartition*> newTopBottom = horzCutEntries(subsection,keyPoint.y());
-                top->clear(&subsection);
-                bottom->clear(&subsection);
-//                top->add(newTopBottom[0]);
-//                bottom->add(newTopBottom[1]);
-                for (int x=0; x<newTopBottom[0]->width(); x++)
+                //test
+                BPartition test(top->getSrc());
+                foreach (QPoint p, lowerPoints)
                 {
-                    for (int y=0; y<newTopBottom[0]->height(); y++)
+                    test.addPixelFromSrc(p.x(),p.y());
+                }
+                QString xs;
+               QString ys;
+               xs.setNum(keyPoint.x());
+               ys.setNum(keyPoint.y());
+               QString loc = "./lowerPoints";
+               loc+=xs;
+               loc+="_";
+               loc+=ys;
+               loc+=".ppm";
+                test.makeImage().save(loc);
+                /////
+                
+                QVector<QVector<double> > scoreMap(descenderProbMap.size());
+                QVector<double> temp(descenderProbMap[0].size());
+                temp.fill(0);
+                scoreMap.fill(temp);
+                double scoreTotal=0;
+                int num_points_outside=0;
+                foreach (QPoint ccccP, lowerPoints)
+                {
+                    int x = ccccP.x()-keyPoint.x() + descenderProbMap.size()/2;
+                    int y = ccccP.y()-keyPoint.y();
+                    
+                    if(x>=0 && x<descenderProbMap.size() && y>=0 && y<descenderProbMap[0].size())
                     {
-                        if (newTopBottom[0]->pixelIsMine(x,y))
-                            top->addPixelFromSrc(x+newTopBottom[0]->getXOffset()+subsection.getXOffset(),y+newTopBottom[0]->getYOffset()+subsection.getYOffset());
+                        scoreMap[x][y] = descenderProbMap[x][y]-.4;
+                        scoreTotal+=scoreMap[x][y];
+                    }
+                    else
+                    {
+                        scoreTotal-=.4;
+                        num_points_outside++;
+                    }
+                    
+                    
+                }
+                
+                printf("total score for point (%d,%d): %f\n",keyPoint.x(),keyPoint.y(),scoreTotal);
+                double DESCENDER_SCORE_THRESH = 50;
+                if (scoreTotal>DESCENDER_SCORE_THRESH)
+                {
+                    //if this is disconnected (all pixels are important in map) we can add all
+                    //but what if we are intersected with something else?
+                    
+                    //expiriment
+                    foreach (QPoint p, lowerPoints)
+                    {
+//                        firstImgBlackPixelIndexes.append(p.x()+p.y()*img.width());
+                        top->addPixelFromSrc(p);
+                        bottom->removePixel(p);
                     }
                 }
                 
-                for (int x=0; x<newTopBottom[1]->width(); x++)
-                {
-                    for (int y=0; y<newTopBottom[1]->height(); y++)
-                    {
-                        if (newTopBottom[1]->pixelIsMine(x,y))
-                            bottom->addPixelFromSrc(x+newTopBottom[1]->getXOffset()+subsection.getXOffset(),y+newTopBottom[1]->getYOffset()+subsection.getYOffset());
-                    }
-                }
+                  //subsection are f real
+//                int SUBSECTION_WIDTH = 400;
                 
-                delete newTopBottom[0];
-                delete newTopBottom[1];
+//                if (subsection.width() > SUBSECTION_WIDTH)
+//                {
+//                    int cutOffLeft = SUBSECTION_WIDTH/2;
+//                    int cutOffRight = SUBSECTION_WIDTH/2;
+                    
+//                    if (keyPoint.x()-subsection.getXOffset() < cutOffLeft)
+//                        cutOffLeft = 0;
+                    
+//                    if (subsection.width() - (keyPoint.x()-subsection.getXOffset()) < cutOffRight)
+//                        cutOffRight = 0;
+//                }
+//                subsection.trim(cutOffLeft,cutOffRight,0,0);
+                
+//                QString xs;
+//                QString ys;
+//                xs.setNum(keyPoint.x());
+//                ys.setNum(keyPoint.y());
+//                QString loc = "./subsection";
+//                loc+=xs;
+//                loc+="_";
+//                loc+=ys;
+//                loc+=".ppm";
+                
+//                subsection.makeImage().save(loc);
+////                printf("sub(%d,%d):[%d,%d]\n", keyPoint.x(), keyPoint.y(), subsection.width(),subsection.height());
+                
+//                QVector<BPartition*> newTopBottom = horzCutEntries(subsection,keyPoint.y());
+//                top->clear(&subsection);
+//                bottom->clear(&subsection);
+////                top->add(newTopBottom[0]);
+////                bottom->add(newTopBottom[1]);
+//                for (int x=0; x<newTopBottom[0]->width(); x++)
+//                {
+//                    for (int y=0; y<newTopBottom[0]->height(); y++)
+//                    {
+//                        if (newTopBottom[0]->pixelIsMine(x,y))
+//                            top->addPixelFromSrc(x+newTopBottom[0]->getXOffset()+subsection.getXOffset(),y+newTopBottom[0]->getYOffset()+subsection.getYOffset());
+//                    }
+//                }
+                
+//                for (int x=0; x<newTopBottom[1]->width(); x++)
+//                {
+//                    for (int y=0; y<newTopBottom[1]->height(); y++)
+//                    {
+//                        if (newTopBottom[1]->pixelIsMine(x,y))
+//                            bottom->addPixelFromSrc(x+newTopBottom[1]->getXOffset()+subsection.getXOffset(),y+newTopBottom[1]->getYOffset()+subsection.getYOffset());
+//                    }
+//                }
+                
+//                delete newTopBottom[0];
+//                delete newTopBottom[1];
             }
             
         }

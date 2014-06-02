@@ -72,11 +72,35 @@ BImage::~BImage()
     for (int x=0; x<myWidth; x++)
     {
         delete[] pixels[x];
+        pixels[x]=NULL;
     }
     delete[] pixels;
+    pixels=NULL;
 }
 
-
+BImage& BImage::operator=( const BImage& other )
+{
+    for (int x=0; x<myWidth; x++)
+    {
+        delete[] pixels[x];
+        pixels[x]=NULL;
+    }
+    delete[] pixels;
+    pixels=NULL;
+    
+    myHeight = other.myHeight;
+    myWidth = other.myWidth;
+    pixels = new bPixel*[myWidth];
+    for (int x=0; x<myWidth; x++)
+    {
+        pixels[x] = new bPixel[myHeight];
+        for (int y=0; y<myHeight; y++)
+        {
+            pixels[x][y]= other.pixels[x][y];
+        }
+    }
+    return *this;
+  }
 
 BImage BImage::copy()//this doesn't handle paritions
 {

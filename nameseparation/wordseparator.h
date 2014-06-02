@@ -21,7 +21,7 @@ public:
 //    static QVector<QImage> cutNames(QImage &img);
 //    static QVector<QImage> recursiveCutWordToFirstLetter(QImage &img);
     static QVector<BPartition*> horzCutEntries(BPixelCollection &img, int vert_divide);
-    static void adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bottom, QVector<QPoint> crossPoints);
+    static void adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bottom, QVector<QPoint> crossPoints, QVector<QVector<double> > descenderProbMap);
     
 private:
     static void computeInverseDistanceMap(BPixelCollection &img, int* out);

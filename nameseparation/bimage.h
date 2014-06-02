@@ -26,6 +26,7 @@ public:
 //    BImage(const BPartition* src1, const BPartition* src2);
     BImage copy();
     ~BImage();
+    BImage& operator=( const BImage& other );
     
     int width() const;
     int height() const;

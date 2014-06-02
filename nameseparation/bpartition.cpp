@@ -9,14 +9,38 @@ BPartition::BPartition(const BPixelCollection* ofImage)
     rightX=-2;
     upperY=-1;
     lowerY=-2;
-    myPixels = new unsigned int[(int)ceil(src->width()*src->height() / (sizeof(unsigned int)) * 1.0)];
-    for (int i=0; i<(int)ceil(src->width()*src->height() / (sizeof(unsigned int)) * 1.0); i++)
+    myPixels = new unsigned int[(int)ceil(src->width()*src->height() / ((8*sizeof(unsigned int))) * 1.0)];
+    for (int i=0; i<(int)ceil(src->width()*src->height() / ((8*sizeof(unsigned int))) * 1.0); i++)
         myPixels[i]=0;
 }
 
 BPartition::~BPartition()
 {
     delete[] myPixels;
+}
+
+BPartition& BPartition::operator=( const BPartition& other )
+{
+    src = other.getSrc();
+    leftX=other.leftX;
+    rightX=other.rightX;
+    upperY=other.upperY;
+    lowerY=other.lowerY;
+    
+    myPixels = new unsigned int[(int)ceil(src->width()*src->height() / ((8*sizeof(unsigned int))) * 1.0)];
+    for (int i=0; i<(int)ceil(src->width()*src->height() / ((8*sizeof(unsigned int))) * 1.0); i++)
+        myPixels[i]=0;
+    
+    for (int x=0; x<width(); x++)
+    {
+        for(int y=0; y<height(); y++)
+        {
+            if (other.pixelIsMine(x,y))
+                setMyPixelTrue(x+leftX,y+upperY);
+        }
+    }
+        
+        return *this;
 }
 
 const BPixelCollection* BPartition::getSrc() const
@@ -62,19 +86,23 @@ bool BPartition::pixel(int x, int y) const
         return false;
 }
 
-//bool BPartition::pixelIsMine(const QPoint &p)
-//{
-//    return pixelIsMine(p.x(),p.y());
-//}
+bool BPartition::pixelIsMineSrc(const QPoint &src_p) const
+{
+    assert(src_p.x()>=0 && src_p.x()<src->width() && src_p.y()>=0 && src_p.y()<src->height());
+    int index = src_p.x() + src_p.y()*src->width();
+    int arrayIndex = index/(8*sizeof(unsigned int));
+    int intIndex = index%(8*sizeof(unsigned int));
+    return myPixels[arrayIndex] & (1 << intIndex);
+}
 bool BPartition::pixelIsMine(int x, int y) const
 {
     assert(x>=0 && x<width() && y>=0 && y<height());
     int realX = x+leftX;
     int realY = y+upperY;
     int index = realX + realY*src->width();
-    int arrayIndex = index/sizeof(unsigned int);
-    int intIndex = index%sizeof(unsigned int);
-    return myPixels[arrayIndex]& (1 << intIndex);
+    int arrayIndex = index/(8*sizeof(unsigned int));
+    int intIndex = index%(8*sizeof(unsigned int));
+    return myPixels[arrayIndex] & (1 << intIndex);
 //    return (src->pixelOwnerPortion(realX,realY,this) > 0);
 }
 
@@ -214,36 +242,121 @@ BImage BPartition::makeImage() const
     return ret;
 }
 
-void BPartition::addPixelFromSrc(const QPoint &p)
+void BPartition::addPixelFromSrc(const QPoint &src_p)
 {
-    addPixelFromSrc(p.x(),p.y());
+    addPixelFromSrc(src_p.x(),src_p.y());
 }
 
-void BPartition::addPixelFromSrc(int x, int y)
+void BPartition::addPixelFromSrc(int src_x, int src_y)
 {
-    assert(x>=0 && x<src->width() && y>=0 && y<src->height());
-    int index = x + y*src->width();
-    int arrayIndex = index/sizeof(unsigned int);
-    int intIndex = index%sizeof(unsigned int);
-    myPixels[arrayIndex] |= (1 << intIndex);
+    assert(src_x>=0 && src_x<src->width() && src_y>=0 && src_y<src->height());
+    setMyPixelTrue(src_x,src_y);
     if (leftX==-1)
     {
-        leftX=x;
-        rightX=x;
-        upperY=y;
-        lowerY=y;
+        leftX=src_x;
+        rightX=src_x;
+        upperY=src_y;
+        lowerY=src_y;
     }
     else
     {
-        if (x<leftX)
-            leftX=x;
-        else if (x>rightX)
-            rightX=x;
+        if (src_x<leftX)
+            leftX=src_x;
+        else if (src_x>rightX)
+            rightX=src_x;
         
-        if (y<upperY)
-            upperY=y;
-        else if (y>lowerY)
-            lowerY=y;
+        if (src_y<upperY)
+            upperY=src_y;
+        else if (src_y>lowerY)
+            lowerY=src_y;
+    }
+}
+
+void BPartition::removePixel(const QPoint &src_p)
+{
+    removePixel(src_p.x(),src_p.y());
+}
+
+void BPartition::removePixel(int src_x, int src_y)
+{
+    setMyPixelFalse(src_x,src_y);
+    
+    bool found = true;
+    if (src_x==leftX)
+    {
+        found=false;
+        for (int i=leftX; i<=rightX; i++)
+        {
+            for (int j=upperY; j<=lowerY; j++)
+            {
+                if (pixelIsMine(i-leftX,j-upperY) && src->pixel(i,j))
+                {
+                    leftX=i;
+                    i=rightX+1;
+                    j=lowerY+1;
+                    found=true;
+                }
+            }
+        }
+    }
+    else if (src_x==rightX)
+    {
+        found = false;
+        for (int i=rightX; i>=leftX; i--)
+        {
+            for (int j=upperY; j<=lowerY; j++)
+            {
+                if (pixelIsMine(i-leftX,j-upperY) && src->pixel(i,j))
+                {
+                    rightX=i;
+                    i=-1;
+                    j=lowerY+1;
+                    found=true;
+                }
+            }
+        }
+    }
+    
+    if (src_y==upperY)
+    {
+        found = false;
+        for (int j=upperY; j<=lowerY; j++)
+        {
+            for (int i=leftX; i<=rightX; i++)
+            {
+                if (pixelIsMine(i-leftX,j-upperY) && src->pixel(i,j))
+                {
+                    upperY=j;
+                    i=rightX+1;
+                    j=lowerY+1;
+                    found=true;
+                }
+            }
+        }
+    }
+    else if (src_y==lowerY)
+    {
+        found = false;
+        for (int j=lowerY; j>=upperY; j--)
+        {
+            for (int i=leftX; i<=rightX; i++)
+            {
+                if (pixelIsMine(i-leftX,j-upperY) && src->pixel(i,j))
+                {
+                    lowerY=j;
+                    i=rightX+1;
+                    j=-1;
+                    found=true;
+                }
+            }
+        }
+    }
+    if (!found)
+    {
+        leftX=-1;
+        rightX=-2;
+        upperY=-1;
+        lowerY=-2;
     }
 }
 
@@ -286,10 +399,7 @@ void BPartition::clear(BPartition* const pixelsToRemove)
             {
                 int realX = x+pixelsToRemove->getXOffset();
                 int realY = y+pixelsToRemove->getYOffset();
-                int index = realX + realY*src->width();
-                int arrayIndex = index/sizeof(unsigned int);
-                int intIndex = index%sizeof(unsigned int);
-                myPixels[arrayIndex] &= ~(1 << intIndex);
+                setMyPixelFalse(realX,realY);
                 if (x==leftX) checkLeftBound = true;
                 if (x==rightX) checkRightBound = true;
                 if (y==upperY) checkUpperBound = true;
@@ -387,5 +497,61 @@ void BPartition::clear(BPartition* const pixelsToRemove)
 //    upperY + mySrc->getYOffset();
 //    lowerY + mySrc->getYOffset();
     
-//    int tempPixels[] = new unsigned int[(int)ceil(src->width()*src->height() / (sizeof(unsigned int)) * 1.0)];
+//    int tempPixels[] = new unsigned int[(int)ceil(src->width()*src->height() / ((8*sizeof(unsigned int))) * 1.0)];
 //}
+
+void BPartition::trim(int offLeftSide, int offRightSide, int offTopSide, int offBottomSide)
+{
+    assert(offLeftSide>0 && offRightSide>0 && offTopSide>0 && offBottomSide>0);
+    for (int i = 0; i<offLeftSide; i++)
+    {
+        for (int y=upperY; y<=lowerY; y++)
+        {
+            setMyPixelFalse(i+leftX,y);
+        }
+    }
+    leftX -= offLeftSide;
+    
+    for (int i = 0; i<offRightSide; i++)
+    {
+        for (int y=upperY; y<=lowerY; y++)
+        {
+            setMyPixelFalse(rightX-i,y);
+        }
+    }
+    rightX -= offRightSide;
+    
+    for (int j = 0; j<offTopSide; j++)
+    {
+        for (int x=leftX; x<=rightX; x++)
+        {
+            setMyPixelFalse(x,j+upperY);
+        }
+    }
+    upperY -= offTopSide;
+    
+    for (int j = 0; j<offBottomSide; j++)
+    {
+        for (int x=leftX; x<=rightX; x++)
+        {
+            setMyPixelFalse(x,lowerY-j);
+        }
+    }
+    lowerY -= offBottomSide;
+}
+
+inline void BPartition::setMyPixelTrue(int src_x, int src_y)
+{
+    int index = src_x + src_y*src->width();
+    int arrayIndex = index/(8*sizeof(unsigned int));
+    int intIndex = index%(8*sizeof(unsigned int));
+    myPixels[arrayIndex] |= (1 << intIndex);
+}
+
+inline void BPartition::setMyPixelFalse(int src_x, int src_y)
+{
+    int index = src_x + src_y*src->width();
+    int arrayIndex = index/(8*sizeof(unsigned int));
+    int intIndex = index%(8*sizeof(unsigned int));
+    myPixels[arrayIndex] &= ~(1 << intIndex);
+}
