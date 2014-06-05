@@ -4,6 +4,8 @@
 
 BImage::BImage()
 {
+    myHeight=0;
+    myWidth=0;
 }
 
 BImage::BImage(const QImage &src)
@@ -80,13 +82,16 @@ BImage::~BImage()
 
 BImage& BImage::operator=( const BImage& other )
 {
-    for (int x=0; x<myWidth; x++)
+    if (myWidth != 0)
     {
-        delete[] pixels[x];
-        pixels[x]=NULL;
+        for (int x=0; x<myWidth; x++)
+        {
+            delete[] pixels[x];
+            pixels[x]=NULL;
+        }
+        delete[] pixels;
+        pixels=NULL;
     }
-    delete[] pixels;
-    pixels=NULL;
     
     myHeight = other.myHeight;
     myWidth = other.myWidth;
@@ -96,7 +101,7 @@ BImage& BImage::operator=( const BImage& other )
         pixels[x] = new bPixel[myHeight];
         for (int y=0; y<myHeight; y++)
         {
-            pixels[x][y]= other.pixels[x][y];
+            pixels[x][y].val= other.pixel(x,y);
         }
     }
     return *this;
@@ -222,27 +227,30 @@ void BImage::setPixelOwner(const QPoint &p, BPartition* owner, float portion)
 void BImage::setPixelOwner(int x, int y, BPartition* owner, float portion)
 {
     assert(x>=0 && x<myWidth && y>=0 && y<myHeight);
-    float old = 0;
-    if (pixels[x][y].ownership.contains(owner))
-    {
-        old = pixels[x][y].ownership[owner];
-    }
-    float converter = (1-portion)/(1-old);
-    QMap<BPartition*,float>::iterator i = pixels[x][y].ownership.begin();
-    while(i != pixels[x][y].ownership.end())
-    {
-        if (i.key() != owner)
-        {
-            float oldother = i.value();
-            if (oldother!=0)
-            {
-                i.value()=oldother*converter;
-//                (i.key())->changedPortion(x,y,i.value(),oldother);
-            }
-        }
-        ++i;
-    }
     
+    if (pixels[x][y].ownership.size() > 0)
+    {
+        float old = 0;
+        if (pixels[x][y].ownership.contains(owner))
+        {
+            old = pixels[x][y].ownership[owner];
+        }
+        float converter = (1-portion)/(1-old);
+        QMap<BPartition*,float>::iterator i = pixels[x][y].ownership.begin();
+        while(i != pixels[x][y].ownership.end())
+        {
+            if (i.key() != owner)
+            {
+                float oldother = i.value();
+                if (oldother!=0)
+                {
+                    i.value()=oldother*converter;
+    //                (i.key())->changedPortion(x,y,i.value(),oldother);
+                }
+            }
+            ++i;
+        }
+    }
     pixels[x][y].ownership[owner]=portion;
 //    owner->changedPortion(x,y,portion,old);
 }

@@ -18,10 +18,14 @@ int main(int argc, char** argv)
     
     BImage bimg(testimg);
     
+    BPartition* top = WordSeparator::chopOutTop(bimg);
+    top->makeImage().save("./chop_top.ppm");
+    
+    bimg.claimOwnership(top,1);
+    bimg.saveOwners("./chopped.ppm");
+    
     BImage cleared = BoxCleaner::trimVerticleBoundaries(bimg);
     cleared = BoxCleaner::removeVerticlePixelNoise(cleared);
-//    cleared = BoxCleaner::trimHorizontalBoundaries(cleared);
-//    cleared = BoxCleaner::removePixelNoise(cleared);
     
     cleared.save("./cleared.ppm");
     
@@ -30,13 +34,12 @@ int main(int argc, char** argv)
     BImage lineremoved = BoxCleaner::clearLineAndCloseLetters(cleared,40,&vert_divide,&crossPoints);
     
     lineremoved = BoxCleaner::trimHorizontalBoundaries(lineremoved);
-    lineremoved = BoxCleaner::removePixelNoise(lineremoved);
     lineremoved.save("./lineremoved.ppm");
     QVector<BPartition*> cuts = WordSeparator::horzCutEntries(lineremoved,vert_divide);
     
     
-    lineremoved.claimOwnership(cuts[1],1);
     lineremoved.claimOwnership(cuts[0],1);
+    lineremoved.claimOwnership(cuts[1],1);
     lineremoved.saveOwners("./cut1.ppm");
     
     BImage upper = cuts[0]->makeImage();
@@ -54,18 +57,11 @@ int main(int argc, char** argv)
     
     lineremoved.saveOwners("./cut1_adjusted.ppm");
     
-//    BImage left = cuts[0]->makeImage();
-//    left.save("cut_a_left.ppm");
-    
-//    BImage left2 = cuts2[0]->makeImage();
-//    BImage right2 = cuts2[1]->makeImage();
-//    left2.save("cut2_a_left.ppm");
-//    right2.save("cut2_b_right.ppm");
+
     
     delete cuts[0];
     delete cuts[1];
-//    delete cuts2[0];
-//    delete cuts2[1];
+    delete top;
     
     return 0;
 }

@@ -103,33 +103,62 @@ QVector<BPartition*> WordSeparator::horzCutEntries(BPixelCollection &img, int ve
 
 void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bottom, QVector<QPoint> crossPoints, QVector<QVector<double> > descenderProbMap)
 {
+    int SUBSECTION_WIDTH_FROM_KEYPOINT = 75;
+    int SUBSECTION_PIXEL_COUNT_MAX = 750;
     //Find cross-over contected components
     assert(top->getSrc() == bottom->getSrc());
-    BImage mark = (top->getSrc())->makeImage();
+    
     
     QVector<QPoint> workingStack;
     QVector<QPoint> ccccKeyPoints;
     QVector<QVector<QPoint> > ccccLowerPoints;
     
+    //clear dvide line
+    int vert_divide = crossPoints[0].y();
+    
+    
+//    mark.save("./mark.ppm");
+    
     foreach (QPoint keyPoint, crossPoints)
     {
-        if (mark.pixel(keyPoint))
+        BImage mark = (top->getSrc())->makeImage();
+//        for (int x=0; x<top->getSrc()->width(); x++)
+//        {
+//            mark.setPixel(x,vert_divide,false);
+//        }
+//        if (mark.pixel(keyPoint))
         {
             workingStack.push_back(keyPoint);
             bool topStarted = top->pixelIsMineSrc(keyPoint);
             QVector<QPoint> lowerPoints;
             BPartition subsection(top->getSrc());
             bool crossover=false;
+            int subsectionTopPixelCount=0;
+            int subsectionBottomPixelCount=0;
             while (!workingStack.isEmpty())
             {   
-                QPoint cur = workingStack.back();
-                workingStack.pop_back();
+                QPoint cur = workingStack.front();
+                workingStack.pop_front();
+                
+                
                 int bottomX = cur.x()-bottom->getXOffset();
                 int bottomY = cur.y()-bottom->getYOffset();
                 if ((bottomX>=0 && bottomX<bottom->width() && bottomY>=0 && bottomY<bottom->height() && bottom->pixelIsMine(bottomX, bottomY)))
                     lowerPoints.append(cur);
                 
-                subsection.addPixelFromSrc(cur);
+                if (abs(cur.x()-keyPoint.x()) < SUBSECTION_WIDTH_FROM_KEYPOINT)
+                {
+                    if (cur.y() <= keyPoint.y() && (subsectionTopPixelCount < SUBSECTION_PIXEL_COUNT_MAX || abs(cur.x()-keyPoint.x())<10))
+                    {
+                        subsection.addPixelFromSrc(cur);
+                        subsectionTopPixelCount++;
+                    }
+                    else if (cur.y() > keyPoint.y() && (subsectionBottomPixelCount < SUBSECTION_PIXEL_COUNT_MAX || abs(cur.x()-keyPoint.x())<10))
+                    {
+                        subsection.addPixelFromSrc(cur);
+                        subsectionBottomPixelCount++;
+                    }
+                }
                 
                 //this needs changed
                 if (!crossover && top->pixelIsMineSrc(cur) != topStarted)
@@ -251,68 +280,134 @@ void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bot
                         bottom->removePixel(p);
                     }
                 }
+                else
+                {
                 
-                  //subsection are f real
-//                int SUBSECTION_WIDTH = 400;
-                
-//                if (subsection.width() > SUBSECTION_WIDTH)
-//                {
-//                    int cutOffLeft = SUBSECTION_WIDTH/2;
-//                    int cutOffRight = SUBSECTION_WIDTH/2;
+                      //subsection are f real
                     
-//                    if (keyPoint.x()-subsection.getXOffset() < cutOffLeft)
-//                        cutOffLeft = 0;
+                    //Only do connected component
+                    BPartition newSubsection(subsection.getSrc());
+                    mark = subsection.makeImage();
+                    workingStack.clear();
+                    QPoint rel_keyPoint(keyPoint.x()-subsection.getXOffset(), keyPoint.y()-subsection.getYOffset());
+                    workingStack.push_back(rel_keyPoint);
+                    while (!workingStack.isEmpty())
+                    {   
+                        QPoint cur = workingStack.front();
+                        workingStack.pop_front();
+                        
+                        QPoint src_cur(cur.x()+subsection.getXOffset(), cur.y()+subsection.getYOffset());
+                        newSubsection.addPixelFromSrc(src_cur);
+                        
+                        if (cur.x()<mark.width()-1 && mark.pixel(cur.x()+1,cur.y()))
+                        {
+                            QPoint pp(cur.x()+1,cur.y());
+                            workingStack.push_back(pp);
+                            mark.setPixel(pp,false);
+                        }
+                        if (cur.y()<mark.height()-1 && mark.pixel(cur.x(),cur.y()+1))
+                        {
+                            QPoint pp(cur.x(),cur.y()+1);
+                            workingStack.push_back(pp);
+                            mark.setPixel(pp,false);
+                        }
+                        if (cur.x()>0 && mark.pixel(cur.x()-1,cur.y()))
+                        {
+                            QPoint pp(cur.x()-1,cur.y());
+                            workingStack.push_back(pp);
+                            mark.setPixel(pp,false);
+                        }
+                        if (cur.y()>0 && mark.pixel(cur.x(),cur.y()-1))
+                        {
+                            QPoint pp(cur.x(),cur.y()-1);
+                            workingStack.push_back(pp);
+                            mark.setPixel(pp,false);
+                        }
+                        //diagonals
+                        if (cur.x()<mark.width()-1 && cur.y()<mark.height()-1 && mark.pixel(cur.x()+1,cur.y()+1))
+                        {
+                            QPoint pp(cur.x()+1,cur.y()+1);
+                            workingStack.push_back(pp);
+                            mark.setPixel(pp,false);
+                        }
+                        if (cur.y()<mark.height()-1 && cur.x()>0 && mark.pixel(cur.x()-1,cur.y()+1))
+                        {
+                            QPoint pp(cur.x()-1,cur.y()+1);
+                            workingStack.push_back(pp);
+                            mark.setPixel(pp,false);
+                        }
+                        if (cur.x()<mark.width()-1 && cur.y()>0 && mark.pixel(cur.x()+1,cur.y()-1))
+                        {
+                            QPoint pp(cur.x()+1,cur.y()-1);
+                            workingStack.push_back(pp);
+                            mark.setPixel(pp,false);
+                        }
+                        if (cur.y()>0 && cur.x()>0 && mark.pixel(cur.x()-1,cur.y()-1))
+                        {
+                            QPoint pp(cur.x()-1,cur.y()-1);
+                            workingStack.push_back(pp);
+                            mark.setPixel(pp,false);
+                        }
+                    }
+    //                {
+    //                    int cutOffLeft = (keyPoint.x()-subsection.getXOffset())-SUBSECTION_WIDTH_FROM_KEYPOINT;
+    //                    int cutOffRight = (subsection.width() - (keyPoint.x()-subsection.getXOffset()))-SUBSECTION_WIDTH_FROM_KEYPOINT;
+                        
+    //                    if (cutOffLeft < 0)
+    //                        cutOffLeft = 0;
+                        
+    //                    if (cutOffRight < 0)
+    //                        cutOffRight = 0;
+                        
+    //                    printf("trim left:%d, trim right:%d\n",cutOffLeft,cutOffRight);
+    //                    subsection.trim(cutOffLeft,cutOffRight,0,0);
+    //                }
                     
-//                    if (subsection.width() - (keyPoint.x()-subsection.getXOffset()) < cutOffRight)
-//                        cutOffRight = 0;
-//                }
-//                subsection.trim(cutOffLeft,cutOffRight,0,0);
-                
-//                QString xs;
-//                QString ys;
-//                xs.setNum(keyPoint.x());
-//                ys.setNum(keyPoint.y());
-//                QString loc = "./subsection";
-//                loc+=xs;
-//                loc+="_";
-//                loc+=ys;
-//                loc+=".ppm";
-                
-//                subsection.makeImage().save(loc);
-////                printf("sub(%d,%d):[%d,%d]\n", keyPoint.x(), keyPoint.y(), subsection.width(),subsection.height());
-                
-//                QVector<BPartition*> newTopBottom = horzCutEntries(subsection,keyPoint.y());
-//                top->clear(&subsection);
-//                bottom->clear(&subsection);
-////                top->add(newTopBottom[0]);
-////                bottom->add(newTopBottom[1]);
-//                for (int x=0; x<newTopBottom[0]->width(); x++)
-//                {
-//                    for (int y=0; y<newTopBottom[0]->height(); y++)
-//                    {
-//                        if (newTopBottom[0]->pixelIsMine(x,y))
-//                            top->addPixelFromSrc(x+newTopBottom[0]->getXOffset()+subsection.getXOffset(),y+newTopBottom[0]->getYOffset()+subsection.getYOffset());
-//                    }
-//                }
-                
-//                for (int x=0; x<newTopBottom[1]->width(); x++)
-//                {
-//                    for (int y=0; y<newTopBottom[1]->height(); y++)
-//                    {
-//                        if (newTopBottom[1]->pixelIsMine(x,y))
-//                            bottom->addPixelFromSrc(x+newTopBottom[1]->getXOffset()+subsection.getXOffset(),y+newTopBottom[1]->getYOffset()+subsection.getYOffset());
-//                    }
-//                }
-                
-//                delete newTopBottom[0];
-//                delete newTopBottom[1];
+                    
+                    xs.setNum(keyPoint.x());
+                    ys.setNum(keyPoint.y());
+                    loc = "./subsection";
+                    loc+=xs;
+                    loc+="_";
+                    loc+=ys;
+                    loc+=".ppm";
+                    
+                    newSubsection.makeImage().save(loc);
+    //                printf("sub(%d,%d):[%d,%d]\n", keyPoint.x(), keyPoint.y(), subsection.width(),subsection.height());
+                    
+    //                QVector<BPartition*> newTopBottom = horzCutEntries(subsection,keyPoint.y());
+    //                top->clear(&subsection);
+    //                bottom->clear(&subsection);
+    ////                top->add(newTopBottom[0]);
+    ////                bottom->add(newTopBottom[1]);
+    //                for (int x=0; x<newTopBottom[0]->width(); x++)
+    //                {
+    //                    for (int y=0; y<newTopBottom[0]->height(); y++)
+    //                    {
+    //                        if (newTopBottom[0]->pixelIsMine(x,y))
+    //                            top->addPixelFromSrc(x+newTopBottom[0]->getXOffset()+subsection.getXOffset(),y+newTopBottom[0]->getYOffset()+subsection.getYOffset());
+    //                    }
+    //                }
+                    
+    //                for (int x=0; x<newTopBottom[1]->width(); x++)
+    //                {
+    //                    for (int y=0; y<newTopBottom[1]->height(); y++)
+    //                    {
+    //                        if (newTopBottom[1]->pixelIsMine(x,y))
+    //                            bottom->addPixelFromSrc(x+newTopBottom[1]->getXOffset()+subsection.getXOffset(),y+newTopBottom[1]->getYOffset()+subsection.getYOffset());
+    //                    }
+    //                }
+                    
+    //                delete newTopBottom[0];
+    //                delete newTopBottom[1];
+                }
             }
             
         }
-        else
-        {
-            //TODO this case still needs handled
-        }
+//        else
+//        {
+//            //TODO this case still needs handled
+//        }
         
         
         
@@ -1012,7 +1107,7 @@ int WordSeparator::SepPlusOne(int i, int u, int y, int m, int* g)
 int WordSeparator::pixelsOfSeparation(int* invDistMap, int width, int height, BPixelCollection &img, QVector<int> &outSource, QVector<int> &outSink, int anchor_weight, int split_method, int vert_divide)
 {
     typedef Graph<int,int,int> GraphType;
-    GraphType *g = new GraphType(width*height, 2*(width-1)*(height-1)-(height+width)); 
+    GraphType *g = new GraphType(width*height, 4*(width-1)*(height-1)-(height+width)); 
     
     for (int i=0; i<width*height; i++)
     {
@@ -1176,7 +1271,7 @@ int WordSeparator::pixelsOfSeparation(int* invDistMap, int width, int height, BP
         //all pixels are either source or sink
         for (int j=0; j<vert_divide; j++)
         {
-            double anchor_weight_for_level = anchor_weight * ((vert_divide + vert_divide-j)/(double)(2*vert_divide));
+            double anchor_weight_for_level = anchor_weight * ((2.5*vert_divide-j)/(double)(2.5*vert_divide));
             //printf("%f, ",((vert_divide-j)/(double)vert_divide));
             for (int i=0; i<width; i++)
             {
@@ -1203,6 +1298,24 @@ int WordSeparator::pixelsOfSeparation(int* invDistMap, int width, int height, BP
             }
         }
     }
+    else if (split_method == CHOP_TOP)
+    {
+        //all pixels are source and sink
+        for (int j=0; j<height; j++)
+        {
+            double src_anchor_weight_for_level = anchor_weight * (((height-1)-j)/(double)(height-1));
+            double sink_anchor_weight_for_level = /*.3 * anchor_weight;*/(anchor_weight/2.0) * (j/(double)(height-1));
+            for (int i=0; i<width; i++)
+            {
+//                if (img.pixel(i,j))
+                {
+                    int index = i+width*j;
+                    g -> add_tweights(index, (int)src_anchor_weight_for_level,(int)sink_anchor_weight_for_level);
+    //                debug.setPixel(i,j,150);
+                }
+            }
+        }
+    }
     
     //printf("num source:%d, num sink:%d\n",count_source,count_sink);
     
@@ -1217,8 +1330,19 @@ int WordSeparator::pixelsOfSeparation(int* invDistMap, int width, int height, BP
     
     if (split_method==SPLIT_VERT)
     {
-        BLACK_TO_BLACK_V_BIAS = 1.5;
-        BLACK_TO_BLACK_H_BIAS = 1.5;
+        BLACK_TO_BLACK_V_BIAS = 1.25;
+        BLACK_TO_BLACK_H_BIAS = 1.25;
+        BLACK_TO_BLACK_D_BIAS = sqrt(pow(BLACK_TO_BLACK_V_BIAS,2)+pow(BLACK_TO_BLACK_H_BIAS,2));
+        WHITE_TO_BLACK_BIAS = .5;
+        BLACK_TO_WHITE_BIAS = .5;
+        WHITE_TO_WHITE_V_BIAS = .5;
+        WHITE_TO_WHITE_H_BIAS = .5;
+        WHITE_TO_WHITE_D_BIAS = sqrt(pow(WHITE_TO_WHITE_V_BIAS,2)+pow(WHITE_TO_WHITE_H_BIAS,2));
+    }
+    else if (split_method==CHOP_TOP)
+    {
+        BLACK_TO_BLACK_V_BIAS = 1.4;//1.85;
+        BLACK_TO_BLACK_H_BIAS = 2.1;//1.75;
         BLACK_TO_BLACK_D_BIAS = sqrt(pow(BLACK_TO_BLACK_V_BIAS,2)+pow(BLACK_TO_BLACK_H_BIAS,2));
         WHITE_TO_BLACK_BIAS = .5;
         BLACK_TO_WHITE_BIAS = .5;
@@ -1244,6 +1368,10 @@ int WordSeparator::pixelsOfSeparation(int* invDistMap, int width, int height, BP
                 {
                     reducer = ((((height-1) -(double)vert_divide) + j-vert_divide)/(2.*((height-1) -(double)vert_divide)));
                 }
+            }
+            else if (split_method==CHOP_TOP)
+            {
+                   reducer = ((3.0*height-j)/(double)(3*height));
             }
             
             
@@ -1376,3 +1504,880 @@ int WordSeparator::pixelsOfSeparation(int* invDistMap, int width, int height, BP
     return ret;
 }
 
+/*Each pixel assigned a slope; or multiple slopes; fuzzuness to link to neighbors, or when slope undetrminable (is depenndant on heighbors). Slopes are discretized. Each node is sent to a layer
+  D: value(s) for each pixel, highest, lowest, number of bins
+  */
+//class Dimension
+//{
+//public:
+//    int binForPixel(int x, int y);
+//    int getNumBins();
+//private:
+    
+//    QVector<QVector<QVector<double> > > values;
+//    double minValue;
+//    double maxValue;
+//    int numOfBins;
+    
+//};
+
+//class NDimensions
+//{
+//public:
+//    QVector<int> getBinsForPixel(int x, int y);
+//    QVector<int> getBinSizes();
+    
+//private:
+//    QVector<Dimension> dimensions;
+//};
+
+//class Indexer
+//{
+//public:
+//    Indexer(int width, int height, const NDimensions &dimensions);
+//    int getIndex(int x, int y) const;
+    
+//private:
+//    NDimensions dimensions;
+//};
+
+//int WordSeparator::pixelsOfSeparationNDimensions(int* invDistMap, int width, int height, BPixelCollection &img, NDimensions dimensions, QVector<int> &outSource, QVector<int> &outSink, int anchor_weight, int split_method, int vert_divide)
+//{
+//    int numNodes = width*height;
+//    int numEdges = 4*(width-1)*(height-1)-(height+width);
+//    foreach (dimension dim, dimensions)
+//    {
+//        numNodes *= dim.getNumBins();
+//        numEdges *= dim.getNumBins();
+//        numEdges += numNodes*(dim.getNumBins()-1);//assuming only striaght (no diag) connections for higher dimensions
+//    }
+    
+//    Indexer indexer(width, height, dimensions);
+    
+//    typedef Graph<int,int,int> GraphType;
+//    GraphType *g = new GraphType(numNodes, numEdges); 
+    
+//    for (int i=0; i<numNodes; i++)
+//    {
+//        g->add_node();
+//    }
+    
+////    QImage debug = img.copy(0,0,img.width(),img.height());
+    
+//    if (split_method == SPLIT_HORZ)
+//    {
+//        //find source pixels
+//        int count_source = height*ANCHOR_L;
+//        for (int i=0; count_source>0 && i<width; i++)
+//        {
+//            for (int j=0; count_source>0 && j<height; j++)
+//            {
+//                if (img.pixel(i,j))
+//                {
+//                    int index = indexer.getIndex(i,j);
+//                    g -> add_tweights(index, anchor_weight,0);//invDistMap[index], 0);
+//    //                debug.setPixel(i,j,150);
+//                    count_source--;
+//                }
+//            }
+//        }
+        
+        
+        
+        
+//        //diag method
+//    //    QImage mark = img.copy(0,0,img.width(),img.height());
+//    //    QVector<QPoint> workingStack;
+//    //    for (int o=0; o<width && count_source>0; o++)
+//    //    {
+//    //        for (int i=0; i<=o && i<height && count_source>0; i++)
+//    //        {
+//    //            if (qGray(img.pixel(o-i,i))==BLACK)
+//    //            {
+//    //                int index = (o-i)+width*i;
+//    //                g -> add_tweights(index, INT_POS_INFINITY,0);
+//    //                count_source--;
+//    //                debug.setPixel((o-i),i,150);
+                    
+//                    //fill
+//    //                QPoint p(o-i,i);
+//    //                workingStack.push_back(p);
+//    //                while (!workingStack.isEmpty() && count_source>0)
+//    //                {   
+//    //                    QPoint cur = workingStack.back();
+//    //                    workingStack.pop_back();
+//    //                    int index = cur.x()+width*cur.y();
+//    //                    g -> add_tweights(index, INT_POS_INFINITY,0);
+//    //                    //debug.setPixel(cur,150);
+//    //                    count_source--;
+                        
+//    //                    mark.setPixel(cur,WHITE);
+                        
+//    //                    if (cur.x()>0 && qGray(mark.pixel(cur.x()-1,cur.y())) == BLACK)
+//    //                    {
+//    //                        QPoint pp(cur.x()-1,cur.y());
+//    //                        workingStack.push_back(pp);
+//    //                    }
+                        
+                        
+//    //                    if (cur.x()<mark.width()-1 && qGray(mark.pixel(cur.x()+1,cur.y())) == BLACK)
+//    //                    {
+//    //                        QPoint pp(cur.x()+1,cur.y());
+//    //                        workingStack.push_back(pp);
+                            
+//    //                    }
+//    //                    if (cur.y()<mark.height()-1 && qGray(mark.pixel(cur.x(),cur.y()+1)) == BLACK)
+//    //                    {
+//    //                        QPoint pp(cur.x(),cur.y()+1);
+//    //                        workingStack.push_back(pp);
+//    //                    }
+//    //                    if (cur.y()>0 && qGray(mark.pixel(cur.x(),cur.y()-1)) == BLACK)
+//    //                    {
+//    //                        QPoint pp(cur.x(),cur.y()-1);
+//    //                        workingStack.push_back(pp);
+//    //                    }
+//    //                }
+//    //            }
+//    //        }
+//    //    }
+//    //    workingStack.clear();
+        
+//        int count_sink=height*ANCHOR_R;
+        
+//        //find sink pixels
+//    //    for (int i=width-1; count_sink>0 && i>=0; i--)
+//    //    {
+//    //        for (int j=height-1; count_sink>0 && j>=0; j--)
+//    //        {
+//    //            if (qGray(img.pixel(i,j))==BLACK)
+//    //            {
+//    //                int index = i+width*j;
+//    //                g -> add_tweights(index, 0, INT_POS_INFINITY);//invDistMap[index]);
+//    ////                debug.setPixel(i,j,150);
+//    //                count_sink--;
+//    //            }
+//    //        }
+//    //    }
+        
+//        //diag method
+//        for (int o=0; o<width && count_sink>0; o++)
+//        {
+//            for (int i=0; i<=o && i<height && count_sink>0; i++)
+//            {
+//                //debug.setPixel((width-1)-(o-i),(height-1)-i,220);
+//                if (img.pixel((width-1)-(o-i),(height-1)-i))
+//                {
+//                    int index = indexer.getIndex((width-1)-(o-i),(height-1)-i);
+//                    g -> add_tweights(index, 0, anchor_weight);
+//                    count_sink--;
+//    //                debug.setPixel((width-1)-(o-i),(height-1)-i,150);
+                    
+//                    //fill
+//    //                QPoint p((width-1)-(o-i),(height-1)-i);
+//    //                workingStack.push_back(p);
+//    //                while (!workingStack.isEmpty() && count_sink>0)
+//    //                {   
+//    //                    QPoint cur = workingStack.back();
+//    //                    workingStack.pop_back();
+//    //                    int index = cur.x()+width*cur.y();
+//    //                    g -> add_tweights(index, 0, INT_POS_INFINITY);
+//    //                    //debug.setPixel(cur,150);
+//    //                    count_sink--;
+                        
+//    //                    mark.setPixel(cur,WHITE);
+                        
+//    //                    if (cur.x()<mark.width()-1 && qGray(mark.pixel(cur.x()+1,cur.y())) == BLACK)
+//    //                    {
+//    //                        QPoint pp(cur.x()+1,cur.y());
+//    //                        workingStack.push_back(pp);
+                            
+//    //                    }
+                        
+                        
+//    //                    if (cur.x()>0 && qGray(mark.pixel(cur.x()-1,cur.y())) == BLACK)
+//    //                    {
+//    //                        QPoint pp(cur.x()-1,cur.y());
+//    //                        workingStack.push_back(pp);
+//    //                    }
+//    //                    if (cur.y()>0 && qGray(mark.pixel(cur.x(),cur.y()-1)) == BLACK)
+//    //                    {
+//    //                        QPoint pp(cur.x(),cur.y()-1);
+//    //                        workingStack.push_back(pp);
+//    //                    }
+//    //                    if (cur.y()<mark.height()-1 && qGray(mark.pixel(cur.x(),cur.y()+1)) == BLACK)
+//    //                    {
+//    //                        QPoint pp(cur.x(),cur.y()+1);
+//    //                        workingStack.push_back(pp);
+//    //                    }
+//    //                }
+//                }
+//            }
+//        }
+//    }
+//    else if (split_method == SPLIT_VERT)
+//    {
+//        //all pixels are either source or sink
+//        for (int j=0; j<vert_divide; j++)
+//        {
+//            double anchor_weight_for_level = anchor_weight * ((2.5*vert_divide-j)/(double)(2.5*vert_divide));
+//            //printf("%f, ",((vert_divide-j)/(double)vert_divide));
+//            for (int i=0; i<width; i++)
+//            {
+//                if (img.pixel(i,j))
+//                {
+//                    int index = indexer.getIndex(i,j);
+//                    g -> add_tweights(index, (int)anchor_weight_for_level,0);
+//    //                debug.setPixel(i,j,150);
+//                }
+//            }
+//        }
+//        for (int j=height-1; j>=vert_divide; j--)
+//        {
+//            double anchor_weight_for_level = anchor_weight * ((((height-1) -(double)vert_divide) + j-vert_divide)/(2.*((height-1) -(double)vert_divide)));
+//            //printf("%f- ",((j-vert_divide)/((height-1) -vert_divide)));
+//            for (int i=0; i<width; i++)
+//            {
+//                if (img.pixel(i,j))
+//                {
+//                    int index = indexer.getIndex(i,j);
+//                    g -> add_tweights(index, 0, (int)anchor_weight_for_level);
+//    //                debug.setPixel(i,j,150);
+//                }
+//            }
+//        }
+//    }
+//    else if (split_method == CHOP_TOP)
+//    {
+//        //all pixels are source and sink
+//        for (int j=0; j<height; j++)
+//        {
+//            double src_anchor_weight_for_level = anchor_weight * (((height-1)-j)/(double)(height-1));
+//            double sink_anchor_weight_for_level = /*.3 * anchor_weight;*/(anchor_weight/2.0) * (j/(double)(height-1));
+//            for (int i=0; i<width; i++)
+//            {
+////                if (img.pixel(i,j))
+//                {
+//                    int index = indexer.getIndex(i,j);
+//                    g -> add_tweights(index, (int)src_anchor_weight_for_level,(int)sink_anchor_weight_for_level);
+//    //                debug.setPixel(i,j,150);
+//                }
+//            }
+//        }
+//    }
+    
+//    //printf("num source:%d, num sink:%d\n",count_source,count_sink);
+    
+//    double BLACK_TO_BLACK_V_BIAS = 1;
+//    double BLACK_TO_BLACK_H_BIAS = 2;
+//    double BLACK_TO_BLACK_D_BIAS = 2.23;
+//    double WHITE_TO_BLACK_BIAS = .5;
+//    double BLACK_TO_WHITE_BIAS = .5;
+//    double WHITE_TO_WHITE_V_BIAS = 1;
+//    double WHITE_TO_WHITE_H_BIAS = .333;
+//    double WHITE_TO_WHITE_D_BIAS = .5;
+    
+//    if (split_method==SPLIT_VERT)
+//    {
+//        BLACK_TO_BLACK_V_BIAS = 1.25;
+//        BLACK_TO_BLACK_H_BIAS = 1.25;
+//        BLACK_TO_BLACK_D_BIAS = sqrt(pow(BLACK_TO_BLACK_V_BIAS,2)+pow(BLACK_TO_BLACK_H_BIAS,2));
+//        WHITE_TO_BLACK_BIAS = .5;
+//        BLACK_TO_WHITE_BIAS = .5;
+//        WHITE_TO_WHITE_V_BIAS = .5;
+//        WHITE_TO_WHITE_H_BIAS = .5;
+//        WHITE_TO_WHITE_D_BIAS = sqrt(pow(WHITE_TO_WHITE_V_BIAS,2)+pow(WHITE_TO_WHITE_H_BIAS,2));
+//    }
+//    else if (split_method==CHOP_TOP)
+//    {
+//        BLACK_TO_BLACK_V_BIAS = 1.4;//1.85;
+//        BLACK_TO_BLACK_H_BIAS = 2.1;//1.75;
+//        BLACK_TO_BLACK_D_BIAS = sqrt(pow(BLACK_TO_BLACK_V_BIAS,2)+pow(BLACK_TO_BLACK_H_BIAS,2));
+//        WHITE_TO_BLACK_BIAS = .5;
+//        BLACK_TO_WHITE_BIAS = .5;
+//        WHITE_TO_WHITE_V_BIAS = .5;
+//        WHITE_TO_WHITE_H_BIAS = .5;
+//        WHITE_TO_WHITE_D_BIAS = sqrt(pow(WHITE_TO_WHITE_V_BIAS,2)+pow(WHITE_TO_WHITE_H_BIAS,2));
+//    }
+    
+//    double reducer = 1;
+    
+//    //connect all pixels
+//    for (int i=0; i<width; i++)
+//    {
+//        for (int j=0; j<height; j++)
+//        {   
+//            if (split_method==SPLIT_VERT)
+//            {
+//                if (j<vert_divide)
+//                {
+//                    reducer = ((vert_divide + vert_divide-j)/(double)(2*vert_divide));
+//                }
+//                else
+//                {
+//                    reducer = ((((height-1) -(double)vert_divide) + j-vert_divide)/(2.*((height-1) -(double)vert_divide)));
+//                }
+//            }
+//            else if (split_method==CHOP_TOP)
+//            {
+//                   reducer = ((3.0*height-j)/(double)(3*height));
+//            }
+            
+            
+//            if (i+1<width)
+//            {
+//                if (img.pixel(i,j) && img.pixel(i+1,j))
+//                    g -> add_edge(i+j*width, (i+1)+j*width,
+//                                  (invDistMap[(i+1)+j*width]+invDistMap[i+j*width])*(reducer*BLACK_TO_BLACK_H_BIAS),
+//                                  (invDistMap[i+j*width]+invDistMap[(i+1)+j*width])*(reducer*BLACK_TO_BLACK_H_BIAS));
+//                else if (img.pixel(i,j) && !img.pixel(i+1,j))
+//                    g -> add_edge(i+j*width, (i+1)+j*width,
+//                                  (invDistMap[(i+1)+j*width]+invDistMap[i+j*width])*(BLACK_TO_WHITE_BIAS),
+//                                  (invDistMap[i+j*width]+invDistMap[(i+1)+j*width])*(WHITE_TO_BLACK_BIAS));
+//                else if (!img.pixel(i,j) && img.pixel(i+1,j))
+//                    g -> add_edge(i+j*width, (i+1)+j*width,
+//                                  (invDistMap[(i+1)+j*width]+invDistMap[i+j*width])*(WHITE_TO_BLACK_BIAS),
+//                                  (invDistMap[i+j*width]+invDistMap[(i+1)+j*width])*(BLACK_TO_WHITE_BIAS));
+//                else
+//                    g -> add_edge(i+j*width, (i+1)+j*width,
+//                                  (invDistMap[(i+1)+j*width]+invDistMap[i+j*width])*WHITE_TO_WHITE_V_BIAS,
+//                                  (invDistMap[i+j*width]+invDistMap[(i+1)+j*width])*WHITE_TO_WHITE_V_BIAS);
+//            }
+            
+//            if (j+1<height)
+//            {
+//                if (img.pixel(i,j) && img.pixel(i,j+1))
+//                    g -> add_edge(i+j*width, i+(j+1)*width,
+//                                  (invDistMap[i+(j+1)*width]+invDistMap[i+j*width])*reducer*BLACK_TO_BLACK_V_BIAS,
+//                                  (invDistMap[i+j*width]+invDistMap[i+(j+1)*width])*reducer*BLACK_TO_BLACK_V_BIAS);
+//                else if (img.pixel(i,j) && !img.pixel(i,j+1))
+//                    g -> add_edge(i+j*width, i+(j+1)*width,
+//                                  (invDistMap[i+(j+1)*width]+invDistMap[i+j*width])*BLACK_TO_WHITE_BIAS,
+//                                  (invDistMap[i+j*width]+invDistMap[i+(j+1)*width])*WHITE_TO_BLACK_BIAS);
+//                else if (!img.pixel(i,j) && img.pixel(i,j+1))
+//                    g -> add_edge(i+j*width, i+(j+1)*width,
+//                                  (invDistMap[i+(j+1)*width]+invDistMap[i+j*width])*WHITE_TO_BLACK_BIAS,
+//                                  (invDistMap[i+j*width]+invDistMap[i+(j+1)*width])*BLACK_TO_WHITE_BIAS);
+//                else
+//                    g -> add_edge(i+j*width, i+(j+1)*width,
+//                                  (invDistMap[i+(j+1)*width]+invDistMap[i+j*width])*WHITE_TO_WHITE_H_BIAS,
+//                                  (invDistMap[i+j*width]+invDistMap[i+(j+1)*width])*WHITE_TO_WHITE_H_BIAS);
+//            }
+            
+//            if (j>0 && i<width-1)
+//            {
+//                if (img.pixel(i,j) && img.pixel(i+1,j-1))
+//                    g -> add_edge(i+j*width, (i+1)+(j-1)*width,
+//                                  (invDistMap[(i+1)+(j-1)*width]+invDistMap[i+j*width])*reducer*BLACK_TO_BLACK_D_BIAS,
+//                                  (invDistMap[i+j*width]+invDistMap[(i+1)+(j-1)*width])*reducer*BLACK_TO_BLACK_D_BIAS);
+//                else if (img.pixel(i,j) && !img.pixel(i+1,j-1))
+//                    g -> add_edge(i+j*width, (i+1)+(j-1)*width,
+//                                  (invDistMap[(i+1)+(j-1)*width]+invDistMap[i+j*width])*BLACK_TO_WHITE_BIAS,
+//                                  (invDistMap[i+j*width]+invDistMap[(i+1)+(j-1)*width])*WHITE_TO_BLACK_BIAS);
+//                else if (!img.pixel(i,j) && img.pixel(i+1,j-1))
+//                    g -> add_edge(i+j*width, (i+1)+(j-1)*width,
+//                                  (invDistMap[(i+1)+(j-1)*width]+invDistMap[i+j*width])*WHITE_TO_BLACK_BIAS,
+//                                  (invDistMap[i+j*width]+invDistMap[(i+1)+(j-1)*width])*BLACK_TO_WHITE_BIAS);
+//                else
+//                    g -> add_edge(i+j*width, (i+1)+(j-1)*width,
+//                                  (invDistMap[(i+1)+(j-1)*width]+invDistMap[i+j*width])*WHITE_TO_WHITE_D_BIAS,
+//                                  (invDistMap[i+j*width]+invDistMap[(i+1)+(j-1)*width])*WHITE_TO_WHITE_D_BIAS);
+//            }
+            
+//            if (j<height-1 && i<width-1)
+//            {
+//                if (img.pixel(i,j) && img.pixel(i+1,j+1))
+//                    g -> add_edge(i+j*width, (i+1)+(j+1)*width,
+//                                  (invDistMap[(i+1)+(j+1)*width]+invDistMap[i+j*width])*reducer*BLACK_TO_BLACK_D_BIAS,
+//                                  (invDistMap[i+j*width]+invDistMap[(i+1)+(j+1)*width])*reducer*BLACK_TO_BLACK_D_BIAS);
+//                else if (img.pixel(i,j) && !img.pixel(i+1,j+1))
+//                    g -> add_edge(i+j*width, (i+1)+(j+1)*width,
+//                                  (invDistMap[(i+1)+(j+1)*width]+invDistMap[i+j*width])*BLACK_TO_WHITE_BIAS,
+//                                  (invDistMap[i+j*width]+invDistMap[(i+1)+(j+1)*width])*WHITE_TO_BLACK_BIAS);
+//                else if (!img.pixel(i,j) && img.pixel(i+1,j+1))
+//                    g -> add_edge(i+j*width, (i+1)+(j+1)*width,
+//                                  (invDistMap[(i+1)+(j+1)*width]+invDistMap[i+j*width])*WHITE_TO_BLACK_BIAS,
+//                                  (invDistMap[i+j*width]+invDistMap[(i+1)+(j+1)*width])*BLACK_TO_WHITE_BIAS);
+//                else
+//                    g -> add_edge(i+j*width, (i+1)+(j+1)*width,
+//                                  (invDistMap[(i+1)+(j+1)*width]+invDistMap[i+j*width])*WHITE_TO_WHITE_D_BIAS,
+//                                  (invDistMap[i+j*width]+invDistMap[(i+1)+(j+1)*width])*WHITE_TO_WHITE_D_BIAS);
+//            }
+//        }
+//    }
+    
+//    int ret = g -> maxflow();
+    
+////    QImage debug2 = debug.convertToFormat(QImage::Format_RGB16);
+////    QRgb lw = qRgb(255, 100, 100);
+////    QRgb lb = qRgb(155, 0, 0);
+////    QRgb rw = qRgb(100,255, 100);
+////    QRgb rb = qRgb(0, 155, 0);
+////    QRgb a = qRgb(255, 255, 255);
+    
+//    //add all black pixels which
+//    for (int index=0; index<width*height; index++)
+//    {
+//        if (img.pixelIsMine(index%width,index/width))
+//        {
+//            /*if (qGray(debug.pixel(index%width,index/width))!=BLACK && qGray(debug.pixel(index%width,index/width))!=WHITE)
+//            {
+//                debug2.setPixel(index%width,index/width,a);
+//            }
+//            else*/ if (g->what_segment(index) == GraphType::SOURCE)
+//            {
+//                outSource.append(index);
+//    //            debug2.setPixel(index%width,index/width,lb);
+//            }
+//            else
+//            {
+//                outSink.append(index);
+//            }
+//    //        else if (g->what_segment(index) == GraphType::SOURCE)
+//    //            debug2.setPixel(index%width,index/width,lw);
+//    //        else if (qGray(img.pixel(index%width,index/width))==BLACK)
+//    //            debug2.setPixel(index%width,index/width,rb);
+//    //        else
+//    //            debug2.setPixel(index%width,index/width,rw);
+//        }
+//    }
+    
+////    QString debugfile = "./cut_";
+////    QString num;
+////    num.setNum(width);
+////    debugfile.append(num);
+////    debugfile.append(".ppm");
+////    debug2.save(debugfile);
+    
+//    delete g;
+//    return ret;
+//}
+
+int WordSeparator::pixelsOfSeparationWithSlope(int* invDistMap, int width, int height, BPixelCollection &img, QVector<QVector<double> > slopes, QVector<int> &outSource, QVector<int> &outSink, int anchor_weight, int split_method, int vert_divide)
+{
+    typedef Graph<int,int,int> GraphType;
+    GraphType *g = new GraphType(width*height, 4*(width-1)*(height-1)-(height+width)); 
+    
+    for (int i=0; i<width*height; i++)
+    {
+        g->add_node();
+    }
+    
+//    QImage debug = img.copy(0,0,img.width(),img.height());
+    
+    if (split_method == SPLIT_HORZ)
+    {
+        //find source pixels
+        int count_source = height*ANCHOR_L;
+        for (int i=0; count_source>0 && i<width; i++)
+        {
+            for (int j=0; count_source>0 && j<height; j++)
+            {
+                if (img.pixel(i,j))
+                {
+                    int index = i+width*j;
+                    g -> add_tweights(index, anchor_weight,0);//invDistMap[index], 0);
+    //                debug.setPixel(i,j,150);
+                    count_source--;
+                }
+            }
+        }
+        
+        
+        
+        
+        //diag method
+    //    QImage mark = img.copy(0,0,img.width(),img.height());
+    //    QVector<QPoint> workingStack;
+    //    for (int o=0; o<width && count_source>0; o++)
+    //    {
+    //        for (int i=0; i<=o && i<height && count_source>0; i++)
+    //        {
+    //            if (qGray(img.pixel(o-i,i))==BLACK)
+    //            {
+    //                int index = (o-i)+width*i;
+    //                g -> add_tweights(index, INT_POS_INFINITY,0);
+    //                count_source--;
+    //                debug.setPixel((o-i),i,150);
+                    
+                    //fill
+    //                QPoint p(o-i,i);
+    //                workingStack.push_back(p);
+    //                while (!workingStack.isEmpty() && count_source>0)
+    //                {   
+    //                    QPoint cur = workingStack.back();
+    //                    workingStack.pop_back();
+    //                    int index = cur.x()+width*cur.y();
+    //                    g -> add_tweights(index, INT_POS_INFINITY,0);
+    //                    //debug.setPixel(cur,150);
+    //                    count_source--;
+                        
+    //                    mark.setPixel(cur,WHITE);
+                        
+    //                    if (cur.x()>0 && qGray(mark.pixel(cur.x()-1,cur.y())) == BLACK)
+    //                    {
+    //                        QPoint pp(cur.x()-1,cur.y());
+    //                        workingStack.push_back(pp);
+    //                    }
+                        
+                        
+    //                    if (cur.x()<mark.width()-1 && qGray(mark.pixel(cur.x()+1,cur.y())) == BLACK)
+    //                    {
+    //                        QPoint pp(cur.x()+1,cur.y());
+    //                        workingStack.push_back(pp);
+                            
+    //                    }
+    //                    if (cur.y()<mark.height()-1 && qGray(mark.pixel(cur.x(),cur.y()+1)) == BLACK)
+    //                    {
+    //                        QPoint pp(cur.x(),cur.y()+1);
+    //                        workingStack.push_back(pp);
+    //                    }
+    //                    if (cur.y()>0 && qGray(mark.pixel(cur.x(),cur.y()-1)) == BLACK)
+    //                    {
+    //                        QPoint pp(cur.x(),cur.y()-1);
+    //                        workingStack.push_back(pp);
+    //                    }
+    //                }
+    //            }
+    //        }
+    //    }
+    //    workingStack.clear();
+        
+        int count_sink=height*ANCHOR_R;
+        
+        //find sink pixels
+    //    for (int i=width-1; count_sink>0 && i>=0; i--)
+    //    {
+    //        for (int j=height-1; count_sink>0 && j>=0; j--)
+    //        {
+    //            if (qGray(img.pixel(i,j))==BLACK)
+    //            {
+    //                int index = i+width*j;
+    //                g -> add_tweights(index, 0, INT_POS_INFINITY);//invDistMap[index]);
+    ////                debug.setPixel(i,j,150);
+    //                count_sink--;
+    //            }
+    //        }
+    //    }
+        
+        //diag method
+        for (int o=0; o<width && count_sink>0; o++)
+        {
+            for (int i=0; i<=o && i<height && count_sink>0; i++)
+            {
+                //debug.setPixel((width-1)-(o-i),(height-1)-i,220);
+                if (img.pixel((width-1)-(o-i),(height-1)-i))
+                {
+                    int index = ((width-1)-(o-i))+width*((height-1)-i);
+                    g -> add_tweights(index, 0, anchor_weight);
+                    count_sink--;
+    //                debug.setPixel((width-1)-(o-i),(height-1)-i,150);
+                    
+                    //fill
+    //                QPoint p((width-1)-(o-i),(height-1)-i);
+    //                workingStack.push_back(p);
+    //                while (!workingStack.isEmpty() && count_sink>0)
+    //                {   
+    //                    QPoint cur = workingStack.back();
+    //                    workingStack.pop_back();
+    //                    int index = cur.x()+width*cur.y();
+    //                    g -> add_tweights(index, 0, INT_POS_INFINITY);
+    //                    //debug.setPixel(cur,150);
+    //                    count_sink--;
+                        
+    //                    mark.setPixel(cur,WHITE);
+                        
+    //                    if (cur.x()<mark.width()-1 && qGray(mark.pixel(cur.x()+1,cur.y())) == BLACK)
+    //                    {
+    //                        QPoint pp(cur.x()+1,cur.y());
+    //                        workingStack.push_back(pp);
+                            
+    //                    }
+                        
+                        
+    //                    if (cur.x()>0 && qGray(mark.pixel(cur.x()-1,cur.y())) == BLACK)
+    //                    {
+    //                        QPoint pp(cur.x()-1,cur.y());
+    //                        workingStack.push_back(pp);
+    //                    }
+    //                    if (cur.y()>0 && qGray(mark.pixel(cur.x(),cur.y()-1)) == BLACK)
+    //                    {
+    //                        QPoint pp(cur.x(),cur.y()-1);
+    //                        workingStack.push_back(pp);
+    //                    }
+    //                    if (cur.y()<mark.height()-1 && qGray(mark.pixel(cur.x(),cur.y()+1)) == BLACK)
+    //                    {
+    //                        QPoint pp(cur.x(),cur.y()+1);
+    //                        workingStack.push_back(pp);
+    //                    }
+    //                }
+                }
+            }
+        }
+    }
+    else if (split_method == SPLIT_VERT)
+    {
+        //all pixels are either source or sink
+        for (int j=0; j<vert_divide; j++)
+        {
+            double anchor_weight_for_level = anchor_weight * ((2.5*vert_divide-j)/(double)(2.5*vert_divide));
+            //printf("%f, ",((vert_divide-j)/(double)vert_divide));
+            for (int i=0; i<width; i++)
+            {
+                if (img.pixel(i,j))
+                {
+                    int index = i+width*j;
+                    g -> add_tweights(index, (int)anchor_weight_for_level,0);
+    //                debug.setPixel(i,j,150);
+                }
+            }
+        }
+        for (int j=height-1; j>=vert_divide; j--)
+        {
+            double anchor_weight_for_level = anchor_weight * ((((height-1) -(double)vert_divide) + j-vert_divide)/(2.*((height-1) -(double)vert_divide)));
+            //printf("%f- ",((j-vert_divide)/((height-1) -vert_divide)));
+            for (int i=0; i<width; i++)
+            {
+                if (img.pixel(i,j))
+                {
+                    int index = i+width*j;
+                    g -> add_tweights(index, 0, (int)anchor_weight_for_level);
+    //                debug.setPixel(i,j,150);
+                }
+            }
+        }
+    }
+    else if (split_method == CHOP_TOP)
+    {
+        //all pixels are source and sink
+        for (int j=0; j<height; j++)
+        {
+            double src_anchor_weight_for_level = anchor_weight * (((height-1)-j)/(double)(height-1));
+            double sink_anchor_weight_for_level = /*.3 * anchor_weight;*/(anchor_weight/2.0) * (j/(double)(height-1));
+            for (int i=0; i<width; i++)
+            {
+//                if (img.pixel(i,j))
+                {
+                    int index = i+width*j;
+                    g -> add_tweights(index, (int)src_anchor_weight_for_level,(int)sink_anchor_weight_for_level);
+    //                debug.setPixel(i,j,150);
+                }
+            }
+        }
+    }
+    
+    //printf("num source:%d, num sink:%d\n",count_source,count_sink);
+    
+    double BLACK_TO_BLACK_V_BIAS = 1;
+    double BLACK_TO_BLACK_H_BIAS = 2;
+    double BLACK_TO_BLACK_D_BIAS = 2.23;
+    double WHITE_TO_BLACK_BIAS = .5;
+    double BLACK_TO_WHITE_BIAS = .5;
+    double WHITE_TO_WHITE_V_BIAS = 1;
+    double WHITE_TO_WHITE_H_BIAS = .333;
+    double WHITE_TO_WHITE_D_BIAS = .5;
+    
+    if (split_method==SPLIT_VERT)
+    {
+        BLACK_TO_BLACK_V_BIAS = 1.25;
+        BLACK_TO_BLACK_H_BIAS = 1.25;
+        BLACK_TO_BLACK_D_BIAS = sqrt(pow(BLACK_TO_BLACK_V_BIAS,2)+pow(BLACK_TO_BLACK_H_BIAS,2));
+        WHITE_TO_BLACK_BIAS = .5;
+        BLACK_TO_WHITE_BIAS = .5;
+        WHITE_TO_WHITE_V_BIAS = .5;
+        WHITE_TO_WHITE_H_BIAS = .5;
+        WHITE_TO_WHITE_D_BIAS = sqrt(pow(WHITE_TO_WHITE_V_BIAS,2)+pow(WHITE_TO_WHITE_H_BIAS,2));
+    }
+    else if (split_method==CHOP_TOP)
+    {
+        BLACK_TO_BLACK_V_BIAS = 1.4;//1.85;
+        BLACK_TO_BLACK_H_BIAS = 2.1;//1.75;
+        BLACK_TO_BLACK_D_BIAS = sqrt(pow(BLACK_TO_BLACK_V_BIAS,2)+pow(BLACK_TO_BLACK_H_BIAS,2));
+        WHITE_TO_BLACK_BIAS = .5;
+        BLACK_TO_WHITE_BIAS = .5;
+        WHITE_TO_WHITE_V_BIAS = .5;
+        WHITE_TO_WHITE_H_BIAS = .5;
+        WHITE_TO_WHITE_D_BIAS = sqrt(pow(WHITE_TO_WHITE_V_BIAS,2)+pow(WHITE_TO_WHITE_H_BIAS,2));
+    }
+    
+    double reducer = 1;
+    
+    //connect all pixels
+    for (int i=0; i<width; i++)
+    {
+        for (int j=0; j<height; j++)
+        {   
+            if (split_method==SPLIT_VERT)
+            {
+                if (j<vert_divide)
+                {
+                    reducer = ((vert_divide + vert_divide-j)/(double)(2*vert_divide));
+                }
+                else
+                {
+                    reducer = ((((height-1) -(double)vert_divide) + j-vert_divide)/(2.*((height-1) -(double)vert_divide)));
+                }
+            }
+            else if (split_method==CHOP_TOP)
+            {
+                   reducer = ((3.0*height-j)/(double)(3*height));
+            }
+            
+            
+            if (i+1<width)
+            {
+                double slope_mult = 1/(slopes[i][j]-slopes[i+1][j]);//Does not account for continuous circle
+                
+                if (img.pixel(i,j) && img.pixel(i+1,j))
+                    g -> add_edge(i+j*width, (i+1)+j*width,
+                                  (invDistMap[(i+1)+j*width]+invDistMap[i+j*width])*(reducer*BLACK_TO_BLACK_H_BIAS),
+                                  (invDistMap[i+j*width]+invDistMap[(i+1)+j*width])*(reducer*BLACK_TO_BLACK_H_BIAS));
+                else if (img.pixel(i,j) && !img.pixel(i+1,j))
+                    g -> add_edge(i+j*width, (i+1)+j*width,
+                                  (invDistMap[(i+1)+j*width]+invDistMap[i+j*width])*(BLACK_TO_WHITE_BIAS),
+                                  (invDistMap[i+j*width]+invDistMap[(i+1)+j*width])*(WHITE_TO_BLACK_BIAS));
+                else if (!img.pixel(i,j) && img.pixel(i+1,j))
+                    g -> add_edge(i+j*width, (i+1)+j*width,
+                                  (invDistMap[(i+1)+j*width]+invDistMap[i+j*width])*(WHITE_TO_BLACK_BIAS),
+                                  (invDistMap[i+j*width]+invDistMap[(i+1)+j*width])*(BLACK_TO_WHITE_BIAS));
+                else
+                    g -> add_edge(i+j*width, (i+1)+j*width,
+                                  (invDistMap[(i+1)+j*width]+invDistMap[i+j*width])*WHITE_TO_WHITE_V_BIAS,
+                                  (invDistMap[i+j*width]+invDistMap[(i+1)+j*width])*WHITE_TO_WHITE_V_BIAS);
+            }
+            
+            if (j+1<height)
+            {
+                if (img.pixel(i,j) && img.pixel(i,j+1))
+                    g -> add_edge(i+j*width, i+(j+1)*width,
+                                  (invDistMap[i+(j+1)*width]+invDistMap[i+j*width])*reducer*BLACK_TO_BLACK_V_BIAS,
+                                  (invDistMap[i+j*width]+invDistMap[i+(j+1)*width])*reducer*BLACK_TO_BLACK_V_BIAS);
+                else if (img.pixel(i,j) && !img.pixel(i,j+1))
+                    g -> add_edge(i+j*width, i+(j+1)*width,
+                                  (invDistMap[i+(j+1)*width]+invDistMap[i+j*width])*BLACK_TO_WHITE_BIAS,
+                                  (invDistMap[i+j*width]+invDistMap[i+(j+1)*width])*WHITE_TO_BLACK_BIAS);
+                else if (!img.pixel(i,j) && img.pixel(i,j+1))
+                    g -> add_edge(i+j*width, i+(j+1)*width,
+                                  (invDistMap[i+(j+1)*width]+invDistMap[i+j*width])*WHITE_TO_BLACK_BIAS,
+                                  (invDistMap[i+j*width]+invDistMap[i+(j+1)*width])*BLACK_TO_WHITE_BIAS);
+                else
+                    g -> add_edge(i+j*width, i+(j+1)*width,
+                                  (invDistMap[i+(j+1)*width]+invDistMap[i+j*width])*WHITE_TO_WHITE_H_BIAS,
+                                  (invDistMap[i+j*width]+invDistMap[i+(j+1)*width])*WHITE_TO_WHITE_H_BIAS);
+            }
+            
+            if (j>0 && i<width-1)
+            {
+                if (img.pixel(i,j) && img.pixel(i+1,j-1))
+                    g -> add_edge(i+j*width, (i+1)+(j-1)*width,
+                                  (invDistMap[(i+1)+(j-1)*width]+invDistMap[i+j*width])*reducer*BLACK_TO_BLACK_D_BIAS,
+                                  (invDistMap[i+j*width]+invDistMap[(i+1)+(j-1)*width])*reducer*BLACK_TO_BLACK_D_BIAS);
+                else if (img.pixel(i,j) && !img.pixel(i+1,j-1))
+                    g -> add_edge(i+j*width, (i+1)+(j-1)*width,
+                                  (invDistMap[(i+1)+(j-1)*width]+invDistMap[i+j*width])*BLACK_TO_WHITE_BIAS,
+                                  (invDistMap[i+j*width]+invDistMap[(i+1)+(j-1)*width])*WHITE_TO_BLACK_BIAS);
+                else if (!img.pixel(i,j) && img.pixel(i+1,j-1))
+                    g -> add_edge(i+j*width, (i+1)+(j-1)*width,
+                                  (invDistMap[(i+1)+(j-1)*width]+invDistMap[i+j*width])*WHITE_TO_BLACK_BIAS,
+                                  (invDistMap[i+j*width]+invDistMap[(i+1)+(j-1)*width])*BLACK_TO_WHITE_BIAS);
+                else
+                    g -> add_edge(i+j*width, (i+1)+(j-1)*width,
+                                  (invDistMap[(i+1)+(j-1)*width]+invDistMap[i+j*width])*WHITE_TO_WHITE_D_BIAS,
+                                  (invDistMap[i+j*width]+invDistMap[(i+1)+(j-1)*width])*WHITE_TO_WHITE_D_BIAS);
+            }
+            
+            if (j<height-1 && i<width-1)
+            {
+                if (img.pixel(i,j) && img.pixel(i+1,j+1))
+                    g -> add_edge(i+j*width, (i+1)+(j+1)*width,
+                                  (invDistMap[(i+1)+(j+1)*width]+invDistMap[i+j*width])*reducer*BLACK_TO_BLACK_D_BIAS,
+                                  (invDistMap[i+j*width]+invDistMap[(i+1)+(j+1)*width])*reducer*BLACK_TO_BLACK_D_BIAS);
+                else if (img.pixel(i,j) && !img.pixel(i+1,j+1))
+                    g -> add_edge(i+j*width, (i+1)+(j+1)*width,
+                                  (invDistMap[(i+1)+(j+1)*width]+invDistMap[i+j*width])*BLACK_TO_WHITE_BIAS,
+                                  (invDistMap[i+j*width]+invDistMap[(i+1)+(j+1)*width])*WHITE_TO_BLACK_BIAS);
+                else if (!img.pixel(i,j) && img.pixel(i+1,j+1))
+                    g -> add_edge(i+j*width, (i+1)+(j+1)*width,
+                                  (invDistMap[(i+1)+(j+1)*width]+invDistMap[i+j*width])*WHITE_TO_BLACK_BIAS,
+                                  (invDistMap[i+j*width]+invDistMap[(i+1)+(j+1)*width])*BLACK_TO_WHITE_BIAS);
+                else
+                    g -> add_edge(i+j*width, (i+1)+(j+1)*width,
+                                  (invDistMap[(i+1)+(j+1)*width]+invDistMap[i+j*width])*WHITE_TO_WHITE_D_BIAS,
+                                  (invDistMap[i+j*width]+invDistMap[(i+1)+(j+1)*width])*WHITE_TO_WHITE_D_BIAS);
+            }
+        }
+    }
+    
+    int ret = g -> maxflow();
+    
+//    QImage debug2 = debug.convertToFormat(QImage::Format_RGB16);
+//    QRgb lw = qRgb(255, 100, 100);
+//    QRgb lb = qRgb(155, 0, 0);
+//    QRgb rw = qRgb(100,255, 100);
+//    QRgb rb = qRgb(0, 155, 0);
+//    QRgb a = qRgb(255, 255, 255);
+    
+    //add all black pixels which
+    for (int index=0; index<width*height; index++)
+    {
+        if (img.pixelIsMine(index%width,index/width))
+        {
+            /*if (qGray(debug.pixel(index%width,index/width))!=BLACK && qGray(debug.pixel(index%width,index/width))!=WHITE)
+            {
+                debug2.setPixel(index%width,index/width,a);
+            }
+            else*/ if (g->what_segment(index) == GraphType::SOURCE)
+            {
+                outSource.append(index);
+    //            debug2.setPixel(index%width,index/width,lb);
+            }
+            else
+            {
+                outSink.append(index);
+            }
+    //        else if (g->what_segment(index) == GraphType::SOURCE)
+    //            debug2.setPixel(index%width,index/width,lw);
+    //        else if (qGray(img.pixel(index%width,index/width))==BLACK)
+    //            debug2.setPixel(index%width,index/width,rb);
+    //        else
+    //            debug2.setPixel(index%width,index/width,rw);
+        }
+    }
+    
+//    QString debugfile = "./cut_";
+//    QString num;
+//    num.setNum(width);
+//    debugfile.append(num);
+//    debugfile.append(".ppm");
+//    debug2.save(debugfile);
+    
+    delete g;
+    return ret;
+}
+//////////////////////
+
+BPartition* WordSeparator::chopOutTop(BPixelCollection &src)
+{
+    int num_pix = src.width()*src.height();
+    //double pix_vals[num_pix];
+    int invDistMap[num_pix];
+    
+    computeInverseDistanceMap(src,invDistMap);
+    QVector<int> cutIndexes;
+    QVector<int> unused;
+    
+    //best anchor weight:300 - 425
+    int ANCHOR_WEIGHT = 1200;
+    int maxflow = pixelsOfSeparation(invDistMap,src.width(),src.height(),src,cutIndexes,unused,ANCHOR_WEIGHT,CHOP_TOP);
+    
+    BPartition* ret = new BPartition(&src);
+    
+    
+    foreach (int index, cutIndexes)
+    {
+        int x = index%src.width();
+        int y = index/src.width();
+        ret->addPixelFromSrc(x,y);
+    }
+    
+    return ret;
+}

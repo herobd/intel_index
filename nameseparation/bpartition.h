@@ -48,8 +48,10 @@ private:
     int upperY;
     int lowerY;
     const BPixelCollection* src;
-    unsigned int* myPixels; //flatten 2D array of bits for whole src img
+    //unsigned int* myPixels; //flatten 2D array of bits for whole src img
+    bool** myPixels;
     
+    void initMyPixels();
     inline void setMyPixelTrue(int src_x, int src_y);
     inline void setMyPixelFalse(int src_x, int src_y);
     
