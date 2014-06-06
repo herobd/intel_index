@@ -10,7 +10,8 @@ SOURCES += main.cpp \
     boxcleaner.cpp \
     imageaverager.cpp \
     bimage.cpp \
-    bpartition.cpp
+    bpartition.cpp \
+    dimension.cpp
 
 HEADERS += \
     ./wordprofile.h \
@@ -22,7 +23,8 @@ HEADERS += \
     imageaverager.h \
     bimage.h \
     bpartition.h \
-    BPixelCollection.h
+    BPixelCollection.h \
+    dimension.h
 
 OTHER_FILES += \
     maxflow/instances.inc

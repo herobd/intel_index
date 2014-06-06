@@ -9,4 +9,7 @@
 #define BLACK 0
 #define WHITE 255
 
+#define PI      3.14159265358
+#define HALF_PI 1.57079632679
+
 #endif // CONSTANTS_H
