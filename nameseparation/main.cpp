@@ -65,39 +65,208 @@ int main(int argc, char** argv)
 //    delete top;
     
     
-    QVector<QVector<double> > slopes(bimg.width());
-    for (int x=0; x<slopes.size(); x++)
+//    QVector<QVector<double> > slopes(bimg.width());
+    Dimension slopes(bimg.width(),bimg.height());
+    
+    int numOfBins = (bimg.width()+bimg.height())/2;
+    QVector<QPoint> refPoints;
+    QVector<double> refSlopes;
+    QVector<double> refSlopes2;
+    //X
+//    QPoint p1(5,5);
+//    refPoints.append(p1);
+//    refSlopes.append((3.0/4.0)*PI);
+//    QPoint p2(19,19);
+//    refPoints.append(p2);
+//    refSlopes.append((3.0/4.0)*PI);
+//    QPoint p3(5,19);
+//    refPoints.append(p3);
+//    refSlopes.append((1.0/4.0)*PI);
+//    QPoint p4(19,5);
+//    refPoints.append(p4);
+//    refSlopes.append((1.0/4.0)*PI);
+//    QPoint p5(2,2);
+//    refPoints.append(p5);
+//    refSlopes.append((.7)*PI);
+    //1
+    QPoint p1(6,64);
+    refPoints.append(p1);
+    refSlopes.append((.5)*PI);
+    refSlopes2.append(-1);
+    QPoint p2(36,63);
+    refPoints.append(p2);
+    refSlopes.append((.5)*PI);
+    refSlopes2.append(-1);
+    QPoint p3(62,53);
+    refPoints.append(p3);
+    refSlopes.append((.35)*PI);
+    refSlopes2.append(-1);
+    QPoint p4(49,70);
+    refPoints.append(p4);
+    refSlopes.append((.75)*PI);
+    refSlopes2.append(-1);
+    QPoint p5(79,60);
+    refPoints.append(p5);
+    refSlopes.append((.45)*PI);
+    refSlopes2.append(-1);
+    QPoint p6(83,45);
+    refPoints.append(p6);
+    refSlopes.append((.4)*PI);
+    refSlopes2.append(-1);
+    QPoint p7(101,32);
+    refPoints.append(p7);
+    refSlopes.append((.18)*PI);
+    refSlopes2.append(-1);
+    QPoint p8(112,35);
+    refPoints.append(p8);
+    refSlopes.append((.4)*PI);
+    refSlopes2.append(-1);
+    QPoint p9(51,62);
+    refPoints.append(p9);
+    refSlopes.append(.5*PI);
+    refSlopes2.append(.2*PI);
+    QPoint p10(95,42);
+    refPoints.append(p10);
+    refSlopes.append(.38*PI);
+    refSlopes2.append(.13*PI);
+    QPoint p11(102,24);
+    refPoints.append(p11);
+    refSlopes.append(-1);
+    refSlopes2.append(-1);
+    QPoint p12(58,55);
+    refPoints.append(p12);
+    refSlopes.append(.25*PI);
+    refSlopes2.append(-1);
+    QPoint p13(55,70);
+    refPoints.append(p13);
+    refSlopes.append(.5*PI);
+    refSlopes2.append(-1);
+    QPoint p14(49,66);
+    refPoints.append(p14);
+    refSlopes.append(0);
+    refSlopes2.append(-1);
+    QPoint p15(46,62);
+    refPoints.append(p15);
+    refSlopes.append(.5*PI);
+    refSlopes2.append(-1);
+    
+    BImage mark(bimg);
+    QVector<QVector<QPoint> > stacks(refPoints.size());
+    for (int i=0; i<refPoints.size(); i++)
     {
-        for (int y=0; y<bimg.height(); y++)
+        stacks[i].push_back(refPoints[i]);
+        mark.setPixel(refPoints[i],false);
+    }
+    bool cont = true;
+    int count = 0;
+    while(cont)
+    {
+        cont = false;
+        for (int i=0; i<stacks.size(); i++)
         {
-            if (bimg.pixel(x,y))
+            if (stacks[i].empty())
             {
-                if (x>=10 && x<=14 &&y>=10 && y<=14)
-                {
-                    slopes[x].append(-1);
-                }
-                else if ((x<12 && y <12) || (x>12 && y>12))
-                {
-                    slopes[x].append((3.0/4.0)*PI);
-                }
-                else
-                {
-                    slopes[x].append((1.0/4.0)*PI);
-                }
-//                printf("(%d,%d)=%f\n",x,y,slopes[x][y]);
+                continue;
             }
-            else
-            {
-                slopes[x].append(-1);
-            }
+            cont = true;
+            QPoint cur = stacks[i].front();
+            stacks[i].pop_front();
             
+            
+            slopes.setValueForPixel(cur,refSlopes[i]);
+            if (refSlopes2[i]>=0)
+                slopes.setSecondValueForPixel(cur,refSlopes2[i]);
+            
+            if (cur.x()<mark.width()-1 && mark.pixel(cur.x()+1,cur.y()))
+            {
+                QPoint pp(cur.x()+1,cur.y());
+                stacks[i].push_back(pp);
+                mark.setPixel(pp,false);
+            }
+            if (cur.y()<mark.height()-1 && mark.pixel(cur.x(),cur.y()+1))
+            {
+                QPoint pp(cur.x(),cur.y()+1);
+                stacks[i].push_back(pp);
+                mark.setPixel(pp,false);
+            }
+            if (cur.x()>0 && mark.pixel(cur.x()-1,cur.y()))
+            {
+                QPoint pp(cur.x()-1,cur.y());
+                stacks[i].push_back(pp);
+                mark.setPixel(pp,false);
+            }
+            if (cur.y()>0 && mark.pixel(cur.x(),cur.y()-1))
+            {
+                QPoint pp(cur.x(),cur.y()-1);
+                stacks[i].push_back(pp);
+                mark.setPixel(pp,false);
+            }
+            //diagonals
+//            if (cur.x()<mark.width()-1 && cur.y()<mark.height()-1 && mark.pixel(cur.x()+1,cur.y()+1))
+//            {
+//                QPoint pp(cur.x()+1,cur.y()+1);
+//                stacks[i].push_back(pp);
+//                mark.setPixel(pp,false);
+//            }
+//            if (cur.y()<mark.height()-1 && cur.x()>0 && mark.pixel(cur.x()-1,cur.y()+1))
+//            {
+//                QPoint pp(cur.x()-1,cur.y()+1);
+//                stacks[i].push_back(pp);
+//                mark.setPixel(pp,false);
+//            }
+//            if (cur.x()<mark.width()-1 && cur.y()>0 && mark.pixel(cur.x()+1,cur.y()-1))
+//            {
+//                QPoint pp(cur.x()+1,cur.y()-1);
+//                stacks[i].push_back(pp);
+//                mark.setPixel(pp,false);
+//            }
+//            if (cur.y()>0 && cur.x()>0 && mark.pixel(cur.x()-1,cur.y()-1))
+//            {
+//                QPoint pp(cur.x()-1,cur.y()-1);
+//                stacks[i].push_back(pp);
+//                mark.setPixel(pp,false);
+//            }
         }
     }
     
-    QVector<BPartition*> cuts = WordSeparator::testSlopeCut(bimg,slopes);
-    bimg.claimOwnership(cuts[0],1);
+//    for (int x=0; x<bimg.width(); x++)
+//    {
+//        for (int y=0; y<bimg.height(); y++)
+//        {
+//            if (bimg.pixel(x,y))
+//            {
+//                if (x>=10 && x<=14 &&y>=10 && y<=14)
+//                {
+//                    slopes.setValueForPixel(x,y,-1);
+//                }
+//                else if ((x<12 && y <12) || (x>12 && y>12))
+//                {
+//                    slopes.setValueForPixel(x,y,(3.0/4.0)*PI);
+//                }
+//                else
+//                {
+//                    slopes.setValueForPixel(x,y,(1.0/4.0)*PI);
+//                }
+//            }
+//            else
+//            {
+//                slopes.setValueForPixel(x,y,-1);
+//            }
+            
+//        }
+//    }
+    slopes.setNumOfBins(numOfBins);
+    slopes.setMinMax(0,PI);
+    
+    NDimensions dimensions;
+    dimensions.addDimension(slopes);
+    
+    QVector<BPartition*> cuts = WordSeparator::testSlopeCut(bimg,dimensions);
     bimg.claimOwnership(cuts[1],1);
+    bimg.claimOwnership(cuts[0],1);
     bimg.saveOwners("./slope_separation.ppm");
+    cuts[0]->makeImage().save("./slope_separation_1.ppm");
+    cuts[1]->makeImage().save("./slope_separation_2.ppm");
     delete cuts[0];
     delete cuts[1];
     

@@ -23,6 +23,7 @@ public:
     BImage(const QImage &src);
     BImage(int width, int height);
     BImage(const BImage &other);
+    BImage(const BPixelCollection &other);
 //    BImage(const BPartition* src1, const BPartition* src2);
     BImage copy();
     ~BImage();

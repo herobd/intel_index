@@ -26,7 +26,7 @@ public:
     static void adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bottom, QVector<QPoint> crossPoints, QVector<QVector<double> > descenderProbMap);
     static BPartition* chopOutTop(BPixelCollection &src);
     
-    static QVector<BPartition*> testSlopeCut(BPixelCollection &img, const QVector<QVector<double> > &slopes);
+    static QVector<BPartition*> testSlopeCut(BPixelCollection &img, const NDimensions &dimensions /*const QVector<QVector<double> > &slopes*/);
     
 private:
     static void computeInverseDistanceMap(BPixelCollection &img, int* out);
@@ -34,7 +34,8 @@ private:
     static int pixelsOfSeparation(int* invDistMap, int width, int height, BPixelCollection &img, QVector<int> &outSource, QVector<int> &outSink, int anchor_weight=INT_POS_INFINITY, int split_method=SPLIT_HORZ, int vert_divide=-1);
     
     static int pixelsOfSeparationWithSlope(int* invDistMap, int width, int height, BPixelCollection &img, const QVector<QVector<double> > &slopes, QVector<int> &outSource, QVector<int> &outSink, int anchor_weight=INT_POS_INFINITY, int split_method=SPLIT_HORZ, int vert_divide=-1);
-    static int pixelsOfSeparationNDimensions(int* invDistMap, int width, int height, const BPixelCollection &img, const NDimensions &dimensions, QVector<int> &outSource, QVector<int> &outSink, int anchor_weight, int split_method, int vert_divide);
+    static int pixelsOfSeparationNDimensions(int* invDistMap, int width, int height, const BPixelCollection &img, const NDimensions &dimensions, QVector<int> &outSource, QVector<int> &outSink, int anchor_weight=INT_POS_INFINITY, int split_method=SPLIT_HORZ, int vert_divide=-1);
+    
     
     static int f(int x, int i, int y, int m, int* g);
     

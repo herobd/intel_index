@@ -53,6 +53,21 @@ BImage::BImage(const BImage &other)
     }
 }
 
+BImage::BImage(const BPixelCollection &other)
+{
+    myWidth = other.width();
+    myHeight = other.height();
+    pixels = new bPixel*[myWidth];
+    for (int x=0; x<myWidth; x++)
+    {
+        pixels[x] = new bPixel[myHeight];
+        for (int y=0; y<myHeight; y++)
+        {
+            pixels[x][y].val= other.pixel(x,y);
+        }
+    }
+}
+
 //BImage::BImage(const BPartition* src1, const BPartition* src2)
 //{
 //    assert(src1->getSrc()==src2->getSrc());

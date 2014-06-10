@@ -102,7 +102,7 @@ QVector<BPartition*> WordSeparator::horzCutEntries(BPixelCollection &img, int ve
     return ret;
 }
 
-QVector<BPartition*> WordSeparator::testSlopeCut(BPixelCollection &img, const QVector<QVector<double> > &slopes)
+QVector<BPartition*> WordSeparator::testSlopeCut(BPixelCollection &img, const NDimensions &dimensions /*const QVector<QVector<double> > &slopes*/)
 {
     int num_pix = img.width()*img.height();
     //double pix_vals[num_pix];
@@ -112,7 +112,8 @@ QVector<BPartition*> WordSeparator::testSlopeCut(BPixelCollection &img, const QV
     QVector<int> firstImgIndexes;
     QVector<int> secondImgIndexes;
     
-    int maxflow = pixelsOfSeparationWithSlope(invDistMap,img.width(),img.height(),img, slopes,firstImgIndexes,secondImgIndexes);
+//    int maxflow = pixelsOfSeparationWithSlope(invDistMap,img.width(),img.height(),img, slopes,firstImgIndexes,secondImgIndexes);
+    int maxflow = pixelsOfSeparationNDimensions(invDistMap,img.width(),img.height(),img, dimensions,firstImgIndexes,secondImgIndexes);
     
     BPartition* firstPart = new BPartition(&img);
     BPartition* secondPart = new BPartition(&img);
@@ -1511,44 +1512,61 @@ int WordSeparator::pixelsOfSeparation(int* invDistMap, int width, int height, BP
   D: value(s) for each pixel, highest, lowest, number of bins
   */
 
-
+inline int mod(int a, int b)
+{
+    while (a<0)
+        a+=b;
+    return a%b;
+}
 
 inline QVector<QVector<QVector<double> > > make3dImage(const BPixelCollection &img,int* invDistMap,const NDimensions &dimensions)
 {
     QVector<QVector<QVector<double> > > ret(img.width());
-    int SLOPE_DIF_TOLERANCE = 5;//bins, + or -
+    
+    int slopeDifRange = SLOPE_DIF_TOLERANCE*dimensions.getBinNums()[0];
+    printf("difrange:%d\n",slopeDifRange);
     for (int x=0; x<img.width(); x++)
     {
         QVector<QVector<double> > flat(img.height());
         for (int y=0; y<img.height(); y++)
         {
-            QVector<double> slope(dimensions.getBinSizes()[0]);
+            QVector<double> slope(dimensions.getBinNums()[0]);
             
             if (img.pixel(x,y))
             {
+                
+                
                 int bin = dimensions.getBinsForPixel(x,y)[0];
-                if (bin>0)
+                if (bin>=0)
                 {
-                    for (int k=0; k<dimensions.getBinSizes()[0]; k++)
+                    for (int k=0; k<dimensions.getBinNums()[0]; k++)
                     {
                         slope[k]=0;
                     }
-                    slope[bin]=invDistMap[x+y*img.width()];
-                    for (int kb=1; kb<SLOPE_DIF_TOLERANCE; kb++)
+                    int secondBin = dimensions.getSecondBinsForPixel(x,y)[0];
+                    if (secondBin >= 0)
                     {
-                        if (bin+kb<dimensions.getBinSizes()[0])
+//                        int secondBin = bin/dimensions.getBinNums()[0];
+//                        bin = bin%dimensions.getBinNums()[0];
+                        
+                        slope[secondBin]=invDistMap[x+y*img.width()];
+                        for (int kb=1; kb<slopeDifRange; kb++)
                         {
-                            slope[bin+kb]=invDistMap[x+y*img.width()]*((dimensions.getBinSizes()[0]-kb)/dimensions.getBinSizes()[0]);
+                            slope[mod((secondBin+kb),dimensions.getBinNums()[0])]+=invDistMap[x+y*img.width()]*((slopeDifRange-kb)/(1.0*slopeDifRange));
+                            slope[mod((secondBin-kb),dimensions.getBinNums()[0])]+=invDistMap[x+y*img.width()]*((slopeDifRange-kb)/(1.0*slopeDifRange));
                         }
-                        if (bin-kb<dimensions.getBinSizes()[0])
-                        {
-                            slope[bin-kb]=invDistMap[x+y*img.width()]*((dimensions.getBinSizes()[0]-kb)/dimensions.getBinSizes()[0]);
-                        }
+                    }
+                    
+                    slope[bin]=invDistMap[x+y*img.width()];
+                    for (int kb=1; kb<slopeDifRange; kb++)
+                    {
+                        slope[mod((bin+kb),dimensions.getBinNums()[0])]+=invDistMap[x+y*img.width()]*((slopeDifRange-kb)/(1.0*slopeDifRange));
+                        slope[mod((bin-kb),dimensions.getBinNums()[0])]+=invDistMap[x+y*img.width()]*((slopeDifRange-kb)/(1.0*slopeDifRange));
                     }
                 }
                 else
                 {
-                    for (int k=0; k<dimensions.getBinSizes()[0]; k++)
+                    for (int k=0; k<dimensions.getBinNums()[0]; k++)
                     {
                         slope[k]=invDistMap[x+y*img.width()];
                     }
@@ -1556,7 +1574,7 @@ inline QVector<QVector<QVector<double> > > make3dImage(const BPixelCollection &i
             }
             else
             {
-                for (int k=0; k<dimensions.getBinSizes()[0]; k++)
+                for (int k=0; k<dimensions.getBinNums()[0]; k++)
                 {
                     slope[k]=invDistMap[x+y*img.width()];
                 }
@@ -1565,6 +1583,46 @@ inline QVector<QVector<QVector<double> > > make3dImage(const BPixelCollection &i
         }
         ret[x]=flat;
     }
+    
+    ///test///
+    double testMax=0;
+    for (int x=0; x<img.width(); x++)
+    {
+        for (int y=0; y<img.height(); y++)
+        {
+            for (int s=0; s<dimensions.getBinNums()[0]; s++)
+            {
+                if (ret[x][y][s] > testMax)
+                    testMax=ret[x][y][s];
+            }
+        }
+    }
+    printf("testMat=%f\n",testMax);
+    QVector<QRgb> default_color_table;
+    for (int i=0; i<256; i++)
+    {
+        default_color_table.append(qRgb(i,i,i));
+    }
+    for (int s=0; s<dimensions.getBinNums()[0]; s++)
+    {
+        QImage test(img.width(),img.height(),QImage::Format_Indexed8);
+        test.setColorTable(default_color_table);
+        for (int x=0; x<img.width(); x++)
+        {
+            for (int y=0; y<img.height(); y++)
+            {
+                test.setPixel(x,y,ret[x][y][s]*(255.0/testMax));
+            }
+        }
+        QString debugfile = "./dist_3d/layer_";
+        QString num;
+        num.setNum(s);
+        debugfile.append(num);
+        debugfile.append(".ppm");
+        test.save(debugfile);
+    }
+    ///test///
+    
     return ret;
 }
 
@@ -1598,14 +1656,15 @@ int WordSeparator::pixelsOfSeparationNDimensions(int* invDistMap, int width, int
     
     int numNodes = width*height;
     int numEdges = 4*(width-1)*(height-1)-(height+width);
-    foreach (dimension dim, dimensions)
+    for (int i=0; i<dimensions.numOfDim(); i++)
     {
-        numNodes *= dim.getNumBins();
-        numEdges *= dim.getNumBins();
-        numEdges += numNodes*(dim.getNumBins()-1);//assuming only striaght (no diag) connections for higher dimensions
+        const Dimension* dim = dimensions.getDimension(i);
+        numNodes *= dim->getNumBins();
+        numEdges *= dim->getNumBins();
+        numEdges += numNodes*(dim->getNumBins()-1);//assuming only striaght (no diag) connections for higher dimensions
     }
     
-    Indexer indexer(width, height, dimensions);
+    Indexer indexer(width, height, &dimensions);
     
     typedef Graph<int,int,int> GraphType;
     GraphType *g = new GraphType(numNodes, numEdges); 
@@ -1615,87 +1674,91 @@ int WordSeparator::pixelsOfSeparationNDimensions(int* invDistMap, int width, int
         g->add_node();
     }
     
-//    QImage debug = img.copy(0,0,img.width(),img.height());
+    QImage debug = img.makeImage().getImage().copy(0,0,img.width(),img.height());
     
     if (split_method == SPLIT_HORZ)
     {
         //find source pixels
-        int count_source = height*ANCHOR_L;
-        for (int i=0; count_source>0 && i<width; i++)
-        {
-            for (int j=0; count_source>0 && j<height; j++)
-            {
-                if (img.pixel(i,j))
-                {
-                    int index = indexer.getIndex(i,j);
-                    g -> add_tweights(index, anchor_weight,0);//invDistMap[index], 0);
-    //                debug.setPixel(i,j,150);
-                    count_source--;
-                }
-            }
-        }
+        int count_source = 50;//height*ANCHOR_L;
+//        for (int i=0; count_source>0 && i<width; i++)
+//        {
+//            for (int j=0; count_source>0 && j<height; j++)
+//            {
+//                if (img.pixel(i,j))
+//                {
+//                    int index = indexer.getIndex(i,j);
+//                    g -> add_tweights(index, anchor_weight,0);//invDistMap[index], 0);
+//    //                debug.setPixel(i,j,150);
+//                    count_source--;
+//                }
+//            }
+//        }
         
         
         
         
         //diag method
-    //    QImage mark = img.copy(0,0,img.width(),img.height());
-    //    QVector<QPoint> workingStack;
-    //    for (int o=0; o<width && count_source>0; o++)
-    //    {
-    //        for (int i=0; i<=o && i<height && count_source>0; i++)
-    //        {
-    //            if (qGray(img.pixel(o-i,i))==BLACK)
-    //            {
-    //                int index = (o-i)+width*i;
-    //                g -> add_tweights(index, INT_POS_INFINITY,0);
-    //                count_source--;
-    //                debug.setPixel((o-i),i,150);
+//        QImage mark = img.copy(0,0,img.width(),img.height());
+//        QVector<QPoint> workingStack;
+        for (int o=0; o<width && count_source>0; o++)
+        {
+            for (int i=0; i<=o && i<height && count_source>0; i++)
+            {
+                int x = o-i;
+                int y = i;
+                if (img.pixel(x,y))
+                {
+                    int index = indexer.getIndex(x,y);//(o-i)+width*i;
+                    if (index<0)
+                        continue;
+                    g -> add_tweights(index, INT_POS_INFINITY,0);
+                    count_source--;
+                    debug.setPixel(x,y,1);
                     
-                    //fill
-    //                QPoint p(o-i,i);
-    //                workingStack.push_back(p);
-    //                while (!workingStack.isEmpty() && count_source>0)
-    //                {   
-    //                    QPoint cur = workingStack.back();
-    //                    workingStack.pop_back();
-    //                    int index = cur.x()+width*cur.y();
-    //                    g -> add_tweights(index, INT_POS_INFINITY,0);
-    //                    //debug.setPixel(cur,150);
-    //                    count_source--;
+//                    fill
+//                    QPoint p(o-i,i);
+//                    workingStack.push_back(p);
+//                    while (!workingStack.isEmpty() && count_source>0)
+//                    {   
+//                        QPoint cur = workingStack.back();
+//                        workingStack.pop_back();
+//                        int index = cur.x()+width*cur.y();
+//                        g -> add_tweights(index, INT_POS_INFINITY,0);
+//                        //debug.setPixel(cur,150);
+//                        count_source--;
                         
-    //                    mark.setPixel(cur,WHITE);
+//                        mark.setPixel(cur,WHITE);
                         
-    //                    if (cur.x()>0 && qGray(mark.pixel(cur.x()-1,cur.y())) == BLACK)
-    //                    {
-    //                        QPoint pp(cur.x()-1,cur.y());
-    //                        workingStack.push_back(pp);
-    //                    }
+//                        if (cur.x()>0 && qGray(mark.pixel(cur.x()-1,cur.y())) == BLACK)
+//                        {
+//                            QPoint pp(cur.x()-1,cur.y());
+//                            workingStack.push_back(pp);
+//                        }
                         
                         
-    //                    if (cur.x()<mark.width()-1 && qGray(mark.pixel(cur.x()+1,cur.y())) == BLACK)
-    //                    {
-    //                        QPoint pp(cur.x()+1,cur.y());
-    //                        workingStack.push_back(pp);
+//                        if (cur.x()<mark.width()-1 && qGray(mark.pixel(cur.x()+1,cur.y())) == BLACK)
+//                        {
+//                            QPoint pp(cur.x()+1,cur.y());
+//                            workingStack.push_back(pp);
                             
-    //                    }
-    //                    if (cur.y()<mark.height()-1 && qGray(mark.pixel(cur.x(),cur.y()+1)) == BLACK)
-    //                    {
-    //                        QPoint pp(cur.x(),cur.y()+1);
-    //                        workingStack.push_back(pp);
-    //                    }
-    //                    if (cur.y()>0 && qGray(mark.pixel(cur.x(),cur.y()-1)) == BLACK)
-    //                    {
-    //                        QPoint pp(cur.x(),cur.y()-1);
-    //                        workingStack.push_back(pp);
-    //                    }
-    //                }
-    //            }
-    //        }
-    //    }
+//                        }
+//                        if (cur.y()<mark.height()-1 && qGray(mark.pixel(cur.x(),cur.y()+1)) == BLACK)
+//                        {
+//                            QPoint pp(cur.x(),cur.y()+1);
+//                            workingStack.push_back(pp);
+//                        }
+//                        if (cur.y()>0 && qGray(mark.pixel(cur.x(),cur.y()-1)) == BLACK)
+//                        {
+//                            QPoint pp(cur.x(),cur.y()-1);
+//                            workingStack.push_back(pp);
+//                        }
+//                    }
+                }
+            }
+        }
     //    workingStack.clear();
         
-        int count_sink=height*ANCHOR_R;
+        int count_sink=50;//height*ANCHOR_R;
         
         //find sink pixels
     //    for (int i=width-1; count_sink>0 && i>=0; i--)
@@ -1718,12 +1781,16 @@ int WordSeparator::pixelsOfSeparationNDimensions(int* invDistMap, int width, int
             for (int i=0; i<=o && i<height && count_sink>0; i++)
             {
                 //debug.setPixel((width-1)-(o-i),(height-1)-i,220);
-                if (img.pixel((width-1)-(o-i),(height-1)-i))
+                int x = (width-1)-(o-i);
+                int y = (height-1)-i;
+                if (img.pixel(x,y))
                 {
-                    int index = indexer.getIndex((width-1)-(o-i),(height-1)-i);
+                    int index = indexer.getIndex(x,y);
+                    if (index<0)
+                        continue;
                     g -> add_tweights(index, 0, anchor_weight);
                     count_sink--;
-    //                debug.setPixel((width-1)-(o-i),(height-1)-i,150);
+                    debug.setPixel(x,y,1);
                     
                     //fill
     //                QPoint p((width-1)-(o-i),(height-1)-i);
@@ -1766,6 +1833,7 @@ int WordSeparator::pixelsOfSeparationNDimensions(int* invDistMap, int width, int
                 }
             }
         }
+        debug.save("./anchors.ppm");
     }
     else if (split_method == SPLIT_VERT)
     {
@@ -1858,7 +1926,9 @@ int WordSeparator::pixelsOfSeparationNDimensions(int* invDistMap, int width, int
     
     //connect all pixels
     //For simplicity, only doing three dimensions now
-    int slope_size = dimensions.getBinSizes()[0];
+    double FLAT_WEIGHT = 1;
+    double SLOPE_WEIGHT = 1.2;
+    int slope_size = dimensions.getBinNums()[0];
     for (int k=0; k<slope_size; k++)
     {
         
@@ -1870,32 +1940,32 @@ int WordSeparator::pixelsOfSeparationNDimensions(int* invDistMap, int width, int
                 //C1
                 if (i+1<width)
                 {
-                    setEdge3d(i,j,k,i+1,j,k,g,indexer,image3d,1);
+                    setEdge3d(i,j,k,i+1,j,k,g,indexer,image3d,FLAT_WEIGHT);
                 }
                 
                 if (j+1<height)
                 {
-                    setEdge3d(i,j,k,i,j+1,k,g,indexer,image3d,1);
+                    setEdge3d(i,j,k,i,j+1,k,g,indexer,image3d,FLAT_WEIGHT);
                 }
                 
                 if (k+1<slope_size)
                 {
-                    setEdge3d(i,j,k,i,j,k+1,g,indexer,image3d,1);
+                    setEdge3d(i,j,k,i,j,k+1,g,indexer,image3d,SLOPE_WEIGHT);
                 }
                 else//fold
                 {
-                    setEdge3d(i,j,k,i,j,0,g,indexer,image3d,1);
+                    setEdge3d(i,j,k,i,j,0,g,indexer,image3d,SLOPE_WEIGHT);
                 }
                 
                 //C2 dumbed down
                 if (j>0 && i<width-1)
                 {
-                    setEdge3d(i,j,k,i+1,j-1,k,g,indexer,image3d,sqrt(2));
+                    setEdge3d(i,j,k,i+1,j-1,k,g,indexer,image3d,sqrt(2*FLAT_WEIGHT));
                 }
                 
                 if (j<height-1 && i<width-1)
                 {
-                    setEdge3d(i,j,k,i+1,j+1,k,g,indexer,image3d,sqrt(2));
+                    setEdge3d(i,j,k,i+1,j+1,k,g,indexer,image3d,sqrt(2*FLAT_WEIGHT));
                 }
                 
                 
@@ -1916,38 +1986,111 @@ int WordSeparator::pixelsOfSeparationNDimensions(int* invDistMap, int width, int
 //    QRgb a = qRgb(255, 255, 255);
     
     //add all black pixels which
-    for (int index=0; index<width*height; index++)
+    
+    for (int x=0; x<width; x++)
     {
-        if (img.pixelIsMine(index%width,index/width))
+        for (int y=0; y<height; y++)
         {
-            /*if (qGray(debug.pixel(index%width,index/width))!=BLACK && qGray(debug.pixel(index%width,index/width))!=WHITE)
+            
+            if (img.pixel(x,y))
             {
-                debug2.setPixel(index%width,index/width,a);
-            }
-            else*/ if (g->what_segment(index) == GraphType::SOURCE)
-            {
-                outSource.append(index);
-    //            debug2.setPixel(index%width,index/width,lb);
+                int index = indexer.getIndex(x,y);
+                if (dimensions.getSecondBinsForPixel(x,y)[0] < 0 && index>=0)
+                {
+                    
+                    if (g->what_segment(index) == GraphType::SOURCE)
+                        outSource.append(x+width*y);
+                    else
+                        outSink.append(x+width*y);
+                }
+                else if (index >=0)
+                {
+                    int firstBin = dimensions.getBinsForPixel(x,y)[0];
+                    int firstIndex = indexer.getIndex(x,y,firstBin);
+                    int secondBin = dimensions.getSecondBinsForPixel(x,y)[0];
+                    int secondIndex = indexer.getIndex(x,y,secondBin);
+                    
+                    if (g->what_segment(firstIndex) == GraphType::SOURCE)
+                        outSource.append(x+width*y);
+                    else
+                        outSink.append(x+width*y);
+                    
+                    if (g->what_segment(secondIndex) == GraphType::SOURCE)
+                        outSource.append(x+width*y);
+                    else
+                        outSink.append(x+width*y);
+                        
+                }
+                else
+                {
+                    bool onSource = false;
+                    bool onSink = false;
+                    for (int s=0; (!onSource || !onSink) && s<dimensions.getBinNums()[0]; s++)
+                    {
+                        int index = indexer.getIndex(x,y,s);
+                        if (g->what_segment(index) == GraphType::SOURCE)
+                            onSource=true;
+                        else
+                            onSink=true;
+                    }
+                    if (onSource)
+                        outSource.append(x+width*y);
+                    if (onSink)
+                        outSink.append(x+width*y);
+                }
             }
             else
             {
-                outSink.append(index);
+                int source_count = 0;
+                int sink_count = 0;
+                for (int s=0; s<dimensions.getBinNums()[0]; s++)
+                {
+                    int index = indexer.getIndex(x,y,s);
+                    if (g->what_segment(index) == GraphType::SOURCE)
+                        source_count++;
+                    else
+                        sink_count++;
+                }
+                if (source_count >= sink_count)
+                    outSource.append(x+width*y);
+                else
+                    outSink.append(x+width*y);
             }
-    //        else if (g->what_segment(index) == GraphType::SOURCE)
-    //            debug2.setPixel(index%width,index/width,lw);
-    //        else if (qGray(img.pixel(index%width,index/width))==BLACK)
-    //            debug2.setPixel(index%width,index/width,rb);
-    //        else
-    //            debug2.setPixel(index%width,index/width,rw);
+            
         }
     }
     
-//    QString debugfile = "./cut_";
-//    QString num;
-//    num.setNum(width);
-//    debugfile.append(num);
-//    debugfile.append(".ppm");
-//    debug2.save(debugfile);
+    
+    ///test///
+    for (int s=0; s<dimensions.getBinNums()[0]; s++)
+    {
+        BImage test(img);
+        BPartition tmp1((BPixelCollection*) &test);
+        BPartition tmp2((BPixelCollection*) &test);
+        for (int x=0; x<width; x++)
+        {
+            for (int y=0; y<height; y++)
+            {
+                    int index = indexer.getIndex(x,y,s);
+                    if (g->what_segment(index) == GraphType::SOURCE)
+                        tmp1.addPixelFromSrc(x,y);
+                    else
+                        tmp2.addPixelFromSrc(x,y);           
+            }
+        }
+        test.claimOwnership(&tmp2,1);
+        test.claimOwnership(&tmp1,1);
+        
+        QString debugfile = "./output/layer_";
+        QString num;
+        num.setNum(s);
+        debugfile.append(num);
+        debugfile.append(".ppm");
+        test.saveOwners(debugfile);
+        
+    }
+    ///test///
+    
     
     delete g;
     return ret;
@@ -2187,7 +2330,7 @@ if (g->what_segment(index) == GraphType::SOURCE)
             {
                 outSink.append(index);
             }
-        debug2.setPixel(index%width,index/width,rw);
+//        debug2.setPixel(index%width,index/width,rw);
         }
     }
     
