@@ -2,23 +2,23 @@
 #define WORDSEPARATOR_H
 #include <QImage>
 #include "wordprofile.h"
-#include "maxflow/graph.h"
 #include "Constants.h"
 #include <QPoint>
 #include "bimage.h"
 #include "bpartition.h"
 #include "BPixelCollection.h"
 #include "dimension.h"
+#include "graphcut.h"
+#include "imageaverager.h"
+#include "boxcleaner.h"
 
-#define SPLIT_HORZ 1
-#define SPLIT_VERT 2
-#define CHOP_TOP 3
+
 
 class WordSeparator
 {
 public:
     WordSeparator();
-    static QVector<BPartition*> minCut(BPixelCollection &toCut, float claimPortion);
+    static QVector<BPartition*> minCut(BPixelCollection &toCut);
     
 //    static QVector<QImage> cutNames(QImage &img);
 //    static QVector<QImage> recursiveCutWordToFirstLetter(QImage &img);
@@ -28,14 +28,10 @@ public:
     
     static QVector<BPartition*> testSlopeCut(BPixelCollection &img, const NDimensions &dimensions /*const QVector<QVector<double> > &slopes*/);
     
+    static QVector<BPartition*> segmentLinesOfWords(const BPixelCollection &column, int spacingEstimate);
+    
 private:
     static void computeInverseDistanceMap(BPixelCollection &img, int* out);
-    
-    static int pixelsOfSeparation(int* invDistMap, int width, int height, BPixelCollection &img, QVector<int> &outSource, QVector<int> &outSink, int anchor_weight=INT_POS_INFINITY, int split_method=SPLIT_HORZ, int vert_divide=-1);
-    
-    static int pixelsOfSeparationWithSlope(int* invDistMap, int width, int height, BPixelCollection &img, const QVector<QVector<double> > &slopes, QVector<int> &outSource, QVector<int> &outSink, int anchor_weight=INT_POS_INFINITY, int split_method=SPLIT_HORZ, int vert_divide=-1);
-    static int pixelsOfSeparationNDimensions(int* invDistMap, int width, int height, const BPixelCollection &img, const NDimensions &dimensions, QVector<int> &outSource, QVector<int> &outSink, int anchor_weight=INT_POS_INFINITY, int split_method=SPLIT_HORZ, int vert_divide=-1);
-    
     
     static int f(int x, int i, int y, int m, int* g);
     

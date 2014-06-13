@@ -10,9 +10,10 @@ public:
     static BImage trimBoundaries(BImage &img);
     static BImage trimVerticleBoundaries(BImage &img);
     static BImage trimHorizontalBoundaries(BImage &img);
+    static BImage trimHorizontalLines(BImage &img);
     static BImage removePixelNoise(BImage &img);
     static BImage removeVerticlePixelNoise(BImage &img);
-    static BImage clearLineAndCloseLetters(BImage &src, int est_y, int* vert_divide=NULL, QVector<QPoint>* crossPoints=NULL);
+    static BImage clearLineAndCloseLetters(BPixelCollection &src, int est_y, int* vert_divide=NULL, QVector<QPoint>* crossPoints=NULL);
     
 private:
     static void lineFilterAtJ(int j, BImage &ret);

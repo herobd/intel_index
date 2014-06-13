@@ -5,10 +5,13 @@
 #include "BPixelCollection.h"
 
 class BImage;
+//class BPixelCollection;
 
 class BPartition : public BPixelCollection
 {
 public:
+    BPartition(const BImage* ofImage);
+    BPartition(const BPartition* ofImage);
     BPartition(const BPixelCollection* ofImage);
     ~BPartition();
     BPartition& operator=( const BPartition& other );
@@ -40,7 +43,9 @@ public:
    
     void trim(int offLeftSide, int offRightSide, int offTopSide, int offBottomSide);
     
-    
+//    bool rebase();
+    void changeSrc(const BPixelCollection* newSrc, int srcXOffset, int srcYOffset);
+//    void makeFull();
     
 private:
     int leftX;
@@ -48,6 +53,7 @@ private:
     int upperY;
     int lowerY;
     const BPixelCollection* src;
+    const BImage * rootSrc;
     //unsigned int* myPixels; //flatten 2D array of bits for whole src img
     bool** myPixels;
     

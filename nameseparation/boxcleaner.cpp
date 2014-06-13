@@ -9,7 +9,8 @@ BoxCleaner::BoxCleaner()
 BImage BoxCleaner::trimBoundaries(BImage &img)
 {
     BImage vt = trimVerticleBoundaries(img);
-    return trimHorizontalBoundaries(vt);
+    vt= trimHorizontalBoundaries(vt);
+    return trimHorizontalLines(vt);
 }
 
 BImage BoxCleaner::trimHorizontalBoundaries(BImage &img)
@@ -17,8 +18,6 @@ BImage BoxCleaner::trimHorizontalBoundaries(BImage &img)
     
     int PROFILE_HORZ_THRESH = img.width()*.75;
     int RUN_HORZ_THRESH = img.width()*.55;   
-    int PROFILE_HORZ_THRESH_E = img.width()*.8;
-    int RUN_HORZ_THRESH_E = img.width()*.65;
     int i;
     int j;
     bool cont = true;
@@ -127,46 +126,60 @@ BImage BoxCleaner::trimHorizontalBoundaries(BImage &img)
      }
      
      
-     //EVERYWHERE
-     //If there happend to be any big, obvious lines out of our range before, we remove them
-     for (j=0; j<ret.height(); j++)
-     {
-         int profile = 0;
-         int runLength=0;
-         for (i=0; i<ret.width(); i++)
-         {
-             if (ret.pixel(i,j))
-             {
-                 profile++;
-                 runLength++;
-             }
-             else 
-             {
-                 if (runLength>RUN_HORZ_THRESH_E)
-                 {
-//                     for (;runLength>0; runLength--)
-//                         ret.setPixel(i-runLength,j,WHITE);
-                     cond_clear_line(runLength,i,j,ret);
-                 }
-                 runLength=0;
-             }
-         }
-         if (runLength>RUN_HORZ_THRESH_E)
-         {
-//             for (;runLength>0; runLength--)
-//                 ret.setPixel(i-runLength,j,WHITE);
-             cond_clear_line(runLength,i,j,ret);
-         }
-         
-         if (profile > PROFILE_HORZ_THRESH_E)
-         {
-//             for (int i=0; i<ret.width(); i++)
-//                 ret.setPixel(i,j,WHITE);
-             cond_clear_line(ret.width()-1,ret.width(),j,ret);
-         }
-     }
+     
      
   
+    return ret;
+}
+
+BImage BoxCleaner::trimHorizontalLines(BImage &img)
+{
+    int PROFILE_HORZ_THRESH_E = img.width()*.8;
+    int RUN_HORZ_THRESH_E = img.width()*.65;
+    int i;
+    int j;
+    
+//     BImage ret = img.copy();
+    BImage ret(img);
+    
+    //EVERYWHERE
+    //If there happend to be any big, obvious lines out of our range before, we remove them
+    for (j=0; j<ret.height(); j++)
+    {
+        int profile = 0;
+        int runLength=0;
+        for (i=0; i<ret.width(); i++)
+        {
+            if (ret.pixel(i,j))
+            {
+                profile++;
+                runLength++;
+            }
+            else 
+            {
+                if (runLength>RUN_HORZ_THRESH_E)
+                {
+//                     for (;runLength>0; runLength--)
+//                         ret.setPixel(i-runLength,j,WHITE);
+                    cond_clear_line(runLength,i,j,ret);
+                }
+                runLength=0;
+            }
+        }
+        if (runLength>RUN_HORZ_THRESH_E)
+        {
+//             for (;runLength>0; runLength--)
+//                 ret.setPixel(i-runLength,j,WHITE);
+            cond_clear_line(runLength,i,j,ret);
+        }
+        
+        if (profile > PROFILE_HORZ_THRESH_E)
+        {
+//             for (int i=0; i<ret.width(); i++)
+//                 ret.setPixel(i,j,WHITE);
+            cond_clear_line(ret.width()-1,ret.width(),j,ret);
+        }
+    }
     return ret;
 }
 
@@ -483,7 +496,7 @@ BImage BoxCleaner::removeVerticlePixelNoise(BImage &img)
 //vert_divide will be set to the actual center of the dividing line.
 //crossPoints will be set to the middle point of every crossing of the removed dividing line that is
 //restored by the close.
-BImage BoxCleaner::clearLineAndCloseLetters(BImage &src, int est_y, int* vert_divide, QVector<QPoint>* crossPoints)
+BImage BoxCleaner::clearLineAndCloseLetters(BPixelCollection &src, int est_y, int* vert_divide, QVector<QPoint>* crossPoints)
 {
     int SEARCH_BAND = 15;
     int STRUCT_ELE_SIZE = 6;
@@ -667,6 +680,7 @@ BImage BoxCleaner::clearLineAndCloseLetters(BImage &src, int est_y, int* vert_di
     
     if (crossPoints != NULL)
     {
+        crossPoints->clear();
         bool onLine = false;
         int lineStart = -1;
         for (int i=0; i<ret.width(); i++)

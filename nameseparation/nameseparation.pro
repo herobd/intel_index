@@ -11,7 +11,8 @@ SOURCES += main.cpp \
     imageaverager.cpp \
     bimage.cpp \
     bpartition.cpp \
-    dimension.cpp
+    dimension.cpp \
+    graphcut.cpp
 
 HEADERS += \
     ./wordprofile.h \
@@ -24,7 +25,8 @@ HEADERS += \
     bimage.h \
     bpartition.h \
     BPixelCollection.h \
-    dimension.h
+    dimension.h \
+    graphcut.h
 
 OTHER_FILES += \
     maxflow/instances.inc

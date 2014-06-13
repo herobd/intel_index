@@ -5,6 +5,33 @@
 BPartition::BPartition(const BPixelCollection* ofImage)
 {
     src=ofImage;
+    rootSrc=NULL;
+    leftX=-1;
+    rightX=-2;
+    upperY=-1;
+    lowerY=-2;
+//    myPixels = new unsigned int[(int)ceil(src->width()*src->height() / ((8*sizeof(unsigned int))) * 1.0)];
+//    for (int i=0; i<(int)ceil(src->width()*src->height() / ((8*sizeof(unsigned int))) * 1.0); i++)
+//        myPixels[i]=0;
+    initMyPixels();
+}
+BPartition::BPartition(const BImage* ofImage)
+{
+    src=ofImage;
+    rootSrc=ofImage;
+    leftX=-1;
+    rightX=-2;
+    upperY=-1;
+    lowerY=-2;
+//    myPixels = new unsigned int[(int)ceil(src->width()*src->height() / ((8*sizeof(unsigned int))) * 1.0)];
+//    for (int i=0; i<(int)ceil(src->width()*src->height() / ((8*sizeof(unsigned int))) * 1.0); i++)
+//        myPixels[i]=0;
+    initMyPixels();
+}
+BPartition::BPartition(const BPartition* ofImage)
+{
+    src=ofImage;
+    rootSrc=ofImage->rootSrc;
     leftX=-1;
     rightX=-2;
     upperY=-1;
@@ -27,6 +54,7 @@ BPartition::~BPartition()
 BPartition& BPartition::operator=( const BPartition& other )
 {
     src = other.getSrc();
+    rootSrc = other.rootSrc;
     leftX=other.leftX;
     rightX=other.rightX;
     upperY=other.upperY;
@@ -47,6 +75,7 @@ BPartition& BPartition::operator=( const BPartition& other )
         
         return *this;
 }
+
 
 void BPartition::initMyPixels()
 {
@@ -576,3 +605,64 @@ inline void BPartition::setMyPixelFalse(int src_x, int src_y)
 //    myPixels[arrayIndex] &= ~(1 << intIndex);
     myPixels[src_x][src_y] = false;
 }
+
+//bool BPartition::rebase()
+//{
+//    if (rootSrc==src || rootSrc == NULL)
+//        return false;
+    
+//    while(rootSrc!=src)
+//    {
+        
+//    }
+//    myPixels = new bool*[src->width()];
+//    for (int i=0; i<src->width(); i++)
+//    {
+//        myPixels[i] = new bool[src->height()];
+//        for (int j=0; j<src->height(); j++)
+//        {
+//            myPixels[i][j] = false;
+//        }
+//    }
+    
+//    return true;
+//}
+
+void BPartition::changeSrc(const BPixelCollection* newSrc, int srcXOffset, int srcYOffset)
+{
+//    assert(newSrc->width()==src->width() && newSrc->height()==src->height());
+    bool** newMyPixels = new bool*[newSrc->width()];
+    for (int i=0; i<newSrc->width(); i++)
+    {
+        newMyPixels[i] = new bool[newSrc->height()];
+        for (int j=0; j<newSrc->height(); j++)
+        {
+            newMyPixels[i][j] = false;
+        }
+    }
+    for (int x=leftX; x<=rightX; x++)
+    {
+        for (int y=upperY; y<= lowerY; y++)
+        {
+            newMyPixels[x+srcXOffset][y+srcYOffset]=pixel(x-leftX,y-upperY);
+        }
+    }
+    leftX += srcXOffset;
+    rightX += srcXOffset;
+    upperY += srcYOffset;
+    lowerY += srcYOffset;
+    
+    for (int i=0; i<src->width(); i++)
+        delete[] myPixels[i];
+//    delete[] myPixels;
+    myPixels=newMyPixels;
+    src=newSrc;
+}
+
+//void BPartition::makeFull()
+//{
+//    leftX=0;
+//    upperY=0;
+//    rightX=src->width()-1;
+//    lowerY=src->height()-1;
+//}

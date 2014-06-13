@@ -63,7 +63,7 @@ QImage ImageAverager::averageImages(QString dir, QVector<int> picIds)
     return avg;
 }
 
-QVector<QVector<double> > ImageAverager::produceProbabilityMap(QImage &src)
+QVector<QVector<double> > ImageAverager::produceProbabilityMap(const QImage &src)
 {
     QVector<QVector<double> > ret(src.width());
     for (int i=0; i<src.width(); i++)
@@ -71,8 +71,36 @@ QVector<QVector<double> > ImageAverager::produceProbabilityMap(QImage &src)
         for (int j=0; j<src.height(); j++)
         {
             double val = (255-qGray(src.pixel(i,j)))/255.0;
-            ret[i].append(val);
+            double leftVal = val;
+            double rightVal = val;
+            double aboveVal = val;
+            double belowVal = val;
+            
+            if (i>0)
+                leftVal = (255-qGray(src.pixel(i-1,j)))/255.0;
+            
+            if (i<src.width()-1)
+                rightVal = (255-qGray(src.pixel(i+1,j)))/255.0;
+            
+            if (j>0)
+                aboveVal = (255-qGray(src.pixel(i,j-1)))/255.0;
+            
+            if (j<src.height()-1)
+                belowVal = (255-qGray(src.pixel(i,j+1)))/255.0;
+            
+            ret[i].append(.5*val + .125*(leftVal+rightVal+belowVal+aboveVal));
         }
     }
+    
+    ///test///
+//    QImage test = src.copy(0,0,src.width(),src.height());
+//    for (int i=0; i<src.width(); i++)
+//    {
+//        for (int j=0; j<src.height(); j++)
+//        {
+//            test.setPixel(i,j,255*ret[i][j]);
+//        }
+//    }
+//    test.save("./probability_map.ppm");
     return ret;
 }

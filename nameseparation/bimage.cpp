@@ -394,7 +394,8 @@ BPartition* BImage::getFullPartition()
     {
         for (int y=0; y<myHeight; y++)
         {
-            setPixelOwner(x,y,ret,1);
+//            setPixelOwner(x,y,ret,1);
+            ret->addPixelFromSrc(x,y);
         }
     }
     return ret;
