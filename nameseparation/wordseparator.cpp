@@ -14,7 +14,7 @@ WordSeparator::WordSeparator()
 
 
 //This performs a horizontal separation of the image by creating a distance map and then doing a graph cut on it.
-QVector<BPartition*> WordSeparator::minCut(BPixelCollection &toCut)
+int WordSeparator::minCut(BPixelCollection &toCut, QVector<BPartition*> &ret)
 {
     int toCut_width = toCut.width();
     int toCut_height = toCut.height();
@@ -48,10 +48,9 @@ QVector<BPartition*> WordSeparator::minCut(BPixelCollection &toCut)
     
     
    
-    QVector<BPartition*> ret;
     ret.append(firstPart);
     ret.append(secondPart);
-    return ret;
+    return maxflow;
 }
 
 //This performs a verticle separation of two words, it identifys descenders in an attempt to increase accuracy
@@ -66,7 +65,7 @@ QVector<BPartition*> WordSeparator::horzCutEntries(BPixelCollection &img, int ve
     QVector<int> secondImgIndexes;
     
     //best anchor weight:300 - 425
-    int ANCHOR_WEIGHT = 1200;
+    int ANCHOR_WEIGHT = 350;
     int maxflow = GraphCut::pixelsOfSeparation(invDistMap,img.width(),img.height(),img,firstImgIndexes,secondImgIndexes,ANCHOR_WEIGHT,SPLIT_VERT,vert_divide);
     
     BPartition* firstPart = new BPartition(&img);
@@ -281,7 +280,7 @@ void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bot
                QString ys;
                xs.setNum(keyPoint.x());
                ys.setNum(keyPoint.y());
-               QString loc = "./lowerPoints";
+               QString loc = "./lowerPoints/lowerPoints";
                loc+=xs;
                loc+="_";
                loc+=ys;
@@ -315,7 +314,7 @@ void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bot
                 }
                 
                 printf("total score for point (%d,%d): %f\n",keyPoint.x(),keyPoint.y(),scoreTotal);
-                double DESCENDER_SCORE_THRESH = 50;
+                double DESCENDER_SCORE_THRESH = 18;
                 if (scoreTotal>DESCENDER_SCORE_THRESH)
                 {
                     //if this is disconnected (all pixels are important in map) we can add all
@@ -332,7 +331,7 @@ void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bot
                 else
                 {
                 
-                      //subsection are f real
+                      //what is going on here? why do I make a second subsection?
                     
                     //Only do connected component
                     BPartition newSubsection(subsection.getSrc());
@@ -415,7 +414,7 @@ void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bot
                     
                     xs.setNum(keyPoint.x());
                     ys.setNum(keyPoint.y());
-                    loc = "./subsection";
+                    loc = "./subsection/subsection";
                     loc+=xs;
                     loc+="_";
                     loc+=ys;
@@ -1131,18 +1130,36 @@ void WordSeparator::computeInverseDistanceMap(BPixelCollection &src, int* out)
     printf("newMax:%d, newMin:%d\n",newmax,newmin);
     QImage debug(src.width(),src.height(),QImage::Format_Indexed8);
     QVector<QRgb> default_color_table;
-    for (int i=0; i<256; i++)
+    for (int i=0; i<255; i++)
     {
         default_color_table.append(qRgb(i,i,i));
+    }
+//    for (int i=0; i<255; i++)
+//    {
+//        default_color_table.append(qRgb(0,i,255));
+//    }
+    for (int i=0; i<255; i++)
+    {
+//        default_color_table.append(qRgb(0,i,255-i));
+        default_color_table.append(qRgb(255,255,255));
+    }
+//    for (int i=0; i<255; i++)
+//    {
+//        default_color_table.append(qRgb(i,255,0));
+//    }
+    for (int i=0; i<255; i++)
+    {
+//        default_color_table.append(qRgb(i,255-i,0));
+        default_color_table.append(qRgb(255,255,255));
     }
     debug.setColorTable(default_color_table);
     for (int i=0; i<debug.width(); i++)
     {
         for (int j=0; j<debug.height(); j++)
-            debug.setPixel(i,j,(int)((out[i+j*debug.width()]/((double)newmax))*255));
+            debug.setPixel(i,j,(int)((out[i+j*debug.width()]/((double)newmax))*254*3));
         
     }
-    debug.save("./inv_dist_map.pgm");
+    debug.save("./inv_dist_map.ppm");
 }
 
 int WordSeparator::f(int x, int i, int y, int m, int* g)
@@ -1197,17 +1214,11 @@ QVector<BPartition*> WordSeparator::segmentLinesOfWords(const BPixelCollection &
     QVector<BPartition*> ret;
 //    BImage base(column);
 //    base.save("./starting_image.ppm");
-    BPartition* unfinishedCol = new BPartition(&column);
-    for (int x=0; x<column.width(); x++)
-    {
-        for (int y=0; y<column.height(); y++)
-        {
-            unfinishedCol->addPixelFromSrc(x,y);
-        }
-    }
+    
+    
     int cutEstimate = spacingEstimate;
-    int vert_divide=0;
-    QVector<QPoint> crossPoints;
+    
+    
     
     QImage probMap("./average_desc.pgm");
     QVector<QVector<double> > descenderProbMap=ImageAverager::produceProbabilityMap(probMap);
@@ -1217,29 +1228,51 @@ QVector<BPartition*> WordSeparator::segmentLinesOfWords(const BPixelCollection &
     int accumulativeXOffset=0;
     int accumulativeYOffset=0;
     
-    
-    while (cutEstimate < unfinishedCol->height() - spacingEstimate/2)
+    QVector<int> dividingLines;
+    BImage linesRemoved(column);
+    QVector<QVector<QPoint> > crossPointsForLine;
+    //remove/find lines
+    while (cutEstimate < linesRemoved.height() - spacingEstimate/2)
     {
-        BImage lineremoved = BoxCleaner::clearLineAndCloseLetters(*unfinishedCol,cutEstimate,&vert_divide,&crossPoints);
-        int cut_dist_from_bottom = unfinishedCol->height() - vert_divide;
-        QVector<BPartition*> cuts = horzCutEntries(lineremoved,vert_divide);
+        int vert_divide;
+        QVector<QPoint> crossPoints;
+        linesRemoved = BoxCleaner::clearLineAndCloseLetters(linesRemoved,cutEstimate,&vert_divide,&crossPoints);
+        cutEstimate = vert_divide + spacingEstimate;
+        crossPointsForLine.append(crossPoints);
+        dividingLines.append(vert_divide);
+    }
+    
+    BPartition* unfinishedCol = new BPartition(&linesRemoved);
+    for (int x=0; x<linesRemoved.width(); x++)
+    {
+        for (int y=0; y<linesRemoved.height(); y++)
+        {
+            unfinishedCol->addPixelFromSrc(x,y);
+        }
+    }
+    //segment
+    for (int i=0; i<dividingLines.size(); i++)
+    {
+        int cutY = dividingLines[i] - accumulativeYOffset;
+        QVector<BPartition*> cuts = horzCutEntries(*unfinishedCol,cutY);
         
-        cuts[0]->makeImage().save("./test0.ppm");
-        cuts[1]->makeImage().save("./test1.ppm");
-        lineremoved.claimOwnership(cuts[0],1);
-        lineremoved.saveOwners("./test.ppm");
-        printf("vert:%d, cuts[0].height=%d\n",vert_divide,cuts[0]->height());
+//        cuts[0]->makeImage().save("./test0.ppm");
+//        cuts[1]->makeImage().save("./test1.ppm");
+//        lineremoved.claimOwnership(cuts[0],1);
+//        lineremoved.saveOwners("./test.ppm");
+//        printf("vert:%d, cuts[0].height=%d\n",dividingLines[i],cuts[0]->height());
         
-        int tempXOffset = accumulativeXOffset;
-        int tempYOffset = accumulativeYOffset;
-        accumulativeXOffset += cuts[1]->getXOffset();
-        accumulativeYOffset += cuts[1]->getYOffset();
+        int tempXOffset = accumulativeXOffset + cuts[1]->getXOffset();
+        int tempYOffset = accumulativeYOffset + cuts[1]->getYOffset();
+        cuts[0]->changeSrc(&linesRemoved,accumulativeXOffset,accumulativeYOffset);
+        cuts[1]->changeSrc(&linesRemoved,accumulativeXOffset,accumulativeYOffset);
+        adjustHorzCutCrossOverAreas(cuts[0],cuts[1],crossPointsForLine[i],descenderProbMap);
+        accumulativeXOffset = cuts[1]->getXOffset();
+        accumulativeYOffset = cuts[1]->getYOffset();
+        cuts[0]->changeSrc(&column,0,0);
+//        cuts[1]->changeSrc(&column,tempXOffset,tempYOffset);
         
-        adjustHorzCutCrossOverAreas(cuts[0],cuts[1],crossPoints,descenderProbMap);
-        
-        cuts[0]->changeSrc(&column,tempXOffset,tempYOffset);
-        cuts[1]->changeSrc(&column,tempXOffset,tempYOffset);
-        printf("cuts[0].height after change=%d\n",cuts[0]->height());
+//        printf("cuts[0].height after change=%d\n",cuts[0]->height());
         //test//
         QString debugfile = "./output/cut_";
         QString num;
@@ -1254,22 +1287,23 @@ QVector<BPartition*> WordSeparator::segmentLinesOfWords(const BPixelCollection &
         unfinishedCol = cuts[1];
         
         
-        cutEstimate = (unfinishedCol->height() - cut_dist_from_bottom) + spacingEstimate;
+//        cutEstimate = (unfinishedCol->height() - cut_dist_from_bottom) + spacingEstimate;
     }
+    unfinishedCol->changeSrc(&column,0,0);
     ret.append(unfinishedCol);
     
     return ret;
 }
 
-QVector<BPartition*> WordSeparator::recursiveHorizontalCut(const BPixelCollection &img)
+QVector<BPartition*> WordSeparator::recursiveHorizontalCutWords(const BPixelCollection &img)
 {
     QVector<BPartition*> ret;
 //    BImage base(column);
 //    base.save("./starting_image.ppm");
     BPartition* unfinished = new BPartition(&img);
-    for (int x=0; x<column.width(); x++)
+    for (int x=0; x<img.width(); x++)
     {
-        for (int y=0; y<column.height(); y++)
+        for (int y=0; y<img.height(); y++)
         {
             unfinished->addPixelFromSrc(x,y);
         }
@@ -1280,46 +1314,88 @@ QVector<BPartition*> WordSeparator::recursiveHorizontalCut(const BPixelCollectio
     int accumulativeXOffset=0;
     int accumulativeYOffset=0;
     
+    bool cont = true;
+    int insertIndex=0;
     
-    while (???)
+    while (cont)
     {
-        BImage lineremoved = BoxCleaner::clearLineAndCloseLetters(*unfinishedCol,cutEstimate,&vert_divide,&crossPoints);
-        int cut_dist_from_bottom = unfinishedCol->height() - vert_divide;
-        QVector<BPartition*> cuts = horzCutEntries(lineremoved,vert_divide);
+        QVector<BPartition*> cuts;
+        int maxflow = minCut(*unfinished,cuts);
         
+//        BImage test = unfinished->makeImage();
         cuts[0]->makeImage().save("./test0.ppm");
         cuts[1]->makeImage().save("./test1.ppm");
-        lineremoved.claimOwnership(cuts[0],1);
-        lineremoved.saveOwners("./test.ppm");
-        printf("vert:%d, cuts[0].height=%d\n",vert_divide,cuts[0]->height());
+//        test.claimOwnership(cuts[0],1);
+//        test.saveOwners("./test.ppm");
         
         int tempXOffset = accumulativeXOffset;
         int tempYOffset = accumulativeYOffset;
-        accumulativeXOffset += cuts[1]->getXOffset();
-        accumulativeYOffset += cuts[1]->getYOffset();
         
-        adjustHorzCutCrossOverAreas(cuts[0],cuts[1],crossPoints,descenderProbMap);
+        //state check//
+        bool recurLeft;
+        char read;
+        while(true)
+        {
+            printf("Recur%d:",test_count);
+            scanf("%c",&read);
+            if (read == 'l')
+            {
+                cont = false;
+                break;
+            }
+            else if (read == ',')
+            {
+                recurLeft = true;
+                tempXOffset += cuts[0]->getXOffset();
+                tempYOffset += cuts[0]->getYOffset();
+                break;
+            }
+            else if (read == '.')
+            {
+                recurLeft = false;
+                tempXOffset += cuts[1]->getXOffset();
+                tempYOffset += cuts[1]->getYOffset();
+                break;
+            }
+        }
         
-        cuts[0]->changeSrc(&column,tempXOffset,tempYOffset);
-        cuts[1]->changeSrc(&column,tempXOffset,tempYOffset);
-        printf("cuts[0].height after change=%d\n",cuts[0]->height());
-        //test//
-        QString debugfile = "./output/cut_";
-        QString num;
-        num.setNum(test_count++);
-        debugfile.append(num);
-        debugfile.append(".ppm");;
-        cuts[0]->makeImage().save(debugfile);
-        //test//
-        
-        ret.append(cuts[0]);
-        delete unfinishedCol;
-        unfinishedCol = cuts[1];
         
         
-        cutEstimate = (unfinishedCol->height() - cut_dist_from_bottom) + spacingEstimate;
+        
+        
+        cuts[0]->changeSrc(&img,accumulativeXOffset,accumulativeYOffset);
+        cuts[1]->changeSrc(&img,accumulativeXOffset,accumulativeYOffset);
+        
+        
+        accumulativeXOffset = tempXOffset;
+        accumulativeYOffset = tempYOffset;
+        
+        
+        if (cont && recurLeft)
+        {
+            
+            ret.insert(insertIndex,cuts[1]);
+            delete unfinished;
+            unfinished = cuts[0];
+        }
+        else if (cont)
+        {
+            ret.insert(insertIndex,cuts[0]);
+            delete unfinished;
+            unfinished = cuts[1];
+            insertIndex++;
+            
+        }
+        else//this is based on an overshoot approach
+        {
+            delete cuts[0];
+            delete cuts[1];
+            ret.insert(insertIndex,unfinished);
+        }
+        
+        
+        
     }
-    ret.append(unfinishedCol);
     
     return ret;
 }

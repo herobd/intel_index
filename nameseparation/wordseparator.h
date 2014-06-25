@@ -18,7 +18,7 @@ class WordSeparator
 {
 public:
     WordSeparator();
-    static QVector<BPartition*> minCut(BPixelCollection &toCut);
+    static int minCut(BPixelCollection &toCut, QVector<BPartition*> &ret);
     
 //    static QVector<QImage> cutNames(QImage &img);
 //    static QVector<QImage> recursiveCutWordToFirstLetter(QImage &img);
@@ -29,6 +29,7 @@ public:
     static QVector<BPartition*> testSlopeCut(BPixelCollection &img, const NDimensions &dimensions /*const QVector<QVector<double> > &slopes*/);
     
     static QVector<BPartition*> segmentLinesOfWords(const BPixelCollection &column, int spacingEstimate);
+    static QVector<BPartition*> recursiveHorizontalCutWords(const BPixelCollection &img);
     
 private:
     static void computeInverseDistanceMap(BPixelCollection &img, int* out);

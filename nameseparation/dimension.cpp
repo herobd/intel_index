@@ -12,17 +12,17 @@ Dimension::Dimension(int width, int height)
     for (int i=0; i<width; i++)
     {
         values[i].resize(height);
-        for (int j=0; j<height; j++)
-            values[i][j]=-1;
+//        for (int j=0; j<height; j++)
+//            values[i][j]=-1;
     }
     
-    values2.resize(width);
-    for (int i=0; i<width; i++)
-    {
-        values2[i].resize(height);
-        for (int j=0; j<height; j++)
-            values2[i][j]=-1;
-    }
+//    values2.resize(width);
+//    for (int i=0; i<width; i++)
+//    {
+//        values2[i].resize(height);
+//        for (int j=0; j<height; j++)
+//            values2[i][j]=-1;
+//    }
     
     numOfBins = 0;
     maxValue=INT_MIN;
@@ -31,22 +31,34 @@ Dimension::Dimension(int width, int height)
 
 int Dimension::binForPixel(int x, int y) const
 {
-    if (numOfBins==0)
+    if (numOfBins==0 || values[x][y].size()<1)
         return -1;
     
 //    if (values2[x][y]<0)
-        return (int)((values[x][y]-minValue)*((numOfBins-1)/(maxValue-minValue)));
+        return (int)((values[x][y][0]-minValue)*((numOfBins-1)/(maxValue-minValue)));
 //    else
 //        return (int)((values[x][y]-minValue)*((numOfBins-1)/(maxValue-minValue))) + 
 //                numOfBins*(int)((values2[x][y]-minValue)*((numOfBins-1)/(maxValue-minValue)));
 }
 int Dimension::secondBinForPixel(int x, int y) const
 {
-    if (numOfBins==0)
+    if (numOfBins==0 || values[x][y].size()<2)
         return -1;
     
-    return (int)((values2[x][y]-minValue)*((numOfBins-1)/(maxValue-minValue)));
+    return (int)((values[x][y][1]-minValue)*((numOfBins-1)/(maxValue-minValue)));
 }
+
+QVector<int> Dimension::binsForPixel(int x, int y) const
+{
+    QVector<int> ret;
+    foreach (double val, values[x][y])
+    {
+        ret.append((int)((val-minValue)*((numOfBins-1)/(maxValue-minValue))));
+    }
+
+    return ret;
+}
+
 int Dimension::getNumBins() const
 {
     return numOfBins;
@@ -54,7 +66,10 @@ int Dimension::getNumBins() const
 
 void Dimension::setValueForPixel(int x, int y, double value)
 {
-    values[x][y]=value;
+    if (values[x][y].size()>0)
+        values[x][y][0]=value;
+    else
+        values[x][y].append(value);
 //    if (value < minValue)
 //        minValue=value;
     
@@ -64,7 +79,10 @@ void Dimension::setValueForPixel(int x, int y, double value)
 
 void Dimension::setValueForPixel(const QPoint &p, double value)
 {
-    values[p.x()][p.y()]=value;
+    if (values[p.x()][p.y()].size()>0)
+        values[p.x()][p.y()][0]=value;
+    else
+        values[p.x()][p.y()].append(value);
 //    if (value < minValue)
 //        minValue=value;
     
@@ -74,7 +92,15 @@ void Dimension::setValueForPixel(const QPoint &p, double value)
 
 void Dimension::setSecondValueForPixel(int x, int y, double value)
 {
-    values2[x][y]=value;
+    if (values[x][y].size()>1)
+        values[x][y][1]=value;
+    else if (values[x][y].size()>0)
+        values[x][y].append(value);
+    else
+    {
+        values[x][y].append(-1);
+        values[x][y].append(value);
+    }
 //    if (value < minValue)
 //        minValue=value;
     
@@ -84,12 +110,30 @@ void Dimension::setSecondValueForPixel(int x, int y, double value)
 
 void Dimension::setSecondValueForPixel(const QPoint &p, double value)
 {
-    values2[p.x()][p.y()]=value;
+    if (values[p.x()][p.y()].size()>1)
+        values[p.x()][p.y()][1]=value;
+    else if (values[p.x()][p.y()].size()>0)
+        values[p.x()][p.y()].append(value);
+    else
+    {
+        values[p.x()][p.y()].append(-1);
+        values[p.x()][p.y()].append(value);
+    }
 //    if (value < minValue)
 //        minValue=value;
     
 //    if (value>maxValue)
 //        maxValue=value;
+}
+
+void Dimension::setValuesForPixel(int x, int y, QVector<double> value)
+{
+    values[x][y]=value;
+}
+
+void Dimension::setValuesForPixel(const QPoint &p, QVector<double> value)
+{
+    values[p.x()][p.y()]=value;
 }
 
 void Dimension::setNumOfBins(int num)
@@ -128,6 +172,17 @@ QVector<int> NDimensions::getSecondBinsForPixel(int x, int y) const
     }
     return ret;
 }
+
+QVector<QVector<int> > NDimensions::getBinsForDimensionsOfPixel(int x, int y) const
+{
+    QVector<QVector<int> > ret;
+    foreach (Dimension dim, dimensions)
+    {
+        ret.append(dim.binsForPixel(x,y));
+    }
+    return ret;
+}
+
 QVector<int> NDimensions::getBinNums() const
 {
     QVector<int> ret;

@@ -303,24 +303,33 @@ QImage BImage::getOwnersImage()
     QVector<QRgb> color_table;
     color_table.append(qRgb(0,0,0));
     color_table.append(qRgb(255,255,255));
+    
     color_table.append(qRgb(3,21,255));
     color_table.append(qRgb(123,136,255));
+    
     color_table.append(qRgb(255,0,0));
     color_table.append(qRgb(255,120,120));
+    
     color_table.append(qRgb(207,178,3));
     color_table.append(qRgb(255,241,159));
+    
     color_table.append(qRgb(21,212,0));
     color_table.append(qRgb(193,255,149));
+    
     color_table.append(qRgb(0,184,179));
     color_table.append(qRgb(149,255,252));
+    
+   
+    color_table.append(qRgb(122,0,122));
+    color_table.append(qRgb(224,0,223));
     
     QMap<BPartition*,int> partitionIndex;
     int currentIndex=0;
     
     QImage ret(myWidth,myHeight,QImage::Format_Indexed8);
     ret.setColorTable(color_table);
-    for (int x=0; x<myWidth; x++)
-        for (int y=0; y<myHeight; y++)
+    for (int y=0; y<myHeight; y++)
+        for (int x=0; x<myWidth; x++)
         {
             if (pixels[x][y].ownership.size()>0)
             {
@@ -342,7 +351,7 @@ QImage BImage::getOwnersImage()
                 {
                     if (!partitionIndex.contains(mostId))
                     {
-                        currentIndex = (1+currentIndex)%5;
+                        currentIndex = (1+currentIndex)%6;
                         partitionIndex[mostId]=currentIndex;
                     }
                     

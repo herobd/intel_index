@@ -47,7 +47,10 @@ int GraphCut::pixelsOfSeparation(int* invDistMap, int width, int height, BPixelC
         g->add_node();
     }
     
-//    QImage debug = img.copy(0,0,img.width(),img.height());
+    QImage debug = img.makeImage().getImage();
+    QVector<QRgb>ct =debug.colorTable();
+    ct.append(qRgb(150,150,150));
+    debug.setColorTable(ct);
     
     if (split_method == SPLIT_HORZ)
     {
@@ -61,7 +64,7 @@ int GraphCut::pixelsOfSeparation(int* invDistMap, int width, int height, BPixelC
                 {
                     int index = i+width*j;
                     g -> add_tweights(index, anchor_weight,0);//invDistMap[index], 0);
-    //                debug.setPixel(i,j,150);
+                    debug.setPixel(i,j,2);
                     count_source--;
                 }
             }
@@ -155,7 +158,7 @@ int GraphCut::pixelsOfSeparation(int* invDistMap, int width, int height, BPixelC
                     int index = ((width-1)-(o-i))+width*((height-1)-i);
                     g -> add_tweights(index, 0, anchor_weight);
                     count_sink--;
-    //                debug.setPixel((width-1)-(o-i),(height-1)-i,150);
+                    debug.setPixel((width-1)-(o-i),(height-1)-i,2);
                     
                     //fill
     //                QPoint p((width-1)-(o-i),(height-1)-i);
@@ -250,6 +253,8 @@ int GraphCut::pixelsOfSeparation(int* invDistMap, int width, int height, BPixelC
         }
     }
     
+    debug.save("./anchors.ppm");
+    
     //printf("num source:%d, num sink:%d\n",count_source,count_sink);
     
 //    double BLACK_TO_BLACK_V_BIAS = 1;
@@ -271,8 +276,8 @@ int GraphCut::pixelsOfSeparation(int* invDistMap, int width, int height, BPixelC
     
     if (split_method==SPLIT_VERT)
     {
-        BLACK_TO_BLACK_V_BIAS = 1.25;
-        BLACK_TO_BLACK_H_BIAS = 1.25;
+        BLACK_TO_BLACK_V_BIAS = .5;
+        BLACK_TO_BLACK_H_BIAS = .5;
         BLACK_TO_BLACK_D_BIAS = sqrt(pow(BLACK_TO_BLACK_V_BIAS,2)+pow(BLACK_TO_BLACK_H_BIAS,2));
         WHITE_TO_BLACK_BIAS = .5;
         BLACK_TO_WHITE_BIAS = .5;
@@ -299,21 +304,21 @@ int GraphCut::pixelsOfSeparation(int* invDistMap, int width, int height, BPixelC
     {
         for (int j=0; j<height; j++)
         {   
-            if (split_method==SPLIT_VERT)
-            {
-                if (j<vert_divide)
-                {
-                    reducer = ((vert_divide + vert_divide-j)/(double)(2*vert_divide));
-                }
-                else
-                {
-                    reducer = ((((height-1) -(double)vert_divide) + j-vert_divide)/(2.*((height-1) -(double)vert_divide)));
-                }
-            }
-            else if (split_method==CHOP_TOP)
-            {
-                   reducer = ((3.0*height-j)/(double)(3*height));
-            }
+//            if (split_method==SPLIT_VERT)
+//            {
+//                if (j<vert_divide)
+//                {
+//                    reducer = ((2*vert_divide-j)/(double)(2*vert_divide));
+//                }
+//                else
+//                {
+//                    reducer = ((((height-1) -(double)vert_divide) + j-vert_divide)/(2.*((height-1) -(double)vert_divide)));
+//                }
+//            }
+//            else if (split_method==CHOP_TOP)
+//            {
+//                   reducer = ((3.0*height-j)/(double)(3*height));
+//            }
             
             
             if (i+1<width)
@@ -413,33 +418,54 @@ inline QVector<QVector<QVector<double> > > make3dImage(const BPixelCollection &i
             {
                 
                 
-                int bin = dimensions.getBinsForPixel(x,y)[0];
-                if (bin>=0)
+//                int bin = dimensions.getBinsForPixel(x,y)[0];
+//                if (bin>=0)
+//                {
+//                    for (int k=0; k<dimensions.getBinNums()[0]; k++)
+//                    {
+//                        slope[k]=0;
+//                    }
+//                    int secondBin = dimensions.getSecondBinsForPixel(x,y)[0];
+//                    if (secondBin >= 0)
+//                    {
+////                        int secondBin = bin/dimensions.getBinNums()[0];
+////                        bin = bin%dimensions.getBinNums()[0];
+                        
+//                        slope[secondBin]=invDistMap[x+y*img.width()];
+//                        for (int kb=1; kb<slopeDifRange; kb++)
+//                        {
+//                            slope[mod((secondBin+kb),dimensions.getBinNums()[0])]+=invDistMap[x+y*img.width()]*((slopeDifRange-kb)/(1.0*slopeDifRange));
+//                            slope[mod((secondBin-kb),dimensions.getBinNums()[0])]+=invDistMap[x+y*img.width()]*((slopeDifRange-kb)/(1.0*slopeDifRange));
+//                        }
+//                    }
+                    
+//                    slope[bin]=invDistMap[x+y*img.width()];
+//                    for (int kb=1; kb<slopeDifRange; kb++)
+//                    {
+//                        slope[mod((bin+kb),dimensions.getBinNums()[0])]+=invDistMap[x+y*img.width()]*((slopeDifRange-kb)/(1.0*slopeDifRange));
+//                        slope[mod((bin-kb),dimensions.getBinNums()[0])]+=invDistMap[x+y*img.width()]*((slopeDifRange-kb)/(1.0*slopeDifRange));
+//                    }
+//                }
+                QVector<int> binsForDim = dimensions.getBinsForDimensionsOfPixel(x,y)[0];
+                if (binsForDim.size()>0)
                 {
                     for (int k=0; k<dimensions.getBinNums()[0]; k++)
                     {
                         slope[k]=0;
                     }
-                    int secondBin = dimensions.getSecondBinsForPixel(x,y)[0];
-                    if (secondBin >= 0)
+                    foreach (int bin, binsForDim)
                     {
 //                        int secondBin = bin/dimensions.getBinNums()[0];
 //                        bin = bin%dimensions.getBinNums()[0];
                         
-                        slope[secondBin]=invDistMap[x+y*img.width()];
+                        slope[bin]=invDistMap[x+y*img.width()];
                         for (int kb=1; kb<slopeDifRange; kb++)
                         {
-                            slope[mod((secondBin+kb),dimensions.getBinNums()[0])]+=invDistMap[x+y*img.width()]*((slopeDifRange-kb)/(1.0*slopeDifRange));
-                            slope[mod((secondBin-kb),dimensions.getBinNums()[0])]+=invDistMap[x+y*img.width()]*((slopeDifRange-kb)/(1.0*slopeDifRange));
+                            slope[mod((bin+kb),dimensions.getBinNums()[0])]+=invDistMap[x+y*img.width()]*((slopeDifRange-kb)/(1.0*slopeDifRange));
+                            slope[mod((bin-kb),dimensions.getBinNums()[0])]+=invDistMap[x+y*img.width()]*((slopeDifRange-kb)/(1.0*slopeDifRange));
                         }
                     }
                     
-                    slope[bin]=invDistMap[x+y*img.width()];
-                    for (int kb=1; kb<slopeDifRange; kb++)
-                    {
-                        slope[mod((bin+kb),dimensions.getBinNums()[0])]+=invDistMap[x+y*img.width()]*((slopeDifRange-kb)/(1.0*slopeDifRange));
-                        slope[mod((bin-kb),dimensions.getBinNums()[0])]+=invDistMap[x+y*img.width()]*((slopeDifRange-kb)/(1.0*slopeDifRange));
-                    }
                 }
                 else
                 {
@@ -551,25 +577,29 @@ int GraphCut::pixelsOfSeparationNDimensions(int* invDistMap, int width, int heig
         g->add_node();
     }
     
-    QImage debug = img.makeImage().getImage().copy(0,0,img.width(),img.height());
+    QImage debug = img.makeImage().getImage();
+    QVector<QRgb> ct = debug.colorTable();
+    ct.append(qRgb(255,150,150));
+    ct.append(qRgb(150,255,150));
+    debug.setColorTable(ct);
     
     if (split_method == SPLIT_HORZ)
     {
         //find source pixels
         int count_source = 50;//height*ANCHOR_L;
-//        for (int i=0; count_source>0 && i<width; i++)
-//        {
-//            for (int j=0; count_source>0 && j<height; j++)
-//            {
-//                if (img.pixel(i,j))
-//                {
-//                    int index = indexer.getIndex(i,j);
-//                    g -> add_tweights(index, anchor_weight,0);//invDistMap[index], 0);
-//    //                debug.setPixel(i,j,150);
-//                    count_source--;
-//                }
-//            }
-//        }
+        for (int j=0; count_source>0 && j<height; j++)
+        {
+            for (int i=0; count_source>0 && i<width; i++)
+            {
+                if (img.pixel(i,j))
+                {
+                    int index = indexer.getIndex(i,j);
+                    g -> add_tweights(index, anchor_weight,0);//invDistMap[index], 0);
+                    debug.setPixel(i,j,2);
+                    count_source--;
+                }
+            }
+        }
         
         
         
@@ -577,61 +607,61 @@ int GraphCut::pixelsOfSeparationNDimensions(int* invDistMap, int width, int heig
         //diag method
 //        QImage mark = img.copy(0,0,img.width(),img.height());
 //        QVector<QPoint> workingStack;
-        for (int o=0; o<width && count_source>0; o++)
-        {
-            for (int i=0; i<=o && i<height && count_source>0; i++)
-            {
-                int x = o-i;
-                int y = i;
-                if (img.pixel(x,y))
-                {
-                    int index = indexer.getIndex(x,y);//(o-i)+width*i;
-                    if (index<0)
-                        continue;
-                    g -> add_tweights(index, INT_POS_INFINITY,0);
-                    count_source--;
-                    debug.setPixel(x,y,1);
-                }
-            }
-        }
+//        for (int o=0; o<width && count_source>0; o++)
+//        {
+//            for (int i=0; i<=o && i<height && count_source>0; i++)
+//            {
+//                int x = o-i;
+//                int y = i;
+//                if (img.pixel(x,y))
+//                {
+//                    int index = indexer.getIndex(x,y);//(o-i)+width*i;
+//                    if (index<0)
+//                        continue;
+//                    g -> add_tweights(index, INT_POS_INFINITY,0);
+//                    count_source--;
+//                    debug.setPixel(x,y,2);
+//                }
+//            }
+//        }
     //    workingStack.clear();
         
         int count_sink=50;//height*ANCHOR_R;
         
         //find sink pixels
-    //    for (int i=width-1; count_sink>0 && i>=0; i--)
-    //    {
-    //        for (int j=height-1; count_sink>0 && j>=0; j--)
-    //        {
-    //            if (qGray(img.pixel(i,j))==BLACK)
-    //            {
-    //                int index = i+width*j;
-    //                g -> add_tweights(index, 0, INT_POS_INFINITY);//invDistMap[index]);
-    ////                debug.setPixel(i,j,150);
-    //                count_sink--;
-    //            }
-    //        }
-    //    }
-        
-        //diag method
-        for (int o=0; o<width && count_sink>0; o++)
+        for (int j=height-1; count_sink>0 && j>=0; j--)
         {
-            for (int i=0; i<=o && i<height && count_sink>0; i++)
+            for (int i=width-1; count_sink>0 && i>=0; i--)
             {
-                //debug.setPixel((width-1)-(o-i),(height-1)-i,220);
-                int x = (width-1)-(o-i);
-                int y = (height-1)-i;
-                if (img.pixel(x,y))
+                if (img.pixel(i,j))
                 {
-                    int index = indexer.getIndex(x,y);
-                    if (index<0)
-                        continue;
-                    g -> add_tweights(index, 0, anchor_weight);
+                    int index = i+width*j;
+                    g -> add_tweights(index, 0, INT_POS_INFINITY);//invDistMap[index]);
+                    debug.setPixel(i,j,3);
                     count_sink--;
-                    debug.setPixel(x,y,1);
                 }
             }
         }
+        
+        //diag method
+//        for (int o=0; o<width && count_sink>0; o++)
+//        {
+//            for (int i=0; i<=o && i<height && count_sink>0; i++)
+//            {
+//                //debug.setPixel((width-1)-(o-i),(height-1)-i,220);
+//                int x = (width-1)-(o-i);
+//                int y = (height-1)-i;
+//                if (img.pixel(x,y))
+//                {
+//                    int index = indexer.getIndex(x,y);
+//                    if (index<0)
+//                        continue;
+//                    g -> add_tweights(index, 0, anchor_weight);
+//                    count_sink--;
+//                    debug.setPixel(x,y,1);
+//                }
+//            }
+//        }
         debug.save("./anchors.ppm");
     }
     else if (split_method == SPLIT_VERT)
@@ -751,32 +781,52 @@ int GraphCut::pixelsOfSeparationNDimensions(int* invDistMap, int width, int heig
             
             if (img.pixel(x,y))
             {
-                int index = indexer.getIndex(x,y);
-                if (dimensions.getSecondBinsForPixel(x,y)[0] < 0 && index>=0)
-                {
+//                int index = indexer.getIndex(x,y);
+//                if (dimensions.getSecondBinsForPixel(x,y)[0] < 0 && index>=0)
+//                {
                     
-                    if (g->what_segment(index) == GraphType::SOURCE)
-                        outSource.append(x+width*y);
-                    else
-                        outSink.append(x+width*y);
-                }
-                else if (index >=0)
-                {
-                    int firstBin = dimensions.getBinsForPixel(x,y)[0];
-                    int firstIndex = indexer.getIndex(x,y,firstBin);
-                    int secondBin = dimensions.getSecondBinsForPixel(x,y)[0];
-                    int secondIndex = indexer.getIndex(x,y,secondBin);
+//                    if (g->what_segment(index) == GraphType::SOURCE)
+//                        outSource.append(x+width*y);
+//                    else
+//                        outSink.append(x+width*y);
+//                }
+//                else if (index >=0)
+//                {
+//                    int firstBin = dimensions.getBinsForPixel(x,y)[0];
+//                    int firstIndex = indexer.getIndex(x,y,firstBin);
+//                    int secondBin = dimensions.getSecondBinsForPixel(x,y)[0];
+//                    int secondIndex = indexer.getIndex(x,y,secondBin);
                     
-                    if (g->what_segment(firstIndex) == GraphType::SOURCE)
-                        outSource.append(x+width*y);
-                    else
-                        outSink.append(x+width*y);
+//                    if (g->what_segment(firstIndex) == GraphType::SOURCE)
+//                        outSource.append(x+width*y);
+//                    else
+//                        outSink.append(x+width*y);
                     
-                    if (g->what_segment(secondIndex) == GraphType::SOURCE)
-                        outSource.append(x+width*y);
-                    else
-                        outSink.append(x+width*y);
+//                    if (g->what_segment(secondIndex) == GraphType::SOURCE)
+//                        outSource.append(x+width*y);
+//                    else
+//                        outSink.append(x+width*y);
                         
+//                }
+                QVector<int> binsForDim = dimensions.getBinsForDimensionsOfPixel(x,y)[0];
+               
+                if (binsForDim.size() >0)
+                {
+                    bool onSource = false;
+                    bool onSink = false;
+                    foreach (int bin, binsForDim)
+                    {
+                        int index = indexer.getIndex(x,y,bin);
+                        
+                        if (g->what_segment(index) == GraphType::SOURCE)
+                            onSource=true;
+                        else
+                            onSink=true;
+                    }
+                    if (onSource)
+                        outSource.append(x+width*y);
+                    if (onSink)
+                        outSink.append(x+width*y);
                 }
                 else
                 {

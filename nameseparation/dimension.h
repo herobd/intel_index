@@ -12,18 +12,21 @@ public:
     Dimension(int width, int height);
     int binForPixel(int x, int y) const;
     int secondBinForPixel(int x, int y) const;
+    QVector<int> binsForPixel(int x, int y) const;
     int getNumBins() const;
     
     void setValueForPixel(int x, int y, double value);
     void setValueForPixel(const QPoint &p, double value);
     void setSecondValueForPixel(int x, int y, double value);
     void setSecondValueForPixel(const QPoint &p, double value);
+    void setValuesForPixel(int x, int y, QVector<double> value);
+    void setValuesForPixel(const QPoint &p, QVector<double> value);
     void setNumOfBins(int num);
     void setMinMax(int min, int max);
 private:
     
-    QVector<QVector<double> > values;
-    QVector<QVector<double> > values2;
+    QVector<QVector<QVector<double> > > values;
+//    QVector<QVector<QVector<double> > > values2;
     double minValue;
     double maxValue;
     int numOfBins;
@@ -36,6 +39,7 @@ public:
     NDimensions();
     QVector<int> getBinsForPixel(int x, int y) const;
     QVector<int> getSecondBinsForPixel(int x, int y) const;
+    QVector<QVector<int> > getBinsForDimensionsOfPixel(int x, int y) const;
     QVector<int> getBinNums() const;
     int numOfDim() const;
     
