@@ -105,7 +105,7 @@ QVector<BPartition*> WordSeparator::horzCutEntries(BPixelCollection &img, int ve
     return ret;
 }
 
-QVector<BPartition*> WordSeparator::testSlopeCut(BPixelCollection &img, const NDimensions &dimensions /*const QVector<QVector<double> > &slopes*/)
+QVector<BPartition*> WordSeparator::testSlopeCut(BPixelCollection &img, const NDimensions &dimensions, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds /*const QVector<QVector<double> > &slopes*/)
 {
     int num_pix = img.width()*img.height();
     //double pix_vals[num_pix];
@@ -116,7 +116,7 @@ QVector<BPartition*> WordSeparator::testSlopeCut(BPixelCollection &img, const ND
     QVector<int> secondImgIndexes;
     
 //    int maxflow = GraphCut::pixelsOfSeparationWithSlope(invDistMap,img.width(),img.height(),img, slopes,firstImgIndexes,secondImgIndexes);
-    int maxflow = GraphCut::pixelsOfSeparationNDimensions(invDistMap,img.width(),img.height(),img, dimensions,firstImgIndexes,secondImgIndexes);
+    int maxflow = GraphCut::pixelsOfSeparationNDimensions(invDistMap,img.width(),img.height(),img, dimensions,sourceSeeds,sinkSeeds,firstImgIndexes,secondImgIndexes);
     
     BPartition* firstPart = new BPartition(&img);
     BPartition* secondPart = new BPartition(&img);
@@ -196,17 +196,18 @@ void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bot
                 
                 if (abs(cur.x()-keyPoint.x()) < SUBSECTION_WIDTH_FROM_KEYPOINT)
                 {
+                    subsection.addPixelFromSrc(cur);
                     if (cur.y() <= keyPoint.y() && (subsectionTopPixelCount < SUBSECTION_PIXEL_COUNT_MAX || abs(cur.x()-keyPoint.x())<10))
                     {
-                        subsection.addPixelFromSrc(cur);
                         subsectionTopPixelCount++;
                     }
                     else if (cur.y() > keyPoint.y() && (subsectionBottomPixelCount < SUBSECTION_PIXEL_COUNT_MAX || abs(cur.x()-keyPoint.x())<10))
                     {
-                        subsection.addPixelFromSrc(cur);
                         subsectionBottomPixelCount++;
                     }
                 }
+                
+//                if ((cur.x()-keyPoint.x()) == SUBSECTION_WIDTH_FROM_KEYPOINT-1 && )
                 
                 //this needs changed
                 if (!crossover && top->pixelIsMineSrc(cur) != topStarted)
@@ -411,6 +412,51 @@ void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bot
     //                    subsection.trim(cutOffLeft,cutOffRight,0,0);
     //                }
                     
+                    //find border points for anchoring 3D cut
+                    QVector<QPoint> sourceStart;
+                    QVector<QPoint> sinkStart;
+                    //top
+                    for (int x=0; x<newSubsection.width(); x++)
+                    {
+                        if (newSubsection.pixel(x,0) && newSubsection.getSrc()->pixel(x+newSubsection.getXOffset(),newSubsection.getYOffset() - 1))
+                        {
+                            QPoint toAdd(x,0);
+                            sourceStart.append(toAdd);
+                        }
+                    }
+                    //bottom
+                    for (int x=0; x<newSubsection.width(); x++)
+                    {
+                        if (newSubsection.pixel(x,newSubsection.height()-1) && newSubsection.getSrc()->pixel(x+newSubsection.getXOffset(),newSubsection.getYOffset() + newSubsection.height()))
+                        {
+                            QPoint toAdd(x,newSubsection.height()-1);
+                            sinkStart.append(toAdd);
+                        }
+                    }
+                    //left
+                    for (int y=0; y<newSubsection.height(); y++)
+                    {
+                        if (newSubsection.pixel(0,y) && newSubsection.getSrc()->pixel(newSubsection.getXOffset()-1,newSubsection.getYOffset() + y))
+                        {
+                            QPoint toAdd(0,y);
+                            if (y+newSubsection.getYOffset() <= keyPoint.y())
+                                sourceStart.append(toAdd);
+                            else
+                                sinkStart.append(toAdd);
+                        }
+                    }
+                    //right
+                    for (int y=0; y<newSubsection.height(); y++)
+                    {
+                        if (newSubsection.pixel(newSubsection.width()-1,y) && newSubsection.getSrc()->pixel(newSubsection.getXOffset() + newSubsection.width(),newSubsection.getYOffset() + y))
+                        {
+                            QPoint toAdd(newSubsection.width()-1,y);
+                            if (y+newSubsection.getYOffset() <= keyPoint.y())
+                                sourceStart.append(toAdd);
+                            else
+                                sinkStart.append(toAdd);
+                        }
+                    }
                     
                     xs.setNum(keyPoint.x());
                     ys.setNum(keyPoint.y());
@@ -421,6 +467,9 @@ void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bot
                     loc+=".ppm";
                     
                     newSubsection.makeImage().save(loc);
+                    
+                    //Do 3D cut.
+                    
     //                printf("sub(%d,%d):[%d,%d]\n", keyPoint.x(), keyPoint.y(), subsection.width(),subsection.height());
                     
     //                QVector<BPartition*> newTopBottom = horzCutEntries(subsection,keyPoint.y());

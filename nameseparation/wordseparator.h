@@ -26,7 +26,7 @@ public:
     static void adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bottom, QVector<QPoint> crossPoints, QVector<QVector<double> > descenderProbMap);
     static BPartition* chopOutTop(BPixelCollection &src);
     
-    static QVector<BPartition*> testSlopeCut(BPixelCollection &img, const NDimensions &dimensions /*const QVector<QVector<double> > &slopes*/);
+    static QVector<BPartition*> testSlopeCut(BPixelCollection &img, const NDimensions &dimensions, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds /*const QVector<QVector<double> > &slopes*/);
     
     static QVector<BPartition*> segmentLinesOfWords(const BPixelCollection &column, int spacingEstimate);
     static QVector<BPartition*> recursiveHorizontalCutWords(const BPixelCollection &img);
