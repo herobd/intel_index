@@ -8,6 +8,8 @@
 #include <math.h>
 #include <fstream>
 #include <QRegExp>
+#include "gimage.h"
+#include "gpartition.h"
 
 using namespace std;
 struct tracePoint
@@ -104,9 +106,8 @@ int main(int argc, char** argv)
 //    delete cuts[1];
 //    delete top;
     
-    /////////////////////////////////////////////////////////////////////
+    //////3D/////////////////////////////////3D//////////////////////////////3D
     
-//    QVector<QVector<double> > slopes(bimg.width());
     Dimension slopes(bimg.width(),bimg.height());
     
     int numOfBins = (bimg.width()+bimg.height())/2;
@@ -207,8 +208,8 @@ int main(int argc, char** argv)
 //        printf("read index %d\n",index);
         if (index >= tracePoints.size())
         {
-            nextPoint.x=re.cap(2).toInt();
-            nextPoint.y=re.cap(3).toInt();
+            nextPoint.x=re.cap(2).toInt()-1;
+            nextPoint.y=re.cap(3).toInt()-1;
             int last = re.cap(4).toInt();
             double angle = re.cap(6).toDouble();
             if (angle < 0)
@@ -344,23 +345,112 @@ int main(int argc, char** argv)
     NDimensions dimensions;
     dimensions.addDimension(slopes);
     
+    
+    /////begin intensity
+    
+    //we first must read in a parallel, greyscale file
+//    QImage testg(argv[2]);
+//    GImage gimg(testg);
+    
+//    BPartition pbCells(&bimg);
+    
+//    GPartition pgCells(&gimg);
+    
+    
+//    int x1=473;
+//    int y1=2056;
+//    int x2=900;
+//    int y2=2137;
+//    for (int x=x1; x<=x2; x++)
+//    {
+//        for (int y=y1; y<=y2; y++)
+//        {
+//            if (bimg.pixel(x,y))
+//            {
+//                pbCells.addPixelFromSrc(x,y);
+//            }
+//        }
+//    }
+//    BImage bCells= pbCells.makeImage();
+//    bCells = BoxCleaner::clearLineAndCloseLetters(bCells,40);
+//    bCells.save("./test.ppm");
+    
+//    for (int x=x1; x<=x2; x++)
+//    {
+//        for (int y=y1; y<=y2; y++)
+//        {
+//            if (bCells.pixel(x-x1,y-y1))
+//            {
+//                pgCells.addPixelFromSrc(x,y);
+//            }
+//        }
+//    }
+//    QImage temp = pgCells.makeImage();
+//    GImage gCells(temp);
+    
+//    Dimension intensities(bCells.width(),bCells.height());
+    
+//    //I'll first try a naive scale approach
+//    for (int x=0; x<bCells.width(); x++)
+//    {
+//        for (int y=0; y<bCells.height(); y++)
+//        {
+////            QVector<double> intensity(1);
+//            if (bCells.pixel(x,y))
+//            {
+//                int count = 0;
+//                double average = 0;//gCells.pixel(x,y);
+//                for (int i=-2; i<=2; i++)
+//                {
+//                    for (int j=-2; j<=2; j++)
+//                    {
+//                        if ((i!=-2||j!=-2) && (i!=2||j!=-2) && (i!=-2||j!=2) && (i!=2||j!=2) && x+i>=0 && y+j>=0 && x+i<bCells.width() && y+j<bCells.height() && bCells.pixel(x+i,y+j))
+//                        {
+//                            count++;
+//                            average += gCells.pixel(x+i,y+j);
+//                        }
+//                    }
+//                }
+//                average /=count;
+//                intensities.setValueForPixel(x,y,average);
+//            }
+//            else
+//            {
+////                intensity[0]=0;
+//                intensities.setValueForPixel(x,y,0);
+//            }
+            
+//        }
+//    }
+//    intensities.setNumOfBins(50);
+//    intensities.setMinMax(0,255);
+//    NDimensions dimensions;
+//    dimensions.addDimension(intensities);
+            
+    /////end intensity
+    
     QVector<QPoint> sourceSeeds;
     QVector<QPoint> sinkSeeds;
     
     //for subsection 2
-//    QPoint pa(71,18);
-//    sourceSeeds.append(pa);
-//    QPoint pb(17,69);
-//    sinkSeeds.append(pb);
+    QPoint pa(71,18);
+    sourceSeeds.append(pa);
+    QPoint pb(17,69);
+    sinkSeeds.append(pb);
     //for subsection 3
 //    QPoint pa(33,16);
 //    sourceSeeds.append(pa);
 //    QPoint pb(0,48);
 //    sinkSeeds.append(pb);
-    //for subsection 4
+    //for subsection 4 (has slope issue, color code
 //    QPoint pa(0,37);
 //    sourceSeeds.append(pa);
 //    QPoint pb(59,70);
+//    sinkSeeds.append(pb);
+    //for subsection 5
+//    QPoint pa(68,21);
+//    sourceSeeds.append(pa);
+//    QPoint pb(42,70);
 //    sinkSeeds.append(pb);
     //for subsection 6
 //    QPoint pa(17,20);
@@ -371,11 +461,50 @@ int main(int argc, char** argv)
 //    QPoint pbb(48,66);
 //    sinkSeeds.append(pb);
 //    sinkSeeds.append(pbb);
+    //for subsection 7
+//    QPoint pa(89,6);
+//    QPoint paa(0,12);
+//    sourceSeeds.append(pa);
+//    sourceSeeds.append(paa);
+//    QPoint pb(4,55);
+//    QPoint pbb(68,53);
+//    sinkSeeds.append(pb);
+//    sinkSeeds.append(pbb);
+    //for subsection 8
+//    QPoint pa(8,31);
+//    QPoint paa(74,16);
+//    sourceSeeds.append(pa);
+//    sourceSeeds.append(paa);
+//    QPoint pb(0,62);
+//    QPoint pbb(48,64);
+//    sinkSeeds.append(pb);
+//    sinkSeeds.append(pbb);
+    //for subsection 9
+//    QPoint pa(11,16);
+//    sourceSeeds.append(pa);
+//    QPoint pb(7,53);
+//    QPoint pbb(43,43);
+//    sinkSeeds.append(pb);
+//    sinkSeeds.append(pbb);
     //for subsection 16
-    QPoint pa(1,13);
-    sourceSeeds.append(pa);
-    QPoint pb(6,59);
-    sinkSeeds.append(pb);
+//    QPoint pa(1,13);
+//    sourceSeeds.append(pa);
+//    QPoint pb(6,59);
+//    sinkSeeds.append(pb);
+    
+    //for subsection EE cells
+//    QPoint pa(588-x1,2083-y1);
+//    QPoint paa(735-x1,2065-y1);
+//    QPoint paaa(805-x1,2089-y1);
+//    sourceSeeds.append(pa);
+//    sourceSeeds.append(paa);
+//    sourceSeeds.append(paaa);
+//    QPoint pb(500-x1,2124-y1);
+//    QPoint pbb(708-x1,2131-y1);
+//    QPoint pbbb(881-x1,2129-y1);
+//    sinkSeeds.append(pb);
+//    sinkSeeds.append(pbb);
+//    sinkSeeds.append(pbbb);
     
     QVector<BPartition*> cuts = WordSeparator::testSlopeCut(bimg,dimensions,sourceSeeds,sinkSeeds);
     bimg.claimOwnership(cuts[0],1);

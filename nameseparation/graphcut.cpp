@@ -451,7 +451,7 @@ inline QVector<QVector<QVector<double> > > make3dImage(const BPixelCollection &i
                 {
                     for (int k=0; k<dimensions.getBinNums()[0]; k++)
                     {
-                        slope[k]=0;
+                        slope[k]=2;
                     }
                     foreach (int bin, binsForDim)
                     {
@@ -551,6 +551,7 @@ inline void setEdge3d(int x1, int y1, int slope1, int x2, int y2, int slope2, Gr
 
 int GraphCut::pixelsOfSeparationNDimensions(int* invDistMap, int width, int height, const BPixelCollection &img, const NDimensions &dimensions, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, QVector<int> &outSource, QVector<int> &outSink, int anchor_weight, int split_method, int vert_divide)
 {
+    int NEW_ANCHOR = 80;
     assert(dimensions.numOfDim() == 1);//for now, we will only use three
     
     QVector<QVector<QVector<double> > > image3d = make3dImage(img,invDistMap,dimensions);
@@ -586,7 +587,7 @@ int GraphCut::pixelsOfSeparationNDimensions(int* invDistMap, int width, int heig
     if (split_method == SPLIT_HORZ)
     {
         //find source pixels
-        int count_source = 70*sourceSeeds.size();//height*ANCHOR_L;
+        int count_source = NEW_ANCHOR*sourceSeeds.size();
 //        for (int j=0; count_source>0 && j<height; j++)
 //        {
 //            for (int i=0; count_source>0 && i<width; i++)
@@ -628,42 +629,53 @@ int GraphCut::pixelsOfSeparationNDimensions(int* invDistMap, int width, int heig
         BImage mark = img.makeImage();
         QVector<QPoint> workingStack;
         foreach (QPoint seed, sourceSeeds)
+        {
             workingStack.push_back(seed);
+            mark.setPixel(seed,false);
+        }
         while (!workingStack.isEmpty() && count_source>0)
         {   
             QPoint cur = workingStack.front();
             workingStack.pop_front();
-            int index = indexer.getIndex(cur.x(),cur.y());
-            g -> add_tweights(index, anchor_weight, 0);
+            for (int k=0; k<dimensions.getBinNums()[0]; k++)
+            {
+                int index = indexer.getIndex(cur.x(),cur.y(),k);
+                g -> add_tweights(index, anchor_weight, 0);
+//                g -> add_tweights(index, 0, anchor_weight);
+            }
             debug.setPixel(cur,2);
             count_source--;
             
-            mark.setPixel(cur,false);
+            
             
             if (cur.x()<mark.width()-1 && mark.pixel(cur.x()+1,cur.y()))
             {
                 QPoint pp(cur.x()+1,cur.y());
                 workingStack.push_back(pp);
+                mark.setPixel(pp,false);
                 
             }
             if (cur.x()>0 && mark.pixel(cur.x()-1,cur.y()))
             {
                 QPoint pp(cur.x()-1,cur.y());
                 workingStack.push_back(pp);
+                mark.setPixel(pp,false);
             }
             if (cur.y()>0 && mark.pixel(cur.x(),cur.y()-1))
             {
                 QPoint pp(cur.x(),cur.y()-1);
                 workingStack.push_back(pp);
+                mark.setPixel(pp,false);
             }
             if (cur.y()<mark.height()-1 && mark.pixel(cur.x(),cur.y()+1))
             {
                 QPoint pp(cur.x(),cur.y()+1);
                 workingStack.push_back(pp);
+                mark.setPixel(pp,false);
             }
         }
         
-        int count_sink=70*sinkSeeds.size();//height*ANCHOR_R;
+        int count_sink=NEW_ANCHOR*sinkSeeds.size();//height*ANCHOR_R;
         
         //find sink pixels
 //        for (int j=height-1; count_sink>0 && j>=0; j--)
@@ -702,38 +714,50 @@ int GraphCut::pixelsOfSeparationNDimensions(int* invDistMap, int width, int heig
         //fill
         workingStack.clear();
         foreach (QPoint seed, sinkSeeds)
+        {
             workingStack.push_back(seed);
+            mark.setPixel(seed,false);
+        }
         while (!workingStack.isEmpty() && count_sink>0)
         {   
             QPoint cur = workingStack.front();
             workingStack.pop_front();
-            int index = indexer.getIndex(cur.x(),cur.y());
-            g -> add_tweights(index, 0, anchor_weight);
+            for (int k=0; k<dimensions.getBinNums()[0]; k++)
+            {
+                int index = indexer.getIndex(cur.x(),cur.y(),k);
+                g -> add_tweights(index, 0, anchor_weight);
+//                g -> add_tweights(index, anchor_weight,0 );
+                
+            }
             debug.setPixel(cur,3);
             count_sink--;
             
-            mark.setPixel(cur,false);
+            
             
             if (cur.x()<mark.width()-1 && mark.pixel(cur.x()+1,cur.y()))
             {
                 QPoint pp(cur.x()+1,cur.y());
                 workingStack.push_back(pp);
+                mark.setPixel(pp,false);
                 
             }
             if (cur.x()>0 && mark.pixel(cur.x()-1,cur.y()))
             {
                 QPoint pp(cur.x()-1,cur.y());
                 workingStack.push_back(pp);
+                mark.setPixel(pp,false);
             }
             if (cur.y()>0 && mark.pixel(cur.x(),cur.y()-1))
             {
                 QPoint pp(cur.x(),cur.y()-1);
                 workingStack.push_back(pp);
+                mark.setPixel(pp,false);
             }
             if (cur.y()<mark.height()-1 && mark.pixel(cur.x(),cur.y()+1))
             {
                 QPoint pp(cur.x(),cur.y()+1);
                 workingStack.push_back(pp);
+                mark.setPixel(pp,false);
             }
         }
         
@@ -795,10 +819,10 @@ int GraphCut::pixelsOfSeparationNDimensions(int* invDistMap, int width, int heig
     
     //connect all pixels
     //For simplicity, only doing three dimensions now
-//    double FLAT_WEIGHT = 1;
-//    double SLOPE_WEIGHT = 1.2;
-    double FLAT_WEIGHT = 8.01;
-    double SLOPE_WEIGHT = .5;
+//    double FLAT_WEIGHT = .5;
+//    double SLOPE_WEIGHT = 4;
+    double FLAT_WEIGHT = 1.25;
+    double SLOPE_WEIGHT = .9;
     int slope_size = dimensions.getBinNums()[0];
     for (int k=0; k<slope_size; k++)
     {
@@ -905,6 +929,9 @@ int GraphCut::pixelsOfSeparationNDimensions(int* invDistMap, int width, int heig
                         outSource.append(x+width*y);
                     if (onSink)
                         outSink.append(x+width*y);
+                    
+//                    if (onSource && onSink)
+//                        printf("overlap occurred\n");
                 }
                 else
                 {
@@ -1045,6 +1072,7 @@ int GraphCut::pixelsOfSeparationWithSlope(int* invDistMap, int width, int height
                 if (img.pixel((width-1)-(o-i),i))
                 {
                     int index = ((width-1)-(o-i))+width*(i);
+//                    g -> add_tweights(index, 0, anchor_weight);
                     g -> add_tweights(index, 0, anchor_weight);
                     count_sink--;
 

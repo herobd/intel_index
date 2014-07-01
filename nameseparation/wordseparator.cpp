@@ -1153,6 +1153,34 @@ void WordSeparator::computeInverseDistanceMap(BPixelCollection &src, int* out)
                     workingStack.push_back(pp);
                     mark.setPixel(pp,false);
                 }
+                //diagonals
+                if (cur.x()>0 && cur.y()>0 && mark.pixel(cur.x()-1,cur.y()-1))
+                {
+                    QPoint pp(cur.x()-1,cur.y()-1);
+                    workingStack.push_back(pp);
+                    mark.setPixel(pp,false);
+                }
+                
+                
+                if (cur.x()<mark.width()-1 && cur.y()>0 && mark.pixel(cur.x()+1,cur.y()-1))
+                {
+                    QPoint pp(cur.x()+1,cur.y()-1);
+                    workingStack.push_back(pp);
+                    mark.setPixel(pp,false);
+                    
+                }
+                if (cur.x()>0 && cur.y()<mark.height()-1 && mark.pixel(cur.x()-1,cur.y()+1))
+                {
+                    QPoint pp(cur.x()-1,cur.y()+1);
+                    workingStack.push_back(pp);
+                    mark.setPixel(pp,false);
+                }
+                if (cur.x()<mark.width()-1 && cur.y()>0 && mark.pixel(cur.x()+1,cur.y()-1))
+                {
+                    QPoint pp(cur.x()+1,cur.y()-1);
+                    workingStack.push_back(pp);
+                    mark.setPixel(pp,false);
+                }
             }
             int cc_size = growingComponent.size();
             while (!growingComponent.isEmpty())
