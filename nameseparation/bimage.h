@@ -35,8 +35,11 @@ public:
     void save(const QString& filepath);
     void saveOwners(const QString& filepath);
     
+    //use
     bool pixel(const QPoint &p) const;
     bool pixel(int x, int y) const;
+    
+    //extras
     bPixel pixelFull(const QPoint &p) const;
     bPixel pixelFull(int x, int y) const;
     float pixelOwnerPortion(const QPoint &p, BPartition* owner) const;
@@ -44,8 +47,11 @@ public:
     BPartition* pixelMajorityOwner(const QPoint &p) const;
     BPartition* pixelMajorityOwner(int x, int y) const;
     
+    //use
     void setPixel(const QPoint &p, bool val);
     void setPixel(int x, int y, bool val);
+    
+    //extras
     void setPixelFull(const QPoint &p, const bPixel &strct);
     void setPixelFull(int x, int y, const bPixel &strct);
     void setPixelOwner(const QPoint &p, BPartition* owner, float portion);

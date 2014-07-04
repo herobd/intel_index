@@ -113,81 +113,30 @@ int main(int argc, char** argv)
     int numOfBins = (bimg.width()+bimg.height())/2;
     QVector<QPoint> refPoints;
     QVector<QVector<double> > refSlopesM;
-//    QVector<double> refSlopes;
-//    QVector<double> refSlopes2;
-    
-//    //1
-//    QPoint p1(3,51);
-//    refPoints.append(p1);
-//    refSlopes.append((.5)*PI);
-//    refSlopes2.append(-1);
-//    QPoint p2(17,50);
-//    refPoints.append(p2);
-//    refSlopes.append((.5)*PI);
-//    refSlopes2.append(.15*PI);
-//    QPoint p3(38,37);
-//    refPoints.append(p3);
-//    refSlopes.append((.35)*PI);
-//    refSlopes2.append(-1);
-//    QPoint p4(66,23);
-//    refPoints.append(p4);
-//    refSlopes.append((.1)*PI);
-//    refSlopes2.append(-1);
-//    QPoint p5(29,58);
-//    refPoints.append(p5);
-//    refSlopes.append((.45)*PI);
-//    refSlopes2.append(-1);
-//    QPoint p6(74,26);
-//    refPoints.append(p6);
-//    refSlopes.append((.4)*PI);
-//    refSlopes2.append(-1);
-//    QPoint p7(53,41);
-//    refPoints.append(p7);
-//    refSlopes.append((.18)*PI);
-//    refSlopes2.append(-1);
-//    QPoint p8(49,34);
-//    refPoints.append(p8);
-//    refSlopes.append((.4)*PI);
-//    refSlopes2.append(-1);
-//    QPoint p10(62,29);
-//    refPoints.append(p10);
-//    refSlopes.append(.38*PI);
-//    refSlopes2.append(.13*PI);
-//    QPoint p11(67,17);
-//    refPoints.append(p11);
-//    refSlopes.append(-1);
-//    refSlopes2.append(-1);
-////    QPoint p12(58,55);
-////    refPoints.append(p12);
-////    refSlopes.append(.25*PI);
-////    refSlopes2.append(-1);
-////    QPoint p13(55,70);
-////    refPoints.append(p13);
-////    refSlopes.append(.5*PI);
-////    refSlopes2.append(-1);
-////    QPoint p14(49,66);
-////    refPoints.append(p14);
-////    refSlopes.append(0);
-////    refSlopes2.append(-1);
-////    QPoint p15(46,62);
-////    refPoints.append(p15);
-////    refSlopes.append(.5*PI);
-////    refSlopes2.append(-1);
-    
-//    for (int i =0; i<refSlopes.size(); i++)
-//    {
-//        QVector<double> slope;
-//        if (refSlopes[i]>0)
-//        slope.append(refSlopes[i]);
-//        if (refSlopes2[i]>0)
-//        slope.append(refSlopes2[i]);
-//        refSlopesM.append(slope);
-//    }
     
    //readfile 
     QVector<tracePoint> tracePoints;
     
-    ifstream infile(argv[2]);
+    ofstream myfile ("matrix.txt");
+    if (myfile.is_open())
+    {
+        myfile << bimg.width() << " ";
+        myfile << bimg.height();
+        myfile << "\n";
+        for (int i =0; i<bimg.width(); i++)
+        {
+            for (int j = 0; j<bimg.height(); j++) {
+                myfile << bimg.pixel(i,j) << " ";
+            }
+            myfile << "\n";
+        }
+        myfile.close();
+    }
+    else cout << "Unable to open file";
+
+    system("java -jar ~/intel_index/nameseparation/ScottsCode/slopeGen.jar matrix slopedata 2.2 4");
+    
+    ifstream infile("slopedata.txt");
     string line;
     getline(infile, line);
     QRegExp rei("(\\d+)(?:[^\\d]+)(\\d+)(?:[^\\d]+)(\\d+)");
@@ -198,40 +147,47 @@ int main(int argc, char** argv)
     init.y=rei.cap(3).toInt();
     tracePoints.append(init);
     
-    QRegExp re("(\\d+)(?:[^\\d]+)(\\d+)(?:[^\\d]+)(\\d+)(?:[^\\d]+)(\\d+)(?:[^\\d]+)(\\d+\\.\\d+)(?:[^\\d]+)(\\d+\\.\\d+)");
+    //(id)(x)(y)...
+    QRegExp re("(\\d+)(?:[^\\d]+)(\\d+)(?:[^\\d]+)(\\d+)+((?:[^\\d]+)(\\d+))");
     while (getline(infile, line))
     {
         QString qLine(line.c_str());
         re.indexIn(qLine);
         tracePoint nextPoint;
-        int index=re.cap(1).toInt();
+        int index=re.cap(1).toInt()-1;
 //        printf("read index %d\n",index);
         if (index >= tracePoints.size())
         {
             nextPoint.x=re.cap(2).toInt()-1;
             nextPoint.y=re.cap(3).toInt()-1;
-            int last = re.cap(4).toInt();
-            double angle = re.cap(6).toDouble();
-            if (angle < 0)
-                angle += 180;
-            nextPoint.connectedPoints.append(last);
-            nextPoint.angleBetween.append(angle);
-            tracePoints.append(nextPoint);
+            for (int i=4; i<re.captureCount(); i++)
+            {
+                int connectionId = re.cap(i).toInt()-1;
+                double angle = atan2((nextPoint.y-tracePoints[connectionId].y),(nextPoint.x-tracePoints[connectionId].x));
+                printf("angle=%f\n",angle);
+    //            double angle = re.cap(6).toDouble();
+                if (angle < 0)
+                    angle += PI;
+                nextPoint.connectedPoints.append(connectionId);
+                nextPoint.angleBetween.append(angle);
+                tracePoints.append(nextPoint);
+                
+                tracePoints[connectionId].connectedPoints.append(index);
+                tracePoints[connectionId].angleBetween.append(angle);
+            }
             
-            tracePoints[last].connectedPoints.append(index);
-            tracePoints[last].angleBetween.append(angle);
         }
-        else//allow double point for looping
+        else
         {
-//            printf("added loop (%d)\n",index);
-            int last = re.cap(4).toInt();
-            double angle = re.cap(6).toDouble();
-            if (angle < 0)
-                angle += 180;
-            tracePoints[index].connectedPoints.append(last);
-            tracePoints[index].angleBetween.append(angle);
-            tracePoints[last].connectedPoints.append(index);
-            tracePoints[last].angleBetween.append(angle);
+            printf("ERROR repeat index read in\n",index);
+//            int last = re.cap(4).toInt();
+//            double angle = re.cap(6).toDouble();
+//            if (angle < 0)
+//                angle += 180;
+//            tracePoints[index].connectedPoints.append(last);
+//            tracePoints[index].angleBetween.append(angle);
+//            tracePoints[last].connectedPoints.append(index);
+//            tracePoints[last].angleBetween.append(angle);
         }
     }
     
@@ -340,7 +296,7 @@ int main(int argc, char** argv)
     }
 
     slopes.setNumOfBins(numOfBins);
-    slopes.setMinMax(0,179);
+    slopes.setMinMax(0,PI);
     
     NDimensions dimensions;
     dimensions.addDimension(slopes);
@@ -433,20 +389,20 @@ int main(int argc, char** argv)
     QVector<QPoint> sinkSeeds;
     
     //for subsection 2
-    QPoint pa(71,18);
-    sourceSeeds.append(pa);
-    QPoint pb(17,69);
-    sinkSeeds.append(pb);
+//    QPoint pa(71,18);
+//    sourceSeeds.append(pa);
+//    QPoint pb(17,69);
+//    sinkSeeds.append(pb);
     //for subsection 3
 //    QPoint pa(33,16);
 //    sourceSeeds.append(pa);
 //    QPoint pb(0,48);
 //    sinkSeeds.append(pb);
     //for subsection 4 (has slope issue, color code
-//    QPoint pa(0,37);
-//    sourceSeeds.append(pa);
-//    QPoint pb(59,70);
-//    sinkSeeds.append(pb);
+    QPoint pa(0,37);
+    sourceSeeds.append(pa);
+    QPoint pb(59,70);
+    sinkSeeds.append(pb);
     //for subsection 5
 //    QPoint pa(68,21);
 //    sourceSeeds.append(pa);
@@ -486,6 +442,13 @@ int main(int argc, char** argv)
 //    QPoint pbb(43,43);
 //    sinkSeeds.append(pb);
 //    sinkSeeds.append(pbb);
+    //for subsection 14
+//    QPoint pa(73,18);
+//    sourceSeeds.append(pa);
+//    QPoint pb(0,70);
+//    QPoint pbb(45,64);
+//    sinkSeeds.append(pb);
+//    sinkSeeds.append(pbb);
     //for subsection 16
 //    QPoint pa(1,13);
 //    sourceSeeds.append(pa);
@@ -515,7 +478,7 @@ int main(int argc, char** argv)
     delete cuts[0];
     delete cuts[1];
     
-    /////////////////////////////////////////////////////////////////
+    ///////////////////////END3D//////////////////////////////////////////
     
     
 //    BImage cleared = BoxCleaner::trimVerticleBoundaries(bimg);
@@ -536,12 +499,12 @@ int main(int argc, char** argv)
     //////////////////////////////////////////////////////
         
     
-//    BImage clean = BoxCleaner::trimBoundaries(bimg);
-//    QVector<BPartition*> cuts;
-//    WordSeparator::minCut(clean,cuts);
-//    clean.claimOwnership(cuts[0],1);
-//    clean.claimOwnership(cuts[1],1);
-//    clean.saveOwners("./test.ppm");
+    //    BImage clean = BoxCleaner::trimBoundaries(bimg);
+    //    QVector<BPartition*> cuts;
+    //    WordSeparator::minCut(clean,cuts);
+    //    clean.claimOwnership(cuts[0],1);
+    //    clean.claimOwnership(cuts[1],1);
+    //    clean.saveOwners("./test.ppm");
     
 //    BImage clean = BoxCleaner::trimBoundaries(bimg);
 //    QVector<BPartition*> segmentation = WordSeparator::recursiveHorizontalCutWords(clean);

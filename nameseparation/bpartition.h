@@ -24,6 +24,7 @@ public:
 //    bool pixel(const QPoint &p) const;
     bool pixel(int x, int y) const;
 //    bool pixelIsMine(const QPoint &p) const;
+    bool pixelIsMineSrc(int src_x, int src_y) const;
     bool pixelIsMineSrc(const QPoint &src_p) const;
     bool pixelIsMine(int x, int y) const;
 //    void setPixelOwner(const QPoint &p, BPartition* owner, float portion);
@@ -37,6 +38,7 @@ public:
     void removePixel(const QPoint &src_p);
     void removePixel(int src_x, int src_y);
     void joinInto(BPartition* other);
+    void join(BPartition* other);
 //    void remove();
     void clear(BPartition* const pixelsToRemove);
     void shiftDownLayer();

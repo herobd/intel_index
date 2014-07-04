@@ -22,7 +22,7 @@ public:
     void setValuesForPixel(int x, int y, QVector<double> value);
     void setValuesForPixel(const QPoint &p, QVector<double> value);
     void setNumOfBins(int num);
-    void setMinMax(int min, int max);
+    void setMinMax(double min, double max);
 private:
     
     QVector<QVector<QVector<double> > > values;

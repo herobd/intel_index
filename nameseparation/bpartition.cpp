@@ -133,6 +133,12 @@ bool BPartition::pixel(int x, int y) const
         return false;
 }
 
+bool BPartition::pixelIsMineSrc(int src_x, int src_y) const
+{
+    assert(src_x>=0 && src_x<src->width() && src_y>=0 && src_y<src->height());
+    return myPixels[src_x][src_y];
+}
+
 bool BPartition::pixelIsMineSrc(const QPoint &src_p) const
 {
     assert(src_p.x()>=0 && src_p.x()<src->width() && src_p.y()>=0 && src_p.y()<src->height());
@@ -417,6 +423,18 @@ void BPartition::joinInto(BPartition* other)
         {
             //src->setPixelCombineOwner(x,y,other,this);
             addPixelFromSrc(x,y);
+        }
+    }
+}
+
+void BPartition::join(BPartition* other)
+{
+    for (int x=other->leftX; x<=other->rightX; x++)
+    {
+        for (int y=other->upperY; y<= other->lowerY; y++)
+        {
+            if (other->pixelIsMineSrc(x,y))
+                addPixelFromSrc(x,y);
         }
     }
 }

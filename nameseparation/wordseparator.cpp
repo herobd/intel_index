@@ -2,7 +2,7 @@
  
 #include <math.h>
 
-
+#include <stdlib.h>
 
 
 
@@ -1100,7 +1100,13 @@ void WordSeparator::computeInverseDistanceMap(BPixelCollection &src, int* out)
 //    printf("maxDist=%d\n",maxDist);
     maxDist++;
 //    double normalizer = (25.0/maxDist);
-    double normalizer = (25.0/2000);
+    double e = 10;
+    double b = 25;
+    double m = 2000;
+    double a = 100;
+    int max_cc_size=500;
+    
+//    double normalizer = (b/m);
     BImage mark = src.makeImage();
     QVector<QPoint> workingStack;
     QVector<QPoint> growingComponent;
@@ -1189,13 +1195,20 @@ void WordSeparator::computeInverseDistanceMap(BPixelCollection &src, int* out)
                 growingComponent.pop_back();
                 int index = cur.x()+src.width()*cur.y();
 //                out[index] = pow(3,25-out[index]*normalizer)/pow(3,21) + 4*std::min(cc_size,500);
-                out[index] = pow(25-std::min(out[index]*normalizer,25.0),4)/pow(5000,1) + 1.5*std::min(cc_size,500)+1;
+//                out[index] = pow(b-std::min(out[index]*(b/m),b),e)/(pow(b,e)*(b/m)) + a*std::min(cc_size,max_cc_size);
+                out[index] = pow(b-std::min(out[index]*(b/m),b),e)*a/(pow(b,e)) + std::min(cc_size,max_cc_size) + 1;
+                
+                if (out[index]>newmax)
+                    newmax=out[index];
+                if (out[index]<newmin)
+                    newmin=out[index];
             }
         }
         else if (!src.pixel(q%src.width(),q/src.width()))
         {
 //            out[q] = pow(3,25-out[q]*normalizer)/pow(3,21);
-            out[q] = pow(25-std::min(out[q]*normalizer,25.0),4)/pow(5000,1) + 1;
+//            out[q] = pow(b-std::min(out[q]*(b/m),b),e)/(pow(b,e)*(b/m));
+            out[q] = pow(b-std::min(out[q]*(b/m),b),e)*a/(pow(b,e)) + 1;
         }
 
         if (out[q]>newmax)
@@ -1233,7 +1246,7 @@ void WordSeparator::computeInverseDistanceMap(BPixelCollection &src, int* out)
     for (int i=0; i<debug.width(); i++)
     {
         for (int j=0; j<debug.height(); j++)
-            debug.setPixel(i,j,(int)((out[i+j*debug.width()]/((double)newmax))*254*3));
+            debug.setPixel(i,j,(int)((out[i+j*debug.width()]/((double)newmax))*254));
         
     }
     debug.save("./inv_dist_map.ppm");
@@ -1394,10 +1407,20 @@ QVector<BPartition*> WordSeparator::recursiveHorizontalCutWords(const BPixelColl
     bool cont = true;
     int insertIndex=0;
     
+    QVector<char> cutStates;
+    QVector<int> maxFlows;
+    QVector<int> imgWidthsLeft;
+    QVector<int> imgWidthsRight;
+    QVector<int> pixCountsLeft;
+    QVector<int> pixCountsRight;
+    
+    bool recurLeft;
+    
     while (cont)
     {
         QVector<BPartition*> cuts;
         int maxflow = minCut(*unfinished,cuts);
+        maxFlows.append(maxflow);
         
 //        BImage test = unfinished->makeImage();
         cuts[0]->makeImage().save("./test0.ppm");
@@ -1405,11 +1428,34 @@ QVector<BPartition*> WordSeparator::recursiveHorizontalCutWords(const BPixelColl
 //        test.claimOwnership(cuts[0],1);
 //        test.saveOwners("./test.ppm");
         
+        imgWidthsLeft.append(cuts[0]->width());
+        imgWidthsRight.append(cuts[1]->width());
+        int leftCount=0;
+        int rightCount=0;
+        for (int x=0; x<cuts[0]->width(); x++)
+        {
+            for (int y=0; y<cuts[0]->height(); y++)
+            {
+                if (cuts[0]->pixel(x,y))
+                    leftCount++;
+            }
+        }
+        for (int x=0; x<cuts[1]->width(); x++)
+        {
+            for (int y=0; y<cuts[1]->height(); y++)
+            {
+                if (cuts[1]->pixel(x,y))
+                    rightCount++;
+            }
+        }
+        pixCountsLeft.append(leftCount);
+        pixCountsRight.append(rightCount);
+        
         int tempXOffset = accumulativeXOffset;
         int tempYOffset = accumulativeYOffset;
         
         //state check//
-        bool recurLeft;
+        
         char read;
         while(true)
         {
@@ -1417,11 +1463,13 @@ QVector<BPartition*> WordSeparator::recursiveHorizontalCutWords(const BPixelColl
             scanf("%c",&read);
             if (read == 'l')
             {
+                cutStates.append('e');
                 cont = false;
                 break;
             }
             else if (read == ',')
             {
+                cutStates.append('l');
                 recurLeft = true;
                 tempXOffset += cuts[0]->getXOffset();
                 tempYOffset += cuts[0]->getYOffset();
@@ -1429,6 +1477,7 @@ QVector<BPartition*> WordSeparator::recursiveHorizontalCutWords(const BPixelColl
             }
             else if (read == '.')
             {
+                cutStates.append('r');
                 recurLeft = false;
                 tempXOffset += cuts[1]->getXOffset();
                 tempYOffset += cuts[1]->getYOffset();
@@ -1471,8 +1520,245 @@ QVector<BPartition*> WordSeparator::recursiveHorizontalCutWords(const BPixelColl
         }
         
         
-        
     }
     
+    if (recurLeft)
+    {
+        insertIndex++;
+    }
+    
+    BPartition* left = new BPartition(&img);
+    for (int i=0; i<insertIndex; i++)
+    {
+        left->join(ret[i]);
+        delete ret[i];
+    }
+    BPartition* right = new BPartition(&img);
+    for (int i=insertIndex; i<ret.size(); i++)
+    {
+        right->join(ret[i]);
+        delete ret[i];
+    }
+    
+    ret.clear();
+    ret.append(left);
+    ret.append(right);
+    
+    int magic = 10;
+    QString p;
+    for (int i=0; i<magic; i++)
+    {
+        if (cutStates.size()>i)
+        {
+            p += QString(cutStates[i]);
+            p += QString(",");
+            p += QString::number(maxFlows[i]);
+            p += QString(",");
+            p += QString::number(imgWidthsLeft[i]);
+            p += QString(",");
+            p += QString::number(imgWidthsRight[i]);
+            p += QString(",");
+            p += QString::number(pixCountsLeft[i]);
+            p += QString(",");
+            p+= QString::number(pixCountsRight[i]);
+            p += QString(",");
+        }
+        else
+        {
+            p += QString(cutStates.last());
+            p += QString(",");
+            p += QString::number(maxFlows.last());
+            p += QString(",");
+            p += QString::number(imgWidthsLeft.last());
+            p += QString(",");
+            p += QString::number(imgWidthsRight.last());
+            p += QString(",");
+            p += QString::number(pixCountsLeft.last());
+            p += QString(",");
+            p+= QString::number(pixCountsRight.last());
+            p += QString(",");
+            
+        }
+    }
+    p[p.size()-1]='\n';
+    printf("%s",qPrintable(p) );
     return ret;
 }
+
+
+//QVector<BPartition*> WordSeparator::recursiveHorizontalCutLetters(const BPixelCollection &img)
+//{
+//    QVector<BPartition*> ret;
+////    BImage base(column);
+////    base.save("./starting_image.ppm");
+//    BPartition* unfinished = new BPartition(&img);
+//    for (int x=0; x<img.width(); x++)
+//    {
+//        for (int y=0; y<img.height(); y++)
+//        {
+//            unfinished->addPixelFromSrc(x,y);
+//        }
+//    }
+
+//    int test_count=0;
+    
+//    int accumulativeXOffset=0;
+//    int accumulativeYOffset=0;
+    
+//    bool cont = true;
+//    int insertIndex=0;
+    
+//    QVector<char> cutStates;
+//    QVector<int> maxFlows;
+//    QVector<int> imgWidthsLeft;
+//    QVector<int> imgWidthsRight;
+//    QVector<int> pixCountsLeft;
+//    QVector<int> pixCountsRight;
+    
+//    while (cont)
+//    {
+//        QVector<BPartition*> cuts;
+//        int maxflow = minCut(*unfinished,cuts);
+//        maxFlows.append(maxflow);
+        
+////        BImage test = unfinished->makeImage();
+//        cuts[0]->makeImage().save("./test0.ppm");
+//        cuts[1]->makeImage().save("./test1.ppm");
+////        test.claimOwnership(cuts[0],1);
+////        test.saveOwners("./test.ppm");
+        
+//        imgWidthsLeft.append(cuts[0]->width());
+//        imgWidthsRight.append(cuts[1]->width());
+//        int leftCount=0;
+//        int rightCount=0;
+//        for (int x=0; x<cuts[0]->width(); x++)
+//        {
+//            for (int y=0; y<cuts[0]->height(); y++)
+//            {
+//                if (cuts[0]->pixel(x,y))
+//                    leftCount++;
+//            }
+//        }
+//        for (int x=0; x<cuts[1]->width(); x++)
+//        {
+//            for (int y=0; y<cuts[1]->height(); y++)
+//            {
+//                if (cuts[1]->pixel(x,y))
+//                    rightCount++;
+//            }
+//        }
+//        pixCountsLeft.append(leftCount);
+//        pixCountsRight.append(rightCount);
+        
+//        int tempXOffset = accumulativeXOffset;
+//        int tempYOffset = accumulativeYOffset;
+        
+//        //state check//
+//        bool recurLeft;
+//        char read;
+//        while(true)
+//        {
+//            printf("Recur%d:",test_count);
+//            scanf("%c",&read);
+//            if (read == 'l')
+//            {
+//                cutStates.append('e');
+//                cont = false;
+//                break;
+//            }
+//            else if (read == ',')
+//            {
+//                cutStates.append('l');
+//                recurLeft = true;
+//                tempXOffset += cuts[0]->getXOffset();
+//                tempYOffset += cuts[0]->getYOffset();
+//                break;
+//            }
+//            else if (read == '.')
+//            {
+//                cutStates.append('r');
+//                recurLeft = false;
+//                tempXOffset += cuts[1]->getXOffset();
+//                tempYOffset += cuts[1]->getYOffset();
+//                break;
+//            }
+//        }
+        
+        
+        
+        
+        
+//        cuts[0]->changeSrc(&img,accumulativeXOffset,accumulativeYOffset);
+//        cuts[1]->changeSrc(&img,accumulativeXOffset,accumulativeYOffset);
+        
+        
+//        accumulativeXOffset = tempXOffset;
+//        accumulativeYOffset = tempYOffset;
+        
+        
+//        if (cont && recurLeft)
+//        {
+            
+//            ret.insert(insertIndex,cuts[1]);
+//            delete unfinished;
+//            unfinished = cuts[0];
+//        }
+//        else if (cont)
+//        {
+//            ret.insert(insertIndex,cuts[0]);
+//            delete unfinished;
+//            unfinished = cuts[1];
+//            insertIndex++;
+            
+//        }
+//        else//this is based on an overshoot approach
+//        {
+//            delete cuts[0];
+//            delete cuts[1];
+//            ret.insert(insertIndex,unfinished);
+//        }
+        
+        
+        
+//    }
+    
+//    int magic = 10;
+//    QString p;
+//    for (int i=0; i<magic; i++)
+//    {
+//        if (cutStates.size()>i)
+//        {
+//            p += QString(cutStates[i]);
+//            p += QString(",");
+//            p += QString::number(maxFlows[i]);
+//            p += QString(",");
+//            p += QString::number(imgWidthsLeft[i]);
+//            p += QString(",");
+//            p += QString::number(imgWidthsRight[i]);
+//            p += QString(",");
+//            p += QString::number(pixCountsLeft[i]);
+//            p += QString(",");
+//            p+= QString::number(pixCountsRight[i]);
+//            p += QString(",");
+//        }
+//        else
+//        {
+//            p += QString(cutStates.last());
+//            p += QString(",");
+//            p += QString::number(maxFlows.last());
+//            p += QString(",");
+//            p += QString::number(imgWidthsLeft.last());
+//            p += QString(",");
+//            p += QString::number(imgWidthsRight.last());
+//            p += QString(",");
+//            p += QString::number(pixCountsLeft.last());
+//            p += QString(",");
+//            p+= QString::number(pixCountsRight.last());
+//            p += QString(",");
+            
+//        }
+//    }
+//    p[p.size()-1]='\n';
+//    printf("%s",qPrintable(p) );
+//    return ret;
+//}

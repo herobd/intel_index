@@ -141,7 +141,7 @@ void Dimension::setNumOfBins(int num)
     numOfBins = num;
 }
 
-void Dimension::setMinMax(int min, int max)
+void Dimension::setMinMax(double min, double max)
 {
     minValue=min;
     maxValue=max;

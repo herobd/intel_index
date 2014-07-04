@@ -48,8 +48,9 @@ int GraphCut::pixelsOfSeparation(int* invDistMap, int width, int height, BPixelC
     }
     
     QImage debug = img.makeImage().getImage();
-    QVector<QRgb>ct =debug.colorTable();
-    ct.append(qRgb(150,150,150));
+    QVector<QRgb> ct = debug.colorTable();
+    ct.append(qRgb(205,50,50));
+    ct.append(qRgb(50,205,50));
     debug.setColorTable(ct);
     
     if (split_method == SPLIT_HORZ)
@@ -158,7 +159,7 @@ int GraphCut::pixelsOfSeparation(int* invDistMap, int width, int height, BPixelC
                     int index = ((width-1)-(o-i))+width*((height-1)-i);
                     g -> add_tweights(index, 0, anchor_weight);
                     count_sink--;
-                    debug.setPixel((width-1)-(o-i),(height-1)-i,2);
+                    debug.setPixel((width-1)-(o-i),(height-1)-i,3);
                     
                     //fill
     //                QPoint p((width-1)-(o-i),(height-1)-i);
@@ -267,34 +268,23 @@ int GraphCut::pixelsOfSeparation(int* invDistMap, int width, int height, BPixelC
 //    double WHITE_TO_WHITE_D_BIAS = .5;
     double BLACK_TO_BLACK_V_BIAS = .5;
     double BLACK_TO_BLACK_H_BIAS = .5;
-    double BLACK_TO_BLACK_D_BIAS = sqrt(pow(BLACK_TO_BLACK_V_BIAS,2)+pow(BLACK_TO_BLACK_H_BIAS,2));
+    double BLACK_TO_BLACK_D_BIAS = (BLACK_TO_BLACK_V_BIAS+BLACK_TO_BLACK_H_BIAS)-sqrt(pow(BLACK_TO_BLACK_V_BIAS,2)+pow(BLACK_TO_BLACK_H_BIAS,2));
     double WHITE_TO_BLACK_BIAS = .5;
     double BLACK_TO_WHITE_BIAS = .5;
     double WHITE_TO_WHITE_V_BIAS = .5;
     double WHITE_TO_WHITE_H_BIAS = .5;
-    double WHITE_TO_WHITE_D_BIAS = sqrt(pow(WHITE_TO_WHITE_V_BIAS,2)+pow(WHITE_TO_WHITE_H_BIAS,2));
+    double WHITE_TO_WHITE_D_BIAS = (WHITE_TO_WHITE_V_BIAS+WHITE_TO_WHITE_H_BIAS)-sqrt(pow(WHITE_TO_WHITE_V_BIAS,2)+pow(WHITE_TO_WHITE_H_BIAS,2));
     
     if (split_method==SPLIT_VERT)
     {
         BLACK_TO_BLACK_V_BIAS = .5;
         BLACK_TO_BLACK_H_BIAS = .5;
-        BLACK_TO_BLACK_D_BIAS = sqrt(pow(BLACK_TO_BLACK_V_BIAS,2)+pow(BLACK_TO_BLACK_H_BIAS,2));
+        BLACK_TO_BLACK_D_BIAS = (BLACK_TO_BLACK_V_BIAS+BLACK_TO_BLACK_H_BIAS)-sqrt(pow(BLACK_TO_BLACK_V_BIAS,2)+pow(BLACK_TO_BLACK_H_BIAS,2));
         WHITE_TO_BLACK_BIAS = .5;
         BLACK_TO_WHITE_BIAS = .5;
         WHITE_TO_WHITE_V_BIAS = .5;
         WHITE_TO_WHITE_H_BIAS = .5;
-        WHITE_TO_WHITE_D_BIAS = sqrt(pow(WHITE_TO_WHITE_V_BIAS,2)+pow(WHITE_TO_WHITE_H_BIAS,2));
-    }
-    else if (split_method==CHOP_TOP)
-    {
-        BLACK_TO_BLACK_V_BIAS = 1.4;//1.85;
-        BLACK_TO_BLACK_H_BIAS = 2.1;//1.75;
-        BLACK_TO_BLACK_D_BIAS = sqrt(pow(BLACK_TO_BLACK_V_BIAS,2)+pow(BLACK_TO_BLACK_H_BIAS,2));
-        WHITE_TO_BLACK_BIAS = .5;
-        BLACK_TO_WHITE_BIAS = .5;
-        WHITE_TO_WHITE_V_BIAS = .5;
-        WHITE_TO_WHITE_H_BIAS = .5;
-        WHITE_TO_WHITE_D_BIAS = sqrt(pow(WHITE_TO_WHITE_V_BIAS,2)+pow(WHITE_TO_WHITE_H_BIAS,2));
+        WHITE_TO_WHITE_D_BIAS = (WHITE_TO_WHITE_V_BIAS+WHITE_TO_WHITE_H_BIAS)-sqrt(pow(WHITE_TO_WHITE_V_BIAS,2)+pow(WHITE_TO_WHITE_H_BIAS,2));
     }
     
     double reducer = 1;
@@ -461,8 +451,10 @@ inline QVector<QVector<QVector<double> > > make3dImage(const BPixelCollection &i
                         slope[bin]=invDistMap[x+y*img.width()];
                         for (int kb=1; kb<slopeDifRange; kb++)
                         {
-                            slope[mod((bin+kb),dimensions.getBinNums()[0])] = std::min((int) (invDistMap[x+y*img.width()]*((slopeDifRange-kb)/(1.0*slopeDifRange))+slope[mod((bin+kb),dimensions.getBinNums()[0])]), invDistMap[x+y*img.width()]);
-                            slope[mod((bin-kb),dimensions.getBinNums()[0])] = std::min((int) (invDistMap[x+y*img.width()]*((slopeDifRange-kb)/(1.0*slopeDifRange))+slope[mod((bin-kb),dimensions.getBinNums()[0])]), invDistMap[x+y*img.width()]);
+//                            slope[mod((bin+kb),dimensions.getBinNums()[0])] = std::min((int) (invDistMap[x+y*img.width()]*((slopeDifRange-kb)/(1.0*slopeDifRange))+slope[mod((bin+kb),dimensions.getBinNums()[0])]), invDistMap[x+y*img.width()]);
+//                            slope[mod((bin-kb),dimensions.getBinNums()[0])] = std::min((int) (invDistMap[x+y*img.width()]*((slopeDifRange-kb)/(1.0*slopeDifRange))+slope[mod((bin-kb),dimensions.getBinNums()[0])]), invDistMap[x+y*img.width()]);
+                            slope[mod((bin+kb),dimensions.getBinNums()[0])] = std::min((int) (invDistMap[x+y*img.width()]*((slopeDifRange-kb)/(1.0*slopeDifRange))+slope[mod((bin+kb),dimensions.getBinNums()[0])]), (int) (invDistMap[x+y*img.width()] * (slopeDifRange-kb)/(1.0*slopeDifRange)));
+                            slope[mod((bin-kb),dimensions.getBinNums()[0])] = std::min((int) (invDistMap[x+y*img.width()]*((slopeDifRange-kb)/(1.0*slopeDifRange))+slope[mod((bin-kb),dimensions.getBinNums()[0])]), (int) (invDistMap[x+y*img.width()] * (slopeDifRange-kb)/(1.0*slopeDifRange)));
                         }
                     }
                     
@@ -855,12 +847,12 @@ int GraphCut::pixelsOfSeparationNDimensions(int* invDistMap, int width, int heig
                 //C2 dumbed down
                 if (j>0 && i<width-1)
                 {
-                    setEdge3d(i,j,k,i+1,j-1,k,g,indexer,image3d,sqrt(2*pow(FLAT_WEIGHT,2)));
+                    setEdge3d(i,j,k,i+1,j-1,k,g,indexer,image3d,2*FLAT_WEIGHT-sqrt(2*pow(FLAT_WEIGHT,2)));
                 }
                 
                 if (j<height-1 && i<width-1)
                 {
-                    setEdge3d(i,j,k,i+1,j+1,k,g,indexer,image3d,sqrt(2*pow(FLAT_WEIGHT,2)));
+                    setEdge3d(i,j,k,i+1,j+1,k,g,indexer,image3d,2*FLAT_WEIGHT-sqrt(2*pow(FLAT_WEIGHT,2)));
                 }
                 
                 
@@ -914,20 +906,23 @@ int GraphCut::pixelsOfSeparationNDimensions(int* invDistMap, int width, int heig
                
                 if (binsForDim.size() >0)
                 {
-                    bool onSource = false;
-                    bool onSink = false;
+                    int onSource = 0;
+                    int onSink = 0;
                     foreach (int bin, binsForDim)
                     {
-                        int index = indexer.getIndex(x,y,bin);
-                        
-                        if (g->what_segment(index) == GraphType::SOURCE)
-                            onSource=true;
-                        else
-                            onSink=true;
+                        for (int around=-5; around<=5; around++)
+                        {
+                            int index = indexer.getIndex(x,y,mod(bin+around,dimensions.getBinNums()[0]));
+                            
+                            if (g->what_segment(index) == GraphType::SOURCE)
+                                onSource++;
+                            else
+                                onSink++;
+                        }
                     }
-                    if (onSource)
+                    if (onSource/(1.0*onSource+onSink)>.3)
                         outSource.append(x+width*y);
-                    if (onSink)
+                    if (onSink/(1.0*onSource+onSink)>.3)
                         outSink.append(x+width*y);
                     
 //                    if (onSource && onSink)
@@ -976,13 +971,19 @@ int GraphCut::pixelsOfSeparationNDimensions(int* invDistMap, int width, int heig
     ///test///
     for (int s=0; s<dimensions.getBinNums()[0]; s++)
     {
-        BImage test(img);
+        BImage test(img.width(), img.height());
         BPartition tmp1((BPixelCollection*) &test);
         BPartition tmp2((BPixelCollection*) &test);
         for (int x=0; x<width; x++)
         {
             for (int y=0; y<height; y++)
             {
+                QVector<int> binsForDim = dimensions.getBinsForDimensionsOfPixel(x,y)[0];
+                foreach (int bin, binsForDim)
+                {
+                    if (bin<s+11 && bin>s-11)
+                        test.setPixel(x,y,true);
+                }
                     int index = indexer.getIndex(x,y,s);
                     if (g->what_segment(index) == GraphType::SOURCE)
                         tmp1.addPixelFromSrc(x,y);
