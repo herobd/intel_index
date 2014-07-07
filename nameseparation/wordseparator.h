@@ -11,11 +11,19 @@
 #include "graphcut.h"
 #include "imageaverager.h"
 #include "boxcleaner.h"
-
-
+#include <fstream>
+#include <QRegExp>
 
 class WordSeparator
 {
+    struct tracePoint
+    {
+        int x;
+        int y;
+        QVector<int> connectedPoints;
+        QVector<double> angleBetween;
+    };
+    
 public:
     WordSeparator();
     static int minCut(BPixelCollection &toCut, QVector<BPartition*> &ret);
@@ -31,6 +39,8 @@ public:
     static QVector<BPartition*> segmentLinesOfWords(const BPixelCollection &column, int spacingEstimate);
     static QVector<BPartition*> recursiveHorizontalCutWords(const BPixelCollection &img);
     
+    static QVector<BPartition*> cut3D(BPixelCollection &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds);
+    
 private:
     static void computeInverseDistanceMap(BPixelCollection &img, int* out);
     
@@ -38,6 +48,7 @@ private:
     
     static int SepPlusOne(int i, int u, int y, int m, int* g);
     
+    static QPoint findClosestPointOn(BPixelCollection &img, QPoint &start);
 };
 
 #endif // WORDSEPERATOR_H

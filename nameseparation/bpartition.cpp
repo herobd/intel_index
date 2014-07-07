@@ -115,10 +115,10 @@ int BPartition::getYOffset()
     return upperY;
 }
 
-//bool BPartition::pixel(const QPoint &p) const
-//{
-//    return pixel(p.x(),p.y());
-//}
+bool BPartition::pixel(const QPoint &p) const
+{
+    return pixel(p.x(),p.y());
+}
 bool BPartition::pixel(int x, int y) const
 {
     assert(x>=0 && x<width() && y>=0 && y<height());
@@ -128,6 +128,18 @@ bool BPartition::pixel(int x, int y) const
         int realX = x+leftX;
         int realY = y+upperY;
         return src->pixel(realX,realY);
+    }
+    else
+        return false;
+}
+
+bool BPartition::pixelSrc(int src_x, int src_y) const
+{
+    assert(src_x>=0 && src_x<src->width() && src_y>=0 && src_y<src->height());
+    
+    if (pixelIsMineSrc(src_x,src_y))
+    {
+        return src->pixel(src_x,src_y);
     }
     else
         return false;

@@ -21,8 +21,9 @@ public:
     int height() const;
     int getXOffset();
     int getYOffset();
-//    bool pixel(const QPoint &p) const;
+    bool pixel(const QPoint &p) const;
     bool pixel(int x, int y) const;
+    bool pixelSrc(int src_x, int src_y) const;
 //    bool pixelIsMine(const QPoint &p) const;
     bool pixelIsMineSrc(int src_x, int src_y) const;
     bool pixelIsMineSrc(const QPoint &src_p) const;

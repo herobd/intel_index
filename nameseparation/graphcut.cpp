@@ -441,7 +441,7 @@ inline QVector<QVector<QVector<double> > > make3dImage(const BPixelCollection &i
                 {
                     for (int k=0; k<dimensions.getBinNums()[0]; k++)
                     {
-                        slope[k]=2;
+                        slope[k]=100;//'a' from inv computation
                     }
                     foreach (int bin, binsForDim)
                     {
@@ -451,10 +451,10 @@ inline QVector<QVector<QVector<double> > > make3dImage(const BPixelCollection &i
                         slope[bin]=invDistMap[x+y*img.width()];
                         for (int kb=1; kb<slopeDifRange; kb++)
                         {
-//                            slope[mod((bin+kb),dimensions.getBinNums()[0])] = std::min((int) (invDistMap[x+y*img.width()]*((slopeDifRange-kb)/(1.0*slopeDifRange))+slope[mod((bin+kb),dimensions.getBinNums()[0])]), invDistMap[x+y*img.width()]);
-//                            slope[mod((bin-kb),dimensions.getBinNums()[0])] = std::min((int) (invDistMap[x+y*img.width()]*((slopeDifRange-kb)/(1.0*slopeDifRange))+slope[mod((bin-kb),dimensions.getBinNums()[0])]), invDistMap[x+y*img.width()]);
-                            slope[mod((bin+kb),dimensions.getBinNums()[0])] = std::min((int) (invDistMap[x+y*img.width()]*((slopeDifRange-kb)/(1.0*slopeDifRange))+slope[mod((bin+kb),dimensions.getBinNums()[0])]), (int) (invDistMap[x+y*img.width()] * (slopeDifRange-kb)/(1.0*slopeDifRange)));
-                            slope[mod((bin-kb),dimensions.getBinNums()[0])] = std::min((int) (invDistMap[x+y*img.width()]*((slopeDifRange-kb)/(1.0*slopeDifRange))+slope[mod((bin-kb),dimensions.getBinNums()[0])]), (int) (invDistMap[x+y*img.width()] * (slopeDifRange-kb)/(1.0*slopeDifRange)));
+//                            slope[mod((bin+kb),dimensions.getBinNums()[0])] = std::min((int) (invDistMap[x+y*img.width()]*((slopeDifRange-kb)/(1.0*slopeDifRange))+slope[mod((bin+kb),dimensions.getBinNums()[0])]), (int) (invDistMap[x+y*img.width()] * (slopeDifRange-kb)/(1.0*slopeDifRange)));
+//                            slope[mod((bin-kb),dimensions.getBinNums()[0])] = std::min((int) (invDistMap[x+y*img.width()]*((slopeDifRange-kb)/(1.0*slopeDifRange))+slope[mod((bin-kb),dimensions.getBinNums()[0])]), (int) (invDistMap[x+y*img.width()] * (slopeDifRange-kb)/(1.0*slopeDifRange)));
+                            slope[mod((bin+kb),dimensions.getBinNums()[0])] = std::max((int)(slope[mod((bin+kb),dimensions.getBinNums()[0])]), (int) (invDistMap[x+y*img.width()] * (slopeDifRange-kb)/(1.0*slopeDifRange)));
+                            slope[mod((bin-kb),dimensions.getBinNums()[0])] = std::max((int) (slope[mod((bin-kb),dimensions.getBinNums()[0])]), (int) (invDistMap[x+y*img.width()] * (slopeDifRange-kb)/(1.0*slopeDifRange)));
                         }
                     }
                     
@@ -579,7 +579,7 @@ int GraphCut::pixelsOfSeparationNDimensions(int* invDistMap, int width, int heig
     if (split_method == SPLIT_HORZ)
     {
         //find source pixels
-        int count_source = NEW_ANCHOR*sourceSeeds.size();
+        int count_source = NEW_ANCHOR;
 //        for (int j=0; count_source>0 && j<height; j++)
 //        {
 //            for (int i=0; count_source>0 && i<width; i++)
@@ -667,7 +667,7 @@ int GraphCut::pixelsOfSeparationNDimensions(int* invDistMap, int width, int heig
             }
         }
         
-        int count_sink=NEW_ANCHOR*sinkSeeds.size();//height*ANCHOR_R;
+        int count_sink=NEW_ANCHOR;//height*ANCHOR_R;
         
         //find sink pixels
 //        for (int j=height-1; count_sink>0 && j>=0; j--)
