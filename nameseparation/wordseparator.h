@@ -37,7 +37,9 @@ public:
     static QVector<BPartition*> testSlopeCut(BPixelCollection &img, const NDimensions &dimensions, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds /*const QVector<QVector<double> > &slopes*/);
     
     static QVector<BPartition*> segmentLinesOfWords(const BPixelCollection &column, int spacingEstimate);
-    static QVector<BPartition*> recursiveHorizontalCutWords(const BPixelCollection &img);
+    static QVector<BPartition*> recursiveHorizontalCutTwoWords(const BPixelCollection &img);
+    static QVector<BPartition*> recursiveHorizontalCutFirstLetter(const BPixelCollection &img);
+    static QVector<BPartition*> recursiveHorizontalCutFull(const BPixelCollection &img);
     
     static QVector<BPartition*> cut3D(BPixelCollection &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds);
     
