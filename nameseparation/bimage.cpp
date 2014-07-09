@@ -1,6 +1,7 @@
 #include "bimage.h"
 
 #include <stdio.h>
+#include <fstream>
 
 BImage::BImage()
 {
@@ -372,6 +373,58 @@ QImage BImage::getOwnersImage()
         }
     
     return ret;
+}
+
+void BImage::saveICDAR(QString name)
+{
+    int out[myHeight*myWidth];
+    
+    QMap<BPartition*,int> partitionIndex;
+    int currentIndex=0;
+    for (int y=0; y<myHeight; y++)
+        for (int x=0; x<myWidth; x++)
+        {
+            if (pixels[x][y].val)
+            {
+                if (pixels[x][y].ownership.size()>0)
+                {
+                
+                    BPartition* mostId=0x0;
+                    float most=0;
+                    QMap<BPartition*,float>::const_iterator i = pixels[x][y].ownership.constBegin();
+                    while (i != pixels[x][y].ownership.constEnd())
+                    {
+                        if (i.value() > most)
+                        {
+                            most = i.value();
+                            mostId = i.key();
+                        }
+                        ++i;
+                    }
+                    
+                    if (mostId!=0x0)
+                    {
+                        if (!partitionIndex.contains(mostId))
+                        {
+                            currentIndex = (1+currentIndex)%6;
+                            partitionIndex[mostId]=currentIndex;
+                        }
+                        
+                        out[x+y*myWidth]=2+partitionIndex[mostId];
+                        
+                        continue;
+                    }
+                }
+                out[x+y*myWidth]=1;
+            }
+            else
+                out[x+y*myWidth]=0;
+            
+        }
+    
+    std::ofstream outfile(name.toLocal8Bit().data(), std::ios::out | std::ios::binary);
+    outfile.write(reinterpret_cast<const char *>(out),sizeof(int)*myWidth*myHeight);
+    outfile.close();
 }
 
 void BImage::claimOwnership(BPartition* claimer, float amount)

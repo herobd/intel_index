@@ -47,11 +47,11 @@ int GraphCut::pixelsOfSeparation(int* invDistMap, int width, int height, BPixelC
         g->add_node();
     }
     
-    QImage debug = img.makeImage().getImage();
-    QVector<QRgb> ct = debug.colorTable();
-    ct.append(qRgb(205,50,50));
-    ct.append(qRgb(50,205,50));
-    debug.setColorTable(ct);
+//    QImage debug = img.makeImage().getImage();
+//    QVector<QRgb> ct = debug.colorTable();
+//    ct.append(qRgb(205,50,50));
+//    ct.append(qRgb(50,205,50));
+//    debug.setColorTable(ct);
     
     if (split_method == SPLIT_HORZ)
     {
@@ -65,7 +65,7 @@ int GraphCut::pixelsOfSeparation(int* invDistMap, int width, int height, BPixelC
                 {
                     int index = i+width*j;
                     g -> add_tweights(index, anchor_weight,0);//invDistMap[index], 0);
-                    debug.setPixel(i,j,2);
+//                    debug.setPixel(i,j,2);
                     count_source--;
                 }
             }
@@ -159,7 +159,7 @@ int GraphCut::pixelsOfSeparation(int* invDistMap, int width, int height, BPixelC
                     int index = ((width-1)-(o-i))+width*((height-1)-i);
                     g -> add_tweights(index, 0, anchor_weight);
                     count_sink--;
-                    debug.setPixel((width-1)-(o-i),(height-1)-i,3);
+//                    debug.setPixel((width-1)-(o-i),(height-1)-i,3);
                     
                     //fill
     //                QPoint p((width-1)-(o-i),(height-1)-i);
@@ -254,7 +254,7 @@ int GraphCut::pixelsOfSeparation(int* invDistMap, int width, int height, BPixelC
         }
     }
     
-    debug.save("./anchors.ppm");
+//    debug.save("./anchors.ppm");
     
     //printf("num source:%d, num sink:%d\n",count_source,count_sink);
     

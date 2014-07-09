@@ -19,7 +19,7 @@
 
 #define SLOPE_DIF_TOLERANCE .35 //bins, + or -
 
-#define ANCHOR_L 3.05
+#define ANCHOR_L 2.4
 #define ANCHOR_R 2.4
 
 #endif // CONSTANTS_H

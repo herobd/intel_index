@@ -61,6 +61,7 @@ public:
     
     QImage getImage();
     QImage getOwnersImage();
+    void saveICDAR(QString name);
     
     void claimOwnership(BPartition* claimer, float amount);
     

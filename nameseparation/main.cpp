@@ -119,16 +119,16 @@ int main(int argc, char** argv)
     
     /////////////////////////////////////////////////////////
     
-    //line reader
+    //ICDAR handler
     QString icdarRoot(argv[1]);
     QString imageNumber(argv[2]);
     QString imgPath = icdarRoot + "images_train/" + imageNumber + ".tif";
     QString gtPath = icdarRoot + "gt_lines_train/" + imageNumber + ".tif.dat";
     
     QImage img(imgPath);
-    bool test = img.save("./icdartest.ppm");
-    if (!test)
-        printf("fail(%d,%d): %s, %s\n",img.width(),img.height(),imgPath.toLocal8Bit().data(),gtPath.toLocal8Bit().data());
+//    bool test = img.save("./icdartest.ppm");
+//    if (!test)
+//        printf("fail(%d,%d): %s, %s\n",img.width(),img.height(),imgPath.toLocal8Bit().data(),gtPath.toLocal8Bit().data());
     BImage bimg(img);
     
     int Ix=bimg.width(); //Image Width (x=0...Ix-1)
@@ -162,20 +162,50 @@ int main(int argc, char** argv)
     {
         bimg.claimOwnership(part,1);
         BImage temp = part->makeImage();
-        QVector<BPartition*> segmentation = WordSeparator::recursiveHorizontalCutFull(temp);
+        QVector<BPartition*> segmentation = WordSeparator::recursiveHorizontalCutFullTraining(temp);
         for (int i=0; i<segmentation.size(); i++)
         {
             temp.claimOwnership(segmentation[i],1);
-    //        segmentation[i]->makeImage().save("./output/");
         }
         temp.saveOwners("./test.ppm");
+        char dump;
+        printf("cont");
+        scanf("%c",&dump);
         for (int i=0; i<segmentation.size(); i++)
         {
             delete segmentation[i];
         }
     }
     
-    bimg.saveOwners("./icdartest_gt_lines.ppm");
+//    bimg.saveOwners("./icdartest_gt_lines.ppm");
+    
+    
+    
+    
+    ///switcher//////////////////////////////////////////////////
+//    ifstream infile("training_results.dat");
+//    ofstream myfile ("redone_training_results.dat");
+//    string line;
+//    for (int i=0; i<23; i++)
+//        getline(infile, line);
+//    QRegExp re("(-?\\d+)(,\\d+,\\d+,\\d+,\\d+,)(-?\\d+)(,\\d+,\\d+,\\d+,\\d+,)(-?\\d+)(,\\d+,\\d+,\\d+,\\d+,)(.)");
+//    while (getline(infile, line))
+//    {
+//        QString qLine(line.c_str());
+//        re.indexIn(qLine);
+//        int cut1_maxflow=re.cap(1).toInt();
+//        int cut2L_maxflow=re.cap(3).toInt();
+//        int cut2R_maxflow=re.cap(5).toInt();
+//        int difL = cut1_maxflow-cut2L_maxflow;
+//        int difR = cut1_maxflow-cut2R_maxflow;
+        
+//        myfile << re.cap(1).toLocal8Bit().data() << re.cap(2).toLocal8Bit().data() << re.cap(3).toLocal8Bit().data() << re.cap(4).toLocal8Bit().data() << re.cap(5).toLocal8Bit().data() << re.cap(6).toLocal8Bit().data() << difL << "," << difR << "," << re.cap(7).toLocal8Bit().data() << endl;
+//    }
+    
+    
+//    myfile.close();
+//    infile.close();
+    ///
     
     return 0;
 }

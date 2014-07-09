@@ -1294,9 +1294,9 @@ void WordSeparator::computeInverseDistanceMap(BPixelCollection &src, int* out)
     QVector<QPoint> growingComponent;
     
     
-    int newmax = 0;
-    int newmax2 = 0;
-    int newmin = INT_MAX;
+//    int newmax = 0;
+//    int newmax2 = 0;
+//    int newmin = INT_MAX;
     for (int q = 0; q < src.width()*src.height(); q++)
     {   
         //out[q] = pow(6,24-out[q]*normalizer)/pow(6,20);
@@ -1381,14 +1381,14 @@ void WordSeparator::computeInverseDistanceMap(BPixelCollection &src, int* out)
 //                out[index] = pow(b-std::min(out[index]*(b/m),b),e)/(pow(b,e)*(b/m)) + a*std::min(cc_size,max_cc_size);
                 out[index] = pow(b-std::min(out[index]*(b/m),b),e)*a/(pow(b,e)) + std::min(cc_size,max_cc_size) + 1;
                 
-                if (out[index]>newmax)
-                    newmax=out[index];
+//                if (out[index]>newmax)
+//                    newmax=out[index];
                 
-                if (out[index]>newmax2 && out[index]<newmax)
-                    newmax2=out[index];
+//                if (out[index]>newmax2 && out[index]<newmax)
+//                    newmax2=out[index];
                 
-                if (out[index]<newmin)
-                    newmin=out[index];
+//                if (out[index]<newmin)
+//                    newmin=out[index];
             }
         }
         else if (!src.pixel(q%src.width(),q/src.width()))
@@ -1398,47 +1398,37 @@ void WordSeparator::computeInverseDistanceMap(BPixelCollection &src, int* out)
             out[q] = pow(b-std::min(out[q]*(b/m),b),e)*a/(pow(b,e)) + 1;
         }
 
-        if (out[q]>newmax)
-            newmax=out[q];
-        if (out[q]>newmax2 && out[q]<newmax)
-            newmax2=out[q];
-        if (out[q]<newmin)
-            newmin=out[q];
+//        if (out[q]>newmax)
+//            newmax=out[q];
+//        if (out[q]>newmax2 && out[q]<newmax)
+//            newmax2=out[q];
+//        if (out[q]<newmin)
+//            newmin=out[q];
     }
     
-    printf("newMax:%d, 2nd max:%d, newMin:%d\n",newmax,newmax2,newmin);
-    QImage debug(src.width(),src.height(),QImage::Format_Indexed8);
-    QVector<QRgb> default_color_table;
-    for (int i=0; i<255; i++)
-    {
-        default_color_table.append(qRgb(i,i,i));
-    }
+//    printf("newMax:%d, 2nd max:%d, newMin:%d\n",newmax,newmax2,newmin);
+//    QImage debug(src.width(),src.height(),QImage::Format_Indexed8);
+//    QVector<QRgb> default_color_table;
 //    for (int i=0; i<255; i++)
 //    {
-//        default_color_table.append(qRgb(0,i,255));
+//        default_color_table.append(qRgb(i,i,i));
 //    }
-    for (int i=0; i<255; i++)
-    {
-//        default_color_table.append(qRgb(0,i,255-i));
-        default_color_table.append(qRgb(255,255,255));
-    }
 //    for (int i=0; i<255; i++)
 //    {
-//        default_color_table.append(qRgb(i,255,0));
+//        default_color_table.append(qRgb(255,255,255));
 //    }
-    for (int i=0; i<255; i++)
-    {
-//        default_color_table.append(qRgb(i,255-i,0));
-        default_color_table.append(qRgb(255,255,255));
-    }
-    debug.setColorTable(default_color_table);
-    for (int i=0; i<debug.width(); i++)
-    {
-        for (int j=0; j<debug.height(); j++)
-            debug.setPixel(i,j,(int)((out[i+j*debug.width()]/((double)newmax))*254));
+//    for (int i=0; i<255; i++)
+//    {
+//        default_color_table.append(qRgb(255,255,255));
+//    }
+//    debug.setColorTable(default_color_table);
+//    for (int i=0; i<debug.width(); i++)
+//    {
+//        for (int j=0; j<debug.height(); j++)
+//            debug.setPixel(i,j,(int)((out[i+j*debug.width()]/((double)newmax))*254));
         
-    }
-    debug.save("./inv_dist_map.ppm");
+//    }
+//    debug.save("./inv_dist_map.ppm");
 }
 
 int WordSeparator::f(int x, int i, int y, int m, int* g)
@@ -1775,8 +1765,9 @@ QVector<BPartition*> WordSeparator::recursiveHorizontalCutTwoWords(const BPixelC
 }
 
 
-QVector<BPartition*> WordSeparator::recursiveHorizontalCutFirstLetter(const BPixelCollection &img)
+QVector<BPartition*> WordSeparator::recursiveHorizontalCutFirstLetterTraining(const BPixelCollection &img)
 {
+    std::ofstream results ("./firstletter_training_results.dat",std::ofstream::app);
     QVector<BPartition*> ret;
 //    BImage base(column);
 //    base.save("./starting_image.ppm");
@@ -1795,160 +1786,230 @@ QVector<BPartition*> WordSeparator::recursiveHorizontalCutFirstLetter(const BPix
     int accumulativeYOffset=0;
     
     bool cont = true;
-    int insertIndex=0;
+    int index=0;
     
-    QVector<char> cutStates;
-    QVector<int> maxFlows;
-    QVector<int> imgWidthsLeft;
-    QVector<int> imgWidthsRight;
-    QVector<int> pixCountsLeft;
-    QVector<int> pixCountsRight;
+//    QVector<char> cutStates;
+//    QVector<int> maxFlows;
+//    QVector<int> imgWidthsLeft;
+//    QVector<int> imgWidthsRight;
+//    QVector<int> pixCountsLeft;
+//    QVector<int> pixCountsRight;
+    QVector<BPartition*> cuts;
+    int lastMaxflow = minCut(*unfinished,cuts);
+    BPartition* leftUnfinished = cuts[0];
+    BPartition* rightUnfinished = cuts[1];
+    
+
+    int leftWidth = leftUnfinished->width();
+    int rightWidth = rightUnfinished->width();
+    int leftCount=0;
+    int rightCount=0;
+    for (int x=0; x<cuts[0]->width(); x++)
+    {
+        for (int y=0; y<cuts[0]->height(); y++)
+        {
+            if (cuts[0]->pixel(x,y))
+                leftCount++;
+        }
+    }
+    for (int x=0; x<cuts[1]->width(); x++)
+    {
+        for (int y=0; y<cuts[1]->height(); y++)
+        {
+            if (cuts[1]->pixel(x,y))
+                rightCount++;
+        }
+    }
+    
+    char lastread='\n';
     
     while (cont)
     {
-        QVector<BPartition*> cuts;
-        int maxflow = minCut(*unfinished,cuts);
-        maxFlows.append(maxflow);
+//        QVector<BPartition*> cuts;
+//        int maxflow = minCut(*unfinished,cuts);
+//        maxFlows.append(maxflow);
         
 //        BImage test = unfinished->makeImage();
-        cuts[0]->makeImage().save("./test0.ppm");
-        cuts[1]->makeImage().save("./test1.ppm");
+        leftUnfinished->makeImage().save("./test0.ppm");
+        rightUnfinished->makeImage().save("./test1.ppm");
 //        test.claimOwnership(cuts[0],1);
 //        test.saveOwners("./test.ppm");
         
-        imgWidthsLeft.append(cuts[0]->width());
-        imgWidthsRight.append(cuts[1]->width());
-        int leftCount=0;
-        int rightCount=0;
-        for (int x=0; x<cuts[0]->width(); x++)
-        {
-            for (int y=0; y<cuts[0]->height(); y++)
-            {
-                if (cuts[0]->pixel(x,y))
-                    leftCount++;
-            }
-        }
-        for (int x=0; x<cuts[1]->width(); x++)
-        {
-            for (int y=0; y<cuts[1]->height(); y++)
-            {
-                if (cuts[1]->pixel(x,y))
-                    rightCount++;
-            }
-        }
-        pixCountsLeft.append(leftCount);
-        pixCountsRight.append(rightCount);
         
-        int tempXOffset = accumulativeXOffset;
-        int tempYOffset = accumulativeYOffset;
+        
+        int tempLeftXOffset = accumulativeXOffset + leftUnfinished->getXOffset();
+        int tempLeftYOffset = accumulativeYOffset + leftUnfinished->getYOffset();
+        int tempRightXOffset = accumulativeXOffset + rightUnfinished->getXOffset();
+        int tempRightYOffset = accumulativeYOffset + rightUnfinished->getYOffset();
+        
+        leftUnfinished->changeSrc(&img,accumulativeXOffset,accumulativeYOffset);
+        rightUnfinished->changeSrc(&img,accumulativeXOffset,accumulativeYOffset);
+        
+        QVector<BPartition*> leftCuts;
+        int leftMaxflow = minCut(*leftUnfinished,leftCuts);
+        QVector<BPartition*> rightCuts;
+        int rightMaxflow = minCut(*rightUnfinished,rightCuts);
+        
+        int leftCutLeftCount=0;
+        int leftCutRightCount=0;
+        for (int x=0; x<leftCuts[0]->width(); x++)
+        {
+            for (int y=0; y<leftCuts[0]->height(); y++)
+            {
+                if (leftCuts[0]->pixel(x,y))
+                    leftCutLeftCount++;
+            }
+        }
+        for (int x=0; x<leftCuts[1]->width(); x++)
+        {
+            for (int y=0; y<leftCuts[1]->height(); y++)
+            {
+                if (leftCuts[1]->pixel(x,y))
+                    leftCutRightCount++;
+            }
+        }
+        int rightCutLeftCount=0;
+        int rightCutRightCount=0;
+        for (int x=0; x<rightCuts[0]->width(); x++)
+        {
+            for (int y=0; y<rightCuts[0]->height(); y++)
+            {
+                if (rightCuts[0]->pixel(x,y))
+                    rightCutLeftCount++;
+            }
+        }
+        for (int x=0; x<rightCuts[1]->width(); x++)
+        {
+            for (int y=0; y<rightCuts[1]->height(); y++)
+            {
+                if (rightCuts[1]->pixel(x,y))
+                    rightCutRightCount++;
+            }
+        }
         
         //state check//
         bool recurLeft;
         char read;
+        char dump;
         while(true)
         {
             printf("Recur%d:",test_count);
-            scanf("%c",&read);
+            scanf("%c%c",&read,&dump);
             if (read == 'l')
             {
-                cutStates.append('e');
+                read='e';
                 cont = false;
                 break;
             }
             else if (read == ',')
             {
-                cutStates.append('l');
+                read='l';
                 recurLeft = true;
-                tempXOffset += cuts[0]->getXOffset();
-                tempYOffset += cuts[0]->getYOffset();
+//                tempXOffset += cuts[0]->getXOffset();
+//                tempYOffset += cuts[0]->getYOffset();
+                accumulativeXOffset = tempLeftXOffset;
+                accumulativeYOffset = tempLeftYOffset;
                 break;
             }
             else if (read == '.')
             {
-                cutStates.append('r');
+                read='r';
                 recurLeft = false;
-                tempXOffset += cuts[1]->getXOffset();
-                tempYOffset += cuts[1]->getYOffset();
+//                tempXOffset += cuts[1]->getXOffset();
+//                tempYOffset += cuts[1]->getYOffset();
+                accumulativeXOffset = tempRightXOffset;
+                accumulativeYOffset = tempRightYOffset;
                 break;
             }
         }
         
+        if (cont)
+        {
+            char buffer[150];
+            sprintf(buffer,"%c\n%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,",
+                    lastread,
+                    lastMaxflow,
+                    leftWidth,
+                    rightWidth,
+                    leftCount,
+                    rightCount,
+                    leftMaxflow,
+                    leftCuts[0]->width(),
+                    leftCuts[1]->width(),
+                    leftCutLeftCount,
+                    leftCutRightCount,
+                    rightMaxflow,
+                    rightCuts[0]->width(),
+                    rightCuts[1]->width(),
+                    rightCutLeftCount,
+                    rightCutRightCount,
+                    lastMaxflow-leftMaxflow,
+                    lastMaxflow-rightMaxflow);
+            
+            results << buffer;
+        }
+        else
+        {
+//            char buffer[5];
+//            sprintf(buffer,"%c",lastread);
+            
+            results << 'e' << std::endl;
+        }
         
-        
-        
-        
-        cuts[0]->changeSrc(&img,accumulativeXOffset,accumulativeYOffset);
-        cuts[1]->changeSrc(&img,accumulativeXOffset,accumulativeYOffset);
-        
-        
-        accumulativeXOffset = tempXOffset;
-        accumulativeYOffset = tempYOffset;
-        
+        lastread=read;
         
         if (cont && recurLeft)
         {
             
-            ret.insert(insertIndex,cuts[1]);
+            ret.insert(index,rightUnfinished);
             delete unfinished;
-            unfinished = cuts[0];
+            delete rightCuts[0];
+            delete rightCuts[1];
+            
+            unfinished = leftUnfinished;
+            leftUnfinished=leftCuts[0];
+            leftWidth = leftCuts[0]->width();
+            leftCount = leftCutLeftCount;
+            rightUnfinished=leftCuts[1];
+            rightWidth = leftCuts[1]->width();
+            rightCount = leftCutRightCount;
+            lastMaxflow = leftMaxflow;
         }
         else if (cont)
         {
-            ret.insert(insertIndex,cuts[0]);
+            ret.insert(index,leftUnfinished);
+            index++;
+            delete leftCuts[0];
+            delete leftCuts[1];
+            
             delete unfinished;
-            unfinished = cuts[1];
-            insertIndex++;
-            
+            unfinished = rightUnfinished;
+            leftUnfinished=rightCuts[0];
+            leftWidth = rightCuts[0]->width();
+            leftCount = rightCutLeftCount;
+            rightUnfinished=rightCuts[1];
+            rightWidth = rightCuts[1]->width();
+            rightCount = rightCutRightCount;
+            lastMaxflow = rightMaxflow;
         }
-        else//this is based on an overshoot approach
+        else//overshoot
         {
-            delete cuts[0];
-            delete cuts[1];
-            ret.insert(insertIndex,unfinished);
+            ret.insert(index,unfinished);
+            delete leftUnfinished;
+            delete rightUnfinished;
+//            ret.insert(cur.index++,cur.leftUnfinished);
+//            ret.insert(cur.index,cur.rightUnfinished);
+//            delete cur.unfinished;
+            delete leftCuts[0];
+            delete leftCuts[1];
+            delete rightCuts[0];
+            delete rightCuts[1];
         }
         
         
         
     }
-    
-    int magic = 10;
-    QString p;
-    for (int i=0; i<magic; i++)
-    {
-        if (cutStates.size()>i)
-        {
-            p += QString(cutStates[i]);
-            p += QString(",");
-            p += QString::number(maxFlows[i]);
-            p += QString(",");
-            p += QString::number(imgWidthsLeft[i]);
-            p += QString(",");
-            p += QString::number(imgWidthsRight[i]);
-            p += QString(",");
-            p += QString::number(pixCountsLeft[i]);
-            p += QString(",");
-            p+= QString::number(pixCountsRight[i]);
-            p += QString(",");
-        }
-        else
-        {
-            p += QString(cutStates.last());
-            p += QString(",");
-            p += QString::number(maxFlows.last());
-            p += QString(",");
-            p += QString::number(imgWidthsLeft.last());
-            p += QString(",");
-            p += QString::number(imgWidthsRight.last());
-            p += QString(",");
-            p += QString::number(pixCountsLeft.last());
-            p += QString(",");
-            p+= QString::number(pixCountsRight.last());
-            p += QString(",");
-            
-        }
-    }
-    p[p.size()-1]='\n';
-    printf("%s",qPrintable(p) );
+    results.close();
     return ret;
 }
 
@@ -1968,7 +2029,7 @@ struct side
     
 };
 
-QVector<BPartition*> WordSeparator::recursiveHorizontalCutFull(const BPixelCollection &img)
+QVector<BPartition*> WordSeparator::recursiveHorizontalCutFullTraining(const BPixelCollection &img)
 {
     std::ofstream results ("./training_results.dat",std::ofstream::app);
     
@@ -2168,7 +2229,7 @@ QVector<BPartition*> WordSeparator::recursiveHorizontalCutFull(const BPixelColle
                 }
             }
             char buffer[150];
-            sprintf(buffer,"%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%c",
+            sprintf(buffer,"%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%c",
                    cur.costOfCut,
                    cur.leftWidth,
                    cur.rightWidth,
@@ -2184,6 +2245,8 @@ QVector<BPartition*> WordSeparator::recursiveHorizontalCutFull(const BPixelColle
                    rightCuts[1]->width(),
                    rightCutLeftCount,
                    rightCutRightCount,
+                   cur.costOfCut-leftMaxflow,
+                   cur.costOfCut-rightMaxflow,
                    read);
             
             results << buffer << std::endl;
@@ -2238,11 +2301,19 @@ QVector<BPartition*> WordSeparator::recursiveHorizontalCutFull(const BPixelColle
                 cur.rightCount = rightCutRightCount;
                 cur.costOfCut = rightMaxflow;
             }
-            else//this is based on an overshoot approach
+            else
             {
-                delete cur.leftUnfinished;
-                delete cur.rightUnfinished;
-                ret.insert(cur.index,cur.unfinished);
+                ret.insert(cur.index++,cur.leftUnfinished);
+                ret.insert(cur.index,cur.rightUnfinished);
+                delete cur.unfinished;
+                delete leftCuts[0];
+                delete leftCuts[1];
+                delete rightCuts[0];
+                delete rightCuts[1];
+//                overshoot
+//                delete cur.leftUnfinished;
+//                delete cur.rightUnfinished;
+//                ret.insert(cur.index,cur.unfinished);
             }
             
             
@@ -2290,6 +2361,282 @@ QVector<BPartition*> WordSeparator::recursiveHorizontalCutFull(const BPixelColle
 //    }
 //    p[p.size()-1]='\n';
 //    printf("%s",qPrintable(p) );
+    return ret;
+}
+
+
+QVector<BPartition*> WordSeparator::recursiveHorizontalCutFull(const BPixelCollection &img)
+{
+    std::ofstream results ("./training_results.dat",std::ofstream::app);
+    
+    QVector<BPartition*> ret;
+//    BImage base(column);
+//    base.save("./starting_image.ppm");
+    BPartition* unfinished = new BPartition(&img);
+    for (int x=0; x<img.width(); x++)
+    {
+        for (int y=0; y<img.height(); y++)
+        {
+            unfinished->addPixelFromSrc(x,y);
+        }
+    }
+
+    int test_count=0;
+    
+    int accumulativeXOffset=0;
+    int accumulativeYOffset=0;
+    
+    
+    int insertIndex=0;
+    
+//    QVector<char> cutStates;
+//    QVector<int> maxFlows;
+//    QVector<int> futureLeftMaxFlows;
+//    QVector<int> futureRightMaxFlows;
+//    QVector<int> imgWidthsLeft;
+//    QVector<int> imgWidthsRight;
+//    QVector<int> pixCountsLeft;
+//    QVector<int> pixCountsRight;
+    
+    QVector<BPartition*> cuts;
+    int maxflow = minCut(*unfinished,cuts);
+    
+//    imgWidthsLeft.append(cuts[0]->width());
+//    imgWidthsRight.append(cuts[1]->width());
+    int leftCount=0;
+    int rightCount=0;
+    for (int x=0; x<cuts[0]->width(); x++)
+    {
+        for (int y=0; y<cuts[0]->height(); y++)
+        {
+            if (cuts[0]->pixel(x,y))
+                leftCount++;
+        }
+    }
+    for (int x=0; x<cuts[1]->width(); x++)
+    {
+        for (int y=0; y<cuts[1]->height(); y++)
+        {
+            if (cuts[1]->pixel(x,y))
+                rightCount++;
+        }
+    }
+//    pixCountsLeft.append(leftCount);
+//    pixCountsRight.append(rightCount);
+    
+    side first;
+    first.index=insertIndex;
+    first.accumulativeXOffset=accumulativeXOffset;
+    first.accumulativeYOffset=accumulativeYOffset;
+    first.unfinished = unfinished;
+    first.leftUnfinished = cuts[0];
+    first.leftWidth=cuts[0]->width();
+    first.leftCount=leftCount;
+    first.rightUnfinished = cuts[1];
+    first.rightWidth=cuts[1]->width();
+    first.rightCount=rightCount;
+    first.costOfCut = maxflow;
+    QVector<side> stack;
+    stack.append(first);
+    
+    while (!stack.empty())
+    {
+        bool cont = true;
+        side cur = stack.back();
+        stack.pop_back();
+        while (cont)
+        {
+//            cur.leftUnfinished->makeImage().save("./test0.ppm");
+//            cur.rightUnfinished->makeImage().save("./test1.ppm");
+//            char dump;
+//            printf("cont\n");
+//            scanf("%c",&dump);
+            
+            int tempLeftXOffset = cur.accumulativeXOffset + cur.leftUnfinished->getXOffset();
+            int tempLeftYOffset = cur.accumulativeYOffset + cur.leftUnfinished->getYOffset();
+            int tempRightXOffset = cur.accumulativeXOffset + cur.rightUnfinished->getXOffset();
+            int tempRightYOffset = cur.accumulativeYOffset + cur.rightUnfinished->getYOffset();
+            
+            cur.leftUnfinished->changeSrc(&img,cur.accumulativeXOffset,cur.accumulativeYOffset);
+            cur.rightUnfinished->changeSrc(&img,cur.accumulativeXOffset,cur.accumulativeYOffset);
+            
+            QVector<BPartition*> leftCuts;
+            int leftMaxflow = minCut(*cur.leftUnfinished,leftCuts);
+            QVector<BPartition*> rightCuts;
+            int rightMaxflow = minCut(*cur.rightUnfinished,rightCuts);
+            
+            int leftCutLeftCount=0;
+            int leftCutRightCount=0;
+            for (int x=0; x<leftCuts[0]->width(); x++)
+            {
+                for (int y=0; y<leftCuts[0]->height(); y++)
+                {
+                    if (leftCuts[0]->pixel(x,y))
+                        leftCutLeftCount++;
+                }
+            }
+            for (int x=0; x<leftCuts[1]->width(); x++)
+            {
+                for (int y=0; y<leftCuts[1]->height(); y++)
+                {
+                    if (leftCuts[1]->pixel(x,y))
+                        leftCutRightCount++;
+                }
+            }
+            int rightCutLeftCount=0;
+            int rightCutRightCount=0;
+            for (int x=0; x<rightCuts[0]->width(); x++)
+            {
+                for (int y=0; y<rightCuts[0]->height(); y++)
+                {
+                    if (rightCuts[0]->pixel(x,y))
+                        rightCutLeftCount++;
+                }
+            }
+            for (int x=0; x<rightCuts[1]->width(); x++)
+            {
+                for (int y=0; y<rightCuts[1]->height(); y++)
+                {
+                    if (rightCuts[1]->pixel(x,y))
+                        rightCutRightCount++;
+                }
+            }
+            //print
+            
+            //state check//
+            side newSide;
+            bool recurLeft;
+            char read;
+            
+            //tree goes here
+            if (rightMaxflow <= 3428)
+            {
+                if (leftMaxflow <= 4474)
+                {
+                    read='b';
+                }
+                else
+                {
+                    read='r';
+                }
+            }
+            else
+            {
+                if (leftMaxflow <= 3416)
+                {
+                    read='l';
+                }
+                else
+                {
+                    read='e';
+                }
+            }
+            
+            if (read == 'e')
+            {
+                cont = false;
+            }
+            else if (read == 'l')
+            {
+                recurLeft = true;
+                cur.accumulativeXOffset = tempLeftXOffset;
+                cur.accumulativeYOffset = tempLeftYOffset;
+            }
+            else if (read == 'r')
+            {
+                recurLeft = false;
+                cur.accumulativeXOffset = tempRightXOffset;
+                cur.accumulativeYOffset = tempRightYOffset;
+            }
+            else if (read == 'b')
+            {
+                
+                newSide.accumulativeXOffset = tempLeftXOffset;
+                newSide.accumulativeYOffset = tempLeftYOffset;
+                newSide.index = cur.index;
+                
+                recurLeft = false;
+                cur.accumulativeXOffset = tempRightXOffset;
+                cur.accumulativeYOffset = tempRightYOffset;
+                
+                //split
+                
+            }
+            
+            test_count++;
+           
+            
+            
+            
+            
+            if (cont && recurLeft)
+            {
+                
+                ret.insert(cur.index,cur.rightUnfinished);
+                delete cur.unfinished;
+                delete rightCuts[0];
+                delete rightCuts[1];
+                
+                cur.unfinished = cur.leftUnfinished;
+                cur.leftUnfinished=leftCuts[0];
+                cur.leftWidth = leftCuts[0]->width();
+                cur.leftCount = leftCutLeftCount;
+                cur.rightUnfinished=leftCuts[1];
+                cur.rightWidth = leftCuts[1]->width();
+                cur.rightCount = leftCutRightCount;
+                cur.costOfCut = leftMaxflow;
+            }
+            else if (cont)
+            {
+                if (read!='b')
+                {
+                    ret.insert(cur.index,cur.leftUnfinished);
+                    cur.index++;
+                    delete leftCuts[0];
+                    delete leftCuts[1];
+                }
+                else
+                {
+                    newSide.unfinished = cur.leftUnfinished;
+                    newSide.leftUnfinished=leftCuts[0];
+                    newSide.leftWidth = leftCuts[0]->width();
+                    newSide.leftCount = leftCutLeftCount;
+                    newSide.rightUnfinished=leftCuts[1];
+                    newSide.rightWidth = leftCuts[1]->width();
+                    newSide.rightCount = leftCutRightCount;
+                    newSide.costOfCut = leftMaxflow;
+                    stack.append(newSide);
+                }
+                
+                delete cur.unfinished;
+                cur.unfinished = cur.rightUnfinished;
+                cur.leftUnfinished=rightCuts[0];
+                cur.leftWidth = rightCuts[0]->width();
+                cur.leftCount = rightCutLeftCount;
+                cur.rightUnfinished=rightCuts[1];
+                cur.rightWidth = rightCuts[1]->width();
+                cur.rightCount = rightCutRightCount;
+                cur.costOfCut = rightMaxflow;
+            }
+            else
+            {
+                ret.insert(cur.index++,cur.leftUnfinished);
+                ret.insert(cur.index,cur.rightUnfinished);
+                delete cur.unfinished;
+                delete leftCuts[0];
+                delete leftCuts[1];
+                delete rightCuts[0];
+                delete rightCuts[1];
+            }
+            
+            
+            
+            
+            
+        }
+    }
+    results.close();
+
     return ret;
 }
 
