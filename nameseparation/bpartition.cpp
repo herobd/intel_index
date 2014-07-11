@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <math.h>
 
+int BPartition::idCounter=0;
+
 BPartition::BPartition(const BPixelCollection* ofImage)
 {
     src=ofImage;
@@ -14,6 +16,7 @@ BPartition::BPartition(const BPixelCollection* ofImage)
 //    for (int i=0; i<(int)ceil(src->width()*src->height() / ((8*sizeof(unsigned int))) * 1.0); i++)
 //        myPixels[i]=0;
     initMyPixels();
+    myId = idCounter++;
 }
 BPartition::BPartition(const BImage* ofImage)
 {
@@ -27,6 +30,7 @@ BPartition::BPartition(const BImage* ofImage)
 //    for (int i=0; i<(int)ceil(src->width()*src->height() / ((8*sizeof(unsigned int))) * 1.0); i++)
 //        myPixels[i]=0;
     initMyPixels();
+    myId = idCounter++;
 }
 BPartition::BPartition(const BPartition* ofImage)
 {
@@ -40,6 +44,7 @@ BPartition::BPartition(const BPartition* ofImage)
 //    for (int i=0; i<(int)ceil(src->width()*src->height() / ((8*sizeof(unsigned int))) * 1.0); i++)
 //        myPixels[i]=0;
     initMyPixels();
+    myId = idCounter++;
 }
 
 BPartition::~BPartition()
@@ -53,12 +58,19 @@ BPartition::~BPartition()
 
 BPartition& BPartition::operator=( const BPartition& other )
 {
+    for (int i=0; i<src->width(); i++)
+    {
+        delete[] myPixels[i];
+    }
+    delete[] myPixels;
+    
     src = other.getSrc();
     rootSrc = other.rootSrc;
     leftX=other.leftX;
     rightX=other.rightX;
     upperY=other.upperY;
     lowerY=other.lowerY;
+    myId = other.myId;
     
 //    myPixels = new unsigned int[(int)ceil(src->width()*src->height() / ((8*sizeof(unsigned int))) * 1.0)];
 //    for (int i=0; i<(int)ceil(src->width()*src->height() / ((8*sizeof(unsigned int))) * 1.0); i++)
@@ -73,7 +85,8 @@ BPartition& BPartition::operator=( const BPartition& other )
         }
     }
         
-        return *this;
+    return *this;
+        
 }
 
 
@@ -684,7 +697,7 @@ void BPartition::changeSrc(const BPixelCollection* newSrc, int srcXOffset, int s
     
     for (int i=0; i<src->width(); i++)
         delete[] myPixels[i];
-//    delete[] myPixels;
+    delete[] myPixels;
     myPixels=newMyPixels;
     src=newSrc;
 }

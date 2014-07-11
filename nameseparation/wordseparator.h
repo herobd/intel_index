@@ -38,6 +38,8 @@ public:
     
     static QVector<BPartition*> segmentLinesOfWords(const BPixelCollection &column, int spacingEstimate);
     static QVector<BPartition*> recursiveHorizontalCutTwoWords(const BPixelCollection &img);
+    static QVector<BPartition*> recursiveHorizontalCutTwoWordsTraining(const BPixelCollection &img);
+    static QVector<BPartition*> recursiveHorizontalCutFirstLetter(const BPixelCollection &img);
     static QVector<BPartition*> recursiveHorizontalCutFirstLetterTraining(const BPixelCollection &img);
     static QVector<BPartition*> recursiveHorizontalCutFullTraining(const BPixelCollection &img);
     static QVector<BPartition*> recursiveHorizontalCutFull(const BPixelCollection &img);

@@ -172,31 +172,31 @@ bPixel BImage::pixelFull(int x, int y) const
 float BImage::pixelOwnerPortion(const QPoint &p, BPartition* owner) const
 {
     assert(p.x()>=0 && p.x()<myWidth && p.y()>=0 && p.y()<myHeight);
-    if (pixels[p.x()][p.y()].ownership.contains(owner))
-        return pixels[p.x()][p.y()].ownership[owner];
+    if (pixels[p.x()][p.y()].ownership.contains(owner->id()))
+        return pixels[p.x()][p.y()].ownership[owner->id()];
     else 
         return 0;
 }
 float BImage::pixelOwnerPortion(int x, int y, BPartition* owner) const
 {
     assert(x>=0 && x<myWidth && y>=0 && y<myHeight);
-    if (pixels[x][y].ownership.contains(owner))
-        return pixels[x][y].ownership[owner];
+    if (pixels[x][y].ownership.contains(owner->id()))
+        return pixels[x][y].ownership[owner->id()];
     else 
         return 0;
 }
 
-BPartition* BImage::pixelMajorityOwner(const QPoint &p) const
+int BImage::pixelMajorityOwner(const QPoint &p) const
 {
     return pixelMajorityOwner(p.x(),p.y());
 }
 
-BPartition* BImage::pixelMajorityOwner(int x, int y) const
+int BImage::pixelMajorityOwner(int x, int y) const
 {
     assert(x>=0 && x<myWidth && y>=0 && y<myHeight);
-    BPartition* mostId=0x0;
+    int mostId=-1;
     float most=0;
-    QMap<BPartition*,float>::const_iterator i = pixels[x][y].ownership.constBegin();
+    QMap<int,float>::const_iterator i = pixels[x][y].ownership.constBegin();
     while (i != pixels[x][y].ownership.constEnd())
     {
         if (i.value() > most)
@@ -247,15 +247,15 @@ void BImage::setPixelOwner(int x, int y, BPartition* owner, float portion)
     if (pixels[x][y].ownership.size() > 0)
     {
         float old = 0;
-        if (pixels[x][y].ownership.contains(owner))
+        if (pixels[x][y].ownership.contains(owner->id()))
         {
-            old = pixels[x][y].ownership[owner];
+            old = pixels[x][y].ownership[owner->id()];
         }
         float converter = (1-portion)/(1-old);
-        QMap<BPartition*,float>::iterator i = pixels[x][y].ownership.begin();
+        QMap<int,float>::iterator i = pixels[x][y].ownership.begin();
         while(i != pixels[x][y].ownership.end())
         {
-            if (i.key() != owner)
+            if (i.key() != owner->id())
             {
                 float oldother = i.value();
                 if (oldother!=0)
@@ -267,7 +267,7 @@ void BImage::setPixelOwner(int x, int y, BPartition* owner, float portion)
             ++i;
         }
     }
-    pixels[x][y].ownership[owner]=portion;
+    pixels[x][y].ownership[owner->id()]=portion;
 //    owner->changedPortion(x,y,portion,old);
 }
 
@@ -308,11 +308,20 @@ QImage BImage::getOwnersImage()
     color_table.append(qRgb(3,21,255));
     color_table.append(qRgb(123,136,255));
     
+    color_table.append(qRgb(235,0,135));
+    color_table.append(qRgb(235,132,192));
+    
     color_table.append(qRgb(255,0,0));
     color_table.append(qRgb(255,120,120));
     
+    color_table.append(qRgb(225,94,13));
+    color_table.append(qRgb(224,147,125));
+    
     color_table.append(qRgb(207,178,3));
     color_table.append(qRgb(255,241,159));
+    
+    color_table.append(qRgb(179,212,0));
+    color_table.append(qRgb(191,212,113));
     
     color_table.append(qRgb(21,212,0));
     color_table.append(qRgb(193,255,149));
@@ -324,7 +333,7 @@ QImage BImage::getOwnersImage()
     color_table.append(qRgb(122,0,122));
     color_table.append(qRgb(224,0,223));
     
-    QMap<BPartition*,int> partitionIndex;
+    QMap<int,int> partitionIndex;
     int currentIndex=0;
     
     QImage ret(myWidth,myHeight,QImage::Format_Indexed8);
@@ -335,24 +344,13 @@ QImage BImage::getOwnersImage()
             if (pixels[x][y].ownership.size()>0)
             {
             
-                BPartition* mostId=0x0;
-                float most=0;
-                QMap<BPartition*,float>::const_iterator i = pixels[x][y].ownership.constBegin();
-                while (i != pixels[x][y].ownership.constEnd())
-                {
-                    if (i.value() > most)
-                    {
-                        most = i.value();
-                        mostId = i.key();
-                    }
-                    ++i;
-                }
+                int mostId = pixelMajorityOwner(x,y);
                 
-                if (mostId!=0x0)
+                if (mostId!=-1)
                 {
                     if (!partitionIndex.contains(mostId))
                     {
-                        currentIndex = (1+currentIndex)%6;
+                        currentIndex = (1+currentIndex)%((color_table.size()-2)/2);
                         partitionIndex[mostId]=currentIndex;
                     }
                     
@@ -377,10 +375,9 @@ QImage BImage::getOwnersImage()
 
 void BImage::saveICDAR(QString name)
 {
-    int out[myHeight*myWidth];
-    
-    QMap<BPartition*,int> partitionIndex;
+    int* out = new int[myHeight*myWidth];
     int currentIndex=0;
+    QMap<int,int> partitionIndex;
     for (int y=0; y<myHeight; y++)
         for (int x=0; x<myWidth; x++)
         {
@@ -389,25 +386,15 @@ void BImage::saveICDAR(QString name)
                 if (pixels[x][y].ownership.size()>0)
                 {
                 
-                    BPartition* mostId=0x0;
-                    float most=0;
-                    QMap<BPartition*,float>::const_iterator i = pixels[x][y].ownership.constBegin();
-                    while (i != pixels[x][y].ownership.constEnd())
-                    {
-                        if (i.value() > most)
-                        {
-                            most = i.value();
-                            mostId = i.key();
-                        }
-                        ++i;
-                    }
+                    int mostId = pixelMajorityOwner(x,y);
                     
-                    if (mostId!=0x0)
+                    if (mostId!=-1)
                     {
                         if (!partitionIndex.contains(mostId))
                         {
-                            currentIndex = (1+currentIndex)%6;
-                            partitionIndex[mostId]=currentIndex;
+//                            currentIndex++;
+                            partitionIndex[mostId]=++currentIndex;
+//                            printf("new index %d\n",currentIndex);
                         }
                         
                         out[x+y*myWidth]=2+partitionIndex[mostId];
@@ -415,7 +402,8 @@ void BImage::saveICDAR(QString name)
                         continue;
                     }
                 }
-                out[x+y*myWidth]=1;
+                out[x+y*myWidth]=0;
+//                printf("error, unclaimed pixel (%d,%d)\n",x,y);
             }
             else
                 out[x+y*myWidth]=0;
@@ -425,6 +413,7 @@ void BImage::saveICDAR(QString name)
     std::ofstream outfile(name.toLocal8Bit().data(), std::ios::out | std::ios::binary);
     outfile.write(reinterpret_cast<const char *>(out),sizeof(int)*myWidth*myHeight);
     outfile.close();
+    delete[] out;
 }
 
 void BImage::claimOwnership(BPartition* claimer, float amount)
@@ -436,6 +425,20 @@ void BImage::claimOwnership(BPartition* claimer, float amount)
          {
              if (claimer->pixelIsMine(x,y))
                 setPixelOwner(x+claimer->getXOffset(),y+claimer->getYOffset(),claimer,amount);
+         }
+    }
+}
+
+void BImage::claimOwnershipVia(BPartition* intermediate, BPartition* claimer, float amount)
+{
+    assert(intermediate->getSrc() == this);
+    assert(claimer->getSrc() == intermediate);
+    for (int x=0; x<claimer->width(); x++)
+    {
+         for (int y=0; y<claimer->height(); y++)
+         {
+             if (claimer->pixelIsMine(x,y))
+                setPixelOwner(x+claimer->getXOffset()+intermediate->getXOffset(),y+claimer->getYOffset()+intermediate->getYOffset(),claimer,amount);
          }
     }
 }
@@ -465,6 +468,7 @@ BPartition* BImage::getFullPartition()
 
 bool BImage::pixelIsMine(int x, int y) const
 {
+    assert(x>=0 && x<myWidth && y>=0 && y<myHeight);
     return true;
 }
 

@@ -13,7 +13,7 @@ class BPartition;
 struct bPixel
 {
     bool val;
-    QMap<BPartition*, float> ownership;
+    QMap<int, float> ownership;
 };
 
 class BImage : public BPixelCollection
@@ -44,8 +44,8 @@ public:
     bPixel pixelFull(int x, int y) const;
     float pixelOwnerPortion(const QPoint &p, BPartition* owner) const;
     float pixelOwnerPortion(int x, int y, BPartition* owner) const;
-    BPartition* pixelMajorityOwner(const QPoint &p) const;
-    BPartition* pixelMajorityOwner(int x, int y) const;
+    int pixelMajorityOwner(const QPoint &p) const;
+    int pixelMajorityOwner(int x, int y) const;
     
     //use
     void setPixel(const QPoint &p, bool val);
@@ -64,6 +64,7 @@ public:
     void saveICDAR(QString name);
     
     void claimOwnership(BPartition* claimer, float amount);
+    void claimOwnershipVia(BPartition* intermediate, BPartition* claimer, float amount);
     
     BPartition* getFullPartition();
     

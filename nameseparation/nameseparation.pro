@@ -14,7 +14,8 @@ SOURCES += main.cpp \
     dimension.cpp \
     graphcut.cpp \
     gpartition.cpp \
-    gimage.cpp
+    gimage.cpp \
+    evaluate.cpp
 
 HEADERS += \
     ./wordprofile.h \
@@ -31,7 +32,8 @@ HEADERS += \
     graphcut.h \
     gpartition.h \
     gpixelcollection.h \
-    gimage.h
+    gimage.h \
+    evaluate.h
 
 OTHER_FILES += \
     maxflow/instances.inc

@@ -49,6 +49,7 @@ public:
 //    bool rebase();
     void changeSrc(const BPixelCollection* newSrc, int srcXOffset, int srcYOffset);
 //    void makeFull();
+    int id(){return myId;}
     
 private:
     int leftX;
@@ -63,6 +64,9 @@ private:
     void initMyPixels();
     inline void setMyPixelTrue(int src_x, int src_y);
     inline void setMyPixelFalse(int src_x, int src_y);
+    
+    int myId;
+    static int idCounter;
     
 };
 
