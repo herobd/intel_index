@@ -145,7 +145,9 @@ void BImage::save(const QString& filepath)
 void BImage::saveOwners(const QString& filepath)
 {
     QImage temp = getOwnersImage();
-    temp.save(filepath);
+    bool test = temp.save(filepath);
+    if (!test)
+        printf("ERROR: failed to saveOwners\n");
 }
 
 bool BImage::pixel(const QPoint &p) const
@@ -308,28 +310,29 @@ QImage BImage::getOwnersImage()
     color_table.append(qRgb(3,21,255));
     color_table.append(qRgb(123,136,255));
     
-    color_table.append(qRgb(235,0,135));
-    color_table.append(qRgb(235,132,192));
-    
     color_table.append(qRgb(255,0,0));
     color_table.append(qRgb(255,120,120));
-    
-    color_table.append(qRgb(225,94,13));
-    color_table.append(qRgb(224,147,125));
-    
-    color_table.append(qRgb(207,178,3));
-    color_table.append(qRgb(255,241,159));
-    
-    color_table.append(qRgb(179,212,0));
-    color_table.append(qRgb(191,212,113));
-    
-    color_table.append(qRgb(21,212,0));
-    color_table.append(qRgb(193,255,149));
     
     color_table.append(qRgb(0,184,179));
     color_table.append(qRgb(149,255,252));
     
-   
+    
+    
+    color_table.append(qRgb(235,0,135));
+    color_table.append(qRgb(235,132,192));
+    
+    color_table.append(qRgb(179,212,0));
+    color_table.append(qRgb(191,212,113));
+    
+    color_table.append(qRgb(225,94,13));
+    color_table.append(qRgb(224,147,125));
+    
+    color_table.append(qRgb(21,212,0));
+    color_table.append(qRgb(193,255,149));
+    
+    color_table.append(qRgb(207,178,3));
+    color_table.append(qRgb(255,241,159));
+    
     color_table.append(qRgb(122,0,122));
     color_table.append(qRgb(224,0,223));
     

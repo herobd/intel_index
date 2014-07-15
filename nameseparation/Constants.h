@@ -17,7 +17,7 @@
 #define PI      3.14159265358
 #define HALF_PI 1.57079632679
 
-#define SLOPE_DIF_TOLERANCE .35 //bins, + or -
+#define SLOPE_DIF_TOLERANCE .2//.35 //bins, + or -
 
 #define ANCHOR_L 2.4
 #define ANCHOR_R 2.4

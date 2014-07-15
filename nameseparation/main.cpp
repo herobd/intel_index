@@ -20,11 +20,11 @@ using namespace std;
 int main(int argc, char** argv)
 {
     cout << "Starting..." << endl;
-//    QImage testimg(argv[1]);
+    QImage testimg(argv[1]);
 
     
     
-//    BImage bimg(testimg);
+    BImage bimg(testimg);
     
 //    BImage cleared = BoxCleaner::trimVerticleBoundaries(bimg);
 //    cleared = BoxCleaner::removeVerticlePixelNoise(cleared);
@@ -66,20 +66,20 @@ int main(int argc, char** argv)
     
     ///////////////////////////////
     
-//    BImage cleared = BoxCleaner::trimVerticleBoundaries(bimg);
-//    cleared = BoxCleaner::trimHorizontalBoundaries(cleared);
-//    cleared = BoxCleaner::removeVerticlePixelNoise(cleared);
-//    QVector<BPartition*> lines = WordSeparator::segmentLinesOfWords(cleared,40);
-//    for (int i=0; i<lines.size(); i++)
-//    {
-//        cleared.claimOwnership(lines[i],1);
-////        segmentation[i]->makeImage().save("./output/");
-//    }
-//    cleared.saveOwners("./rainbow.ppm");
-//    for (int i=0; i<lines.size(); i++)
-//    {
-//        delete lines[i];
-//    }
+    BImage cleared = BoxCleaner::trimVerticleBoundaries(bimg);
+    cleared = BoxCleaner::trimHorizontalBoundaries(cleared);
+    cleared = BoxCleaner::removeVerticlePixelNoise(cleared);
+    QVector<BPartition*> lines = WordSeparator::segmentLinesOfWords(cleared,40);
+    for (int i=0; i<lines.size(); i++)
+    {
+        cleared.claimOwnership(lines[i],1);
+//        segmentation[i]->makeImage().save("./output/");
+    }
+    cleared.saveOwners("./rainbow.ppm");
+    for (int i=0; i<lines.size(); i++)
+    {
+        delete lines[i];
+    }
     
     //////////////////////////////////////////////////////
         
@@ -107,7 +107,7 @@ int main(int argc, char** argv)
 //        BImage bimg(testimg);
 //        BImage clean = BoxCleaner::trimBoundaries(bimg);
 //        printf("Two words %d\n",i);
-//        QVector<BPartition*> segmentation = WordSeparator::recursiveHorizontalCutTwoWords(clean);
+//        QVector<BPartition*> segmentation = WordSeparator::recursiveHorizontalCutTwoWordsTraining(clean);
 //        for (int i=0; i<segmentation.size(); i++)
 //        {
 //            clean.claimOwnership(segmentation[i],1);
@@ -117,7 +117,7 @@ int main(int argc, char** argv)
         
 //        BImage lastname =  segmentation[1]->makeImage();
 //        printf("First letter %d\n",i);
-//        QVector<BPartition*> segmentation2 = WordSeparator::recursiveHorizontalCutFirstLetter(lastname);
+//        QVector<BPartition*> segmentation2 = WordSeparator::recursiveHorizontalCutFirstLetterTraining(lastname);
 //        for (int i=0; i<segmentation2.size(); i++)
 //        {
 //            lastname.claimOwnership(segmentation2[i],1);
@@ -231,33 +231,20 @@ int main(int argc, char** argv)
 //    }
     
     
-    ///switcher//////////////////////////////////////////////////
-//    ifstream infile("training_results.dat");
-//    ofstream myfile ("redone_training_results.dat");
-//    string line;
-//    for (int i=0; i<23; i++)
-//        getline(infile, line);
-//    QRegExp re("(-?\\d+)(,\\d+,\\d+,\\d+,\\d+,)(-?\\d+)(,\\d+,\\d+,\\d+,\\d+,)(-?\\d+)(,\\d+,\\d+,\\d+,\\d+,)(.)");
-//    while (getline(infile, line))
+    ////////////
+//    Evaluate::horizontalSegmentationTest(QString(argv[1]));
+//    Evaluate::verticleSegmentationTest(QString(argv[1]), QString(argv[2]));
+    /////////////
+//    QImage img(argv[1]);
+//    BImage bimg(img);
+//    BImage clean = BoxCleaner::trimBoundaries(bimg);
+//    QVector<BPartition*> segmentation = WordSeparator::recursiveHorizontalCutFull(clean);
+//    for (int j=0; j<segmentation.size(); j++)
 //    {
-//        QString qLine(line.c_str());
-//        re.indexIn(qLine);
-//        int cut1_maxflow=re.cap(1).toInt();
-//        int cut2L_maxflow=re.cap(3).toInt();
-//        int cut2R_maxflow=re.cap(5).toInt();
-//        int difL = cut1_maxflow-cut2L_maxflow;
-//        int difR = cut1_maxflow-cut2R_maxflow;
-        
-//        myfile << re.cap(1).toLocal8Bit().data() << re.cap(2).toLocal8Bit().data() << re.cap(3).toLocal8Bit().data() << re.cap(4).toLocal8Bit().data() << re.cap(5).toLocal8Bit().data() << re.cap(6).toLocal8Bit().data() << difL << "," << difR << "," << re.cap(7).toLocal8Bit().data() << endl;
+//        clean.claimOwnership(segmentation[j],1);
+////        segmentation[i]->makeImage().save("./output/");
 //    }
-    
-    
-//    myfile.close();
-//    infile.close();
-    ///
-    
-    Evaluate::horizontalSegmentationTest(QString(argv[1]));
-    
+//    clean.saveOwners("./test.ppm");
     return 0;
 }
 

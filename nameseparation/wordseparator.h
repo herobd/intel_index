@@ -45,6 +45,7 @@ public:
     static QVector<BPartition*> recursiveHorizontalCutFull(const BPixelCollection &img);
     
     static QVector<BPartition*> cut3D(BPixelCollection &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds);
+    static QVector<BPartition*> cutGivenSeeds(BPixelCollection &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds);
     
 private:
     static void computeInverseDistanceMap(BPixelCollection &img, int* out);

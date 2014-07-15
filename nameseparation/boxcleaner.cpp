@@ -554,12 +554,12 @@ BImage BoxCleaner::clearLineAndCloseLetters(BPixelCollection &src, int est_y, in
             return ret;
         
         aboveLine = maxProfileIndex-1;
-        while (profile[aboveLine]>LINE_THRESH)
+        while (aboveLine>=0 && profile[aboveLine]>LINE_THRESH)
             aboveLine--;
         aboveLine+=(est_y-SEARCH_BAND);
         
         belowLine = maxProfileIndex+1;
-        while (profile[belowLine]>LINE_THRESH)
+        while (belowLine<profile.size() && profile[belowLine]>LINE_THRESH)
             belowLine++;
         belowLine+=(est_y-SEARCH_BAND);
         

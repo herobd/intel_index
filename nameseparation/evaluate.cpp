@@ -62,15 +62,17 @@ double Evaluate::verticleSegmentationTest(QString imgPath, QString gtDirPath)
         
         
         QString imageNumber;
-        imageNumber.setNum(i);
-        if (i<10)
+        imageNumber.setNum(1+i);
+        if (i+1<10)
             imageNumber = "0" + imageNumber;
         QString gtPath = gtDirPath + imageNumber + ".pgm";
+//        printf("gt:%s\n",gtPath.toLocal8Bit().data())
         QImage gt(gtPath);
         BImage bgt(gt);
         double score=matchedScore(*lines[i],bgt);
         summedScore+=score;
         results << score;
+//        printf ("line %d finished\n",i);
     }
     double avgScore = summedScore/lines.size();
     results << ": " << avgScore << std::endl;
@@ -89,6 +91,7 @@ double Evaluate::horizontalSegmentationTest(QString root)
     int correctNames=0;
     int totalFirstLetters=0;
     int correctFirstLetters=0;
+    int correctFirstTwoLetters=0;
     for (int i=1; i<=50; i++)
     {
         QString imageNumber;
@@ -103,9 +106,9 @@ double Evaluate::horizontalSegmentationTest(QString root)
         BImage clean = BoxCleaner::trimBoundaries(bimg);
 //        printf("Two words %d\n",i);
         QVector<BPartition*> segmentation = WordSeparator::recursiveHorizontalCutTwoWords(clean);
-        for (int i=0; i<segmentation.size(); i++)
+        for (int j=0; j<segmentation.size(); j++)
         {
-            clean.claimOwnership(segmentation[i],1);
+            clean.claimOwnership(segmentation[j],1);
     //        segmentation[i]->makeImage().save("./output/");
         }
         clean.saveOwners("./horzTest.ppm");
@@ -131,19 +134,24 @@ double Evaluate::horizontalSegmentationTest(QString root)
         BImage firstname =  segmentation[0]->makeImage();
 //        printf("First letter %d\n",i);
         QVector<BPartition*> segmentation2 = WordSeparator::recursiveHorizontalCutFirstLetter(firstname);
-        for (int i=0; i<segmentation2.size(); i++)
-        {
-            firstname.claimOwnership(segmentation2[i],1);
-        }
-        firstname.saveOwners("./firstletterTest.ppm");
+//        for (int i=0; i<segmentation2.size(); i++)
+//        {
+            firstname.claimOwnership(segmentation2[0],1);
+//        }
+        firstname.saveOwners("./horzTest.ppm");
         char read2;
         while (true)
         {
-            printf("Letter correct?:");
+            printf("Letter correct?(one):");
             scanf("%c%c",&read2,&dump);
             if (read2=='m')
             {
                 correctFirstLetters++;
+                break;
+            }
+            else if (read2=='j')
+            {
+                correctFirstTwoLetters++;
                 break;
             }
             else if (read2=='n')
@@ -167,19 +175,24 @@ double Evaluate::horizontalSegmentationTest(QString root)
             BImage lastname =  segmentation[1]->makeImage();
 //            printf("First letter %d\n",i);
             QVector<BPartition*> segmentation3 = WordSeparator::recursiveHorizontalCutFirstLetter(lastname);
-            for (int i=0; i<segmentation3.size(); i++)
-            {
-                lastname.claimOwnership(segmentation3[i],1);
-            }
-            lastname.saveOwners("./firstletterTest.ppm");
+//            for (int i=0; i<segmentation3.size(); i++)
+//            {
+                lastname.claimOwnership(segmentation3[0],1);
+//            }
+            lastname.saveOwners("./horzTest.ppm");
             char read3;
             while (true)
             {
-                printf("Letter correct?:");
+                printf("Letter correct?(two):");
                 scanf("%c%c",&read3,&dump);
                 if (read3=='m')
                 {
                     correctFirstLetters++;
+                    break;
+                }
+                else if (read3=='j')
+                {
+                    correctFirstTwoLetters++;
                     break;
                 }
                 else if (read3=='n')
@@ -204,5 +217,6 @@ double Evaluate::horizontalSegmentationTest(QString root)
     }
     double perWords = correctNames/50.0;
     double perLetters = ((double) correctFirstLetters) / ((double) totalFirstLetters);
-    printf("Names: %f, Letters: %f\n",perWords,perLetters);
+    double perLooseLetters = ((double) correctFirstLetters + correctFirstTwoLetters) / ((double) totalFirstLetters);
+    printf("Names: %f, Letters(strict): %f, Letters(loose): %f\n",perWords,perLetters,perLooseLetters);
 }
