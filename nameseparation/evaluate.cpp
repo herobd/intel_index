@@ -45,7 +45,7 @@ double Evaluate::matchedScore(BPixelCollection &img1, BPixelCollection &img2)
 
 double Evaluate::verticleSegmentationTest(QString imgPath, QString gtDirPath)
 {
-    QString outPath = "~/intel_index/testing/results/vertSegResults.dat"; 
+    QString outPath = "/home/brian/intel_index/testing/results/vertSegResults.dat"; 
     std::ofstream results (outPath.toLocal8Bit().data(),std::ofstream::app);
     QImage img(imgPath);
     BImage bimg(img);

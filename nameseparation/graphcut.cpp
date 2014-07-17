@@ -480,42 +480,42 @@ inline QVector<QVector<QVector<double> > > make3dImage(const BPixelCollection &i
     }
     
     ///test///
-//    double testMax=0;
-//    for (int x=0; x<img.width(); x++)
-//    {
-//        for (int y=0; y<img.height(); y++)
-//        {
-//            for (int s=0; s<dimensions.getBinNums()[0]; s++)
-//            {
-//                if (ret[x][y][s] > testMax)
-//                    testMax=ret[x][y][s];
-//            }
-//        }
-//    }
-//    printf("testMat=%f\n",testMax);
-//    QVector<QRgb> default_color_table;
-//    for (int i=0; i<256; i++)
-//    {
-//        default_color_table.append(qRgb(i,i,i));
-//    }
-//    for (int s=0; s<dimensions.getBinNums()[0]; s++)
-//    {
-//        QImage test(img.width(),img.height(),QImage::Format_Indexed8);
-//        test.setColorTable(default_color_table);
-//        for (int x=0; x<img.width(); x++)
-//        {
-//            for (int y=0; y<img.height(); y++)
-//            {
-//                test.setPixel(x,y,ret[x][y][s]*(255.0/testMax));
-//            }
-//        }
-//        QString debugfile = "./dist_3d/layer_";
-//        QString num;
-//        num.setNum(s);
-//        debugfile.append(num);
-//        debugfile.append(".ppm");
-//        test.save(debugfile);
-//    }
+    double testMax=0;
+    for (int x=0; x<img.width(); x++)
+    {
+        for (int y=0; y<img.height(); y++)
+        {
+            for (int s=0; s<dimensions.getBinNums()[0]; s++)
+            {
+                if (ret[x][y][s] > testMax)
+                    testMax=ret[x][y][s];
+            }
+        }
+    }
+    printf("testMat=%f\n",testMax);
+    QVector<QRgb> default_color_table;
+    for (int i=0; i<256; i++)
+    {
+        default_color_table.append(qRgb(i,i,i));
+    }
+    for (int s=0; s<dimensions.getBinNums()[0]; s++)
+    {
+        QImage test(img.width(),img.height(),QImage::Format_Indexed8);
+        test.setColorTable(default_color_table);
+        for (int x=0; x<img.width(); x++)
+        {
+            for (int y=0; y<img.height(); y++)
+            {
+                test.setPixel(x,y,ret[x][y][s]*(255.0/testMax));
+            }
+        }
+        QString debugfile = "./dist_3d/layer_";
+        QString num;
+        num.setNum(s);
+        debugfile.append(num);
+        debugfile.append(".ppm");
+        test.save(debugfile);
+    }
     ///test///
     
     return ret;
@@ -763,8 +763,8 @@ int GraphCut::pixelsOfSeparationNDimensions(int* invDistMap, int width, int heig
     //For simplicity, only doing three dimensions now
 //    double FLAT_WEIGHT = .5;
 //    double SLOPE_WEIGHT = 4;
-    double FLAT_WEIGHT = 1.25;
-    double SLOPE_WEIGHT = .9;
+    double FLAT_WEIGHT = 6;
+    double SLOPE_WEIGHT = .5;
     int slope_size = dimensions.getBinNums()[0];
     for (int k=0; k<slope_size; k++)
     {
@@ -1631,6 +1631,425 @@ int GraphCut::pixelsOfSeparation(int* invDistMap, int width, int height, const B
         }
     }
     
+    
+    
+    delete g;
+    return ret;
+}
+
+/////////////////////////////////////
+inline QVector<QVector<QVector<double> > > make3dImage(const BPixelCollection &img,int* invDistMap,const AngleImage &angleImage)
+{
+    QVector<QVector<QVector<double> > > ret(img.width());
+    
+    int slopeDifRange = SLOPE_DIF_TOLERANCE*angleImage.getNumOfBins();
+    printf("difrange:%d\n",slopeDifRange);
+    for (int x=0; x<img.width(); x++)
+    {
+        QVector<QVector<double> > flat(img.height());
+        for (int y=0; y<img.height(); y++)
+        {
+            QVector<double> slope(angleImage.getNumOfBins());
+            
+            if (img.pixel(x,y))
+            {
+                QMap<int,double> binsAndStrForDim = angleImage.getBinsAndStrForPixel(x,y);
+                if (binsAndStrForDim.size()>0)
+                {
+                    for (int k=0; k<angleImage.getNumOfBins(); k++)
+                    {
+                        slope[k]=INV_A;//'a' from inv dist map computation
+                    }
+                    foreach (int bin, binsAndStrForDim.keys())
+                    {
+                        double strength = binsAndStrForDim[bin];
+                        double initVal = invDistMap[x+y*img.width()] * strength;
+                        
+                        slope[bin]=initVal;
+                        for (int kb=1; kb<slopeDifRange; kb++)
+                        {
+                            slope[mod((bin+kb),dimensions.getBinNums()[0])] = std::max((int)(slope[mod((bin+kb),angleImage.getNumOfBins())]), (int) (initVal * (slopeDifRange-kb)/(1.0*slopeDifRange)));
+                            slope[mod((bin-kb),dimensions.getBinNums()[0])] = std::max((int) (slope[mod((bin-kb),angleImage.getNumOfBins())]), (int) (initVal * (slopeDifRange-kb)/(1.0*slopeDifRange)));
+                        }
+                    }
+                    
+                }
+                else
+                {
+                    for (int k=0; k<angleImage.getNumOfBins(); k++)
+                    {
+                        slope[k]=invDistMap[x+y*img.width()];
+                    }
+                }
+            }
+            else
+            {
+                for (int k=0; k<angleImage.getNumOfBins(); k++)
+                {
+                    slope[k]=invDistMap[x+y*img.width()];
+                }
+            }
+            flat[y]=slope;
+        }
+        ret[x]=flat;
+    }
+    
+    ///test///
+    double testMax=0;
+    for (int x=0; x<img.width(); x++)
+    {
+        for (int y=0; y<img.height(); y++)
+        {
+            for (int s=0; s<angleImage.getNumOfBins(); s++)
+            {
+                if (ret[x][y][s] > testMax)
+                    testMax=ret[x][y][s];
+            }
+        }
+    }
+    printf("testMat=%f\n",testMax);
+    QVector<QRgb> default_color_table;
+    for (int i=0; i<256; i++)
+    {
+        default_color_table.append(qRgb(i,i,i));
+    }
+    for (int s=0; s<angleImage.getNumOfBins(); s++)
+    {
+        QImage test(img.width(),img.height(),QImage::Format_Indexed8);
+        test.setColorTable(default_color_table);
+        for (int x=0; x<img.width(); x++)
+        {
+            for (int y=0; y<img.height(); y++)
+            {
+                test.setPixel(x,y,ret[x][y][s]*(255.0/testMax));
+            }
+        }
+        QString debugfile = "./dist_3d/layer_";
+        QString num;
+        num.setNum(s);
+        debugfile.append(num);
+        debugfile.append(".ppm");
+        test.save(debugfile);
+    }
+    ///test///
+    
+    return ret;
+}
+
+
+int GraphCut::pixelsOfSeparation(int* invDistMap, int width, int height, const BPixelCollection &img, const AngleImage &angleImage, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, QVector<int> &outSource, QVector<int> &outSink, int anchor_weight, int split_method, int vert_divide)
+{
+    int NEW_ANCHOR = 80;
+    
+    QVector<QVector<QVector<double> > > image3d = make3dImage(img,invDistMap,angleImage);
+    
+    
+    
+    int numNodes = width*height;
+    int numEdges = 4*(width-1)*(height-1)-(height+width);
+//    for (int i=0; i<dimensions.numOfDim(); i++)
+//    {
+//        const Dimension* dim = dimensions.getDimension(i);
+//        numNodes *= dim->getNumBins();
+//        numEdges *= dim->getNumBins();
+//        numEdges += numNodes*(dim->getNumBins()-1);//assuming only striaght (no diag) connections for higher dimensions
+//    }
+    
+    AngleIndexer indexer(width, height);
+    
+    typedef Graph<int,int,int> GraphType;
+    GraphType *g = new GraphType(numNodes, numEdges); 
+    
+    for (int i=0; i<numNodes; i++)
+    {
+        g->add_node();
+    }
+    
+    QImage debug = img.makeImage().getImage();
+    QVector<QRgb> ct = debug.colorTable();
+    ct.append(qRgb(205,50,50));
+    ct.append(qRgb(50,205,50));
+    debug.setColorTable(ct);
+    
+    if (split_method == SPLIT_HORZ)
+    {
+        //find source pixels
+        int count_source = NEW_ANCHOR;
+        //fill
+        BImage mark = img.makeImage();
+        QVector<QPoint> workingStack;
+        foreach (QPoint seed, sourceSeeds)
+        {
+            workingStack.push_back(seed);
+            mark.setPixel(seed,false);
+        }
+        while (!workingStack.isEmpty() && count_source>0)
+        {   
+            QPoint cur = workingStack.front();
+            workingStack.pop_front();
+            for (int k=0; k<angleImage.getNumOfBins(); k++)
+            {
+                int index = indexer.getIndex(cur.x(),cur.y(),k);
+                g -> add_tweights(index, anchor_weight, 0);
+//                g -> add_tweights(index, 0, anchor_weight);
+            }
+            debug.setPixel(cur,2);
+            count_source--;
+            
+            
+            
+            if (cur.x()<mark.width()-1 && mark.pixel(cur.x()+1,cur.y()))
+            {
+                QPoint pp(cur.x()+1,cur.y());
+                workingStack.push_back(pp);
+                mark.setPixel(pp,false);
+                
+            }
+            if (cur.x()>0 && mark.pixel(cur.x()-1,cur.y()))
+            {
+                QPoint pp(cur.x()-1,cur.y());
+                workingStack.push_back(pp);
+                mark.setPixel(pp,false);
+            }
+            if (cur.y()>0 && mark.pixel(cur.x(),cur.y()-1))
+            {
+                QPoint pp(cur.x(),cur.y()-1);
+                workingStack.push_back(pp);
+                mark.setPixel(pp,false);
+            }
+            if (cur.y()<mark.height()-1 && mark.pixel(cur.x(),cur.y()+1))
+            {
+                QPoint pp(cur.x(),cur.y()+1);
+                workingStack.push_back(pp);
+                mark.setPixel(pp,false);
+            }
+        }
+        
+        int count_sink=NEW_ANCHOR;//height*ANCHOR_R;
+        
+        //find sink pixels
+
+        //fill
+        workingStack.clear();
+        foreach (QPoint seed, sinkSeeds)
+        {
+            workingStack.push_back(seed);
+            mark.setPixel(seed,false);
+        }
+        while (!workingStack.isEmpty() && count_sink>0)
+        {   
+            QPoint cur = workingStack.front();
+            workingStack.pop_front();
+            for (int k=0; k<angleImage.getNumOfBins(); k++)
+            {
+                int index = indexer.getIndex(cur.x(),cur.y(),k);
+                g -> add_tweights(index, 0, anchor_weight);
+//                g -> add_tweights(index, anchor_weight,0 );
+                
+            }
+            debug.setPixel(cur,3);
+            count_sink--;
+            
+            
+            
+            if (cur.x()<mark.width()-1 && mark.pixel(cur.x()+1,cur.y()))
+            {
+                QPoint pp(cur.x()+1,cur.y());
+                workingStack.push_back(pp);
+                mark.setPixel(pp,false);
+                
+            }
+            if (cur.x()>0 && mark.pixel(cur.x()-1,cur.y()))
+            {
+                QPoint pp(cur.x()-1,cur.y());
+                workingStack.push_back(pp);
+                mark.setPixel(pp,false);
+            }
+            if (cur.y()>0 && mark.pixel(cur.x(),cur.y()-1))
+            {
+                QPoint pp(cur.x(),cur.y()-1);
+                workingStack.push_back(pp);
+                mark.setPixel(pp,false);
+            }
+            if (cur.y()<mark.height()-1 && mark.pixel(cur.x(),cur.y()+1))
+            {
+                QPoint pp(cur.x(),cur.y()+1);
+                workingStack.push_back(pp);
+                mark.setPixel(pp,false);
+            }
+        }
+        
+        
+        debug.save("./anchors.ppm");
+    }
+    
+    
+    
+    //connect all pixels
+    //For simplicity, only doing three dimensions now
+//    double FLAT_WEIGHT = .5;
+//    double SLOPE_WEIGHT = 4;
+    double FLAT_WEIGHT = 6;
+    double SLOPE_WEIGHT = .5;
+    int slope_size = angleImage.getNumOfBins();
+    for (int k=0; k<slope_size; k++)
+    {
+        
+        for (int i=0; i<width; i++)
+        {
+            for (int j=0; j<height; j++)
+            {   
+                
+                //C1
+                if (i+1<width)
+                {
+                    setEdge3d(i,j,k,i+1,j,k,g,indexer,image3d,FLAT_WEIGHT);
+                }
+                
+                if (j+1<height)
+                {
+                    setEdge3d(i,j,k,i,j+1,k,g,indexer,image3d,FLAT_WEIGHT);
+                }
+                
+                if (k+1<slope_size)
+                {
+                    setEdge3d(i,j,k,i,j,k+1,g,indexer,image3d,SLOPE_WEIGHT);
+                }
+                else//fold
+                {
+                    setEdge3d(i,j,k,i,j,0,g,indexer,image3d,SLOPE_WEIGHT);
+                }
+                
+                //C2 dumbed down
+                if (j>0 && i<width-1)
+                {
+                    setEdge3d(i,j,k,i+1,j-1,k,g,indexer,image3d,2*FLAT_WEIGHT-sqrt(2*pow(FLAT_WEIGHT,2)));
+                }
+                
+                if (j<height-1 && i<width-1)
+                {
+                    setEdge3d(i,j,k,i+1,j+1,k,g,indexer,image3d,2*FLAT_WEIGHT-sqrt(2*pow(FLAT_WEIGHT,2)));
+                }
+                
+                
+                
+                //C3 nope
+                
+            }//j
+        }//i
+    }//k
+    
+    int ret = g -> maxflow();
+
+    
+    //add all black pixels which
+    
+    for (int x=0; x<width; x++)
+    {
+        for (int y=0; y<height; y++)
+        {
+            
+            if (img.pixel(x,y))
+            {
+                QMap<int,double> binsForDim = angleImage.getBinsAndStrForPixel(x,y);
+               
+                if (binsForDim.size() >0)
+                {
+                    int onSource = 0;
+                    int onSink = 0;
+                    foreach (int bin, binsForDim)
+                    {
+                        for (int around=-5; around<=5; around++)
+                        {
+                            int index = indexer.getIndex(x,y,mod(bin+around,angleImage.getNumOfBins()));
+                            
+                            if (g->what_segment(index) == GraphType::SOURCE)
+                                onSource++;
+                            else
+                                onSink++;
+                        }
+                    }
+                    if (onSource/(1.0*onSource+onSink)>.3)
+                        outSource.append(x+width*y);
+                    if (onSink/(1.0*onSource+onSink)>.3)
+                        outSink.append(x+width*y);
+                    
+                }
+                else
+                {
+                    bool onSource = false;
+                    bool onSink = false;
+                    for (int s=0; (!onSource || !onSink) && s<angleImage.getNumOfBins(); s++)
+                    {
+                        int index = indexer.getIndex(x,y,s);
+                        if (g->what_segment(index) == GraphType::SOURCE)
+                            onSource=true;
+                        else
+                            onSink=true;
+                    }
+                    if (onSource)
+                        outSource.append(x+width*y);
+                    if (onSink)
+                        outSink.append(x+width*y);
+                }
+            }
+            else
+            {
+                int source_count = 0;
+                int sink_count = 0;
+                for (int s=0; s<angleImage.getNumOfBins(); s++)
+                {
+                    int index = indexer.getIndex(x,y,s);
+                    if (g->what_segment(index) == GraphType::SOURCE)
+                        source_count++;
+                    else
+                        sink_count++;
+                }
+                if (source_count >= sink_count)
+                    outSource.append(x+width*y);
+                else
+                    outSink.append(x+width*y);
+            }
+            
+        }
+    }
+    
+    
+    ///test///
+    for (int s=0; s<angleImage.getNumOfBins(); s++)
+    {
+        BImage test(img.width(), img.height());
+        BPartition tmp1((BPixelCollection*) &test);
+        BPartition tmp2((BPixelCollection*) &test);
+        for (int x=0; x<width; x++)
+        {
+            for (int y=0; y<height; y++)
+            {
+                QMap<int,double> binsForDim = angleImage.getBinsAndStrForPixel(x,y);
+                foreach (int bin, binsForDim.keys())
+                {
+                    if (bin<s+11 && bin>s-11)
+                        test.setPixel(x,y,true);
+                }
+                    int index = indexer.getIndex(x,y,s);
+                    if (g->what_segment(index) == GraphType::SOURCE)
+                        tmp1.addPixelFromSrc(x,y);
+                    else
+                        tmp2.addPixelFromSrc(x,y);           
+            }
+        }
+        test.claimOwnership(&tmp2,1);
+        test.claimOwnership(&tmp1,1);
+        
+        QString debugfile = "./output/layer_";
+        QString num;
+        num.setNum(s);
+        debugfile.append(num);
+        debugfile.append(".ppm");
+        test.saveOwners(debugfile);
+        
+    }
+    ///test///
     
     
     delete g;

@@ -26,6 +26,23 @@ int main(int argc, char** argv)
     
     BImage bimg(testimg);
     
+    QVector<QPoint> sourceSeeds;
+    QVector<QPoint> sinkSeeds;
+    
+    QPoint p(12,13);
+    sourceSeeds.append(p);
+    QPoint p2(71,17);
+    sinkSeeds.append(p2);
+    
+    QVector<BPartition*> result = WordSeparator::cut3D(bimg, sourceSeeds, sinkSeeds);
+    result[0]->makeImage().save("./test0.ppm");
+    result[1]->makeImage().save("./test1.ppm");
+    bimg.claimOwnership(result[0],1);
+    bimg.claimOwnership(result[1],1);
+    bimg.saveOwners("./test.ppm");
+    
+    //////////////////////////
+    
 //    BImage cleared = BoxCleaner::trimVerticleBoundaries(bimg);
 //    cleared = BoxCleaner::removeVerticlePixelNoise(cleared);
     
@@ -66,20 +83,20 @@ int main(int argc, char** argv)
     
     ///////////////////////////////
     
-    BImage cleared = BoxCleaner::trimVerticleBoundaries(bimg);
-    cleared = BoxCleaner::trimHorizontalBoundaries(cleared);
-    cleared = BoxCleaner::removeVerticlePixelNoise(cleared);
-    QVector<BPartition*> lines = WordSeparator::segmentLinesOfWords(cleared,40);
-    for (int i=0; i<lines.size(); i++)
-    {
-        cleared.claimOwnership(lines[i],1);
-//        segmentation[i]->makeImage().save("./output/");
-    }
-    cleared.saveOwners("./rainbow.ppm");
-    for (int i=0; i<lines.size(); i++)
-    {
-        delete lines[i];
-    }
+//    BImage cleared = BoxCleaner::trimVerticleBoundaries(bimg);
+//    cleared = BoxCleaner::trimHorizontalBoundaries(cleared);
+//    cleared = BoxCleaner::removeVerticlePixelNoise(cleared);
+//    QVector<BPartition*> lines = WordSeparator::segmentLinesOfWords(cleared,40);
+//    for (int i=0; i<lines.size(); i++)
+//    {
+//        cleared.claimOwnership(lines[i],1);
+////        segmentation[i]->makeImage().save("./output/");
+//    }
+//    cleared.saveOwners("./rainbow.ppm");
+//    for (int i=0; i<lines.size(); i++)
+//    {
+//        delete lines[i];
+//    }
     
     //////////////////////////////////////////////////////
         
