@@ -27,25 +27,30 @@ AngleImage::~AngleImage()
     delete[] angles;
 }
 
+bool AngleImage::pixel(const QPoint &p) const
+{
+    assert(p.x()>=0 && p.x()<width() && p.y()>=0 && p.y()<height());
 
+    return src->pixel(p.x(),p.y()   );
+}
 bool AngleImage::pixel(int x, int y) const
 {
     assert(x>=0 && x<width() && y>=0 && y<height());
 
     return src->pixel(x,y);
 }
-int AngleImage::width()
+int AngleImage::width() const
 {
     return src->width();
 }
-int AngleImage::height()
+int AngleImage::height() const
 {
     return src->height();
 }
 
 void AngleImage::setPixelSlope(const QPoint &p, double angle, double strength)
 {
-    setPixelSlope(p.x(),p.y(),slope,strength);
+    setPixelSlope(p.x(),p.y(),angle,strength);
 }
 
 void AngleImage::setPixelSlope(int x, int y, double angle, double strength)
@@ -54,7 +59,7 @@ void AngleImage::setPixelSlope(int x, int y, double angle, double strength)
     if (!angles[x][y].contains(angle))
         angles[x][y][angle]=strength;
     else
-        angles[x][y][angle]=max(strength,angles[x][y][angle]);
+        angles[x][y][angle]=std::max(strength,angles[x][y][angle]);
     
 //    double portionLeft=portion;
 //    if (angles[x][y].contains(-1))
@@ -109,33 +114,48 @@ void AngleImage::setNumOfBinsMinValMaxVal(int numOfBins, double minVal, double m
     maxValue=maxVal;
 }
 
-int AngleImage::getNumOfBins()
+int AngleImage::getNumOfBins() const
 {
     return numOfBins;
 }
 
-QMap<int,double> AngleImage::getBinsAndStrForPixel(int x, int y)
+QMap<int,double> AngleImage::getBinsAndStrForPixel(int x, int y) const
 {
     QMap<int,double> ret;
     double totalStr=0;
+    double maxStr=0;
     foreach (double str, angles[x][y].values())
     {
         totalStr+=str;
+        if (str>maxStr)
+            maxStr=str;
     }
 
     foreach (double angle, angles[x][y].keys())
     {
         int bin = (int)((angle-minValue)*((numOfBins-1)/(maxValue-minValue)));
-        double strength = angles[x][y][angle]/totalStr;
+        double strength = angles[x][y][angle]/maxStr;
         ret[bin]=strength;
     }
 
     return ret;
 }
 
-bool AngleImage::noAngleForPixel(int x, int y, double angle)
+bool AngleImage::noStrongerAngleForPixel(int x, int y, double angle, double strength) const
 {
-    return !angles[x][y].contains(angle);
+    if (pixel(x,y))
+    {
+        if(!angles[x][y].contains(angle))
+            return true;
+        else
+            return angles[x][y][angle]<strength;
+    }
+    return false;
+}
+
+bool AngleImage::noAnglesForPixel(int x, int y) const
+{
+    return pixel(x,y) && angles[x][y].empty();
 }
 
 //////////////////

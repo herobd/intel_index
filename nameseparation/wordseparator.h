@@ -22,6 +22,7 @@ class WordSeparator
         int y;
         QVector<int> connectedPoints;
         QVector<double> angleBetween;
+        QVector<double> distanceBetween;
     };
     
 public:
@@ -44,17 +45,17 @@ public:
     static QVector<BPartition*> recursiveHorizontalCutFullTraining(const BPixelCollection &img);
     static QVector<BPartition*> recursiveHorizontalCutFull(const BPixelCollection &img);
     
-    static QVector<BPartition*> cut3D(BPixelCollection &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds);
-    static QVector<BPartition*> cutGivenSeeds(BPixelCollection &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds);
+    static QVector<BPartition*> cut3D(const BPixelCollection &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds);
+    static QVector<BPartition*> cutGivenSeeds(const BPixelCollection &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds);
     
 private:
-    static void computeInverseDistanceMap(BPixelCollection &img, int* out);
+    static void computeInverseDistanceMap(const BPixelCollection &img, int* out);
     
     static int f(int x, int i, int y, int m, int* g);
     
     static int SepPlusOne(int i, int u, int y, int m, int* g);
     
-    static QPoint findClosestPointOn(BPixelCollection &img, QPoint &start);
+    static QPoint findClosestPointOn(const BPixelCollection &img, QPoint &start);
 };
 
 #endif // WORDSEPERATOR_H

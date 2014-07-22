@@ -1084,7 +1084,7 @@ void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bot
 
 //Meijster distance <http://fab.cba.mit.edu/classes/S62.12/docs/Meijster_distance.pdf>
 //This can be parallelized. Should probably flip from column to row first
-void WordSeparator::computeInverseDistanceMap(BPixelCollection &src, int* out)
+void WordSeparator::computeInverseDistanceMap(const BPixelCollection &src, int* out)
 {
     int maxDist=0;
     int g[src.width()*src.height()];
@@ -3119,14 +3119,15 @@ QVector<BPartition*> WordSeparator::recursiveHorizontalCutFull(const BPixelColle
     return ret;
 }
 
-QVector<BPartition*> WordSeparator::cut3D(BPixelCollection &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds)
+QVector<BPartition*> WordSeparator::cut3D(const BPixelCollection &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds)
 {
 //    Dimension slopes(img.width(),img.height());
     
     int numOfBins = (img.width()+img.height())/2;
-    AngleImage angleImage(img,numOfBins,0,PI);
+    AngleImage angleImage(&img,numOfBins,0.0,PI);
     QVector<QPoint> refPoints;
-    QVector<QVector<double> > refSlopesM;
+    QVector<double > refSlopesM;
+    QVector<double > refLengthsM;
     
    //readfile 
     QVector<tracePoint> tracePoints;
@@ -3148,7 +3149,7 @@ QVector<BPartition*> WordSeparator::cut3D(BPixelCollection &img, QVector<QPoint>
     }
     else printf("Unable to open file\n");
 //2.2
-    system("java -jar ~/intel_index/nameseparation/ScottsCode/slopeGen.jar matrix slopedata 2.2 4");
+    system("java -Djava.io.tmpdir=/home/brian/tmp/ -jar ~/intel_index/nameseparation/ScottsCode/slopeGen.jar matrix slopedata 2.2 4");
     
     std::ifstream infile("slopedata.txt");
     std::string line;
@@ -3181,12 +3182,15 @@ QVector<BPartition*> WordSeparator::cut3D(BPixelCollection &img, QVector<QPoint>
     //            double angle = re.cap(6).toDouble();
                 if (angle < 0)
                     angle += PI;
+                double distance = sqrt(pow(nextPoint.x-tracePoints[connectionId].x,2) + pow(nextPoint.y-tracePoints[connectionId].y,2));
                 nextPoint.connectedPoints.append(connectionId);
                 nextPoint.angleBetween.append(angle);
+                nextPoint.distanceBetween.append(distance);
                 tracePoints.append(nextPoint);
                 
                 tracePoints[connectionId].connectedPoints.append(index);
                 tracePoints[connectionId].angleBetween.append(angle);
+                tracePoints[connectionId].distanceBetween.append(distance);
             }
             
         }
@@ -3219,12 +3223,12 @@ QVector<BPartition*> WordSeparator::cut3D(BPixelCollection &img, QVector<QPoint>
             continue;
         visited[curIndex]=true;
         
-        QPoint toAdd(tracePoints[curIndex].x,tracePoints[curIndex].y);
+//        QPoint toAdd(tracePoints[curIndex].x,tracePoints[curIndex].y);
         
-        QVector<double> slope;
+//        QVector<double> slope;
         for (int i=0; i<tracePoints[curIndex].connectedPoints.size(); i++)
         {
-            slope.append(tracePoints[curIndex].angleBetween[i]);
+//            slope.append(tracePoints[curIndex].angleBetween[i]);
             if (!visited[tracePoints[curIndex].connectedPoints[i]])
             {
                 pointStack.append(tracePoints[curIndex].connectedPoints[i]);
@@ -3237,22 +3241,29 @@ QVector<BPartition*> WordSeparator::cut3D(BPixelCollection &img, QVector<QPoint>
                     mid = findClosestPointOn(img,mid);
                 }
                 
+                if(mid.x()>2000 || mid.y()>2000)
+                {
+                    printf("Error on midpoint for (%d,%d) and (%d,%d)\n",tracePoints[curIndex].x,tracePoints[curIndex].y,tracePoints[ tracePoints[curIndex].connectedPoints[i] ].x,tracePoints[ tracePoints[curIndex].connectedPoints[i] ].y);
+                }
+                
                 refPoints.append(mid);
-                QVector<double> slopeMid;
-                slopeMid.append(tracePoints[curIndex].angleBetween[i]);
+                double slopeMid=tracePoints[curIndex].angleBetween[i];
+//                slopeMid.append(tracePoints[curIndex].angleBetween[i]);
                 refSlopesM.append(slopeMid);
+                refLengthsM.append(tracePoints[curIndex].distanceBetween[i]);
             }
         }
-        refPoints.append(toAdd);
-        refSlopesM.append(slope);
+//        refPoints.append(toAdd);
+//        refSlopesM.append(slope);
         
         
     }
     
     QVector<QPoint> edgeStack;
     QVector<double> angleEdgeStack;
+    QVector<double> distanceEdgeStack;
     
-    double FILL_RADIOUS = 6;
+    double FILL_RADIOUS_CONST = 0.75;//I'd rather these be variable, dependant on the length of the slope line
     for (int i=0; i<refPoints.size(); i++)
     {
         QVector<QPoint> workingStack;
@@ -3260,7 +3271,10 @@ QVector<BPartition*> WordSeparator::cut3D(BPixelCollection &img, QVector<QPoint>
         workingStack.append(refPoints[i]);
         distStack.append(0);
         double angle = refSlopesM[i];
-        angleImage.setPixelSlope(refPoints[i].x(),refPoints[i].x(),angle,1);
+        angleImage.setPixelSlope(refPoints[i].x(),refPoints[i].y(),angle,1);
+        
+        double fillRadious = FILL_RADIOUS_CONST * refLengthsM[i];
+        
         while(!workingStack.empty())
         {
             QPoint cur = workingStack.front();
@@ -3268,91 +3282,182 @@ QVector<BPartition*> WordSeparator::cut3D(BPixelCollection &img, QVector<QPoint>
             double curDist = distStack.front();
             distStack.pop_front();
             
-            if (curDist > FILL_RADIOUS)
+            if (curDist > fillRadious)
             {
                 edgeStack.append(cur);
                 angleEdgeStack.append(angle);
+                distanceEdgeStack.append(curDist);
             }
             else
             {
-            
-                if (cur.x()<angleImage.width()-1 && angleImage.noAngleForPixel(cur.x()+1,cur.y(),angle))
+                double newDist = curDist+1;
+                double str = (newDist+1)/(2*newDist);
+                if (cur.x()<angleImage.width()-1 && angleImage.noStrongerAngleForPixel(cur.x()+1,cur.y(),angle,str))
                 {
                     QPoint pp(cur.x()+1,cur.y());
                     workingStack.push_back(pp);
-                    double newDist = curDist+1;
+                    
                     distStack.push_back(newDist);
-                    double str = (newDist+1)/(2*newDist);
-                    angleImage.setPixelSlope(pp.x(),pp.x(),angle,str);
+                    
+                    angleImage.setPixelSlope(pp.x(),pp.y(),angle,str);
                 }
-                if (cur.y()<angleImage.height()-1 && angleImage.noAngleForPixel(cur.x(),cur.y()+1,angle))
+                if (cur.y()<angleImage.height()-1 && angleImage.noStrongerAngleForPixel(cur.x(),cur.y()+1,angle,str))
                 {
                     QPoint pp(cur.x(),cur.y()+1);
                     workingStack.push_back(pp);
                     double newDist = curDist+1;
                     distStack.push_back(newDist);
                     double str = (newDist+1)/(2*newDist);
-                    angleImage.setPixelSlope(pp.x(),pp.x(),angle,str);
+                    angleImage.setPixelSlope(pp.x(),pp.y(),angle,str);
                 }
-                if (cur.x()>0 && angleImage.noAngleForPixel(cur.x()-1,cur.y(),angle))
+                if (cur.x()>0 && angleImage.noStrongerAngleForPixel(cur.x()-1,cur.y(),angle,str))
                 {
                     QPoint pp(cur.x()-1,cur.y());
                     workingStack.push_back(pp);
                     double newDist = curDist+1;
                     distStack.push_back(newDist);
                     double str = (newDist+1)/(2*newDist);
-                    angleImage.setPixelSlope(pp.x(),pp.x(),angle,str);
+                    angleImage.setPixelSlope(pp.x(),pp.y(),angle,str);
                 }
-                if (cur.y()>0 && angleImage.noAngleForPixel(cur.x(),cur.y()-1,angle))
+                if (cur.y()>0 && angleImage.noStrongerAngleForPixel(cur.x(),cur.y()-1,angle,str))
                 {
                     QPoint pp(cur.x(),cur.y()-1);
                     workingStack.push_back(pp);
                     double newDist = curDist+1;
                     distStack.push_back(newDist);
                     double str = (newDist+1)/(2*newDist);
-                    angleImage.setPixelSlope(pp.x(),pp.x(),angle,str);
+                    angleImage.setPixelSlope(pp.x(),pp.y(),angle,str);
                 }
                 //diagonals
-                if (cur.x()<angleImage.width()-1 && cur.y()<angleImage.height()-1 && angleImage.noAngleForPixel(cur.x()+1,cur.y()+1,angle))
+                newDist = curDist+SQRT_2;
+                str = (newDist+1)/(2*newDist);
+                if (cur.x()<angleImage.width()-1 && cur.y()<angleImage.height()-1 && angleImage.noStrongerAngleForPixel(cur.x()+1,cur.y()+1,angle,str))
                 {
                     QPoint pp(cur.x()+1,cur.y()+1);
                     workingStack.push_back(pp);
-                    double newDist = curDist+SQRT_2;
                     distStack.push_back(newDist);
-                    double str = (newDist+1)/(2*newDist);
-                    angleImage.setPixelSlope(pp.x(),pp.x(),angle,str);
+                    angleImage.setPixelSlope(pp.x(),pp.y(),angle,str);
                 }
-                if (cur.y()<angleImage.height()-1 && cur.x()>0 && angleImage.noAngleForPixel(cur.x()-1,cur.y()+1,angle))
+                if (cur.y()<angleImage.height()-1 && cur.x()>0 && angleImage.noStrongerAngleForPixel(cur.x()-1,cur.y()+1,angle,str))
                 {
                     QPoint pp(cur.x()-1,cur.y()+1);
                     workingStack.push_back(pp);
-                    double newDist = curDist+SQRT_2;
                     distStack.push_back(newDist);
-                    double str = (newDist+1)/(2*newDist);
-                    angleImage.setPixelSlope(pp.x(),pp.x(),angle,str);
+                    angleImage.setPixelSlope(pp.x(),pp.y(),angle,str);
                 }
-                if (cur.x()<angleImage.width()-1 && cur.y()>0 && angleImage.noAngleForPixel(cur.x()+1,cur.y()-1,angle))
+                if (cur.x()<angleImage.width()-1 && cur.y()>0 && angleImage.noStrongerAngleForPixel(cur.x()+1,cur.y()-1,angle,str))
                 {
                     QPoint pp(cur.x()+1,cur.y()-1);
                     workingStack.push_back(pp);
-                    double newDist = curDist+SQRT_2;
                     distStack.push_back(newDist);
-                    double str = (newDist+1)/(2*newDist);
-                    angleImage.setPixelSlope(pp.x(),pp.x(),angle,str);
+                    angleImage.setPixelSlope(pp.x(),pp.y(),angle,str);
                 }
-                if (cur.y()>0 && cur.x()>0 && angleImage.noAngleForPixel(cur.x()-1,cur.y()-1,angle))
+                if (cur.y()>0 && cur.x()>0 && angleImage.noStrongerAngleForPixel(cur.x()-1,cur.y()-1,angle,str))
                 {
                     QPoint pp(cur.x()-1,cur.y()-1);
                     workingStack.push_back(pp);
-                    double newDist = curDist+SQRT_2;
                     distStack.push_back(newDist);
-                    double str = (newDist+1)/(2*newDist);
-                    angleImage.setPixelSlope(pp.x(),pp.x(),angle,str);
+                    angleImage.setPixelSlope(pp.x(),pp.y(),angle,str);
                 }
             }
         }
     }
     
+    
+    //after fill
+    while (!edgeStack.empty())
+    {
+        QPoint cur = edgeStack.front();
+        edgeStack.pop_front();
+        double curDist = distanceEdgeStack.front();
+        distanceEdgeStack.pop_front();
+        double angle = angleEdgeStack.front();
+        angleEdgeStack.pop_front();
+        
+
+        if (cur.x()<angleImage.width()-1 && angleImage.noAnglesForPixel(cur.x()+1,cur.y()))
+        {
+            QPoint pp(cur.x()+1,cur.y());
+            edgeStack.push_back(pp);
+            double newDist = curDist+1;
+            distanceEdgeStack.push_back(newDist);
+            angleEdgeStack.push_back(angle);
+            double str = (newDist+1)/(2*newDist);
+            angleImage.setPixelSlope(pp.x(),pp.y(),angle,str);
+        }
+        if (cur.y()<angleImage.height()-1 && angleImage.noAnglesForPixel(cur.x(),cur.y()+1))
+        {
+            QPoint pp(cur.x(),cur.y()+1);
+            edgeStack.push_back(pp);
+            double newDist = curDist+1;
+            distanceEdgeStack.push_back(newDist);
+            angleEdgeStack.push_back(angle);
+            double str = (newDist+1)/(2*newDist);
+            angleImage.setPixelSlope(pp.x(),pp.y(),angle,str);
+        }
+        if (cur.x()>0 && angleImage.noAnglesForPixel(cur.x()-1,cur.y()))
+        {
+            QPoint pp(cur.x()-1,cur.y());
+            edgeStack.push_back(pp);
+            double newDist = curDist+1;
+            distanceEdgeStack.push_back(newDist);
+            angleEdgeStack.push_back(angle);
+            double str = (newDist+1)/(2*newDist);
+            angleImage.setPixelSlope(pp.x(),pp.y(),angle,str);
+        }
+        if (cur.y()>0 && angleImage.noAnglesForPixel(cur.x(),cur.y()-1))
+        {
+            QPoint pp(cur.x(),cur.y()-1);
+            edgeStack.push_back(pp);
+            double newDist = curDist+1;
+            distanceEdgeStack.push_back(newDist);
+            angleEdgeStack.push_back(angle);
+            double str = (newDist+1)/(2*newDist);
+            angleImage.setPixelSlope(pp.x(),pp.y(),angle,str);
+        }
+        //diagonals
+        if (cur.x()<angleImage.width()-1 && cur.y()<angleImage.height()-1 && angleImage.noAnglesForPixel(cur.x()+1,cur.y()+1))
+        {
+            QPoint pp(cur.x()+1,cur.y()+1);
+            edgeStack.push_back(pp);
+            double newDist = curDist+SQRT_2;
+            distanceEdgeStack.push_back(newDist);
+            angleEdgeStack.push_back(angle);
+            double str = (newDist+1)/(2*newDist);
+            angleImage.setPixelSlope(pp.x(),pp.y(),angle,str);
+        }
+        if (cur.y()<angleImage.height()-1 && cur.x()>0 && angleImage.noAnglesForPixel(cur.x()-1,cur.y()+1))
+        {
+            QPoint pp(cur.x()-1,cur.y()+1);
+            edgeStack.push_back(pp);
+            double newDist = curDist+SQRT_2;
+            distanceEdgeStack.push_back(newDist);
+            angleEdgeStack.push_back(angle);
+            double str = (newDist+1)/(2*newDist);
+            angleImage.setPixelSlope(pp.x(),pp.y(),angle,str);
+        }
+        if (cur.x()<angleImage.width()-1 && cur.y()>0 && angleImage.noAnglesForPixel(cur.x()+1,cur.y()-1))
+        {
+            QPoint pp(cur.x()+1,cur.y()-1);
+            edgeStack.push_back(pp);
+            double newDist = curDist+SQRT_2;
+            distanceEdgeStack.push_back(newDist);
+            angleEdgeStack.push_back(angle);
+            double str = (newDist+1)/(2*newDist);
+            angleImage.setPixelSlope(pp.x(),pp.y(),angle,str);
+        }
+        if (cur.y()>0 && cur.x()>0 && angleImage.noAnglesForPixel(cur.x()-1,cur.y()-1))
+        {
+            QPoint pp(cur.x()-1,cur.y()-1);
+            edgeStack.push_back(pp);
+            double newDist = curDist+SQRT_2;
+            distanceEdgeStack.push_back(newDist);
+            angleEdgeStack.push_back(angle);
+            double str = (newDist+1)/(2*newDist);
+            angleImage.setPixelSlope(pp.x(),pp.y(),angle,str);
+        }
+        
+    }
     
 //    BImage mark(img);
 //    QVector<QVector<QPoint> > stacks(refPoints.size());
@@ -3549,7 +3654,7 @@ QVector<BPartition*> WordSeparator::cut3D(BPixelCollection &img, QVector<QPoint>
     return ret;
 }
 
-QVector<BPartition*> WordSeparator::cutGivenSeeds(BPixelCollection &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds)
+QVector<BPartition*> WordSeparator::cutGivenSeeds(const BPixelCollection &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds)
 {
     int num_pix = img.width()*img.height();
     //double pix_vals[num_pix];
@@ -3590,7 +3695,7 @@ QVector<BPartition*> WordSeparator::cutGivenSeeds(BPixelCollection &img, QVector
     return ret;
 }
 
-QPoint WordSeparator::findClosestPointOn(BPixelCollection &img, QPoint &start)
+QPoint WordSeparator::findClosestPointOn(const BPixelCollection &img, QPoint &start)
 {
     QVector<QPoint> searchQueue;
     searchQueue.append(start);
@@ -3611,42 +3716,42 @@ QPoint WordSeparator::findClosestPointOn(BPixelCollection &img, QPoint &start)
         QPoint ld(cur.x()-1,cur.y()+1);
         QPoint ru(cur.x()+1,cur.y()-1);
         QPoint rd(cur.x()+1,cur.y()+1);
-        if (mark.pixel(up))
+        if (cur.y()>0 && mark.pixel(up))
         {
             searchQueue.append(up);
             mark.setPixel(up,false);
         }
-        if (mark.pixel(down))
+        if (cur.y()+1<mark.height() && mark.pixel(down))
         {
             searchQueue.append(down);
             mark.setPixel(down,false);
         }
-        if (mark.pixel(left))
+        if (cur.x()>0 && mark.pixel(left))
         {
             searchQueue.append(left);
             mark.setPixel(left,false);
         }
-        if (mark.pixel(right))
+        if (cur.x()+1<mark.width() && mark.pixel(right))
         {
             searchQueue.append(right);
             mark.setPixel(right,false);
         }
-        if (mark.pixel(lu))
+        if (cur.x()>0 && cur.y()>0 &&mark.pixel(lu))
         {
             searchQueue.append(lu);
             mark.setPixel(lu,false);
         }
-        if (mark.pixel(ld))
+        if (cur.x()>0 && cur.y()+1<mark.height() && mark.pixel(ld))
         {
             searchQueue.append(ld);
             mark.setPixel(ld,false);
         }
-        if (mark.pixel(ru))
+        if (cur.x()+1<mark.width() && cur.y()>0 && mark.pixel(ru))
         {
             searchQueue.append(ru);
             mark.setPixel(ru,false);
         }
-        if (mark.pixel(rd))
+        if (cur.x()+1<mark.width() && cur.y()+1<mark.height() && mark.pixel(rd))
         {
             searchQueue.append(rd);
             mark.setPixel(rd,false);

@@ -8,17 +8,17 @@
 #include "bpartition.h"
 #include "BPixelCollection.h"
 #include "bimage.h"
-
+#include <math.h>
 
 
 class AngleImage : public BPixelCollection
 {
 public:
 //    SlopeImage();
-    AngleImage(const BPixelCollection &other, int numOfBins, double minVal, double maxVal);
+    AngleImage(const BPixelCollection* ofImage, int numOfBins, double minVal, double maxVal);
 //    BImage(const BPartition* src1, const BPartition* src2);
     ~AngleImage();
-    AngleImage& operator=( const AngleImage& other );
+//    AngleImage& operator=( const AngleImage& other );
     
     int width() const;
     int height() const;
@@ -52,15 +52,16 @@ public:
     bool pixelIsMine(int x, int y) const;
     
     void setNumOfBinsMinValMaxVal(int numOfBins, double minVal, double maxVal);
-    int getNumOfBins();
-    QMap<int,double> getBinsAndStrForPixel(int x, int y);
-    bool noAngleForPixel(int x, int y, double angle);
+    int getNumOfBins() const;
+    QMap<int,double> getBinsAndStrForPixel(int x, int y) const;
+    bool noStrongerAngleForPixel(int x, int y, double angle, double strength) const;
+    bool noAnglesForPixel(int x, int y) const;
     
 private:
     QMap<double, double>** angles;
     int myWidth;
     int myHeight;
-    BPixelCollection* src;
+    const BPixelCollection* src;
     int numOfBins;
     double minValue;
     double maxValue;

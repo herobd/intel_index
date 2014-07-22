@@ -492,7 +492,7 @@ inline QVector<QVector<QVector<double> > > make3dImage(const BPixelCollection &i
             }
         }
     }
-    printf("testMat=%f\n",testMax);
+//    printf("testMat=%f\n",testMax);
     QVector<QRgb> default_color_table;
     for (int i=0; i<256; i++)
     {
@@ -1643,7 +1643,7 @@ inline QVector<QVector<QVector<double> > > make3dImage(const BPixelCollection &i
     QVector<QVector<QVector<double> > > ret(img.width());
     
     int slopeDifRange = SLOPE_DIF_TOLERANCE*angleImage.getNumOfBins();
-    printf("difrange:%d\n",slopeDifRange);
+//    printf("difrange:%d\n",slopeDifRange);
     for (int x=0; x<img.width(); x++)
     {
         QVector<QVector<double> > flat(img.height());
@@ -1668,8 +1668,8 @@ inline QVector<QVector<QVector<double> > > make3dImage(const BPixelCollection &i
                         slope[bin]=initVal;
                         for (int kb=1; kb<slopeDifRange; kb++)
                         {
-                            slope[mod((bin+kb),dimensions.getBinNums()[0])] = std::max((int)(slope[mod((bin+kb),angleImage.getNumOfBins())]), (int) (initVal * (slopeDifRange-kb)/(1.0*slopeDifRange)));
-                            slope[mod((bin-kb),dimensions.getBinNums()[0])] = std::max((int) (slope[mod((bin-kb),angleImage.getNumOfBins())]), (int) (initVal * (slopeDifRange-kb)/(1.0*slopeDifRange)));
+                            slope[mod((bin+kb),angleImage.getNumOfBins())] = std::max((int)(slope[mod((bin+kb),angleImage.getNumOfBins())]), (int) (initVal * (slopeDifRange-kb)/(1.0*slopeDifRange)));
+                            slope[mod((bin-kb),angleImage.getNumOfBins())] = std::max((int) (slope[mod((bin-kb),angleImage.getNumOfBins())]), (int) (initVal * (slopeDifRange-kb)/(1.0*slopeDifRange)));
                         }
                     }
                     
@@ -1707,7 +1707,7 @@ inline QVector<QVector<QVector<double> > > make3dImage(const BPixelCollection &i
             }
         }
     }
-    printf("testMat=%f\n",testMax);
+    printf("testMax=%f\n",testMax);
     QVector<QRgb> default_color_table;
     for (int i=0; i<256; i++)
     {
@@ -1736,6 +1736,12 @@ inline QVector<QVector<QVector<double> > > make3dImage(const BPixelCollection &i
     return ret;
 }
 
+inline void setEdge3d(int x1, int y1, int slope1, int x2, int y2, int slope2, GraphType* g, const AngleIndexer &indexer, const QVector<QVector<QVector<double> > > &image3d, double weight)
+{
+        g -> add_edge(indexer.getIndex(x1,y1,slope1), indexer.getIndex(x2,y2,slope2),
+                      (image3d[x1][y1][slope1]+image3d[x2][y2][slope2])*weight,
+                      (image3d[x1][y1][slope1]+image3d[x2][y2][slope2])*weight);
+}
 
 int GraphCut::pixelsOfSeparation(int* invDistMap, int width, int height, const BPixelCollection &img, const AngleImage &angleImage, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, QVector<int> &outSource, QVector<int> &outSink, int anchor_weight, int split_method, int vert_divide)
 {
@@ -1745,15 +1751,10 @@ int GraphCut::pixelsOfSeparation(int* invDistMap, int width, int height, const B
     
     
     
-    int numNodes = width*height;
+    int numNodes = width*height*angleImage.getNumOfBins();
     int numEdges = 4*(width-1)*(height-1)-(height+width);
-//    for (int i=0; i<dimensions.numOfDim(); i++)
-//    {
-//        const Dimension* dim = dimensions.getDimension(i);
-//        numNodes *= dim->getNumBins();
-//        numEdges *= dim->getNumBins();
-//        numEdges += numNodes*(dim->getNumBins()-1);//assuming only striaght (no diag) connections for higher dimensions
-//    }
+    numEdges *= angleImage.getNumOfBins();
+    numEdges += numNodes*(angleImage.getNumOfBins()-1);//assuming only striaght (no diag) connections for higher dimensions
     
     AngleIndexer indexer(width, height);
     
@@ -1889,7 +1890,7 @@ int GraphCut::pixelsOfSeparation(int* invDistMap, int width, int height, const B
     //For simplicity, only doing three dimensions now
 //    double FLAT_WEIGHT = .5;
 //    double SLOPE_WEIGHT = 4;
-    double FLAT_WEIGHT = 6;
+    double FLAT_WEIGHT = 6;//3
     double SLOPE_WEIGHT = .5;
     int slope_size = angleImage.getNumOfBins();
     for (int k=0; k<slope_size; k++)
@@ -1957,7 +1958,7 @@ int GraphCut::pixelsOfSeparation(int* invDistMap, int width, int height, const B
                 {
                     int onSource = 0;
                     int onSink = 0;
-                    foreach (int bin, binsForDim)
+                    foreach (int bin, binsForDim.keys())
                     {
                         for (int around=-5; around<=5; around++)
                         {
@@ -1969,9 +1970,9 @@ int GraphCut::pixelsOfSeparation(int* invDistMap, int width, int height, const B
                                 onSink++;
                         }
                     }
-                    if (onSource/(1.0*onSource+onSink)>.3)
+                    if (onSource/(1.0*onSource+onSink)>.1)
                         outSource.append(x+width*y);
-                    if (onSink/(1.0*onSource+onSink)>.3)
+                    if (onSink/(1.0*onSource+onSink)>.1)
                         outSink.append(x+width*y);
                     
                 }

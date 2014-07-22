@@ -219,4 +219,5 @@ double Evaluate::horizontalSegmentationTest(QString root)
     double perLetters = ((double) correctFirstLetters) / ((double) totalFirstLetters);
     double perLooseLetters = ((double) correctFirstLetters + correctFirstTwoLetters) / ((double) totalFirstLetters);
     printf("Names: %f, Letters(strict): %f, Letters(loose): %f\n",perWords,perLetters,perLooseLetters);
+    return perWords;
 }
