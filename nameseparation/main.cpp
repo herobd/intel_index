@@ -19,71 +19,73 @@ using namespace std;
 
 int main(int argc, char** argv)
 {
-    cout << "Starting..." << endl;
+//    cout << "Starting..." << endl;
     QImage testimg(argv[1]);
 
     
     
     BImage bimg(testimg);
     
-//    QVector<QPoint> sourceSeeds;
-//    QVector<QPoint> sinkSeeds;
+    QVector<QPoint> sourceSeeds;
+    QVector<QPoint> sinkSeeds;
     
-//    QPoint p(12,13);
-////    QPoint px(63,66);
-//    sourceSeeds.append(p);
-////    sourceSeeds.append(px);
-//    QPoint p2(71,17);
-////    QPoint p2x(15,72);
-//    sinkSeeds.append(p2);
-////    sinkSeeds.append(p2x);
+    QPoint p(1,14);
+    QPoint px(87,11);
+    sourceSeeds.append(p);
+    sourceSeeds.append(px);
+    QPoint p2(7,41);
+    QPoint p2x(74,42);
+    QPoint p2xx(12,40);
+    sinkSeeds.append(p2);
+    sinkSeeds.append(p2x);
+    sinkSeeds.append(p2xx);
     
-//    QVector<BPartition*> result = WordSeparator::cut3D(bimg, sourceSeeds, sinkSeeds);
-//    result[0]->makeImage().save("./test0.ppm");
-//    result[1]->makeImage().save("./test1.ppm");
-//    bimg.claimOwnership(result[0],1);
-//    bimg.claimOwnership(result[1],1);
-//    bimg.saveOwners("./test.ppm");
+    QVector<BPartition*> result = WordSeparator::cut3D(bimg, sourceSeeds, sinkSeeds);
+    result[0]->makeImage().save("./test0.ppm");
+    result[1]->makeImage().save("./test1.ppm");
+    bimg.claimOwnership(result[0],1);
+    bimg.claimOwnership(result[1],1);
+    bimg.saveOwners("./test.ppm");
     
     //////////////////////////
     
-    BImage cleared = BoxCleaner::trimVerticleBoundaries(bimg);
-    cleared = BoxCleaner::removeVerticlePixelNoise(cleared);
+//    BImage cleared = BoxCleaner::trimVerticleBoundaries(bimg);
+//    cleared = BoxCleaner::removeVerticlePixelNoise(cleared);
     
-    cleared.save("./cleared.ppm");
+//    cleared.save("./cleared.ppm");
     
-    int vert_divide;
-    QVector<QPoint> crossPoints;
-    BImage lineremoved = BoxCleaner::clearLineAndCloseLetters(cleared,40,&vert_divide,&crossPoints);
-    printf("vert_divide=%d\n",vert_divide);
-    lineremoved = BoxCleaner::trimHorizontalBoundaries(lineremoved);
-    lineremoved.save("./lineremoved.ppm");
-    QVector<BPartition*> cuts = WordSeparator::horzCutEntries(lineremoved,vert_divide);
-    
-    
-    lineremoved.claimOwnership(cuts[0],1);
-    lineremoved.claimOwnership(cuts[1],1);
-    lineremoved.saveOwners("./cut1.ppm");
+//    int vert_divide;
+//    QVector<QPoint> crossPoints;
+//    BImage lineremoved = BoxCleaner::clearLineAndCloseLetters(cleared,40,&vert_divide,&crossPoints);
+//    printf("vert_divide=%d\n",vert_divide);
+//    lineremoved = BoxCleaner::trimHorizontalBoundaries(lineremoved);
+//    lineremoved.save("./lineremoved.ppm");
+//    QVector<BPartition*> cuts = WordSeparator::horzCutEntries(lineremoved,vert_divide);
     
     
+//    lineremoved.claimOwnership(cuts[0],1);
+//    lineremoved.claimOwnership(cuts[1],1);
+//    lineremoved.saveOwners("./cut1.ppm");
     
-    QImage probMap("./average_desc.pgm");
-    QVector<QVector<double> > descenderProbMap=ImageAverager::produceProbabilityMap(probMap);
     
-    WordSeparator::adjustHorzCutCrossOverAreas(cuts[0],cuts[1],crossPoints,descenderProbMap);
     
-    lineremoved.claimOwnership(cuts[1],1);
-    lineremoved.claimOwnership(cuts[0],1);
+//    QImage probMap("./average_desc.pgm");
+//    QVector<QVector<double> > descenderProbMap=ImageAverager::produceProbabilityMap(probMap);
     
-    lineremoved.saveOwners("./cut1_adjusted.ppm");
-    BImage upper = cuts[0]->makeImage();
-    upper.save("./cut1_a_top.ppm");
-    BImage lower = cuts[1]->makeImage();
-    lower.save("./cut1_b_bottom.ppm");
+//    WordSeparator::adjustHorzCutCrossOverAreas(cuts[0],cuts[1],crossPoints,descenderProbMap);
+    
+//    lineremoved.claimOwnership(cuts[1],1);
+//    lineremoved.claimOwnership(cuts[0],1);
+    
+//    lineremoved.saveOwners("./cut1_adjusted.ppm");
+//    BImage upper = cuts[0]->makeImage();
+//    upper.save("./cut1_a_top.ppm");
+//    BImage lower = cuts[1]->makeImage();
+//    lower.save("./cut1_b_bottom.ppm");
 
     
-    delete cuts[0];
-    delete cuts[1];
+//    delete cuts[0];
+//    delete cuts[1];
     
     ///////////////////////////////
     

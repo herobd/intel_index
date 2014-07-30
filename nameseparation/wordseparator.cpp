@@ -327,7 +327,7 @@ void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bot
                 temp.fill(0);
                 scoreMap.fill(temp);
                 double scoreTotal=0;
-                int num_points_outside=0;
+//                int num_points_outside=0;
                 foreach (QPoint ccccP, lowerPoints)
                 {
                     int x = ccccP.x()-keyPoint.x() + descenderProbMap.size()/2;
@@ -335,21 +335,23 @@ void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bot
                     
                     if(x>=0 && x<descenderProbMap.size() && y>=0 && y<descenderProbMap[0].size())
                     {
-                        scoreMap[x][y] = descenderProbMap[x][y]-.4;
+                        scoreMap[x][y] = descenderProbMap[x][y];//-.4;
                         scoreTotal+=scoreMap[x][y];
                     }
-                    else
-                    {
-                        scoreTotal-=.4;
-                        num_points_outside++;
-                    }
+//                    else
+//                    {
+//                        scoreTotal-=.4;
+//                        num_points_outside++;
+//                    }
                     
                     
                 }
                 
 //                printf("total score for point (%d,%d): %f\n",keyPoint.x(),keyPoint.y(),scoreTotal);
-                double DESCENDER_SCORE_THRESH = 45;
-                if (scoreTotal>DESCENDER_SCORE_THRESH)
+//                double DESCENDER_SCORE_THRESH = 45;
+                double scoreRatio = scoreTotal/lowerPoints.size();
+//                printf("scoreRario for point (%d,%d): %f\n",keyPoint.x(),keyPoint.y(),scoreRatio);
+                if (scoreRatio>.5)//if (scoreTotal>DESCENDER_SCORE_THRESH)
                 {
                     //if this is disconnected (all pixels are important in map) we can add all
                     //but what if we are intersected with something else?
@@ -362,7 +364,7 @@ void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bot
                         bottom->removePixel(p);
                     }
                 }
-                else
+                else /*if(false)//skipping*/
                 {//do something fancy, like a 3D cut
                     int NEW_SUBSECTION_WIDTH_FROM_KEYPOINT = 60;
                       //what is going on here? why do I make a second subsection?
@@ -605,482 +607,7 @@ void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bot
 }
 
 
-//QVector<QImage> WordSeparator::cutNames(QImage &img)
-//{
-    
-//    int maxFlow_firstCut;
-//    int pixelWidth_firstCut_left;
-//    int pixelWidth_firstCut_right;
-//    int pixelCount_firstCut_left;
-//    int pixelCount_firstCut_right;
-    
-//    int num_pix = img.width()*img.height();
-//    int invDistMap[num_pix];
-    
-//    QVector<int> firstImgBlackPixelIndexes;
-    
-//    firstImgBlackPixelIndexes.clear();
-    
-//    computeInverseDistanceMap(img,invDistMap);//do we need a new distance map each cut?
-    
-//    maxFlow_firstCut = GraphCut::pixelsOfSeparation(invDistMap,img.width(),img.height(),img,firstImgBlackPixelIndexes);
-    
-//    int firstFarthestRightPixel = 0;
-//    int secondFarthestLeftPixel = 0;
-    
-//    QImage firstImg = img.copy(0,0,img.width(),img.height());
-//    firstImg.fill(255);
-//    QImage secondImg = img.copy(0,0,img.width(),img.height());
-    
-//    foreach(int index, firstImgBlackPixelIndexes)
-//    {
-//        int x = index%img.width();
-//        int y = index/img.width();
-//        firstImg.setPixel(x,y,0);
-//        secondImg.setPixel(x,y,255);
-        
-//        if (x>firstFarthestRightPixel)
-//            firstFarthestRightPixel=x;
-//    }
-//    bool notFound = true;
-//    for (int i=0; i<img.width() && notFound; i++)
-//    {
-//        for (int j=0; j<img.height() && notFound; j++)
-//        {
-//            if (qGray(secondImg.pixel(i,j))==0)
-//            {
-//                secondFarthestLeftPixel=i;
-//                notFound = false;
-//            }
-//        }
-//    }
-    
-//    QImage leftImg = firstImg.copy(0,0,firstFarthestRightPixel+1,firstImg.height());
-//    QImage rightImg = secondImg.copy(secondFarthestLeftPixel, 0, secondImg.width()-secondFarthestLeftPixel, secondImg.height());
-//    if (maxFlow_firstCut<0)
-//        maxFlow_firstCut = INT_POS_INFINITY;
-//    pixelWidth_firstCut_left = leftImg.width();
-//    pixelWidth_firstCut_right = rightImg.width();
-//    pixelCount_firstCut_left = firstImgBlackPixelIndexes.size();
-//    pixelCount_firstCut_right = num_pix - pixelCount_firstCut_left;
-    
-//    //////
-//    int maxFlow_secondCutL;
-//    int pixelWidth_secondCutL_left;
-//    int pixelWidth_secondCutL_right;
-//    int pixelCount_secondCutL_left;
-//    int pixelCount_secondCutL_right;
-    
-//    num_pix = leftImg.width()*leftImg.height();
-    
-//    firstImgBlackPixelIndexes.clear();
-    
-//    computeInverseDistanceMap(leftImg,invDistMap);//do we need a new distance map each cut?
-    
-//    maxFlow_secondCutL = GraphCut::pixelsOfSeparation(invDistMap,leftImg.width(),leftImg.height(),leftImg,firstImgBlackPixelIndexes);
-    
-//    firstFarthestRightPixel = 0;
-//    secondFarthestLeftPixel = 0;
-    
-//    firstImg = leftImg.copy(0,0,leftImg.width(),leftImg.height());
-//    firstImg.fill(255);
-//    secondImg = leftImg.copy(0,0,leftImg.width(),leftImg.height());
-    
-//    foreach(int index, firstImgBlackPixelIndexes)
-//    {
-//        int x = index%leftImg.width();
-//        int y = index/leftImg.width();
-//        firstImg.setPixel(x,y,0);
-//        secondImg.setPixel(x,y,255);
-        
-//        if (x>firstFarthestRightPixel)
-//            firstFarthestRightPixel=x;
-//    }
-//    notFound = true;
-//    for (int i=0; i<leftImg.width() && notFound; i++)
-//    {
-//        for (int j=0; j<leftImg.height() && notFound; j++)
-//        {
-//            if (qGray(secondImg.pixel(i,j))==0)
-//            {
-//                secondFarthestLeftPixel=i;
-//                notFound = false;
-//            }
-//        }
-//    }
-    
-//    QImage leftImg2L = firstImg.copy(0,0,firstFarthestRightPixel+1,firstImg.height());
-//    QImage rightImg2L = secondImg.copy(secondFarthestLeftPixel, 0, secondImg.width()-secondFarthestLeftPixel, secondImg.height());
-//    if (maxFlow_secondCutL<0)
-//        maxFlow_secondCutL = INT_POS_INFINITY;
-//    pixelWidth_secondCutL_right = rightImg2L.width();
-//    pixelWidth_secondCutL_left = leftImg2L.width();
-//    pixelCount_secondCutL_left = firstImgBlackPixelIndexes.size();
-//    pixelCount_secondCutL_right = pixelCount_firstCut_left - pixelCount_secondCutL_left;
-    
-//    ////////b
-    
-//    int maxFlow_secondCutR;
-//    int pixelWidth_secondCutR_left;
-//    int pixelWidth_secondCutR_right;
-//    int pixelCount_secondCutR_left;
-//    int pixelCount_secondCutR_right;
-    
-//    num_pix = rightImg.width()*rightImg.height();
-    
-//    firstImgBlackPixelIndexes.clear();
-    
-//    computeInverseDistanceMap(rightImg,invDistMap);//do we need a new distance map each cut?
-    
-//    maxFlow_secondCutR = GraphCut::pixelsOfSeparation(invDistMap,rightImg.width(),rightImg.height(),rightImg,firstImgBlackPixelIndexes);
-    
-//    firstFarthestRightPixel = 0;
-//    secondFarthestLeftPixel = 0;
-    
-//    firstImg = rightImg.copy(0,0,rightImg.width(),rightImg.height());
-//    firstImg.fill(255);
-//    secondImg = rightImg.copy(0,0,rightImg.width(),rightImg.height());
-    
-//    foreach(int index, firstImgBlackPixelIndexes)
-//    {
-//        int x = index%rightImg.width();
-//        int y = index/rightImg.width();
-//        firstImg.setPixel(x,y,0);
-//        secondImg.setPixel(x,y,255);
-        
-//        if (x>firstFarthestRightPixel)
-//            firstFarthestRightPixel=x;
-//    }
-//    notFound = true;
-//    for (int i=0; i<rightImg.width() && notFound; i++)
-//    {
-//        for (int j=0; j<rightImg.height() && notFound; j++)
-//        {
-//            if (qGray(secondImg.pixel(i,j))==0)
-//            {
-//                secondFarthestLeftPixel=i;
-//                notFound = false;
-//            }
-//        }
-//    }
-    
-//    QImage leftImg2R = firstImg.copy(0,0,firstFarthestRightPixel+1,firstImg.height());
-//    QImage rightImg2R = secondImg.copy(secondFarthestLeftPixel, 0, secondImg.width()-secondFarthestLeftPixel, secondImg.height());
-//    if (maxFlow_secondCutR<0)
-//        maxFlow_secondCutR = INT_POS_INFINITY;
-//    pixelWidth_secondCutR_right = rightImg2R.width();
-//    pixelWidth_secondCutR_left = leftImg2R.width();
-//    pixelCount_secondCutR_left = firstImgBlackPixelIndexes.size();
-//    pixelCount_secondCutR_right = pixelCount_firstCut_right - pixelCount_secondCutR_left;
-//    ////////
-    
-    
-    
-//    //printf("Cut %d: maxflow=%d, size=%d\n",numOfCuts,cutFlows[numOfCuts],sizeOfCuts[numOfCuts]);
-    
-//    leftImg.save("first_left.pgm");
-//    rightImg.save("first_right.pgm");
-//    leftImg2L.save("secondL_left.pgm");
-//    rightImg2L.save("secondL_right.pgm");
-//    leftImg2R.save("secondR_left.pgm");
-//    rightImg2R.save("secondR_right.pgm");
-    
-    
-//    QVector<QImage> ret;
-//    //ret.append(leftImg);
-////    printf("%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,\n",
-////           maxFlow_firstCut,pixelWidth_firstCut_left,pixelWidth_firstCut_right,pixelCount_firstCut_left,pixelCount_firstCut_right,
-////           maxFlow_secondCutL,pixelWidth_secondCutL_left,pixelWidth_secondCutL_right,pixelCount_secondCutL_left,pixelCount_secondCutL_right,
-////           maxFlow_secondCutR,pixelWidth_secondCutR_left,pixelWidth_secondCutR_right,pixelCount_secondCutR_left,pixelCount_secondCutR_right,
-////           maxFlow_firstCut-maxFlow_secondCutL,maxFlow_firstCut-maxFlow_secondCutR);
-    
-//    //Generated by J48 on data from res1,2,3
-//    char sit = ' ';
-//    if (pixelWidth_firstCut_right <= 167)
-//    {
-//        if (maxFlow_firstCut-maxFlow_secondCutR <= -31874)
-//        {
-//            if (pixelCount_secondCutL_right <= 786)
-//                sit='b';
-//            else
-//                sit='l';
-//        }
-//        else
-//        {
-//            sit='b';
-//        }
-//    }
-//    else
-//    {
-//        if (pixelWidth_secondCutR_right <= 149)
-//        {
-//            if (maxFlow_firstCut-maxFlow_secondCutR <= -78228)
-//            {
-//                if (pixelWidth_firstCut_left <= 79)
-//                    sit='r';
-//                else
-//                    sit='o';
-//            }
-//            else
-//            {
-//                sit='r';
-//            }
-//        }
-//        else
-//        {
-//            if (maxFlow_secondCutR <= 33942)
-//            {
-//                sit='b';
-//            }
-//            else
-//            {
-//                if (pixelWidth_secondCutR_left <= 116)
-//                    sit='o';
-//                else
-//                    sit='b';
-//            }
-//        }
-//    }
-    
-//    if (sit=='o' || sit=='r')
-//    {
-//        ret.append(leftImg);
-//        ret.append(rightImg);
-//    }
-//    else if (sit=='l')
-//    {
-//        ret.append(leftImg2L);
-//        ret.append(rightImg2L);
-//        ret.append(rightImg);
-//    }
-//    else
-//    {
-//        QImage copy = img.copy(0,0,img.width(),img.height());
-//        ret.append(copy);
-//    }
-    
-//    return ret;
-//}
 
-///* There are two parameters to evaluate if we have the correct cut:
-//   maxflow of the cut and surronding cuts and the number of pixels in the cut.
-//   for a decision tree, these 
-//   -num of pixels in cut
-//   -difference between maxflow and maxflow of all other cuts
-//   -width of cut, or relative width of cut
-//   -
-   
-//  */
-//QVector<QImage> WordSeparator::recursiveCutWordToFirstLetter(QImage &img)
-//{
-//    QVector<QImage> cuts;
-//    QVector<int> cutFlows;
-//    QVector<int> sizeOfCuts;
-//    int numOfCuts = 0;
-    
-//    cuts.append(img);
-//    cutFlows.append(0);
-//    sizeOfCuts.append(0);
-    
-//    int num_pix = img.width()*img.height();
-//    int invDistMap[num_pix];
-    
-//    QVector<int> firstImgBlackPixelIndexes;
-//    while(true)
-//    {
-//        firstImgBlackPixelIndexes.clear();
-//        num_pix = cuts[numOfCuts].width()*cuts[numOfCuts].height();
-        
-//        computeInverseDistanceMap(cuts[numOfCuts],invDistMap);//do we need a new distance map each cut?
-        
-//        int maxflow = GraphCut::pixelsOfSeparation(invDistMap,cuts[numOfCuts].width(),cuts[numOfCuts].height(),cuts[numOfCuts],firstImgBlackPixelIndexes);
-        
-//        int firstFarthestRightPixel = 0;
-        
-//        QImage firstImg = cuts[numOfCuts].copy(0,0,cuts[numOfCuts].width(),cuts[numOfCuts].height());
-//        firstImg.fill(255);
-        
-//        foreach(int index, firstImgBlackPixelIndexes)
-//        {
-//            int x = index%cuts[numOfCuts].width();
-//            int y = index/cuts[numOfCuts].width();
-//            firstImg.setPixel(x,y,0);
-            
-//            if (x>firstFarthestRightPixel)
-//                firstFarthestRightPixel=x;
-//        }
-        
-//        cuts.push_back(firstImg.copy(0,0,firstFarthestRightPixel+1,firstImg.height()));
-//        if (maxflow<0)
-//            maxflow = INT_POS_INFINITY;
-//        cutFlows.append(maxflow);
-//        sizeOfCuts.append(firstImgBlackPixelIndexes.size());
-//        numOfCuts++;
-        
-//        //printf("Cut %d: maxflow=%d, size=%d\n",numOfCuts,cutFlows[numOfCuts],sizeOfCuts[numOfCuts]);
-//        QString numstr;
-//        numstr.setNum(numOfCuts);
-//        QString filename = "cut";
-//        filename+=numstr;
-//        filename+=".pgm";
-//        cuts[numOfCuts].save(filename);
-        
-        
-//        if (numOfCuts>4)
-//        {
-//            break;
-//        }
-//    }
-    
-    
-////    printf("%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,\n",
-////           cuts[1].width(),cuts[2].width(),cuts[3].width(),cuts[4].width(),cuts[5].width(),
-////           sizeOfCuts[1],sizeOfCuts[2],sizeOfCuts[3],sizeOfCuts[4],sizeOfCuts[5],
-////           cutFlows[1],cutFlows[2],cutFlows[3],cutFlows[4],cutFlows[5],
-////           cutFlows[2]-cutFlows[1],cutFlows[3]-cutFlows[2],cutFlows[4]-cutFlows[3],cutFlows[5]-cutFlows[4]);
-//    char sit = ' ';
-//    if (cuts[1].width() <= 44)
-//    {
-//        if (sizeOfCuts[1] <= 309)
-//            sit='0';
-//        else
-//            sit='1';
-//    }
-//    else
-//    {
-//        if (cuts[3].width() <= 35)
-//        {
-//            if (sizeOfCuts[2] <= 299)
-//            {
-//                if (cuts[2].width() <= 38)
-//                    sit='1';
-//                else
-//                    sit='2';
-//            }
-//            else
-//            {
-//                if (cutFlows[4] <= 132914)
-//                {
-//                    if (cuts[4].width() <= 12)
-//                    {
-//                        sit='2';
-//                    }
-//                    else
-//                    {
-//                        if (sizeOfCuts[3] <= 147)
-//                        {
-//                                sit='2';
-//                        }
-//                        else
-//                        {
-//                            if (sizeOfCuts[2] <= 599)
-//                            {
-//                                if (sizeOfCuts[1] <= 690)
-//                                    sit='3';
-//                                else
-//                                    sit='2';
-//                            }
-//                            else
-//                            {
-//                                sit='3';
-//                            }
-                        
-//                        }
-//                    }
-//                }
-//                else
-//                { 
-//                            sit='2';
-//                }
-//            }
-//        }
-//        else
-//        {
-//            if (cuts[5].width() <= 25)
-//            {
-//                if (cuts[2].width() <= 54)
-//                {
-//                                sit='2';
-//                }
-//                else
-//                {
-//                    if (cutFlows[4]-cutFlows[3] <= 27599)
-//                    {
-//                        if (cutFlows[2] <= 55825)
-//                        {
-//                            if (sizeOfCuts[1] <= 1470)
-//                                sit='2';
-//                            else
-//                                sit='4';
-//                        }
-//                        else
-//                        {
-//                            if (cutFlows[4] <= 103641)
-//                            {
-//                                if (cutFlows[3] <= 70113)
-//                                    sit='4';
-//                                else
-//                                    sit='3';
-//                            }
-//                            else
-//                            {
-//                                sit='4';
-//                            }
-//                        }
-//                    }
-//                    else
-//                    {
-//                        sit='3';
-//                    }
-                    
-//                }
-//            }
-//            else
-//            {
-//                if (cuts[4].width() <= 50)
-//                    sit='4';
-//                else
-//                    sit='5';
-//            }
-//        }
-//    }
-    
-//    //return top two guesse 
-//    QVector<QImage> ret;
-//    if (sit=='0')
-//    {
-//        ret.append(cuts[0]);
-//        ret.append(cuts[1]);
-//    }
-//    else if (sit=='1')
-//    {
-//        ret.append(cuts[1]);
-//        ret.append(cuts[2]);
-//    }
-//    else if (sit=='2')
-//    {
-//        ret.append(cuts[2]);
-//        ret.append(cuts[3]);
-//        //maybe 1
-//    }
-//    else if (sit=='3')
-//    {
-//        ret.append(cuts[3]);
-//        ret.append(cuts[2]);
-//    }
-//    else if (sit=='4')
-//    {
-//        ret.append(cuts[4]);
-//        ret.append(cuts[3]);
-//    }
-//    else if (sit=='5')
-//    {
-//        ret.append(cuts[5]);
-//        ret.append(cuts[4]);
-//    }
-                                
-//    return ret;
-//}
 
 //Meijster distance <http://fab.cba.mit.edu/classes/S62.12/docs/Meijster_distance.pdf>
 //This can be parallelized. Should probably flip from column to row first
@@ -1342,6 +869,210 @@ void WordSeparator::computeInverseDistanceMap(const BPixelCollection &src, int* 
 //    debug.save("./inv_dist_map.ppm");
 }
 
+void WordSeparator::compute3DInverseDistanceMap(const bool* src, int* out, int width, int height, int depth)
+{
+    Indexer3D ind(width,height);
+    int maxDist=0;
+    int g[width*height*depth];
+    
+    
+    
+    //First pass
+    for (int z=0; z<depth; z++)
+    {
+        for (int x=0; x<width; x++)
+        {
+            if (src[ind.getIndex(x,0,z)])
+            {
+                g[ind.getIndex(x,0,z)]=0;
+            }
+            else
+            {
+                g[ind.getIndex(x,0,z)]=INT_POS_INFINITY;//width*src.height();
+            }
+            
+            for (int y=1; y<height; y++)
+            {
+                if (src[ind.getIndex(x,y,z)])
+                {
+                    g[ind.getIndex(x,y,z)]=0;
+                }
+                else
+                {
+                    if (g[ind.getIndex(x,y-1,z)] != INT_POS_INFINITY)
+                        g[ind.getIndex(x,y,z)]=1+g[ind.getIndex(x,y-1,z)];
+                    else
+                        g[ind.getIndex(x,y,z)] = INT_POS_INFINITY;
+                }
+            }
+            
+            for (int y=height-2; y>=0; y--)
+            {
+                if (g[ind.getIndex(x,y+1,z)]<g[ind.getIndex(x,y,z)])
+                {
+                    if (g[ind.getIndex(x,y+1,z)] != INT_POS_INFINITY)
+                        g[ind.getIndex(x,y,z)]=1+g[ind.getIndex(x,y+1,z)];
+                    else
+                        g[ind.getIndex(x,y,z)] = INT_POS_INFINITY;
+                }
+            }
+        }
+    }
+    
+    //second pass, compute dist map for each depth
+    int g2[width*height*depth];
+    
+    for (int z=0; z<depth; z++)
+    {
+        int q;
+        int s[width];
+        int t[width];
+        int w;
+        for (int y=0; y<height; y++)
+        {
+            q=0;
+            s[0]=0;
+            t[0]=0;
+            for (int u=1; u<width;u++)
+            {
+                while (q>=0 && f2D(t[q],s[q],y,z,ind,g) > f2D(t[q],u,y,z,ind,g))
+                {
+                    q--;
+                }
+                
+                if (q<0)
+                {
+                    q=0;
+                    s[0]=u;
+                }
+                else
+                {
+                    w = SepPlusOne2D(s[q],u,y,z,ind,g);
+                    if (w<width)
+                    {
+                        q++;
+                        s[q]=u;
+                        t[q]=w;
+                    }
+                }
+            }
+            
+            for (int u=width-1; u>=0; u--)
+            {
+               g2[ind.getIndex(u,y,z)]= f2D(u,s[q],y,z,ind,g);
+//                if (out[ind.getIndex(u,y,z)] > maxDist)
+//                    maxDist = out[ind.getIndex(u,y,z)];
+                if (u==t[q])
+                    q--;
+            }
+        }
+    }
+    
+    //third pass
+    for (int x=0; x<width; x++)
+    {
+        int q;
+        int s[depth];
+        int t[depth];
+        int w;
+        for (int y=0; y<height; y++)
+        {
+            q=0;
+            s[0]=0;
+            t[0]=0;
+            for (int u=1; u<depth;u++)
+            {
+                while (q>=0 && f3D(x,y,t[q],s[q],ind,g2) > f3D(x,y,t[q],u,ind,g2))
+                {
+                    q--;
+                }
+                
+                if (q<0)
+                {
+                    q=0;
+                    s[0]=u;
+                }
+                else
+                {
+                    w = SepPlusOne3D(x,y,s[q],u,ind,g2);
+                    if (w<depth)
+                    {
+                        q++;
+                        s[q]=u;
+                        t[q]=w;
+                    }
+                }
+            }
+            
+            for (int u=depth-1; u>=0; u--)
+            {
+                out[ind.getIndex(x,y,u)]= f3D(x,y,u,s[q],ind,g2);
+                if (out[ind.getIndex(x,y,u)] > maxDist)
+                    maxDist = out[ind.getIndex(x,y,u)];
+                if (u==t[q])
+                    q--;
+            }
+        }
+    }
+    printf("maxdist:%d\n",maxDist);
+    
+    int newmax=0;
+    double e = 15;
+    double b = 30;
+    double m = 444000;
+    double a = INV_A;
+    for (int i=0; i<width*height*depth; i++)
+    {
+        out[i] = pow(b-std::min(out[i]*(b/m),b),e)*a/(pow(b,e));
+        if (out[i]>newmax)
+            newmax=out[i];
+    }
+    
+    QVector<QRgb> default_color_table;
+    for (int i=0; i<255; i++)
+    {
+        default_color_table.append(qRgb(i,i,i));
+    }
+//    for (int i=0; i<255; i++)
+//    {
+//        default_color_table.append(qRgb(255,255,255));
+//    }
+//    for (int i=0; i<255; i++)
+//    {
+//        default_color_table.append(qRgb(255,255,255));
+//    }
+    for (int z=0; z<depth; z++)
+    {
+        QImage debug(width,height,QImage::Format_Indexed8);
+        QImage debug2(width,height,QImage::Format_Indexed8);
+        
+        debug.setColorTable(default_color_table);
+        debug2.setColorTable(default_color_table);
+        for (int x=0; x<width; x++)
+        {
+            for (int y=0; y<debug.height(); y++)
+            {
+                debug.setPixel(x,y,(int)((out[ind.getIndex(x,y,z)]/((double)newmax))*254));
+                if (src[ind.getIndex(x,y,z)])
+                    debug2.setPixel(x,y,0);
+                else
+                    debug2.setPixel(x,y,254);
+            }
+            
+        }
+        QString debugfile = "./dist_3d/layer_";
+        QString debugfile2 = "./output/layer_";
+        QString num;
+        num.setNum(z);
+        debugfile.append(num);
+        debugfile.append(".ppm");
+        debugfile2.append(num);
+        debugfile2.append(".ppm");
+        debug.save(debugfile);
+        debug2.save(debugfile2);
+    }
+}
+
 int WordSeparator::f(int x, int i, int y, int m, int* g)
 {
     if (g[i+y*m]==INT_POS_INFINITY || x==INT_POS_INFINITY)
@@ -1358,9 +1089,463 @@ int WordSeparator::SepPlusOne(int i, int u, int y, int m, int* g)
     return 1 + ((u*u)-(i*i)+g[u+y*m]*g[u+y*m]-(g[i+y*m]*g[i+y*m])) / (2*(u-i));
 }
 
+int WordSeparator::f2D(int x, int i, int y, int z, Indexer3D &ind, int* g)
+{
+    if (g[ind.getIndex(i,y,z)]==INT_POS_INFINITY || x==INT_POS_INFINITY)
+        return INT_POS_INFINITY;
+    return pow((x-i),2) + pow(g[ind.getIndex(i,y,z)],2);
+}
 
+int WordSeparator::SepPlusOne2D(int i, int u, int y, int z, Indexer3D &ind, int* g)
+{
+    if (g[ind.getIndex(u,y,z)] == INT_POS_INFINITY)// && g[i+y*m] != INT_POS_INFINITY)
+    {
+        return INT_POS_INFINITY;
+    }
+    return 1 + ((u*u)-(i*i)+pow(g[ind.getIndex(u,y,z)],2)-pow(g[ind.getIndex(i,y,z)],2)) / (2*(u-i));
+}
 
+int WordSeparator::f3D(int x, int y, int z, int i, Indexer3D &ind, int* g)
+{
+    if (g[ind.getIndex(x,y,i)]==INT_POS_INFINITY || y==INT_POS_INFINITY)
+        return INT_POS_INFINITY;
+    return pow((z-i),2) + pow(g[ind.getIndex(x,y,i)],2);
+}
 
+int WordSeparator::SepPlusOne3D(int x, int y, int i, int u, Indexer3D &ind, int* g)
+{
+    if (g[ind.getIndex(x,y,u)] == INT_POS_INFINITY)// && g[i+y*m] != INT_POS_INFINITY)
+    {
+        return INT_POS_INFINITY;
+    }
+    return 1 + ((u*u)-(i*i)+pow(g[ind.getIndex(x,y,u)],2)-pow(g[ind.getIndex(x,y,i)],2)) / (2*(u-i));
+}
+
+///test///////////////
+
+void WordSeparator::compute3DInverseDistanceMapTest(const bool* src, int* out, int width, int height, int depth)
+{
+    Indexer3D ind(width,height);
+    int maxDist=0;
+    int g[width*height*depth];
+    
+    
+    
+    //First pass
+    for (int y=0; y<height; y++)
+    {
+        for (int x=0; x<width; x++)
+        {
+            if (src[ind.getIndex(x,y,0)])
+            {
+                g[ind.getIndex(x,y,0)]=0;
+            }
+            else
+            {
+                g[ind.getIndex(x,y,0)]=INT_POS_INFINITY;//width*src.height();
+            }
+            
+            for (int z=1; z<depth; z++)
+            {
+                if (src[ind.getIndex(x,y,z)])
+                {
+                    g[ind.getIndex(x,y,z)]=0;
+                }
+                else
+                {
+                    if (g[ind.getIndex(x,y,z-1)] != INT_POS_INFINITY)
+                        g[ind.getIndex(x,y,z)]=1+g[ind.getIndex(x,y,z-1)];
+                    else
+                        g[ind.getIndex(x,y,z-1)] = INT_POS_INFINITY;
+                }
+            }
+            
+            for (int z=depth-2; z>=0; z--)
+            {
+                if (g[ind.getIndex(x,y,z+1)]<g[ind.getIndex(x,y,z)])
+                {
+                    if (g[ind.getIndex(x,y+1,z)] != INT_POS_INFINITY)
+                        g[ind.getIndex(x,y,z)]=1+g[ind.getIndex(x,y,z+1)];
+                    else
+                        g[ind.getIndex(x,y,z)] = INT_POS_INFINITY;
+                }
+            }
+        }
+    }
+    
+    //second pass, compute dist map for each depth
+    int g2[width*height*depth];
+    
+    for (int y=0; y<height; y++)
+    {
+        int q;
+        int s[width];
+        int t[width];
+        int w;
+        for (int z=0; z<depth; z++)
+        {
+            q=0;
+            s[0]=0;
+            t[0]=0;
+            for (int u=1; u<width;u++)
+            {
+                while (q>=0 && f2D(t[q],s[q],y,z,ind,g) > f2D(t[q],u,y,z,ind,g))
+                {
+                    q--;
+                }
+                
+                if (q<0)
+                {
+                    q=0;
+                    s[0]=u;
+                }
+                else
+                {
+                    w = SepPlusOne2D(s[q],u,y,z,ind,g);
+                    if (w<width)
+                    {
+                        q++;
+                        s[q]=u;
+                        t[q]=w;
+                    }
+                }
+            }
+            
+            for (int u=width-1; u>=0; u--)
+            {
+               g2[ind.getIndex(u,y,z)]= f2D(u,s[q],y,z,ind,g);
+//                if (out[ind.getIndex(u,y,z)] > maxDist)
+//                    maxDist = out[ind.getIndex(u,y,z)];
+                if (u==t[q])
+                    q--;
+            }
+        }
+    }
+    
+    //third pass
+    for (int x=0; x<width; x++)
+    {
+        int q;
+        int s[height];
+        int t[height];
+        int w;
+        for (int z=0; z<depth; z++)
+        {
+            q=0;
+            s[0]=0;
+            t[0]=0;
+            for (int u=1; u<height;u++)
+            {
+                while (q>=0 && f3DTest(x,t[q],s[q],z,ind,g2) > f3DTest(x,t[q],u,z,ind,g2))
+                {
+                    q--;
+                }
+                
+                if (q<0)
+                {
+                    q=0;
+                    s[0]=u;
+                }
+                else
+                {
+                    w = SepPlusOne3DTest(x,s[q],u,z,ind,g2);
+                    if (w<height)
+                    {
+                        q++;
+                        s[q]=u;
+                        t[q]=w;
+                    }
+                }
+            }
+            
+            for (int u=height-1; u>=0; u--)
+            {
+                out[ind.getIndex(x,u,z)]= f3DTest(x,u,s[q],z,ind,g2);
+                if (out[ind.getIndex(x,u,z)] > maxDist)
+                    maxDist = out[ind.getIndex(x,u,z)];
+                if (u==t[q])
+                    q--;
+            }
+        }
+    }
+    printf("maxdist:%d\n",maxDist);
+    
+    int newmax=0;
+    double e = 15;
+    double b = 30;
+    double m = 444000;
+    double a = INV_A;
+    for (int i=0; i<width*height*depth; i++)
+    {
+        out[i] = pow(b-std::min(out[i]*(b/m),b),e)*a/(pow(b,e));
+        if (out[i]>newmax)
+            newmax=out[i];
+    }
+    
+    QVector<QRgb> default_color_table;
+    for (int i=0; i<255; i++)
+    {
+        default_color_table.append(qRgb(i,i,i));
+    }
+//    for (int i=0; i<255; i++)
+//    {
+//        default_color_table.append(qRgb(255,255,255));
+//    }
+//    for (int i=0; i<255; i++)
+//    {
+//        default_color_table.append(qRgb(255,255,255));
+//    }
+    for (int z=0; z<depth; z++)
+    {
+        QImage debug(width,height,QImage::Format_Indexed8);
+        QImage debug2(width,height,QImage::Format_Indexed8);
+        
+        debug.setColorTable(default_color_table);
+        debug2.setColorTable(default_color_table);
+        for (int x=0; x<width; x++)
+        {
+            for (int y=0; y<debug.height(); y++)
+            {
+                debug.setPixel(x,y,(int)((out[ind.getIndex(x,y,z)]/((double)newmax))*254));
+                if (src[ind.getIndex(x,y,z)])
+                    debug2.setPixel(x,y,0);
+                else
+                    debug2.setPixel(x,y,254);
+            }
+            
+        }
+        QString debugfile = "./dist_3d/layer_";
+        QString debugfile2 = "./output/layer_";
+        QString num;
+        num.setNum(z);
+        debugfile.append(num);
+        debugfile.append(".ppm");
+        debugfile2.append(num);
+        debugfile2.append(".ppm");
+        debug.save(debugfile);
+        debug2.save(debugfile2);
+    }
+}
+
+int WordSeparator::f3DTest(int x, int y, int i, int z, Indexer3D &ind, int* g)
+{
+    if (g[ind.getIndex(x,i,z)]==INT_POS_INFINITY || y==INT_POS_INFINITY)
+        return INT_POS_INFINITY;
+    return pow((y-i),2) + pow(g[ind.getIndex(x,i,z)],2);
+}
+
+int WordSeparator::SepPlusOne3DTest(int x, int i, int u, int z, Indexer3D &ind, int* g)
+{
+    if (g[ind.getIndex(x,u,z)] == INT_POS_INFINITY)// && g[i+y*m] != INT_POS_INFINITY)
+    {
+        return INT_POS_INFINITY;
+    }
+    return 1 + ((u*u)-(i*i)+pow(g[ind.getIndex(x,u,z)],2)-pow(g[ind.getIndex(x,i,z)],2)) / (2*(u-i));
+}
+
+///test//////////////
+
+void WordSeparator::computeKDInverseDistanceMap(const bool* in, int* out, int k, const int* dim)
+{
+    IndexerKD ind(k,dim);
+    int pass[k];
+    int maxDist = ComputeEDT(in,out,k,dim,ind,k,pass);
+    
+    printf("maxdist:%d,    inf:%d\n",maxDist,INT_POS_INFINITY);
+    int newmax=0;
+//    int newmax=0;
+//    double e = 15;
+//    double b = 30;
+//    double m = 1156;
+//    double a = INV_A;
+    int total=1;
+    for (int i=0; i<k; i++)
+    {
+        total*=dim[i];
+    }
+    for (int i=0; i<total; i++)
+    {
+//        out[i] = pow(b-std::min(out[i]*(b/m),b),e)*a/(pow(b,e));
+        if (out[i]>newmax)
+            newmax=out[i];
+    }
+    printf("new maxdist:%d\n",newmax);
+    
+    QVector<QRgb> default_color_table;
+    for (int i=0; i<255; i++)
+    {
+        default_color_table.append(qRgb(i,i,i));
+    }
+    default_color_table.append(qRgb(255,0,0));
+    default_color_table.append(qRgb(0,255,0));
+//    for (int z=0; z<dim[2]; z++)
+    {
+        QImage debug(dim[0],dim[1],QImage::Format_Indexed8);
+        QImage debug2(dim[0],dim[1],QImage::Format_Indexed8);
+        
+        debug.setColorTable(default_color_table);
+        debug2.setColorTable(default_color_table);
+        for (int x=0; x<dim[0]; x++)
+        {
+            for (int y=0; y<dim[1]; y++)
+            {
+                int pass[3];
+                pass[0]=x; pass[1]=y; //pass[2]=z;
+                int v = (int)((out[ind.getIndex(pass)]/((double)newmax))*254);
+                if (out[ind.getIndex(pass)]==INT_POS_INFINITY)
+                {
+                    v=255;
+                }
+                else if (v >255)
+                {
+//                    printf ("error:%d\n",out[ind.getIndex(pass)]);
+                    v=255;
+                }
+                if (v <0)
+                {
+                    v=256;
+                    printf ("error:%d\n",out[ind.getIndex(pass)]);
+                }
+                debug.setPixel(x,y,v);
+                if (in[ind.getIndex(pass)])
+                    debug2.setPixel(x,y,0);
+                else
+                    debug2.setPixel(x,y,254);
+            }
+            
+        }
+        QString debugfile = "./dist_3d/layer_";
+        QString debugfile2 = "./output/layer_";
+        QString num;
+//        num.setNum(z);
+        debugfile.append(num);
+        debugfile.append(".ppm");
+        debugfile2.append(num);
+        debugfile2.append(".ppm");
+        debug.save(debugfile);
+        debug2.save(debugfile2);
+    }
+}
+//<http://www.csd.uwo.ca/~olga/Courses/Fall2009/9840/Chosen/linearExactEucl.pdf>
+int WordSeparator::ComputeEDT(const bool* I, int* D, int k, const int* n, const IndexerKD &ind, int d, int* i)
+{
+    int maxDist=0;
+    if (d==1)
+    {
+        for (i[0]=0; i[0]<n[0]; i[0]++)
+        {
+            if (I[ind.getIndex(i)])
+                D[ind.getIndex(i)]=0;
+            else
+                D[ind.getIndex(i)]=INT_POS_INFINITY;
+        }
+    }
+    else
+    {
+        for (i[d-1]=0; i[d-1]<n[d-1]; i[d-1]++)
+        {
+            int pass[k];
+            copyArray(i,pass,k);
+            int temp = ComputeEDT(I,D,k,n,ind,d-1,pass);
+            if (temp>maxDist)
+                maxDist=temp;
+        }
+    }
+    
+    int temp = recursiveFor(I,D,k,n,ind,d,i,0);
+    if (temp>maxDist)
+        maxDist=temp;
+    
+    return maxDist;
+}
+
+int WordSeparator::recursiveFor(const bool* I, int* D, int k, const int* n, const IndexerKD &ind, int d, int* i, int level)
+{
+    int maxDist=0;
+    for (i[level]=0; i[level]<n[level]; i[level]++)
+    {
+        if (level<d-2)
+        {
+            int temp = recursiveFor(I,D,k,n,ind,d,i,level+1);
+            if (temp>maxDist)
+                maxDist=temp;
+        }
+        else
+        {
+            int pass[k];
+            copyArray(i,pass,k);
+            int temp = VoronoiEDT(I,D,k,n,ind,d,pass);
+            if (temp>maxDist)
+                maxDist=temp;
+        }
+    }
+    return maxDist;
+}
+
+int WordSeparator::VoronoiEDT(const bool* I, int* D, int k, const int* n, const IndexerKD &ind, int d, int* j)
+{
+    int maxDist=0;
+    int l=0;
+    int f[n[d-1]];
+    int g[2*n[d-1]];
+    int h[2*n[d-1]];
+    int X[n[d-1]][k];
+    
+    for(int i=0; i<n[d-1]; i++)
+    {
+        copyArray(j,X[i],k);
+        X[i][d-1]=i;
+        f[i]=D[ind.getIndex(X[i])];
+        if (f[i]!=INT_POS_INFINITY)
+        {
+            if (l<2)
+            {
+                l++;
+                g[l]=f[i];
+                h[l]=i+1;
+            }
+            else
+            {
+                while (l>=2 && RemoveEDT(g[l-1],g[l],f[i],h[l-1],h[l],i+1))
+                {
+                    l--;
+                }
+                l++;
+                g[l]=f[i];
+                h[l]=i+1;
+            }
+        }
+    }
+    
+    int n_s=l;
+    if (n_s==0)
+        return maxDist;
+    
+    l=1;
+    for (int i=1; i<=n[d-1]; i++)
+    {
+        while (l<n_s && g[l]+pow(h[l]-i,2) > g[l+1]+pow(h[l+1]-i,2))
+            l++;
+        D[ind.getIndex(X[i-1])]=g[l]+(int)pow(h[l]-i,2);
+        if (D[ind.getIndex(X[i-1])]>maxDist)
+            maxDist=D[ind.getIndex(X[i-1])];
+    }
+    return maxDist;
+}
+
+bool WordSeparator::RemoveEDT(int dis_sqr_u_Rd, int dis_sqr_v_Rd, int dis_sqr_w_Rd, int u_d, int v_d, int w_d)
+{
+    int a = v_d-u_d;
+    int b = w_d-v_d;
+    int c = w_d-u_d;
+    return c*dis_sqr_v_Rd-b*dis_sqr_u_Rd-a*dis_sqr_w_Rd-a*b*c > 0;
+}
+
+void WordSeparator::copyArray(int* from, int* to, int c)
+{
+    for (int i=0; i<c; i++)
+        to[i]=from[i];
+}
 
 BPartition* WordSeparator::chopOutTop(BPixelCollection &src)
 {
@@ -3119,345 +3304,20 @@ QVector<BPartition*> WordSeparator::recursiveHorizontalCutFull(const BPixelColle
     return ret;
 }
 
+inline int mod(int a, int b)
+{
+    while (a<0)
+        a+=b;
+    return a%b;
+}
+
 QVector<BPartition*> WordSeparator::cut3D(const BPixelCollection &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds)
 {
 //    Dimension slopes(img.width(),img.height());
     
     int numOfBins = (img.width()+img.height())/2;
     AngleImage angleImage(&img,numOfBins,0.0,PI);
-    QVector<QPoint> refPoints;
-    QVector<double > refSlopesM;
-    QVector<double > refLengthsM;
     
-   //readfile 
-    QVector<tracePoint> tracePoints;
-    
-    std::ofstream myfile ("matrix.txt");
-    if (myfile.is_open())
-    {
-        myfile << img.width() << " ";
-        myfile << img.height();
-        myfile << "\n";
-        for (int i =0; i<img.width(); i++)
-        {
-            for (int j = 0; j<img.height(); j++) {
-                myfile << img.pixel(i,j) << " ";
-            }
-            myfile << "\n";
-        }
-        myfile.close();
-    }
-    else printf("Unable to open file\n");
-//2.2
-    system("java -Djava.io.tmpdir=/home/brian/tmp/ -jar ~/intel_index/nameseparation/ScottsCode/slopeGen.jar matrix slopedata 2.2 4");
-    
-    std::ifstream infile("slopedata.txt");
-    std::string line;
-    getline(infile, line);
-    QRegExp rei("(\\d+)(?:[^\\d]+)(\\d+)(?:[^\\d]+)(\\d+)");
-    QString qLine(line.c_str());
-    rei.indexIn(qLine);
-    tracePoint init;
-    init.x=rei.cap(2).toInt();
-    init.y=rei.cap(3).toInt();
-    tracePoints.append(init);
-    
-    //(id)(x)(y)...
-    QRegExp re("(\\d+)(?:[^\\d]+)(\\d+)(?:[^\\d]+)(\\d+)+((?:[^\\d]+)(\\d+))");
-    while (getline(infile, line))
-    {
-        QString qLine(line.c_str());
-        re.indexIn(qLine);
-        tracePoint nextPoint;
-        int index=re.cap(1).toInt()-1;
-//        printf("read index %d\n",index);
-        if (index >= tracePoints.size())
-        {
-            nextPoint.x=re.cap(2).toInt()-1;
-            nextPoint.y=re.cap(3).toInt()-1;
-            for (int i=4; i<re.captureCount(); i++)
-            {
-                int connectionId = re.cap(i).toInt()-1;
-                double angle = atan2((nextPoint.y-tracePoints[connectionId].y),(nextPoint.x-tracePoints[connectionId].x));
-    //            double angle = re.cap(6).toDouble();
-                if (angle < 0)
-                    angle += PI;
-                double distance = sqrt(pow(nextPoint.x-tracePoints[connectionId].x,2) + pow(nextPoint.y-tracePoints[connectionId].y,2));
-                nextPoint.connectedPoints.append(connectionId);
-                nextPoint.angleBetween.append(angle);
-                nextPoint.distanceBetween.append(distance);
-                tracePoints.append(nextPoint);
-                
-                tracePoints[connectionId].connectedPoints.append(index);
-                tracePoints[connectionId].angleBetween.append(angle);
-                tracePoints[connectionId].distanceBetween.append(distance);
-            }
-            
-        }
-        else
-        {
-            printf("ERROR repeat index read in\n",index);
-//            int last = re.cap(4).toInt();
-//            double angle = re.cap(6).toDouble();
-//            if (angle < 0)
-//                angle += 180;
-//            tracePoints[index].connectedPoints.append(last);
-//            tracePoints[index].angleBetween.append(angle);
-//            tracePoints[last].connectedPoints.append(index);
-//            tracePoints[last].angleBetween.append(angle);
-        }
-    }
-    
-    QVector<bool> visited(tracePoints.size());
-    for (int i=0; i<visited.size(); i++)
-    {
-        visited[i]=false;
-    }
-    QVector<int> pointStack;
-    pointStack.append(0);
-    while (!pointStack.empty())
-    {
-        int curIndex=pointStack.back();
-        pointStack.pop_back();
-        if (visited[curIndex])
-            continue;
-        visited[curIndex]=true;
-        
-//        QPoint toAdd(tracePoints[curIndex].x,tracePoints[curIndex].y);
-        
-//        QVector<double> slope;
-        for (int i=0; i<tracePoints[curIndex].connectedPoints.size(); i++)
-        {
-//            slope.append(tracePoints[curIndex].angleBetween[i]);
-            if (!visited[tracePoints[curIndex].connectedPoints[i]])
-            {
-                pointStack.append(tracePoints[curIndex].connectedPoints[i]);
-                int midX = (tracePoints[curIndex].x + tracePoints[ tracePoints[curIndex].connectedPoints[i] ].x)/2;
-                int midY = (tracePoints[curIndex].y + tracePoints[ tracePoints[curIndex].connectedPoints[i] ].y)/2;
-                QPoint mid(midX,midY);
-                if (!img.pixel(midX,midY))
-                {
-                    //find closest
-                    mid = findClosestPointOn(img,mid);
-                }
-                
-                if(mid.x()>2000 || mid.y()>2000)
-                {
-                    printf("Error on midpoint for (%d,%d) and (%d,%d)\n",tracePoints[curIndex].x,tracePoints[curIndex].y,tracePoints[ tracePoints[curIndex].connectedPoints[i] ].x,tracePoints[ tracePoints[curIndex].connectedPoints[i] ].y);
-                }
-                
-                refPoints.append(mid);
-                double slopeMid=tracePoints[curIndex].angleBetween[i];
-//                slopeMid.append(tracePoints[curIndex].angleBetween[i]);
-                refSlopesM.append(slopeMid);
-                refLengthsM.append(tracePoints[curIndex].distanceBetween[i]);
-            }
-        }
-//        refPoints.append(toAdd);
-//        refSlopesM.append(slope);
-        
-        
-    }
-    
-    QVector<QPoint> edgeStack;
-    QVector<double> angleEdgeStack;
-    QVector<double> distanceEdgeStack;
-    
-    double FILL_RADIOUS_CONST = 0.75;//I'd rather these be variable, dependant on the length of the slope line
-    for (int i=0; i<refPoints.size(); i++)
-    {
-        QVector<QPoint> workingStack;
-        QVector<double> distStack;
-        workingStack.append(refPoints[i]);
-        distStack.append(0);
-        double angle = refSlopesM[i];
-        angleImage.setPixelSlope(refPoints[i].x(),refPoints[i].y(),angle,1);
-        
-        double fillRadious = FILL_RADIOUS_CONST * refLengthsM[i];
-        
-        while(!workingStack.empty())
-        {
-            QPoint cur = workingStack.front();
-            workingStack.pop_front();
-            double curDist = distStack.front();
-            distStack.pop_front();
-            
-            if (curDist > fillRadious)
-            {
-                edgeStack.append(cur);
-                angleEdgeStack.append(angle);
-                distanceEdgeStack.append(curDist);
-            }
-            else
-            {
-                double newDist = curDist+1;
-                double str = (newDist+1)/(2*newDist);
-                if (cur.x()<angleImage.width()-1 && angleImage.noStrongerAngleForPixel(cur.x()+1,cur.y(),angle,str))
-                {
-                    QPoint pp(cur.x()+1,cur.y());
-                    workingStack.push_back(pp);
-                    
-                    distStack.push_back(newDist);
-                    
-                    angleImage.setPixelSlope(pp.x(),pp.y(),angle,str);
-                }
-                if (cur.y()<angleImage.height()-1 && angleImage.noStrongerAngleForPixel(cur.x(),cur.y()+1,angle,str))
-                {
-                    QPoint pp(cur.x(),cur.y()+1);
-                    workingStack.push_back(pp);
-                    double newDist = curDist+1;
-                    distStack.push_back(newDist);
-                    double str = (newDist+1)/(2*newDist);
-                    angleImage.setPixelSlope(pp.x(),pp.y(),angle,str);
-                }
-                if (cur.x()>0 && angleImage.noStrongerAngleForPixel(cur.x()-1,cur.y(),angle,str))
-                {
-                    QPoint pp(cur.x()-1,cur.y());
-                    workingStack.push_back(pp);
-                    double newDist = curDist+1;
-                    distStack.push_back(newDist);
-                    double str = (newDist+1)/(2*newDist);
-                    angleImage.setPixelSlope(pp.x(),pp.y(),angle,str);
-                }
-                if (cur.y()>0 && angleImage.noStrongerAngleForPixel(cur.x(),cur.y()-1,angle,str))
-                {
-                    QPoint pp(cur.x(),cur.y()-1);
-                    workingStack.push_back(pp);
-                    double newDist = curDist+1;
-                    distStack.push_back(newDist);
-                    double str = (newDist+1)/(2*newDist);
-                    angleImage.setPixelSlope(pp.x(),pp.y(),angle,str);
-                }
-                //diagonals
-                newDist = curDist+SQRT_2;
-                str = (newDist+1)/(2*newDist);
-                if (cur.x()<angleImage.width()-1 && cur.y()<angleImage.height()-1 && angleImage.noStrongerAngleForPixel(cur.x()+1,cur.y()+1,angle,str))
-                {
-                    QPoint pp(cur.x()+1,cur.y()+1);
-                    workingStack.push_back(pp);
-                    distStack.push_back(newDist);
-                    angleImage.setPixelSlope(pp.x(),pp.y(),angle,str);
-                }
-                if (cur.y()<angleImage.height()-1 && cur.x()>0 && angleImage.noStrongerAngleForPixel(cur.x()-1,cur.y()+1,angle,str))
-                {
-                    QPoint pp(cur.x()-1,cur.y()+1);
-                    workingStack.push_back(pp);
-                    distStack.push_back(newDist);
-                    angleImage.setPixelSlope(pp.x(),pp.y(),angle,str);
-                }
-                if (cur.x()<angleImage.width()-1 && cur.y()>0 && angleImage.noStrongerAngleForPixel(cur.x()+1,cur.y()-1,angle,str))
-                {
-                    QPoint pp(cur.x()+1,cur.y()-1);
-                    workingStack.push_back(pp);
-                    distStack.push_back(newDist);
-                    angleImage.setPixelSlope(pp.x(),pp.y(),angle,str);
-                }
-                if (cur.y()>0 && cur.x()>0 && angleImage.noStrongerAngleForPixel(cur.x()-1,cur.y()-1,angle,str))
-                {
-                    QPoint pp(cur.x()-1,cur.y()-1);
-                    workingStack.push_back(pp);
-                    distStack.push_back(newDist);
-                    angleImage.setPixelSlope(pp.x(),pp.y(),angle,str);
-                }
-            }
-        }
-    }
-    
-    
-    //after fill
-    while (!edgeStack.empty())
-    {
-        QPoint cur = edgeStack.front();
-        edgeStack.pop_front();
-        double curDist = distanceEdgeStack.front();
-        distanceEdgeStack.pop_front();
-        double angle = angleEdgeStack.front();
-        angleEdgeStack.pop_front();
-        
-
-        if (cur.x()<angleImage.width()-1 && angleImage.noAnglesForPixel(cur.x()+1,cur.y()))
-        {
-            QPoint pp(cur.x()+1,cur.y());
-            edgeStack.push_back(pp);
-            double newDist = curDist+1;
-            distanceEdgeStack.push_back(newDist);
-            angleEdgeStack.push_back(angle);
-            double str = (newDist+1)/(2*newDist);
-            angleImage.setPixelSlope(pp.x(),pp.y(),angle,str);
-        }
-        if (cur.y()<angleImage.height()-1 && angleImage.noAnglesForPixel(cur.x(),cur.y()+1))
-        {
-            QPoint pp(cur.x(),cur.y()+1);
-            edgeStack.push_back(pp);
-            double newDist = curDist+1;
-            distanceEdgeStack.push_back(newDist);
-            angleEdgeStack.push_back(angle);
-            double str = (newDist+1)/(2*newDist);
-            angleImage.setPixelSlope(pp.x(),pp.y(),angle,str);
-        }
-        if (cur.x()>0 && angleImage.noAnglesForPixel(cur.x()-1,cur.y()))
-        {
-            QPoint pp(cur.x()-1,cur.y());
-            edgeStack.push_back(pp);
-            double newDist = curDist+1;
-            distanceEdgeStack.push_back(newDist);
-            angleEdgeStack.push_back(angle);
-            double str = (newDist+1)/(2*newDist);
-            angleImage.setPixelSlope(pp.x(),pp.y(),angle,str);
-        }
-        if (cur.y()>0 && angleImage.noAnglesForPixel(cur.x(),cur.y()-1))
-        {
-            QPoint pp(cur.x(),cur.y()-1);
-            edgeStack.push_back(pp);
-            double newDist = curDist+1;
-            distanceEdgeStack.push_back(newDist);
-            angleEdgeStack.push_back(angle);
-            double str = (newDist+1)/(2*newDist);
-            angleImage.setPixelSlope(pp.x(),pp.y(),angle,str);
-        }
-        //diagonals
-        if (cur.x()<angleImage.width()-1 && cur.y()<angleImage.height()-1 && angleImage.noAnglesForPixel(cur.x()+1,cur.y()+1))
-        {
-            QPoint pp(cur.x()+1,cur.y()+1);
-            edgeStack.push_back(pp);
-            double newDist = curDist+SQRT_2;
-            distanceEdgeStack.push_back(newDist);
-            angleEdgeStack.push_back(angle);
-            double str = (newDist+1)/(2*newDist);
-            angleImage.setPixelSlope(pp.x(),pp.y(),angle,str);
-        }
-        if (cur.y()<angleImage.height()-1 && cur.x()>0 && angleImage.noAnglesForPixel(cur.x()-1,cur.y()+1))
-        {
-            QPoint pp(cur.x()-1,cur.y()+1);
-            edgeStack.push_back(pp);
-            double newDist = curDist+SQRT_2;
-            distanceEdgeStack.push_back(newDist);
-            angleEdgeStack.push_back(angle);
-            double str = (newDist+1)/(2*newDist);
-            angleImage.setPixelSlope(pp.x(),pp.y(),angle,str);
-        }
-        if (cur.x()<angleImage.width()-1 && cur.y()>0 && angleImage.noAnglesForPixel(cur.x()+1,cur.y()-1))
-        {
-            QPoint pp(cur.x()+1,cur.y()-1);
-            edgeStack.push_back(pp);
-            double newDist = curDist+SQRT_2;
-            distanceEdgeStack.push_back(newDist);
-            angleEdgeStack.push_back(angle);
-            double str = (newDist+1)/(2*newDist);
-            angleImage.setPixelSlope(pp.x(),pp.y(),angle,str);
-        }
-        if (cur.y()>0 && cur.x()>0 && angleImage.noAnglesForPixel(cur.x()-1,cur.y()-1))
-        {
-            QPoint pp(cur.x()-1,cur.y()-1);
-            edgeStack.push_back(pp);
-            double newDist = curDist+SQRT_2;
-            distanceEdgeStack.push_back(newDist);
-            angleEdgeStack.push_back(angle);
-            double str = (newDist+1)/(2*newDist);
-            angleImage.setPixelSlope(pp.x(),pp.y(),angle,str);
-        }
-        
-    }
     
 //    BImage mark(img);
 //    QVector<QVector<QPoint> > stacks(refPoints.size());
@@ -3616,20 +3476,63 @@ QVector<BPartition*> WordSeparator::cut3D(const BPixelCollection &img, QVector<Q
     
 //    int maxflow = GraphCut::pixelsOfSeparationWithSlope(invDistMap,img.width(),img.height(),img, slopes,firstImgIndexes,secondImgIndexes);
 //    int maxflow = GraphCut::pixelsOfSeparationNDimensions(invDistMap,img.width(),img.height(),img, dimensions,sourceSeeds,sinkSeeds,firstImgIndexes,secondImgIndexes);
-    int maxflow = GraphCut::pixelsOfSeparation(invDistMap,img.width(),img.height(),img, angleImage,sourceSeeds,sinkSeeds,firstImgIndexes,secondImgIndexes);
+//    int maxflow = GraphCut::pixelsOfSeparation(invDistMap,img.width(),img.height(),img, angleImage,sourceSeeds,sinkSeeds,firstImgIndexes,secondImgIndexes);
+    
+    ///test 3ddist
+    bool img3d[angleImage.width()*angleImage.height()*numOfBins];
+    int dim[3];
+    dim[0]=angleImage.width();
+    dim[1]=angleImage.height();
+    dim[2]=numOfBins;
+    IndexerKD ind(2,dim);
+    for (int x=0; x<angleImage.width(); x++)
+    {
+        for (int y=0; y<angleImage.height(); y++)
+        {
+            int pass[3];
+            pass[0]=x; pass[1]=y;
+            img3d[ind.getIndex(pass)]=angleImage.pixel(x,y);
+//            for (int z=0; z<numOfBins; z++)
+//            {
+//                int pass[3];
+//                pass[0]=x; pass[1]=y; pass[2]=z;
+//                img3d[ind.getIndex(pass)]=false;
+//            }
+            
+//            QMap<int,double> bins = angleImage.getBinsAndStrForPixel(x,y);
+//            foreach(int bin, bins.keys())
+//            {
+//                if (bins[bin]>.2)
+//                {
+                    
+//                    for (int e=1; e<10*bins[bin]; e++)
+//                    {
+//                        int pass[3];
+//                        pass[0]=x; pass[1]=y; pass[2]=mod(bin+e,numOfBins);
+//                        img3d[ind.getIndex(pass)]=true;
+//                        pass[0]=x; pass[1]=y; pass[2]=mod(bin-e,numOfBins);
+//                        img3d[ind.getIndex(pass)]=true;
+//                    }
+//                }
+//            }
+        }
+    }
+    int distmap[angleImage.width()*angleImage.height()*numOfBins];
+    computeKDInverseDistanceMap(img3d,distmap,2,dim);
+//    compute3DInverseDistanceMapTest(img3d,distmap,angleImage.width(),angleImage.height(),numOfBins);
+    ///test3ddist
+    
     
     BPartition* firstPart = new BPartition(&img);
     BPartition* secondPart = new BPartition(&img);
     
     int img_width = img.width();
-//    int img_height = img.height();
     
     foreach (int index, firstImgIndexes)
     {
         int x = index%img_width;
         int y = index/img_width;
         firstPart->addPixelFromSrc(x,y);
-//        img.getSrc()->setPixelOwner(x+xOffset,y+yOffset,firstPart,claimPortion);
     }
     
     foreach (int index, secondImgIndexes)
@@ -3637,7 +3540,6 @@ QVector<BPartition*> WordSeparator::cut3D(const BPixelCollection &img, QVector<Q
         int x = index%img_width;
         int y = index/img_width;
         secondPart->addPixelFromSrc(x,y);
-//        img.getSrc()->setPixelOwner(x+xOffset,y+yOffset,secondPart,claimPortion);
     }
     
     ///test//
@@ -3695,67 +3597,4 @@ QVector<BPartition*> WordSeparator::cutGivenSeeds(const BPixelCollection &img, Q
     return ret;
 }
 
-QPoint WordSeparator::findClosestPointOn(const BPixelCollection &img, QPoint &start)
-{
-    QVector<QPoint> searchQueue;
-    searchQueue.append(start);
-    BImage mark = img.makeImage();
-    mark.setPixel(start,false);
-    while (!searchQueue.empty())
-    {
-        QPoint cur = searchQueue.front();
-        searchQueue.pop_front();
-        if (img.pixel(cur))
-            return cur;
-        
-        QPoint up(cur.x(),cur.y()-1);
-        QPoint down(cur.x(),cur.y()+1);
-        QPoint left(cur.x()-1,cur.y());
-        QPoint right(cur.x()+1,cur.y());
-        QPoint lu(cur.x()-1,cur.y()-1);
-        QPoint ld(cur.x()-1,cur.y()+1);
-        QPoint ru(cur.x()+1,cur.y()-1);
-        QPoint rd(cur.x()+1,cur.y()+1);
-        if (cur.y()>0 && mark.pixel(up))
-        {
-            searchQueue.append(up);
-            mark.setPixel(up,false);
-        }
-        if (cur.y()+1<mark.height() && mark.pixel(down))
-        {
-            searchQueue.append(down);
-            mark.setPixel(down,false);
-        }
-        if (cur.x()>0 && mark.pixel(left))
-        {
-            searchQueue.append(left);
-            mark.setPixel(left,false);
-        }
-        if (cur.x()+1<mark.width() && mark.pixel(right))
-        {
-            searchQueue.append(right);
-            mark.setPixel(right,false);
-        }
-        if (cur.x()>0 && cur.y()>0 &&mark.pixel(lu))
-        {
-            searchQueue.append(lu);
-            mark.setPixel(lu,false);
-        }
-        if (cur.x()>0 && cur.y()+1<mark.height() && mark.pixel(ld))
-        {
-            searchQueue.append(ld);
-            mark.setPixel(ld,false);
-        }
-        if (cur.x()+1<mark.width() && cur.y()>0 && mark.pixel(ru))
-        {
-            searchQueue.append(ru);
-            mark.setPixel(ru,false);
-        }
-        if (cur.x()+1<mark.width() && cur.y()+1<mark.height() && mark.pixel(rd))
-        {
-            searchQueue.append(rd);
-            mark.setPixel(rd,false);
-        }
-        
-    }
-}
+

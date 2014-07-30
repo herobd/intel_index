@@ -6,14 +6,14 @@ BoxCleaner::BoxCleaner()
 {
 }
 
-BImage BoxCleaner::trimBoundaries(BImage &img)
+BImage BoxCleaner::trimBoundaries(const BImage &img)
 {
     BImage vt = trimVerticleBoundaries(img);
     vt= trimHorizontalBoundaries(vt);
     return trimHorizontalLines(vt);
 }
 
-BImage BoxCleaner::trimHorizontalBoundaries(BImage &img)
+BImage BoxCleaner::trimHorizontalBoundaries(const BImage &img)
 {   
     
     int PROFILE_HORZ_THRESH = img.width()*.75;
@@ -132,7 +132,7 @@ BImage BoxCleaner::trimHorizontalBoundaries(BImage &img)
     return ret;
 }
 
-BImage BoxCleaner::trimHorizontalLines(BImage &img)
+BImage BoxCleaner::trimHorizontalLines(const BImage &img)
 {
     int PROFILE_HORZ_THRESH_E = img.width()*.8;
     int RUN_HORZ_THRESH_E = img.width()*.65;
@@ -183,7 +183,7 @@ BImage BoxCleaner::trimHorizontalLines(BImage &img)
     return ret;
 }
 
-BImage BoxCleaner::trimVerticleBoundaries(BImage &img)
+BImage BoxCleaner::trimVerticleBoundaries(const BImage &img)
 {   
     
     int PROFILE_VERT_THRESH = img.height()*.85;
@@ -389,7 +389,7 @@ void BoxCleaner::cond_clear_line(int runLength, int i, int j, BImage &ret)
 //    }
 }
 
-BImage BoxCleaner::removePixelNoise(BImage &img)
+BImage BoxCleaner::removePixelNoise(const BImage &img)
 {
     //int NOISE_BUFF = 6;
     
@@ -451,7 +451,7 @@ BImage BoxCleaner::removePixelNoise(BImage &img)
     return ret;
 }
 
-BImage BoxCleaner::removeVerticlePixelNoise(BImage &img)
+BImage BoxCleaner::removeVerticlePixelNoise(const BImage &img)
 {
 //    BImage ret = img.copy();
     BImage ret(img);
@@ -496,9 +496,9 @@ BImage BoxCleaner::removeVerticlePixelNoise(BImage &img)
 //vert_divide will be set to the actual center of the dividing line.
 //crossPoints will be set to the middle point of every crossing of the removed dividing line that is
 //restored by the close.
-BImage BoxCleaner::clearLineAndCloseLetters(BPixelCollection &src, int est_y, int* vert_divide, QVector<QPoint>* crossPoints)
+BImage BoxCleaner::clearLineAndCloseLetters(const BPixelCollection &src, int est_y, int* vert_divide, QVector<QPoint>* crossPoints)
 {
-    int SEARCH_BAND = 15;
+    int SEARCH_BAND = 6;
     int STRUCT_ELE_SIZE = 6;
     int LINE_THRESH = src.width() * .6;
     
@@ -531,26 +531,27 @@ BImage BoxCleaner::clearLineAndCloseLetters(BPixelCollection &src, int est_y, in
         
         if (maxProfileIndex<0)
         {
-            SEARCH_BAND *= 2;
-            profile.insert(0,SEARCH_BAND*2,0);
-            profile.fill(0);
-            for (int j=0; j<=SEARCH_BAND*2; j++)
-            {
-                //create profile for row
-                for (int i=0; i<src.width(); i++)
-                {
-                    if (ret.pixel(i,j+(est_y-SEARCH_BAND)))
-                        profile[j]++;
-                }
-                if (profile[j]>maxProfile)
-                {
-                    maxProfile=profile[j];
-                    maxProfileIndex=j;
-                }
-            }
+            maxProfileIndex=est_y;
+//            SEARCH_BAND *= 2;
+//            profile.insert(0,SEARCH_BAND*2,0);
+//            profile.fill(0);
+//            for (int j=0; j<=SEARCH_BAND*2; j++)
+//            {
+//                //create profile for row
+//                for (int i=0; i<src.width(); i++)
+//                {
+//                    if (ret.pixel(i,j+(est_y-SEARCH_BAND)))
+//                        profile[j]++;
+//                }
+//                if (profile[j]>maxProfile)
+//                {
+//                    maxProfile=profile[j];
+//                    maxProfileIndex=j;
+//                }
+//            }
         }
         
-        if (maxProfileIndex < 1)
+        if (maxProfileIndex < 0)
             return ret;
         
         aboveLine = maxProfileIndex-1;
@@ -699,6 +700,13 @@ BImage BoxCleaner::clearLineAndCloseLetters(BPixelCollection &src, int est_y, in
                 QPoint keypoint((lineStart+i)/2,*vert_divide);
                 crossPoints->append(keypoint);
             }
+            //also (this can be done more effeicently)
+            for (int j=0; j<ret.height(); j++)
+            {
+                if (ret.pixel(i,j) && !src.pixel(i,j))
+                    ret.setPixel(i,j,false);
+            }
+            
         }
         if (onLine)
         {

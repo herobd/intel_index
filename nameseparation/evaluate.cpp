@@ -73,6 +73,7 @@ double Evaluate::verticleSegmentationTest(QString imgPath, QString gtDirPath)
         summedScore+=score;
         results << score;
 //        printf ("line %d finished\n",i);
+        lines[i]->makeImage().save("./vert_seg_res/" + imageNumber + ".ppm");
     }
     double avgScore = summedScore/lines.size();
     results << ": " << avgScore << std::endl;

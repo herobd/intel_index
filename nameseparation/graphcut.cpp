@@ -1736,7 +1736,7 @@ inline QVector<QVector<QVector<double> > > make3dImage(const BPixelCollection &i
     return ret;
 }
 
-inline void setEdge3d(int x1, int y1, int slope1, int x2, int y2, int slope2, GraphType* g, const AngleIndexer &indexer, const QVector<QVector<QVector<double> > > &image3d, double weight)
+inline void setEdge3d(int x1, int y1, int slope1, int x2, int y2, int slope2, GraphType* g, const Indexer3D &indexer, const QVector<QVector<QVector<double> > > &image3d, double weight)
 {
         g -> add_edge(indexer.getIndex(x1,y1,slope1), indexer.getIndex(x2,y2,slope2),
                       (image3d[x1][y1][slope1]+image3d[x2][y2][slope2])*weight,
@@ -1756,7 +1756,7 @@ int GraphCut::pixelsOfSeparation(int* invDistMap, int width, int height, const B
     numEdges *= angleImage.getNumOfBins();
     numEdges += numNodes*(angleImage.getNumOfBins()-1);//assuming only striaght (no diag) connections for higher dimensions
     
-    AngleIndexer indexer(width, height);
+    Indexer3D indexer(width, height);
     
     typedef Graph<int,int,int> GraphType;
     GraphType *g = new GraphType(numNodes, numEdges); 
@@ -1890,7 +1890,7 @@ int GraphCut::pixelsOfSeparation(int* invDistMap, int width, int height, const B
     //For simplicity, only doing three dimensions now
 //    double FLAT_WEIGHT = .5;
 //    double SLOPE_WEIGHT = 4;
-    double FLAT_WEIGHT = 6;//3
+    double FLAT_WEIGHT = 6;//1
     double SLOPE_WEIGHT = .5;
     int slope_size = angleImage.getNumOfBins();
     for (int k=0; k<slope_size; k++)
@@ -1944,7 +1944,7 @@ int GraphCut::pixelsOfSeparation(int* invDistMap, int width, int height, const B
 
     
     //add all black pixels which
-    
+    int slopeDifRange = SLOPE_DIF_TOLERANCE*angleImage.getNumOfBins();
     for (int x=0; x<width; x++)
     {
         for (int y=0; y<height; y++)
@@ -1956,25 +1956,56 @@ int GraphCut::pixelsOfSeparation(int* invDistMap, int width, int height, const B
                
                 if (binsForDim.size() >0)
                 {
-                    int onSource = 0;
-                    int onSink = 0;
+//                    int onSource = 0;
+//                    int onSink = 0;
+//                    foreach (int bin, binsForDim.keys())
+//                    {
+//                        for (int around=-5; around<=5; around++)
+//                        {
+//                            int index = indexer.getIndex(x,y,mod(bin+around,angleImage.getNumOfBins()));
+                            
+//                            if (g->what_segment(index) == GraphType::SOURCE)
+//                                onSource++;
+//                            else
+//                                onSink++;
+//                        }
+//                    }
+//                    if (onSource/(1.0*onSource+onSink)>.1)
+//                        outSource.append(x+width*y);
+//                    if (onSink/(1.0*onSource+onSink)>.1)
+//                        outSink.append(x+width*y);
+                    double sourceScore=0;
+                    double sinkScore=0;
                     foreach (int bin, binsForDim.keys())
                     {
-                        for (int around=-5; around<=5; around++)
+                        double strength = binsForDim[bin];
+                        int index = indexer.getIndex(x,y,mod(bin,angleImage.getNumOfBins()));
+                        if (g->what_segment(index) == GraphType::SOURCE)
+                            sourceScore+=strength;
+                        else
+                            sinkScore+=strength;
+                        
+                        for (int delta=1; delta<slopeDifRange; delta++)
                         {
-                            int index = indexer.getIndex(x,y,mod(bin+around,angleImage.getNumOfBins()));
+                            index = indexer.getIndex(x,y,mod(bin+delta,angleImage.getNumOfBins()));
                             
                             if (g->what_segment(index) == GraphType::SOURCE)
-                                onSource++;
+                                sourceScore+=strength*(slopeDifRange-delta*1.0)/slopeDifRange;
                             else
-                                onSink++;
+                                sinkScore+=strength*(slopeDifRange-delta*1.0)/slopeDifRange;
+                            
+                            index = indexer.getIndex(x,y,mod(bin-delta,angleImage.getNumOfBins()));
+                            
+                            if (g->what_segment(index) == GraphType::SOURCE)
+                                sourceScore+=strength*(slopeDifRange-delta*1.0)/slopeDifRange;
+                            else
+                                sinkScore+=strength*(slopeDifRange-delta*1.0)/slopeDifRange;
                         }
                     }
-                    if (onSource/(1.0*onSource+onSink)>.1)
+                    if (sourceScore>=.277*slopeDifRange)
                         outSource.append(x+width*y);
-                    if (onSink/(1.0*onSource+onSink)>.1)
+                    if (sinkScore>=.277*slopeDifRange)
                         outSink.append(x+width*y);
-                    
                 }
                 else
                 {

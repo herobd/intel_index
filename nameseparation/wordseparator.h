@@ -12,18 +12,12 @@
 #include "imageaverager.h"
 #include "boxcleaner.h"
 #include <fstream>
-#include <QRegExp>
+#include "indexer3d.h"
+
 
 class WordSeparator
 {
-    struct tracePoint
-    {
-        int x;
-        int y;
-        QVector<int> connectedPoints;
-        QVector<double> angleBetween;
-        QVector<double> distanceBetween;
-    };
+    
     
 public:
     WordSeparator();
@@ -50,12 +44,30 @@ public:
     
 private:
     static void computeInverseDistanceMap(const BPixelCollection &img, int* out);
+    static void compute3DInverseDistanceMap(const bool* src, int* out, int width, int height, int depth);
     
     static int f(int x, int i, int y, int m, int* g);
-    
     static int SepPlusOne(int i, int u, int y, int m, int* g);
     
-    static QPoint findClosestPointOn(const BPixelCollection &img, QPoint &start);
+    static int f2D(int x, int i, int y, int z, Indexer3D &ind, int* g);
+    static int SepPlusOne2D(int i, int u, int y, int z, Indexer3D &ind, int* g);
+    
+    static int f3D(int x, int y, int z, int i, Indexer3D &ind, int* g);
+    static int SepPlusOne3D(int x, int y, int i, int u, Indexer3D &ind, int* g);
+    
+    static void compute3DInverseDistanceMapTest(const bool* src, int* out, int width, int height, int depth);
+    static int f3DTest(int x, int y, int z, int i, Indexer3D &ind, int* g);
+    static int SepPlusOne3DTest(int x, int y, int i, int u, Indexer3D &ind, int* g);
+    
+    static void computeKDInverseDistanceMap(const bool* in, int* out, int k, const int* dim);
+    
+    static int ComputeEDT(const bool* I, int* D, int k, const int* n, const IndexerKD &ind, int d, int* i);
+    static int recursiveFor(const bool* I, int* D, int k, const int* n, const IndexerKD &ind, int d, int* i, int level);
+    static int VoronoiEDT(const bool* I, int* D, int k, const int* n, const IndexerKD &ind, int d, int* j);
+    static bool RemoveEDT(int dis_sqr_u_Rd, int dis_sqr_v_Rd, int dis_sqr_w_Rd, int u_d, int v_d, int w_d);
+    static void copyArray(int* from, int* to, int c);
+    
+//    static QPoint findClosestPointOn(const BPixelCollection &img, QPoint &start);
 };
 
 #endif // WORDSEPERATOR_H

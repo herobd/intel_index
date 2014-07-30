@@ -9,10 +9,23 @@
 #include "BPixelCollection.h"
 #include "bimage.h"
 #include <math.h>
+#include <fstream>
+#include <QRegExp>
+#include "indexer3d.h"
 
 
 class AngleImage : public BPixelCollection
 {
+    
+    struct tracePoint
+    {
+        int x;
+        int y;
+        QVector<int> connectedPoints;
+        QVector<double> angleBetween;
+        QVector<double> distanceBetween;
+    };
+    
 public:
 //    SlopeImage();
     AngleImage(const BPixelCollection* ofImage, int numOfBins, double minVal, double maxVal);
@@ -58,6 +71,9 @@ public:
     bool noAnglesForPixel(int x, int y) const;
     
 private:
+    void init();
+    QPoint findClosestPoint(QPoint &start);
+    
     QMap<double, double>** angles;
     int myWidth;
     int myHeight;
@@ -67,17 +83,6 @@ private:
     double maxValue;
 };
 
-class AngleIndexer
-{
-public:
-    AngleIndexer(int width, int height);
-//    int getIndex(int x, int y) const;
-    int getIndex(int x, int y, int slopeBin) const;
-    
-private:
-//    const AngleImage* angleImage;
-    int width;
-    int height;
-};
+
 
 #endif // SLOPEIMAGE_H

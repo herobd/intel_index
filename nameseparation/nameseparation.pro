@@ -35,7 +35,8 @@ HEADERS += \
     gpixelcollection.h \
     gimage.h \
     evaluate.h \
-    angleimage.h
+    angleimage.h \
+    indexer3d.h
 
 OTHER_FILES += \
     maxflow/instances.inc

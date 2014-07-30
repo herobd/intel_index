@@ -16,6 +16,10 @@ AngleImage::AngleImage(const BPixelCollection* ofImage, int numOfBins, double mi
 //            angles[x][y][-1]=1;
 //        }
     }
+    
+    //Do it all yourself
+    init();
+    
 }
 
 AngleImage::~AngleImage()
@@ -25,6 +29,338 @@ AngleImage::~AngleImage()
         delete[] angles[i];
     }
     delete[] angles;
+}
+
+void AngleImage::init()
+{
+    QVector<QPoint> refPoints;
+    QVector<double > refSlopesM;
+    QVector<double > refLengthsM;
+    
+   //readfile 
+    QVector<tracePoint> tracePoints;
+    
+    std::ofstream myfile ("matrix.txt");
+    if (myfile.is_open())
+    {
+        myfile << width() << " ";
+        myfile << height();
+        myfile << "\n";
+        for (int i =0; i<width(); i++)
+        {
+            for (int j = 0; j<height(); j++) {
+                myfile << pixel(i,j) << " ";
+            }
+            myfile << "\n";
+        }
+        myfile.close();
+    }
+    else printf("Unable to open file\n");
+//2.2
+    system("java -Djava.io.tmpdir=/home/brian/tmp/ -jar ~/intel_index/nameseparation/ScottsCode/slopeGen.jar matrix slopedata 2.2 4");
+    
+    std::ifstream infile("slopedata.txt");
+    std::string line;
+    getline(infile, line);
+    QRegExp rei("(\\d+)(?:[^\\d]+)(\\d+)(?:[^\\d]+)(\\d+)");
+    QString qLine(line.c_str());
+    rei.indexIn(qLine);
+    tracePoint init;
+    init.x=rei.cap(2).toInt();
+    init.y=rei.cap(3).toInt();
+    tracePoints.append(init);
+    
+    //(id)(x)(y)...
+    QRegExp re("(\\d+)(?:[^\\d]+)(\\d+)(?:[^\\d]+)(\\d+)+((?:[^\\d]+)(\\d+))");
+    while (getline(infile, line))
+    {
+        QString qLine(line.c_str());
+        re.indexIn(qLine);
+        tracePoint nextPoint;
+        int index=re.cap(1).toInt()-1;
+//        printf("read index %d\n",index);
+        if (index >= tracePoints.size())
+        {
+            nextPoint.x=re.cap(2).toInt()-1;
+            nextPoint.y=re.cap(3).toInt()-1;
+            for (int i=4; i<re.captureCount(); i++)
+            {
+                int connectionId = re.cap(i).toInt()-1;
+                double angle = atan2((nextPoint.y-tracePoints[connectionId].y),(nextPoint.x-tracePoints[connectionId].x));
+    //            double angle = re.cap(6).toDouble();
+                if (angle < 0)
+                    angle += PI;
+                double distance = sqrt(pow(nextPoint.x-tracePoints[connectionId].x,2) + pow(nextPoint.y-tracePoints[connectionId].y,2));
+                nextPoint.connectedPoints.append(connectionId);
+                nextPoint.angleBetween.append(angle);
+                nextPoint.distanceBetween.append(distance);
+                tracePoints.append(nextPoint);
+                
+                tracePoints[connectionId].connectedPoints.append(index);
+                tracePoints[connectionId].angleBetween.append(angle);
+                tracePoints[connectionId].distanceBetween.append(distance);
+            }
+            
+        }
+        else
+        {
+            printf("ERROR repeat index %d read in\n",index);
+//            int last = re.cap(4).toInt();
+//            double angle = re.cap(6).toDouble();
+//            if (angle < 0)
+//                angle += 180;
+//            tracePoints[index].connectedPoints.append(last);
+//            tracePoints[index].angleBetween.append(angle);
+//            tracePoints[last].connectedPoints.append(index);
+//            tracePoints[last].angleBetween.append(angle);
+        }
+    }
+    
+    QVector<bool> visited(tracePoints.size());
+    for (int i=0; i<visited.size(); i++)
+    {
+        visited[i]=false;
+    }
+    QVector<int> pointStack;
+    pointStack.append(0);
+    while (!pointStack.empty())
+    {
+        int curIndex=pointStack.back();
+        pointStack.pop_back();
+        if (visited[curIndex])
+            continue;
+        visited[curIndex]=true;
+        
+//        QPoint toAdd(tracePoints[curIndex].x,tracePoints[curIndex].y);
+        
+//        QVector<double> slope;
+        for (int i=0; i<tracePoints[curIndex].connectedPoints.size(); i++)
+        {
+//            slope.append(tracePoints[curIndex].angleBetween[i]);
+            if (!visited[tracePoints[curIndex].connectedPoints[i]])
+            {
+                pointStack.append(tracePoints[curIndex].connectedPoints[i]);
+                int midX = (tracePoints[curIndex].x + tracePoints[ tracePoints[curIndex].connectedPoints[i] ].x)/2;
+                int midY = (tracePoints[curIndex].y + tracePoints[ tracePoints[curIndex].connectedPoints[i] ].y)/2;
+                QPoint mid(midX,midY);
+                if (!pixel(midX,midY))
+                {
+                    //find closest
+                    mid = findClosestPoint(mid);
+                }
+                
+                if(mid.x()>2000 || mid.y()>2000 || mid.x()<0)
+                {
+                    printf("Error on midpoint for (%d,%d) and (%d,%d)\n",tracePoints[curIndex].x,tracePoints[curIndex].y,tracePoints[ tracePoints[curIndex].connectedPoints[i] ].x,tracePoints[ tracePoints[curIndex].connectedPoints[i] ].y);
+                    continue;
+                }
+                
+                refPoints.append(mid);
+                double slopeMid=tracePoints[curIndex].angleBetween[i];
+//                slopeMid.append(tracePoints[curIndex].angleBetween[i]);
+                refSlopesM.append(slopeMid);
+                refLengthsM.append(tracePoints[curIndex].distanceBetween[i]);
+            }
+        }
+//        refPoints.append(toAdd);
+//        refSlopesM.append(slope);
+        
+        
+    }
+    
+    QVector<QPoint> edgeStack;
+    QVector<double> angleEdgeStack;
+    QVector<double> distanceEdgeStack;
+    
+    double FILL_RADIOUS_CONST = 0.75;//I'd rather these be variable, dependant on the length of the slope line
+    for (int i=0; i<refPoints.size(); i++)
+    {
+        QVector<QPoint> workingStack;
+        QVector<double> distStack;
+        workingStack.append(refPoints[i]);
+        distStack.append(0);
+        double angle = refSlopesM[i];
+        setPixelSlope(refPoints[i].x(),refPoints[i].y(),angle,1);
+        
+        double fillRadious = FILL_RADIOUS_CONST * refLengthsM[i];
+        
+        while(!workingStack.empty())
+        {
+            QPoint cur = workingStack.front();
+            workingStack.pop_front();
+            double curDist = distStack.front();
+            distStack.pop_front();
+            
+            if (curDist > fillRadious)
+            {
+                edgeStack.append(cur);
+                angleEdgeStack.append(angle);
+                distanceEdgeStack.append(curDist);
+            }
+            else
+            {
+                double newDist = curDist+1;
+                double str = (newDist+1)/(2*newDist);
+                if (cur.x()<width()-1 && noStrongerAngleForPixel(cur.x()+1,cur.y(),angle,str))
+                {
+                    QPoint pp(cur.x()+1,cur.y());
+                    workingStack.push_back(pp);
+                    
+                    distStack.push_back(newDist);
+                    
+                    setPixelSlope(pp.x(),pp.y(),angle,str);
+                }
+                if (cur.y()<height()-1 && noStrongerAngleForPixel(cur.x(),cur.y()+1,angle,str))
+                {
+                    QPoint pp(cur.x(),cur.y()+1);
+                    workingStack.push_back(pp);
+                    distStack.push_back(newDist);
+                    setPixelSlope(pp.x(),pp.y(),angle,str);
+                }
+                if (cur.x()>0 && noStrongerAngleForPixel(cur.x()-1,cur.y(),angle,str))
+                {
+                    QPoint pp(cur.x()-1,cur.y());
+                    workingStack.push_back(pp);
+                    distStack.push_back(newDist);
+                    setPixelSlope(pp.x(),pp.y(),angle,str);
+                }
+                if (cur.y()>0 && noStrongerAngleForPixel(cur.x(),cur.y()-1,angle,str))
+                {
+                    QPoint pp(cur.x(),cur.y()-1);
+                    workingStack.push_back(pp);
+                    distStack.push_back(newDist);
+                    setPixelSlope(pp.x(),pp.y(),angle,str);
+                }
+                //diagonals
+                newDist = curDist+SQRT_2;
+                str = (newDist+1)/(2*newDist);
+                if (cur.x()<width()-1 && cur.y()<height()-1 && noStrongerAngleForPixel(cur.x()+1,cur.y()+1,angle,str))
+                {
+                    QPoint pp(cur.x()+1,cur.y()+1);
+                    workingStack.push_back(pp);
+                    distStack.push_back(newDist);
+                    setPixelSlope(pp.x(),pp.y(),angle,str);
+                }
+                if (cur.y()<height()-1 && cur.x()>0 && noStrongerAngleForPixel(cur.x()-1,cur.y()+1,angle,str))
+                {
+                    QPoint pp(cur.x()-1,cur.y()+1);
+                    workingStack.push_back(pp);
+                    distStack.push_back(newDist);
+                    setPixelSlope(pp.x(),pp.y(),angle,str);
+                }
+                if (cur.x()<width()-1 && cur.y()>0 && noStrongerAngleForPixel(cur.x()+1,cur.y()-1,angle,str))
+                {
+                    QPoint pp(cur.x()+1,cur.y()-1);
+                    workingStack.push_back(pp);
+                    distStack.push_back(newDist);
+                    setPixelSlope(pp.x(),pp.y(),angle,str);
+                }
+                if (cur.y()>0 && cur.x()>0 && noStrongerAngleForPixel(cur.x()-1,cur.y()-1,angle,str))
+                {
+                    QPoint pp(cur.x()-1,cur.y()-1);
+                    workingStack.push_back(pp);
+                    distStack.push_back(newDist);
+                    setPixelSlope(pp.x(),pp.y(),angle,str);
+                }
+            }
+        }
+    }
+    
+    
+    //after fill
+    while (!edgeStack.empty())
+    {
+        QPoint cur = edgeStack.front();
+        edgeStack.pop_front();
+        double curDist = distanceEdgeStack.front();
+        distanceEdgeStack.pop_front();
+        double angle = angleEdgeStack.front();
+        angleEdgeStack.pop_front();
+        
+
+        if (cur.x()<width()-1 && noAnglesForPixel(cur.x()+1,cur.y()))
+        {
+            QPoint pp(cur.x()+1,cur.y());
+            edgeStack.push_back(pp);
+            double newDist = curDist+1;
+            distanceEdgeStack.push_back(newDist);
+            angleEdgeStack.push_back(angle);
+            double str = (newDist+1)/(2*newDist);
+            setPixelSlope(pp.x(),pp.y(),angle,str);
+        }
+        if (cur.y()<height()-1 && noAnglesForPixel(cur.x(),cur.y()+1))
+        {
+            QPoint pp(cur.x(),cur.y()+1);
+            edgeStack.push_back(pp);
+            double newDist = curDist+1;
+            distanceEdgeStack.push_back(newDist);
+            angleEdgeStack.push_back(angle);
+            double str = (newDist+1)/(2*newDist);
+            setPixelSlope(pp.x(),pp.y(),angle,str);
+        }
+        if (cur.x()>0 && noAnglesForPixel(cur.x()-1,cur.y()))
+        {
+            QPoint pp(cur.x()-1,cur.y());
+            edgeStack.push_back(pp);
+            double newDist = curDist+1;
+            distanceEdgeStack.push_back(newDist);
+            angleEdgeStack.push_back(angle);
+            double str = (newDist+1)/(2*newDist);
+            setPixelSlope(pp.x(),pp.y(),angle,str);
+        }
+        if (cur.y()>0 && noAnglesForPixel(cur.x(),cur.y()-1))
+        {
+            QPoint pp(cur.x(),cur.y()-1);
+            edgeStack.push_back(pp);
+            double newDist = curDist+1;
+            distanceEdgeStack.push_back(newDist);
+            angleEdgeStack.push_back(angle);
+            double str = (newDist+1)/(2*newDist);
+            setPixelSlope(pp.x(),pp.y(),angle,str);
+        }
+        //diagonals
+        if (cur.x()<width()-1 && cur.y()<height()-1 && noAnglesForPixel(cur.x()+1,cur.y()+1))
+        {
+            QPoint pp(cur.x()+1,cur.y()+1);
+            edgeStack.push_back(pp);
+            double newDist = curDist+SQRT_2;
+            distanceEdgeStack.push_back(newDist);
+            angleEdgeStack.push_back(angle);
+            double str = (newDist+1)/(2*newDist);
+            setPixelSlope(pp.x(),pp.y(),angle,str);
+        }
+        if (cur.y()<height()-1 && cur.x()>0 && noAnglesForPixel(cur.x()-1,cur.y()+1))
+        {
+            QPoint pp(cur.x()-1,cur.y()+1);
+            edgeStack.push_back(pp);
+            double newDist = curDist+SQRT_2;
+            distanceEdgeStack.push_back(newDist);
+            angleEdgeStack.push_back(angle);
+            double str = (newDist+1)/(2*newDist);
+            setPixelSlope(pp.x(),pp.y(),angle,str);
+        }
+        if (cur.x()<width()-1 && cur.y()>0 && noAnglesForPixel(cur.x()+1,cur.y()-1))
+        {
+            QPoint pp(cur.x()+1,cur.y()-1);
+            edgeStack.push_back(pp);
+            double newDist = curDist+SQRT_2;
+            distanceEdgeStack.push_back(newDist);
+            angleEdgeStack.push_back(angle);
+            double str = (newDist+1)/(2*newDist);
+            setPixelSlope(pp.x(),pp.y(),angle,str);
+        }
+        if (cur.y()>0 && cur.x()>0 && noAnglesForPixel(cur.x()-1,cur.y()-1))
+        {
+            QPoint pp(cur.x()-1,cur.y()-1);
+            edgeStack.push_back(pp);
+            double newDist = curDist+SQRT_2;
+            distanceEdgeStack.push_back(newDist);
+            angleEdgeStack.push_back(angle);
+            double str = (newDist+1)/(2*newDist);
+            setPixelSlope(pp.x(),pp.y(),angle,str);
+        }
+        
+    }
 }
 
 bool AngleImage::pixel(const QPoint &p) const
@@ -158,18 +494,75 @@ bool AngleImage::noAnglesForPixel(int x, int y) const
     return pixel(x,y) && angles[x][y].empty();
 }
 
+
+QPoint AngleImage::findClosestPoint(QPoint &start)
+{
+    QVector<QPoint> searchQueue;
+    searchQueue.append(start);
+    BImage mark = src->makeImage();
+    mark.setPixel(start,false);
+    while (!searchQueue.empty())
+    {
+        QPoint cur = searchQueue.front();
+        searchQueue.pop_front();
+        if (pixel(cur))
+            return cur;
+        
+        QPoint up(cur.x(),cur.y()-1);
+        QPoint down(cur.x(),cur.y()+1);
+        QPoint left(cur.x()-1,cur.y());
+        QPoint right(cur.x()+1,cur.y());
+        QPoint lu(cur.x()-1,cur.y()-1);
+        QPoint ld(cur.x()-1,cur.y()+1);
+        QPoint ru(cur.x()+1,cur.y()-1);
+        QPoint rd(cur.x()+1,cur.y()+1);
+        if (cur.y()>0 && mark.pixel(up))
+        {
+            searchQueue.append(up);
+            mark.setPixel(up,false);
+        }
+        if (cur.y()+1<mark.height() && mark.pixel(down))
+        {
+            searchQueue.append(down);
+            mark.setPixel(down,false);
+        }
+        if (cur.x()>0 && mark.pixel(left))
+        {
+            searchQueue.append(left);
+            mark.setPixel(left,false);
+        }
+        if (cur.x()+1<mark.width() && mark.pixel(right))
+        {
+            searchQueue.append(right);
+            mark.setPixel(right,false);
+        }
+        if (cur.x()>0 && cur.y()>0 &&mark.pixel(lu))
+        {
+            searchQueue.append(lu);
+            mark.setPixel(lu,false);
+        }
+        if (cur.x()>0 && cur.y()+1<mark.height() && mark.pixel(ld))
+        {
+            searchQueue.append(ld);
+            mark.setPixel(ld,false);
+        }
+        if (cur.x()+1<mark.width() && cur.y()>0 && mark.pixel(ru))
+        {
+            searchQueue.append(ru);
+            mark.setPixel(ru,false);
+        }
+        if (cur.x()+1<mark.width() && cur.y()+1<mark.height() && mark.pixel(rd))
+        {
+            searchQueue.append(rd);
+            mark.setPixel(rd,false);
+        }
+        
+    }
+    printf("findClosestPointOn failed to find point\n");
+    QPoint x(-1,-1);
+    return x;
+}
+
 //////////////////
-
-AngleIndexer::AngleIndexer(int width, int height)
-{
-    this->width=width;
-    this->height=height;
-}
-
-
-int AngleIndexer::getIndex(int x, int y, int angleBin) const
-{
-    return angleBin*width*height + y*width + x;
-}
 
 
