@@ -4,7 +4,8 @@
 #include "wordseparator.h"
 #include "boxcleaner.h"
 #include "imageaverager.h"
-#include "bimage.h"
+#include "BPixelCollection.h"
+//#include "bimage.h"
 #include <math.h>
 #include "evaluate.h"
 
@@ -14,7 +15,163 @@
 
 using namespace std;
 
-
+void testBolbFIll(BImage &img, const QPoint &crossOverPoint, )
+{
+    QVector<QPoint> centersOfMass;
+    QVector<QVector<QPoint> > regions;
+    
+    BImage mark = img.makeImage();
+    QVector<QPoint> startPoints;
+    startPoints.push_back(crossOverPoint);
+    mark.setPixel(crossOverPoint,false);
+    while(!startPoints.empty())
+    {
+        QPoint startPoint = startPoints.front();
+        startPoints.pop_front();
+        
+        if (!mark.pixel(startPoint))
+            continue;
+        
+        QVector<QPoint> border;
+        QVector<QPoint> collection;
+        border.push_back(startPoint);
+        
+        int furthestDistSqrd=0;
+        int killTokenLoc=-1;
+        int sumX=0;
+        int sumY=0;
+        
+        while(!border.empty())
+        {
+            QPoint toAdd = border.front();
+            border.pop_front();
+            
+            if (toAdd.x==-1)//hit kill token
+                break;
+            
+            int myFurthestDistSqrd=0;
+            foreach (QPoint p, collection)
+            {
+                int distSqrd=pow(p.x()-toAdd.x(),2) + pow(p.y()-toAdd.y(),2);
+                if (distSqrd>myFurthestDistSqrd)
+                    myFurthestDistSqrd=distSqrd;
+            }
+            
+            
+            if (max(myFurthestDistSqrd,furthestDistSqrd)/collection.size() <= ECCENTRICITY_LIMIT)
+            {
+                if (killTokenLoc>=0)
+                {
+                    border.remove(killTokenLoc);//remove killToken
+                    killTokenLoc=-1;
+                }
+                
+                if (myFurthestDistSqrd>furthestDistSqrd)
+                    furthestDistSqrd=myFurthestDistSqrd;
+                
+                collection.push_back(toAdd);
+                sumX+=toAdd.x();
+                sumY+=toAdd.y();
+                
+                QPoint up(toAdd.x(),toAdd.y()-1);
+                QPoint down(toAdd.x(),toAdd.y()+1);
+                QPoint left(toAdd.x()-1,toAdd.y());
+                QPoint right(toAdd.x()+1,toAdd.y());
+                QPoint lu(toAdd.x()-1,toAdd.y()-1);
+                QPoint ld(toAdd.x()-1,toAdd.y()+1);
+                QPoint ru(toAdd.x()+1,toAdd.y()-1);
+                QPoint rd(toAdd.x()+1,toAdd.y()+1);
+                if (toAdd.y()>0 && mark.pixel(up))
+                {
+                    border.append(up);
+                    mark.setPixel(up,false);
+                }
+                if (toAdd.y()+1<mark.height() && mark.pixel(down))
+                {
+                    border.append(down);
+                    mark.setPixel(down,false);
+                }
+                if (toAdd.x()>0 && mark.pixel(left))
+                {
+                    border.append(left);
+                    mark.setPixel(left,false);
+                }
+                if (toAdd.x()+1<mark.width() && mark.pixel(right))
+                {
+                    border.append(right);
+                    mark.setPixel(right,false);
+                }
+                if (toAdd.x()>0 && toAdd.y()>0 &&mark.pixel(lu))
+                {
+                    border.append(lu);
+                    mark.setPixel(lu,false);
+                }
+                if (toAdd.x()>0 && toAdd.y()+1<mark.height() && mark.pixel(ld))
+                {
+                    border.append(ld);
+                    mark.setPixel(ld,false);
+                }
+                if (toAdd.x()+1<mark.width() && toAdd.y()>0 && mark.pixel(ru))
+                {
+                    border.append(ru);
+                    mark.setPixel(ru,false);
+                }
+                if (toAdd.x()+1<mark.width() && toAdd.y()+1<mark.height() && mark.pixel(rd))
+                {
+                    border.append(rd);
+                    mark.setPixel(rd,false);
+                }
+                
+            }
+            else if (killTokenLoc<0)
+            {
+                killTokenLoc=border.size();
+                QPoint killToken(-1,-1);
+                border.push_back(killToken);
+                border.push_back(toAdd);
+            }
+            
+        }
+        
+        QPoint centerOfMass(sumX/collection.size(),sumY/collection.size());
+        centersOfMass.append(centerOfMass);
+        regions.append(collection);
+        
+        foreach (QPoint notAdded, border)//reset points not added
+        {
+            mark.setPixel(notAdded,true);
+            
+            //this is a dumb way, just testing to see if it works
+            startPoints.push_back(notAdded);
+        }
+        
+        
+    }
+    
+    
+    
+    //coloring
+    foreach(QPoint cOfM, centersOfMass)
+    {
+        img.setPixel(cOfM,false);
+    }
+    QVector<BPartition*> parts;
+    foreach (QVector<QPoints> region, regions)
+    {
+        BPartition* newPart = new BPartition(&img);
+        foreach(QPoint p, region)
+        {
+            newPart->addPixelFromSrc(p);
+        }
+        img.claimOwnership(newPart,1);
+    }
+    img.saveOwners("./blob_test.ppm");
+    
+    foreach(BPartition* d,parts)
+    {
+        delete d;
+    }
+}
 
 
 int main(int argc, char** argv)
@@ -26,26 +183,33 @@ int main(int argc, char** argv)
     
     BImage bimg(testimg);
     
-    QVector<QPoint> sourceSeeds;
-    QVector<QPoint> sinkSeeds;
+//    QVector<QPoint> sourceSeeds;
+//    QVector<QPoint> sinkSeeds;
     
-    QPoint p(1,14);
-    QPoint px(87,11);
-    sourceSeeds.append(p);
-    sourceSeeds.append(px);
-    QPoint p2(7,41);
-    QPoint p2x(74,42);
-    QPoint p2xx(12,40);
-    sinkSeeds.append(p2);
-    sinkSeeds.append(p2x);
-    sinkSeeds.append(p2xx);
+////    QPoint p(4,29);
+////    QPoint p2(6,64);
     
-    QVector<BPartition*> result = WordSeparator::cut3D(bimg, sourceSeeds, sinkSeeds);
-    result[0]->makeImage().save("./test0.ppm");
-    result[1]->makeImage().save("./test1.ppm");
-    bimg.claimOwnership(result[0],1);
-    bimg.claimOwnership(result[1],1);
-    bimg.saveOwners("./test.ppm");
+//    QPoint p(63,18);
+//    QPoint p2(64,64);
+//    QPoint p2x(1,72);
+    
+////    QPoint p(13,15);
+////    QPoint px(64,69);
+//    sourceSeeds.append(p);
+////    sourceSeeds.append(px);
+////    QPoint p2(15,73);
+////    QPoint p2x(71,17);
+////    QPoint p2xx(12,40);
+//    sinkSeeds.append(p2);
+//    sinkSeeds.append(p2x);
+////    sinkSeeds.append(p2xx);
+    
+//    QVector<BPartition*> result = WordSeparator::cut3D(bimg, sourceSeeds, sinkSeeds);
+//    result[0]->makeImage().save("./test0.ppm");
+//    result[1]->makeImage().save("./test1.ppm");
+//    bimg.claimOwnership(result[0],1);
+//    bimg.claimOwnership(result[1],1);
+//    bimg.saveOwners("./test.ppm");
     
     //////////////////////////
     
@@ -268,6 +432,14 @@ int main(int argc, char** argv)
 ////        segmentation[i]->makeImage().save("./output/");
 //    }
 //    clean.saveOwners("./test.ppm");
+    
+    
+    
+    
+    ///test blob_ecc fill///////////////////
+    QPoint cop(0,0);
+    testBolbFIll(bimg,cop);
+    ///test/////////////////////////////////
     return 0;
 }
 

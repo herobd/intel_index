@@ -1,10 +1,11 @@
 #ifndef BPARTITION_H
 #define BPARTITION_H
 
-#include "bimage.h"
 #include "BPixelCollection.h"
+#include "bimage.h"
 
-class BImage;
+
+//class BImage;
 //class BPixelCollection;
 
 class BPartition : public BPixelCollection

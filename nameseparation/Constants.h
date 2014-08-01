@@ -25,6 +25,11 @@
 
 #define INV_A 50 //100
 
-
+inline int mod(int a, int b)
+{
+    while (a<0)
+        a+=b;
+    return a%b;
+}
 
 #endif // CONSTANTS_H

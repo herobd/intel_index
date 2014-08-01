@@ -16,7 +16,9 @@ SOURCES += main.cpp \
     gpartition.cpp \
     gimage.cpp \
     evaluate.cpp \
-    angleimage.cpp
+    angleimage.cpp \
+    distancetransform.cpp \
+    operators.cpp
 
 HEADERS += \
     ./wordprofile.h \
@@ -35,9 +37,13 @@ HEADERS += \
     gpixelcollection.h \
     gimage.h \
     evaluate.h \
-    angleimage.h \
-    indexer3d.h
+    indexer3d.h \
+    distancetransform.h \
+    operators.h \
+    angleimage.h
 
 OTHER_FILES += \
-    maxflow/instances.inc
+    maxflow/instances.inc \
+    vxl-1.14.0/vcl/vcl_strstream.not \
+    vxl-1.14.0/vcl/vcl_rel_ops.not
 

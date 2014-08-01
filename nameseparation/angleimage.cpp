@@ -499,7 +499,14 @@ QPoint AngleImage::findClosestPoint(QPoint &start)
 {
     QVector<QPoint> searchQueue;
     searchQueue.append(start);
-    BImage mark = src->makeImage();
+    BImage mark(src->width(),src->height());
+    for (int x=0; x<mark.width(); x++)
+    {
+        for (int y=0; y<mark.height(); y++)
+        {
+            mark.setPixel(x,y,true);
+        }
+    }
     mark.setPixel(start,false);
     while (!searchQueue.empty())
     {

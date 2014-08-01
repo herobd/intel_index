@@ -3,6 +3,24 @@
 
 #include <QVector>
 
+
+struct point3D
+{
+    int x;
+    int y;
+    int z;
+    point3D(int x_, int y_, int z_)
+    {
+        x=x_;
+        y=y_;
+        z=z_;
+    }
+    point3D()
+    {
+        x=0; y=0; z=0;
+    }
+};
+
 class Indexer3D
 {
 public:
@@ -15,6 +33,11 @@ public:
     int getIndex(int x, int y, int z) const
     {
         return z*width*height + y*width + x;
+    }
+    
+    int getIndex(point3D p) const
+    {
+        return p.z*width*height + p.y*width + p.x;
     }
     
 private:

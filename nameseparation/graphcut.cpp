@@ -384,12 +384,6 @@ int GraphCut::pixelsOfSeparation(int* invDistMap, int width, int height, BPixelC
   D: value(s) for each pixel, highest, lowest, number of bins
   */
 
-inline int mod(int a, int b)
-{
-    while (a<0)
-        a+=b;
-    return a%b;
-}
 
 inline QVector<QVector<QVector<double> > > make3dImage(const BPixelCollection &img,int* invDistMap,const NDimensions &dimensions)
 {
@@ -2087,3 +2081,421 @@ int GraphCut::pixelsOfSeparation(int* invDistMap, int width, int height, const B
     delete g;
     return ret;
 }
+
+
+
+inline void setEdge3DMap(int x1, int y1, int slope1, int x2, int y2, int slope2, GraphType* g, const Indexer3D &indexer, const long* invDistMap3D, double weight)
+{
+        g -> add_edge(indexer.getIndex(x1,y1,slope1), indexer.getIndex(x2,y2,slope2),
+                      (invDistMap3D[indexer.getIndex(x1,y1,slope1)]+invDistMap3D[indexer.getIndex(x2,y2,slope2)])*weight,
+                      (invDistMap3D[indexer.getIndex(x1,y1,slope1)]+invDistMap3D[indexer.getIndex(x2,y2,slope2)])*weight);
+}
+
+int GraphCut::pixelsOfSeparation(const long* invDistMap3D, int width, int height, int depth, const BPixelCollection &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, QVector<int> &outSource, QVector<int> &outSink, int anchor_weight, int split_method, int vert_divide)
+{
+    int NEW_ANCHOR = 80;
+    
+//    QVector<QVector<QVector<double> > > image3d = make3dImage(img,invDistMap,angleImage);
+    
+    
+    
+    int numNodes = width*height*depth;
+    int numEdges = 4*(width-1)*(height-1)-(height+width);
+    numEdges *= depth;
+    numEdges += numNodes*(depth-1);//assuming only striaght (no diag) connections for higher dimensions
+    
+    Indexer3D indexer(width, height);
+    
+    typedef Graph<int,int,int> GraphType;
+    GraphType *g = new GraphType(numNodes, numEdges); 
+    
+    for (int i=0; i<numNodes; i++)
+    {
+        g->add_node();
+    }
+    
+    QImage debug = img.makeImage().getImage();
+    QVector<QRgb> ct = debug.colorTable();
+    ct.append(qRgb(205,50,50));
+    ct.append(qRgb(50,205,50));
+    debug.setColorTable(ct);
+    
+    if (split_method == SPLIT_HORZ)
+    {
+        //find source pixels
+        int count_source = NEW_ANCHOR;
+        //fill
+        BImage mark = img.makeImage();
+        QVector<QPoint> workingStack;
+        foreach (QPoint seed, sourceSeeds)
+        {
+            workingStack.push_back(seed);
+            mark.setPixel(seed,false);
+        }
+        while (!workingStack.isEmpty() && count_source>0)
+        {   
+            QPoint cur = workingStack.front();
+            workingStack.pop_front();
+            for (int k=0; k<depth; k++)
+            {
+                int index = indexer.getIndex(cur.x(),cur.y(),k);
+                g -> add_tweights(index, anchor_weight, 0);
+//                g -> add_tweights(index, 0, anchor_weight);
+            }
+            debug.setPixel(cur,2);
+            count_source--;
+            
+            
+            
+            if (cur.x()<mark.width()-1 && mark.pixel(cur.x()+1,cur.y()))
+            {
+                QPoint pp(cur.x()+1,cur.y());
+                workingStack.push_back(pp);
+                mark.setPixel(pp,false);
+                
+            }
+            if (cur.x()>0 && mark.pixel(cur.x()-1,cur.y()))
+            {
+                QPoint pp(cur.x()-1,cur.y());
+                workingStack.push_back(pp);
+                mark.setPixel(pp,false);
+            }
+            if (cur.y()>0 && mark.pixel(cur.x(),cur.y()-1))
+            {
+                QPoint pp(cur.x(),cur.y()-1);
+                workingStack.push_back(pp);
+                mark.setPixel(pp,false);
+            }
+            if (cur.y()<mark.height()-1 && mark.pixel(cur.x(),cur.y()+1))
+            {
+                QPoint pp(cur.x(),cur.y()+1);
+                workingStack.push_back(pp);
+                mark.setPixel(pp,false);
+            }
+        }
+        
+        int count_sink=NEW_ANCHOR;//height*ANCHOR_R;
+        
+        //find sink pixels
+
+        //fill
+        workingStack.clear();
+        foreach (QPoint seed, sinkSeeds)
+        {
+            workingStack.push_back(seed);
+            mark.setPixel(seed,false);
+        }
+        while (!workingStack.isEmpty() && count_sink>0)
+        {   
+            QPoint cur = workingStack.front();
+            workingStack.pop_front();
+            for (int k=0; k<depth; k++)
+            {
+                int index = indexer.getIndex(cur.x(),cur.y(),k);
+                g -> add_tweights(index, 0, anchor_weight);
+//                g -> add_tweights(index, anchor_weight,0 );
+                
+            }
+            debug.setPixel(cur,3);
+            count_sink--;
+            
+            
+            
+            if (cur.x()<mark.width()-1 && mark.pixel(cur.x()+1,cur.y()))
+            {
+                QPoint pp(cur.x()+1,cur.y());
+                workingStack.push_back(pp);
+                mark.setPixel(pp,false);
+                
+            }
+            if (cur.x()>0 && mark.pixel(cur.x()-1,cur.y()))
+            {
+                QPoint pp(cur.x()-1,cur.y());
+                workingStack.push_back(pp);
+                mark.setPixel(pp,false);
+            }
+            if (cur.y()>0 && mark.pixel(cur.x(),cur.y()-1))
+            {
+                QPoint pp(cur.x(),cur.y()-1);
+                workingStack.push_back(pp);
+                mark.setPixel(pp,false);
+            }
+            if (cur.y()<mark.height()-1 && mark.pixel(cur.x(),cur.y()+1))
+            {
+                QPoint pp(cur.x(),cur.y()+1);
+                workingStack.push_back(pp);
+                mark.setPixel(pp,false);
+            }
+        }
+        
+        
+        debug.save("./anchors.ppm");
+    }
+    
+    
+    
+    //connect all pixels
+    //For simplicity, only doing three dimensions now
+//    double FLAT_WEIGHT = .5;
+//    double SLOPE_WEIGHT = 4;
+    double FLAT_WEIGHT = 1;//1.5//6
+    double SLOPE_WEIGHT = .5;
+    int slope_size = depth;
+    for (int k=0; k<slope_size; k++)
+    {
+        
+        for (int i=0; i<width; i++)
+        {
+            for (int j=0; j<height; j++)
+            {   
+                
+                //C1
+                if (i+1<width)
+                {
+                    setEdge3DMap(i,j,k,i+1,j,k,g,indexer,invDistMap3D,FLAT_WEIGHT);
+                }
+                
+                if (j+1<height)
+                {
+                    setEdge3DMap(i,j,k,i,j+1,k,g,indexer,invDistMap3D,FLAT_WEIGHT);
+                }
+                
+                if (k+1<slope_size)
+                {
+                    setEdge3DMap(i,j,k,i,j,k+1,g,indexer,invDistMap3D,SLOPE_WEIGHT);
+                }
+                else//fold
+                {
+                    setEdge3DMap(i,j,k,i,j,0,g,indexer,invDistMap3D,SLOPE_WEIGHT);
+                }
+                
+                //C2 dumbed down
+                if (j>0 && i<width-1)
+                {
+                    setEdge3DMap(i,j,k,i+1,j-1,k,g,indexer,invDistMap3D,2*FLAT_WEIGHT-sqrt(2*pow(FLAT_WEIGHT,2)));
+                }
+                
+                if (j<height-1 && i<width-1)
+                {
+                    setEdge3DMap(i,j,k,i+1,j+1,k,g,indexer,invDistMap3D,2*FLAT_WEIGHT-sqrt(2*pow(FLAT_WEIGHT,2)));
+                }
+                
+                
+                
+                //C3 nope
+                
+            }//j
+        }//i
+    }//k
+    
+    int ret = g -> maxflow();
+
+    
+    //add all black pixels which
+    int slopeDifRange = SLOPE_DIF_TOLERANCE*depth;
+    int THRESH=700;
+    for (int x=0; x<width; x++)
+    {
+//        printf("\n");
+        for (int y=0; y<height; y++)
+        {
+            int sourceScore=0;
+            int sinkScore=0;
+            for (int z=0; z<depth; z++)
+            {
+                int index = indexer.getIndex(x,y,z);
+                if (g->what_segment(index) == GraphType::SOURCE)
+                    sourceScore += invDistMap3D[index];
+                else
+                    sinkScore += invDistMap3D[index];
+            }
+            
+//            printf("(%d,%d) ",sourceScore,sinkScore);
+            
+            if (sourceScore>=THRESH || sinkScore<THRESH && sourceScore>sinkScore)
+                outSource.append(x+width*y);
+            if (sinkScore>=THRESH || sourceScore<THRESH && sinkScore>sourceScore)
+                outSink.append(x+width*y);
+            
+            
+        }
+    }
+    
+    
+    ///test///
+//    for (int s=0; s<depth; s++)
+//    {
+//        BImage test(img.width(), img.height());
+//        BPartition tmp1((BPixelCollection*) &test);
+//        BPartition tmp2((BPixelCollection*) &test);
+//        for (int x=0; x<width; x++)
+//        {
+//            for (int y=0; y<height; y++)
+//            {
+////                QMap<int,double> binsForDim = angleImage.getBinsAndStrForPixel(x,y);
+////                foreach (int bin, binsForDim.keys())
+////                {
+////                    if (bin<s+11 && bin>s-11)
+////                        test.setPixel(x,y,true);
+////                }
+//                if (img.pixel(x,y))
+//                    test.setPixel(x,y,true);
+                
+//                int index = indexer.getIndex(x,y,s);
+//                if (g->what_segment(index) == GraphType::SOURCE)
+//                    tmp1.addPixelFromSrc(x,y);
+//                else
+//                    tmp2.addPixelFromSrc(x,y);           
+//            }
+//        }
+//        test.claimOwnership(&tmp2,1);
+//        test.claimOwnership(&tmp1,1);
+        
+//        QString debugfile = "./output/layer_";
+//        QString num;
+//        num.setNum(s);
+//        debugfile.append(num);
+//        debugfile.append(".ppm");
+//        test.saveOwners(debugfile);
+        
+//    }
+    ///test///
+    
+    
+    delete g;
+    return ret;
+}
+
+//void WordSeparator::strengthenDescenderComponent(const BPixelCollection &img, const QPoint &crossOverPoint, GraphType &g)
+//{
+//    QVector<QPoint> centersOfMass;
+//    QVector<QVector<QPoint> > regions;
+    
+//    BImage mark = img.makeImage();
+//    QVector<QPoint> startPoints;
+//    startPoints.push_back(crossOverPoint);
+//    mark.setPixel(crossOverPoint,false);
+//    while(!startPoints.empty())
+//    {
+//        QPoint startPoint = startPoints.front();
+//        startPoints.pop_front();
+        
+//        if (!mark.pixel(startPoint))
+//            continue;
+        
+//        QVector<QPoint> border;
+//        QVector<QPoint> collection;
+//        border.push_back(startPoint);
+        
+//        int furthestDistSqrd=0;
+//        int killTokenLoc=-1;
+//        int sumX=0;
+//        int sumY=0;
+        
+//        while(!border.empty())
+//        {
+//            QPoint toAdd = border.front();
+//            border.pop_front();
+            
+//            if (toAdd.x==-1)//hit kill token
+//                break;
+            
+//            int myFurthestDistSqrd=0;
+//            foreach (QPoint p, collection)
+//            {
+//                int distSqrd=pow(p.x()-toAdd.x(),2) + pow(p.y()-toAdd.y(),2);
+//                if (distSqrd>myFurthestDistSqrd)
+//                    myFurthestDistSqrd=distSqrd;
+//            }
+            
+            
+//            if (max(myFurthestDistSqrd,furthestDistSqrd)/collection.size() <= ECCENTRICITY_LIMIT)
+//            {
+//                if (killTokenLoc>=0)
+//                {
+//                    border.remove(killTokenLoc);//remove killToken
+//                    killTokenLoc=-1;
+//                }
+                
+//                if (myFurthestDistSqrd>furthestDistSqrd)
+//                    furthestDistSqrd=myFurthestDistSqrd;
+                
+//                collection.push_back(toAdd);
+//                sumX+=toAdd.x();
+//                sumY+=toAdd.y();
+                
+//                QPoint up(toAdd.x(),toAdd.y()-1);
+//                QPoint down(toAdd.x(),toAdd.y()+1);
+//                QPoint left(toAdd.x()-1,toAdd.y());
+//                QPoint right(toAdd.x()+1,toAdd.y());
+//                QPoint lu(toAdd.x()-1,toAdd.y()-1);
+//                QPoint ld(toAdd.x()-1,toAdd.y()+1);
+//                QPoint ru(toAdd.x()+1,toAdd.y()-1);
+//                QPoint rd(toAdd.x()+1,toAdd.y()+1);
+//                if (toAdd.y()>0 && mark.pixel(up))
+//                {
+//                    border.append(up);
+//                    mark.setPixel(up,false);
+//                }
+//                if (toAdd.y()+1<mark.height() && mark.pixel(down))
+//                {
+//                    border.append(down);
+//                    mark.setPixel(down,false);
+//                }
+//                if (toAdd.x()>0 && mark.pixel(left))
+//                {
+//                    border.append(left);
+//                    mark.setPixel(left,false);
+//                }
+//                if (toAdd.x()+1<mark.width() && mark.pixel(right))
+//                {
+//                    border.append(right);
+//                    mark.setPixel(right,false);
+//                }
+//                if (toAdd.x()>0 && toAdd.y()>0 &&mark.pixel(lu))
+//                {
+//                    border.append(lu);
+//                    mark.setPixel(lu,false);
+//                }
+//                if (toAdd.x()>0 && toAdd.y()+1<mark.height() && mark.pixel(ld))
+//                {
+//                    border.append(ld);
+//                    mark.setPixel(ld,false);
+//                }
+//                if (toAdd.x()+1<mark.width() && toAdd.y()>0 && mark.pixel(ru))
+//                {
+//                    border.append(ru);
+//                    mark.setPixel(ru,false);
+//                }
+//                if (toAdd.x()+1<mark.width() && toAdd.y()+1<mark.height() && mark.pixel(rd))
+//                {
+//                    border.append(rd);
+//                    mark.setPixel(rd,false);
+//                }
+                
+//            }
+//            else if (killTokenLoc<0)
+//            {
+//                killTokenLoc=border.size();
+//                QPoint killToken(-1,-1);
+//                border.push_back(killToken);
+//                border.push_back(toAdd);
+//            }
+            
+//        }
+        
+//        QPoint centerOfMass(sumX/collection.size(),sumY/collection.size());
+//        centersOfMass.append(centerOfMass);
+//        regions.append(collection);
+        
+//        foreach (QPoint notAdded, border)//reset points not added
+//        {
+//            mark.setPixel(notAdded,true);
+            
+//            //this is a dumb way, just testing to see if it works
+//            startPoints.push_back(notAdded);
+//        }
+        
+        
+//    }
+//}

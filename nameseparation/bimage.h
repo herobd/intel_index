@@ -1,3 +1,7 @@
+#ifndef BPIXELCOLLECTION_H
+#include "BPixelCollection.h"
+#endif
+
 #ifndef BIMAGE_H
 #define BIMAGE_H
 #include <QImage>
@@ -6,9 +10,11 @@
 #include "bpartition.h"
 #include <assert.h>
 #include "bpartition.h"
-#include "BPixelCollection.h"
 
+
+class BPixelCollection;
 class BPartition;
+
 
 struct bPixel
 {

@@ -1,7 +1,7 @@
 #ifndef BPIXELCOLLECTION_H
 #define BPIXELCOLLECTION_H
 
-#include "bimage.h"
+#include <QPoint>
 
 class BImage;
 
@@ -16,5 +16,7 @@ public:
     virtual int height() const =0;
     virtual BImage makeImage() const =0;
 };
+
+#include "bimage.h"
 
 #endif // BPIXELCOLLECTION_H
