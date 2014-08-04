@@ -8,6 +8,8 @@
 //#include "bimage.h"
 #include <math.h>
 #include "evaluate.h"
+#include <QSet>
+#include <QColor>
 
 
 #include "gimage.h"
@@ -15,15 +17,35 @@
 
 using namespace std;
 
-void testBolbFIll(BImage &img, const QPoint &crossOverPoint, )
+#define ECCENTRICITY_LIMIT 1.4
+#define MIN_REGION_SIZE 6
+
+struct tracePoint
 {
-    QVector<QPoint> centersOfMass;
+    int x;
+    int y;
+    QVector<int> connectedPoints;
+    QVector<double> angleBetween;
+    QVector<double> distanceBetween;
+    tracePoint(int xx, int yy) {x=xx; y=yy;}
+    tracePoint() {x=-1; y=-1;}
+};
+
+void testBolbFill(BImage &org, const QPoint &crossOverPoint)
+{
+//    QVector<QPoint> centersOfMass;
     QVector<QVector<QPoint> > regions;
+    QVector<tracePoint> centersOfMass;
+    int assignments[org.width()][org.height()];
+    for (int x=0; x<org.width(); x++)
+        for (int y=0; y<org.height(); y++)
+            assignments[x][y]=-1;
     
-    BImage mark = img.makeImage();
+    BImage img = org.makeImage();
+    BImage mark = org.makeImage();
     QVector<QPoint> startPoints;
     startPoints.push_back(crossOverPoint);
-    mark.setPixel(crossOverPoint,false);
+    
     while(!startPoints.empty())
     {
         QPoint startPoint = startPoints.front();
@@ -31,6 +53,8 @@ void testBolbFIll(BImage &img, const QPoint &crossOverPoint, )
         
         if (!mark.pixel(startPoint))
             continue;
+        mark.setPixel(startPoint,false);
+//        printf("Using start point: (%d,%d)\n",startPoint.x(),startPoint.y());
         
         QVector<QPoint> border;
         QVector<QPoint> collection;
@@ -40,13 +64,15 @@ void testBolbFIll(BImage &img, const QPoint &crossOverPoint, )
         int killTokenLoc=-1;
         int sumX=0;
         int sumY=0;
+        QSet<int> neighborRegions;
+        int myRegionId = regions.size();
         
         while(!border.empty())
         {
             QPoint toAdd = border.front();
             border.pop_front();
             
-            if (toAdd.x==-1)//hit kill token
+            if (toAdd.x()==-1)//hit kill token
                 break;
             
             int myFurthestDistSqrd=0;
@@ -58,11 +84,11 @@ void testBolbFIll(BImage &img, const QPoint &crossOverPoint, )
             }
             
             
-            if (max(myFurthestDistSqrd,furthestDistSqrd)/collection.size() <= ECCENTRICITY_LIMIT)
+            if (collection.size()==0 || max(myFurthestDistSqrd,furthestDistSqrd)/(1.0*collection.size()) <= ECCENTRICITY_LIMIT)
             {
                 if (killTokenLoc>=0)
                 {
-                    border.remove(killTokenLoc);//remove killToken
+                    border.remove(--killTokenLoc);//remove killToken
                     killTokenLoc=-1;
                 }
                 
@@ -70,57 +96,39 @@ void testBolbFIll(BImage &img, const QPoint &crossOverPoint, )
                     furthestDistSqrd=myFurthestDistSqrd;
                 
                 collection.push_back(toAdd);
+                assignments[toAdd.x()][toAdd.y()] = myRegionId;
                 sumX+=toAdd.x();
                 sumY+=toAdd.y();
                 
-                QPoint up(toAdd.x(),toAdd.y()-1);
-                QPoint down(toAdd.x(),toAdd.y()+1);
-                QPoint left(toAdd.x()-1,toAdd.y());
-                QPoint right(toAdd.x()+1,toAdd.y());
-                QPoint lu(toAdd.x()-1,toAdd.y()-1);
-                QPoint ld(toAdd.x()-1,toAdd.y()+1);
-                QPoint ru(toAdd.x()+1,toAdd.y()-1);
-                QPoint rd(toAdd.x()+1,toAdd.y()+1);
-                if (toAdd.y()>0 && mark.pixel(up))
+                // 0 1 2 neighbor id table
+                // 3 4 5
+                // 6 7 8
+                int tableIndex=8;
+                for (int cc=0; cc<9; cc++)
                 {
-                    border.append(up);
-                    mark.setPixel(up,false);
+                    tableIndex=(tableIndex+2)%9;
+                    if (tableIndex==4)
+                        continue;
+                    
+                    int xDelta=(tableIndex%3)-1;
+                    int yDelta=(tableIndex/3)-1;
+                    int x = toAdd.x()+xDelta;
+                    int y = toAdd.y()+yDelta;
+                    if (x>=0 && x<mark.width() && y>=0 && y<mark.height())
+                    {
+                        if (mark.pixel(x,y))
+                        {
+                            QPoint p(x,y);
+                            border.append(p);
+                            mark.setPixel(p,false);
+                        }
+                        else if (org.pixel(x,y) && myRegionId != assignments[x][y] && -1 != assignments[x][y] && regions[assignments[x][y]].size()>=MIN_REGION_SIZE)
+                        {
+                            neighborRegions.insert(assignments[x][y]);
+                        }
+                    }
                 }
-                if (toAdd.y()+1<mark.height() && mark.pixel(down))
-                {
-                    border.append(down);
-                    mark.setPixel(down,false);
-                }
-                if (toAdd.x()>0 && mark.pixel(left))
-                {
-                    border.append(left);
-                    mark.setPixel(left,false);
-                }
-                if (toAdd.x()+1<mark.width() && mark.pixel(right))
-                {
-                    border.append(right);
-                    mark.setPixel(right,false);
-                }
-                if (toAdd.x()>0 && toAdd.y()>0 &&mark.pixel(lu))
-                {
-                    border.append(lu);
-                    mark.setPixel(lu,false);
-                }
-                if (toAdd.x()>0 && toAdd.y()+1<mark.height() && mark.pixel(ld))
-                {
-                    border.append(ld);
-                    mark.setPixel(ld,false);
-                }
-                if (toAdd.x()+1<mark.width() && toAdd.y()>0 && mark.pixel(ru))
-                {
-                    border.append(ru);
-                    mark.setPixel(ru,false);
-                }
-                if (toAdd.x()+1<mark.width() && toAdd.y()+1<mark.height() && mark.pixel(rd))
-                {
-                    border.append(rd);
-                    mark.setPixel(rd,false);
-                }
+              
                 
             }
             else if (killTokenLoc<0)
@@ -130,42 +138,233 @@ void testBolbFIll(BImage &img, const QPoint &crossOverPoint, )
                 border.push_back(killToken);
                 border.push_back(toAdd);
             }
+            else
+            {
+                killTokenLoc--;
+                border.push_back(toAdd);
+            }
             
         }
         
-        QPoint centerOfMass(sumX/collection.size(),sumY/collection.size());
-        centersOfMass.append(centerOfMass);
+        tracePoint centerOfMass(sumX/collection.size(),sumY/collection.size());
+        
         regions.append(collection);
+//        printf("region %d found %d neighbors\n",myRegionId,neighborRegions.size());
+        foreach (int regionId, neighborRegions)
+        {
+            double angle = atan2((centerOfMass.y-centersOfMass[regionId].y),(centerOfMass.x-centersOfMass[regionId].x));
+            if (angle < 0)
+                angle += PI;
+            double distance = sqrt(pow(centerOfMass.x-centersOfMass[regionId].x,2) + pow(centerOfMass.y-centersOfMass[regionId].y,2));
+            centerOfMass.connectedPoints.append(regionId);
+            centerOfMass.angleBetween.append(angle);
+            centerOfMass.distanceBetween.append(distance);
+            
+//            centersOfMass[regionId].connectedPoints.append(myRegionId);
+//            centersOfMass[regionId].angleBetween.append(angle);
+//            centersOfMass[regionId].distanceBetween.append(distance);
+        }
+        centersOfMass.append(centerOfMass);
+        
+//        printf("Center of mass found: (%d, %d)\n",centerOfMass.x,centerOfMass.y);
         
         foreach (QPoint notAdded, border)//reset points not added
         {
-            mark.setPixel(notAdded,true);
+            if (mark.pixel(notAdded))
+            {
+//                printf("border (%d,%d) slipped\n",notAdded.x(),notAdded.y());
+                continue;
+            }
             
-            //this is a dumb way, just testing to see if it works
-            startPoints.push_back(notAdded);
+            QVector<QPoint> neighbors;
+            neighbors.push_back(notAdded);
+            mark.setPixel(notAdded,true);
+            int sumX=0;
+            int sumY=0;
+            int count=0;
+            
+            while(!neighbors.empty())
+            {
+                QPoint cur = neighbors.front();
+                neighbors.pop_front();
+                sumX+=cur.x();
+                sumY+=cur.y();
+                count++;
+                
+                QPoint up(cur.x(),cur.y()-1);
+                QPoint down(cur.x(),cur.y()+1);
+                QPoint left(cur.x()-1,cur.y());
+                QPoint right(cur.x()+1,cur.y());
+                QPoint lu(cur.x()-1,cur.y()-1);
+                QPoint ld(cur.x()-1,cur.y()+1);
+                QPoint ru(cur.x()+1,cur.y()-1);
+                QPoint rd(cur.x()+1,cur.y()+1);
+                if (cur.y()>0 && !mark.pixel(up) && border.contains(up))
+                {
+                    neighbors.append(up);
+                    mark.setPixel(up,true);
+                }
+                if (cur.y()+1<mark.height() && !mark.pixel(down) && border.contains(down))
+                {
+                    neighbors.append(down);
+                    mark.setPixel(down,true);
+                }
+                if (cur.x()>0 && !mark.pixel(left)  && border.contains(down))
+                {
+                    neighbors.append(left);
+                    mark.setPixel(left,true);
+                }
+                if (cur.x()+1<mark.width() && !mark.pixel(right) && border.contains(right))
+                {
+                    neighbors.append(right);
+                    mark.setPixel(right,true);
+                }
+                if (cur.x()>0 && cur.y()>0 && !mark.pixel(lu) && border.contains(lu))
+                {
+                    neighbors.append(lu);
+                    mark.setPixel(lu,true);
+                }
+                if (cur.x()>0 && cur.y()+1<mark.height() && !mark.pixel(ld) && border.contains(ld))
+                {
+                    neighbors.append(ld);
+                    mark.setPixel(ld,true);
+                }
+                if (cur.x()+1<mark.width() && cur.y()>0 && !mark.pixel(ru) && border.contains(ru))
+                {
+                    neighbors.append(ru);
+                    mark.setPixel(ru,true);
+                }
+                if (cur.x()+1<mark.width() && cur.y()+1<mark.height() && !mark.pixel(rd) && border.contains(rd))
+                {
+                    neighbors.append(rd);
+                    mark.setPixel(rd,true);
+                }
+            }
+            
+            QPoint centerOfMassBorderConnectedComponent(sumX/count, sumY/count);
+            if (border.contains(centerOfMassBorderConnectedComponent))
+            {
+                startPoints.push_back(centerOfMassBorderConnectedComponent);
+            }
+            else
+            {
+                int shortestDistance=INT_POS_INFINITY;
+                QPoint closestPoint;
+                foreach (QPoint p, border)
+                {
+                    int dist = pow(centerOfMassBorderConnectedComponent.x()-p.x(),2) + pow(centerOfMassBorderConnectedComponent.y()-p.y(),2);
+                    if (dist<shortestDistance)
+                    {
+                        shortestDistance=dist;
+                        closestPoint=p;
+                    }
+                    
+                }
+                startPoints.push_back(closestPoint);
+            }
+            
+            
+//            mark.setPixel(notAdded,true);
+            
+//            //this is a dumb way, just testing to see if it works
+//            startPoints.push_back(notAdded);
         }
-        
+        border.clear();
         
     }
     
     
     
     //coloring
-    foreach(QPoint cOfM, centersOfMass)
+    QImage lines = org.getImage();
+    QVector<QRgb> colorTable=lines.colorTable();
+    int NUM_VALS = 245;
+    int ctOffset=colorTable.size();
+    for (int i=0; i<NUM_VALS; i++)
     {
-        img.setPixel(cOfM,false);
+        QColor color;
+        color.setHsv(i,255,255);
+        colorTable.append(color.rgb());
     }
+    colorTable.append(qRgb(155,155,155));
+    
+    lines.setColorTable(colorTable);
+    
     QVector<BPartition*> parts;
-    foreach (QVector<QPoints> region, regions)
+    for (int i=0; i<centersOfMass.size(); i++)
     {
+        QVector<QPoint> region = regions[i];
+        
+        if (region.size()<MIN_REGION_SIZE)
+        {
+            
+//            foreach(QPoint p, region)
+//            {
+//                img.setPixel(p,false);
+//            }
+            continue;
+        }
+        
+        img.setPixel(centersOfMass[i].x,centersOfMass[i].y,false);
         BPartition* newPart = new BPartition(&img);
         foreach(QPoint p, region)
         {
             newPart->addPixelFromSrc(p);
         }
         img.claimOwnership(newPart,1);
+        
+//        if (lines.pixel(centersOfMass[i].x,centersOfMass[i].y)!=blue)
+        {
+            
+            for (int j=0; j<centersOfMass[i].connectedPoints.size(); j++)
+            {
+                int index = centersOfMass[i].connectedPoints[j];
+                
+                double angle = centersOfMass[i].angleBetween[j];
+//                printf("Hue used: %d\n",(int)(360*(angle/PI)));
+                
+                //draw line
+                
+                if (centersOfMass[i].x != centersOfMass[index].x)
+                {
+                    double shiftAngle = angle;
+                    if (shiftAngle>HALF_PI)
+                        shiftAngle-=PI;
+                    double slope = tan(shiftAngle);
+//                    printf("line of slope %f\n",slope);
+                    int start = std::min(centersOfMass[i].x,centersOfMass[index].x);
+                    int end = std::max(centersOfMass[i].x,centersOfMass[index].x);
+                    double y;
+                    if (start==centersOfMass[i].x)
+                        y= centersOfMass[i].y;
+                    else
+                        y= centersOfMass[index].y;
+                    for (int x=start; x<=end; x++)
+                    {
+                        lines.setPixel(x,(int)y,(int)(NUM_VALS*(angle/PI)+ctOffset));
+                        for (int yDelta=1; yDelta<(int)ceil(slope); yDelta++)
+                            lines.setPixel(x,(int)y + yDelta,(int)(NUM_VALS*(angle/PI)+ctOffset));
+                        y+=slope;
+                    }
+                    lines.setPixel(centersOfMass[index].x,centersOfMass[index].y,NUM_VALS+ctOffset);
+                }
+                else
+                {
+                    int start = std::min(centersOfMass[i].y,centersOfMass[index].y);
+                    int end = std::max(centersOfMass[i].y,centersOfMass[index].y);
+                    int x =centersOfMass[i].x;
+                    for (int y=start; y<=end; y++)
+                    {
+                        lines.setPixel(x,y,360/2);
+                    }
+                }
+            }
+            lines.setPixel(centersOfMass[i].x,centersOfMass[i].y,NUM_VALS+ctOffset);
+        }
+        
     }
     img.saveOwners("./blob_test.ppm");
+    lines.save("./lines.ppm");
     
     foreach(BPartition* d,parts)
     {
@@ -437,8 +636,8 @@ int main(int argc, char** argv)
     
     
     ///test blob_ecc fill///////////////////
-    QPoint cop(0,0);
-    testBolbFIll(bimg,cop);
+    QPoint cop(41,4);
+    testBolbFill(bimg,cop);
     ///test/////////////////////////////////
     return 0;
 }

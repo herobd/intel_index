@@ -317,12 +317,11 @@ QImage BImage::getOwnersImage()
     color_table.append(qRgb(149,255,252));
     
     
-    
     color_table.append(qRgb(235,0,135));
     color_table.append(qRgb(235,132,192));
     
     color_table.append(qRgb(179,212,0));
-    color_table.append(qRgb(191,212,113));
+    color_table.append(qRgb(221,242,133));
     
     color_table.append(qRgb(225,94,13));
     color_table.append(qRgb(224,147,125));
