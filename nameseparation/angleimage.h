@@ -12,6 +12,7 @@
 #include <fstream>
 #include <QRegExp>
 #include "indexer3d.h"
+#include "blobskeleton.h"
 
 
 class AngleImage : public BPixelCollection

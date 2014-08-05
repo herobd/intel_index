@@ -37,86 +37,88 @@ void AngleImage::init()
     QVector<double > refSlopesM;
     QVector<double > refLengthsM;
     
-   //readfile 
-    QVector<tracePoint> tracePoints;
+//   //readfile 
+//    QVector<tracePoint> tracePoints;
     
-    std::ofstream myfile ("matrix.txt");
-    if (myfile.is_open())
-    {
-        myfile << width() << " ";
-        myfile << height();
-        myfile << "\n";
-        for (int i =0; i<width(); i++)
-        {
-            for (int j = 0; j<height(); j++) {
-                myfile << pixel(i,j) << " ";
-            }
-            myfile << "\n";
-        }
-        myfile.close();
-    }
-    else printf("Unable to open file\n");
-//2.2
-    system("java -Djava.io.tmpdir=/home/brian/tmp/ -jar ~/intel_index/nameseparation/ScottsCode/slopeGen.jar matrix slopedata 2.2 4");
+//    std::ofstream myfile ("matrix.txt");
+//    if (myfile.is_open())
+//    {
+//        myfile << width() << " ";
+//        myfile << height();
+//        myfile << "\n";
+//        for (int i =0; i<width(); i++)
+//        {
+//            for (int j = 0; j<height(); j++) {
+//                myfile << pixel(i,j) << " ";
+//            }
+//            myfile << "\n";
+//        }
+//        myfile.close();
+//    }
+//    else printf("Unable to open file\n");
+////2.2
+//    system("java -Djava.io.tmpdir=/home/brian/tmp/ -jar ~/intel_index/nameseparation/ScottsCode/slopeGen.jar matrix slopedata 2.2 4");
     
-    std::ifstream infile("slopedata.txt");
-    std::string line;
-    getline(infile, line);
-    QRegExp rei("(\\d+)(?:[^\\d]+)(\\d+)(?:[^\\d]+)(\\d+)");
-    QString qLine(line.c_str());
-    rei.indexIn(qLine);
-    tracePoint init;
-    init.x=rei.cap(2).toInt();
-    init.y=rei.cap(3).toInt();
-    tracePoints.append(init);
+//    std::ifstream infile("slopedata.txt");
+//    std::string line;
+//    getline(infile, line);
+//    QRegExp rei("(\\d+)(?:[^\\d]+)(\\d+)(?:[^\\d]+)(\\d+)");
+//    QString qLine(line.c_str());
+//    rei.indexIn(qLine);
+//    tracePoint init;
+//    init.x=rei.cap(2).toInt();
+//    init.y=rei.cap(3).toInt();
+//    tracePoints.append(init);
     
-    //(id)(x)(y)...
-    QRegExp re("(\\d+)(?:[^\\d]+)(\\d+)(?:[^\\d]+)(\\d+)+((?:[^\\d]+)(\\d+))");
-    while (getline(infile, line))
-    {
-        QString qLine(line.c_str());
-        re.indexIn(qLine);
-        tracePoint nextPoint;
-        int index=re.cap(1).toInt()-1;
-//        printf("read index %d\n",index);
-        if (index >= tracePoints.size())
-        {
-            nextPoint.x=re.cap(2).toInt()-1;
-            nextPoint.y=re.cap(3).toInt()-1;
-            for (int i=4; i<re.captureCount(); i++)
-            {
-                int connectionId = re.cap(i).toInt()-1;
-                double angle = atan2((nextPoint.y-tracePoints[connectionId].y),(nextPoint.x-tracePoints[connectionId].x));
-    //            double angle = re.cap(6).toDouble();
-                if (angle < 0)
-                    angle += PI;
-                double distance = sqrt(pow(nextPoint.x-tracePoints[connectionId].x,2) + pow(nextPoint.y-tracePoints[connectionId].y,2));
-                nextPoint.connectedPoints.append(connectionId);
-                nextPoint.angleBetween.append(angle);
-                nextPoint.distanceBetween.append(distance);
-                tracePoints.append(nextPoint);
+//    //(id)(x)(y)...
+//    QRegExp re("(\\d+)(?:[^\\d]+)(\\d+)(?:[^\\d]+)(\\d+)+((?:[^\\d]+)(\\d+))");
+//    while (getline(infile, line))
+//    {
+//        QString qLine(line.c_str());
+//        re.indexIn(qLine);
+//        tracePoint nextPoint;
+//        int index=re.cap(1).toInt()-1;
+////        printf("read index %d\n",index);
+//        if (index >= tracePoints.size())
+//        {
+//            nextPoint.x=re.cap(2).toInt()-1;
+//            nextPoint.y=re.cap(3).toInt()-1;
+//            for (int i=4; i<re.captureCount(); i++)
+//            {
+//                int connectionId = re.cap(i).toInt()-1;
+//                double angle = atan2((nextPoint.y-tracePoints[connectionId].y),(nextPoint.x-tracePoints[connectionId].x));
+//    //            double angle = re.cap(6).toDouble();
+//                if (angle < 0)
+//                    angle += PI;
+//                double distance = sqrt(pow(nextPoint.x-tracePoints[connectionId].x,2) + pow(nextPoint.y-tracePoints[connectionId].y,2));
+//                nextPoint.connectedPoints.append(connectionId);
+//                nextPoint.angleBetween.append(angle);
+//                nextPoint.distanceBetween.append(distance);
+//                tracePoints.append(nextPoint);
                 
-                tracePoints[connectionId].connectedPoints.append(index);
-                tracePoints[connectionId].angleBetween.append(angle);
-                tracePoints[connectionId].distanceBetween.append(distance);
-            }
+//                tracePoints[connectionId].connectedPoints.append(index);
+//                tracePoints[connectionId].angleBetween.append(angle);
+//                tracePoints[connectionId].distanceBetween.append(distance);
+//            }
             
-        }
-        else
-        {
-            printf("ERROR repeat index %d read in\n",index);
-//            int last = re.cap(4).toInt();
-//            double angle = re.cap(6).toDouble();
-//            if (angle < 0)
-//                angle += 180;
-//            tracePoints[index].connectedPoints.append(last);
-//            tracePoints[index].angleBetween.append(angle);
-//            tracePoints[last].connectedPoints.append(index);
-//            tracePoints[last].angleBetween.append(angle);
-        }
-    }
+//        }
+//        else
+//        {
+//            printf("ERROR repeat index %d read in\n",index);
+////            int last = re.cap(4).toInt();
+////            double angle = re.cap(6).toDouble();
+////            if (angle < 0)
+////                angle += 180;
+////            tracePoints[index].connectedPoints.append(last);
+////            tracePoints[index].angleBetween.append(angle);
+////            tracePoints[last].connectedPoints.append(index);
+////            tracePoints[last].angleBetween.append(angle);
+//        }
+//    }
     
-    QVector<bool> visited(tracePoints.size());
+    BlobSkeleton skeleton(src);
+    
+    QVector<bool> visited(skeleton.numberOfVertices());
     for (int i=0; i<visited.size(); i++)
     {
         visited[i]=false;
@@ -134,14 +136,14 @@ void AngleImage::init()
 //        QPoint toAdd(tracePoints[curIndex].x,tracePoints[curIndex].y);
         
 //        QVector<double> slope;
-        for (int i=0; i<tracePoints[curIndex].connectedPoints.size(); i++)
+        for (int i=0; i<skeleton[curIndex].connectedPoints.size(); i++)
         {
 //            slope.append(tracePoints[curIndex].angleBetween[i]);
-            if (!visited[tracePoints[curIndex].connectedPoints[i]])
+            if (!visited[skeleton[curIndex].connectedPoints[i]])
             {
-                pointStack.append(tracePoints[curIndex].connectedPoints[i]);
-                int midX = (tracePoints[curIndex].x + tracePoints[ tracePoints[curIndex].connectedPoints[i] ].x)/2;
-                int midY = (tracePoints[curIndex].y + tracePoints[ tracePoints[curIndex].connectedPoints[i] ].y)/2;
+                pointStack.append(skeleton[curIndex].connectedPoints[i]);
+                int midX = (skeleton[curIndex].x + skeleton[ skeleton[curIndex].connectedPoints[i] ].x)/2;
+                int midY = (skeleton[curIndex].y + skeleton[ skeleton[curIndex].connectedPoints[i] ].y)/2;
                 QPoint mid(midX,midY);
                 if (!pixel(midX,midY))
                 {
@@ -151,15 +153,15 @@ void AngleImage::init()
                 
                 if(mid.x()>2000 || mid.y()>2000 || mid.x()<0)
                 {
-                    printf("Error on midpoint for (%d,%d) and (%d,%d)\n",tracePoints[curIndex].x,tracePoints[curIndex].y,tracePoints[ tracePoints[curIndex].connectedPoints[i] ].x,tracePoints[ tracePoints[curIndex].connectedPoints[i] ].y);
+                    printf("Error on midpoint for (%d,%d) and (%d,%d)\n",skeleton[curIndex].x,skeleton[curIndex].y,skeleton[ skeleton[curIndex].connectedPoints[i] ].x,skeleton[ skeleton[curIndex].connectedPoints[i] ].y);
                     continue;
                 }
                 
                 refPoints.append(mid);
-                double slopeMid=tracePoints[curIndex].angleBetween[i];
+                double slopeMid=skeleton[curIndex].angleBetween[i];
 //                slopeMid.append(tracePoints[curIndex].angleBetween[i]);
                 refSlopesM.append(slopeMid);
-                refLengthsM.append(tracePoints[curIndex].distanceBetween[i]);
+                refLengthsM.append(skeleton[curIndex].distanceBetween[i]);
             }
         }
 //        refPoints.append(toAdd);
@@ -172,7 +174,7 @@ void AngleImage::init()
     QVector<double> angleEdgeStack;
     QVector<double> distanceEdgeStack;
     
-    double FILL_RADIOUS_CONST = 0.75;//I'd rather these be variable, dependant on the length of the slope line
+    double FILL_RADIOUS_CONST = 0.75;
     for (int i=0; i<refPoints.size(); i++)
     {
         QVector<QPoint> workingStack;

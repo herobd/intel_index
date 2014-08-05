@@ -41,7 +41,7 @@ public:
     static QVector<BPartition*> recursiveHorizontalCutFullTraining(const BPixelCollection &img);
     static QVector<BPartition*> recursiveHorizontalCutFull(const BPixelCollection &img);
     
-    static QVector<BPartition*> cut3D(const BPixelCollection &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds);
+    static QVector<BPartition*> cut3D(const BPixelCollection &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, const QPoint &crossOverPoint);
     static QVector<BPartition*> cutGivenSeeds(const BPixelCollection &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds);
     
 private:

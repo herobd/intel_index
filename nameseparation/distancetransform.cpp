@@ -1389,39 +1389,39 @@ void DistanceTransform::compute3DInverseDistanceMapNew(const double* src, long* 
     
 //    printf("3d newmax=%d\n",newmax);
     
-//    QVector<QRgb> default_color_table;
-//    for (int i=0; i<255; i++)
-//    {
-//        default_color_table.append(qRgb(i,i,i));
-//    }
-//    for (int z=0; z<depth; z++)
-//    {
-//        QImage debug(width,height,QImage::Format_Indexed8);
-//        QImage debug2(width,height,QImage::Format_Indexed8);
+    QVector<QRgb> default_color_table;
+    for (int i=0; i<255; i++)
+    {
+        default_color_table.append(qRgb(i,i,i));
+    }
+    for (int z=0; z<depth; z++)
+    {
+        QImage debug(width,height,QImage::Format_Indexed8);
+        QImage debug2(width,height,QImage::Format_Indexed8);
         
-//        debug.setColorTable(default_color_table);
-//        debug2.setColorTable(default_color_table);
-//        for (int x=0; x<width; x++)
-//        {
-//            for (int y=0; y<debug.height(); y++)
-//            {
-//                debug.setPixel(x,y,(int)((out[ind.getIndex(x,y,z)]/((double)newmax))*254));
-//                if (src[ind.getIndex(x,y,z)])
-//                    debug2.setPixel(x,y,0);
-//                else
-//                    debug2.setPixel(x,y,254);
-//            }
+        debug.setColorTable(default_color_table);
+        debug2.setColorTable(default_color_table);
+        for (int x=0; x<width; x++)
+        {
+            for (int y=0; y<debug.height(); y++)
+            {
+                debug.setPixel(x,y,(int)((out[ind.getIndex(x,y,z)]/((double)newmax))*254));
+                if (src[ind.getIndex(x,y,z)])
+                    debug2.setPixel(x,y,0);
+                else
+                    debug2.setPixel(x,y,254);
+            }
             
-//        }
-//        QString debugfile = "./dist_3d/layer_";
-//        QString debugfile2 = "./output/layer_";
-//        QString num;
-//        num.setNum(z);
-//        debugfile.append(num);
-//        debugfile.append(".ppm");
-//        debugfile2.append(num);
-//        debugfile2.append(".ppm");
-//        debug.save(debugfile);
-//        debug2.save(debugfile2);
-//    }
+        }
+        QString debugfile = "./dist_3d/layer_";
+        QString debugfile2 = "./output/layer_";
+        QString num;
+        num.setNum(z);
+        debugfile.append(num);
+        debugfile.append(".ppm");
+        debugfile2.append(num);
+        debugfile2.append(".ppm");
+        debug.save(debugfile);
+        debug2.save(debugfile2);
+    }
 }

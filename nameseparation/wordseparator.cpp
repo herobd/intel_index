@@ -520,7 +520,7 @@ void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bot
                                 }
                     }
                     
-                    QVector<BPartition*> result3DCut = cut3D(newSubsection, sourceSeeds, sinkSeeds);
+                    QVector<BPartition*> result3DCut = cut3D(newSubsection, sourceSeeds, sinkSeeds, keyPoint);
                     
                     ///test///start
 //                    xs.setNum(keyPoint.x());
@@ -2371,7 +2371,7 @@ QVector<BPartition*> WordSeparator::recursiveHorizontalCutFull(const BPixelColle
 
 
 
-QVector<BPartition*> WordSeparator::cut3D(const BPixelCollection &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds)
+QVector<BPartition*> WordSeparator::cut3D(const BPixelCollection &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, const QPoint &crossOverPoint)
 {
 //    Dimension slopes(img.width(),img.height());
     
@@ -2602,7 +2602,7 @@ QVector<BPartition*> WordSeparator::cut3D(const BPixelCollection &img, QVector<Q
     DistanceTransform::compute3DInverseDistanceMapNew(img3d,distmap3d,angleImage.width(),angleImage.height(),numOfBins);
     ///test3ddist
     
-    int maxflow = GraphCut::pixelsOfSeparation(distmap3d,img.width(),img.height(),numOfBins,img,sourceSeeds,sinkSeeds,firstImgIndexes,secondImgIndexes);
+    int maxflow = GraphCut::pixelsOfSeparation(distmap3d,img.width(),img.height(),numOfBins,img,sourceSeeds,sinkSeeds,firstImgIndexes,secondImgIndexes, crossOverPoint);
     
     delete[] distmap3d;
     delete[] img3d;

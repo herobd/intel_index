@@ -1,6 +1,6 @@
 #include "graphcut.h"
 
-typedef Graph<int,int,int> GraphType;
+
 
 int maxedge;
 int maxweight;
@@ -2091,7 +2091,7 @@ inline void setEdge3DMap(int x1, int y1, int slope1, int x2, int y2, int slope2,
                       (invDistMap3D[indexer.getIndex(x1,y1,slope1)]+invDistMap3D[indexer.getIndex(x2,y2,slope2)])*weight);
 }
 
-int GraphCut::pixelsOfSeparation(const long* invDistMap3D, int width, int height, int depth, const BPixelCollection &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, QVector<int> &outSource, QVector<int> &outSink, int anchor_weight, int split_method, int vert_divide)
+int GraphCut::pixelsOfSeparation(const long* invDistMap3D, int width, int height, int depth, const BPixelCollection &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, QVector<int> &outSource, QVector<int> &outSink, const QPoint &crossOverPoint, int anchor_weight, int split_method)
 {
     int NEW_ANCHOR = 80;
     
@@ -2288,6 +2288,8 @@ int GraphCut::pixelsOfSeparation(const long* invDistMap3D, int width, int height
         }//i
     }//k
     
+    strengthenDescenderComponent(img,crossOverPoint,g,indexer,depth);
+    
     int ret = g -> maxflow();
 
     
@@ -2366,136 +2368,46 @@ int GraphCut::pixelsOfSeparation(const long* invDistMap3D, int width, int height
     return ret;
 }
 
-//void WordSeparator::strengthenDescenderComponent(const BPixelCollection &img, const QPoint &crossOverPoint, GraphType &g)
-//{
-//    QVector<QPoint> centersOfMass;
-//    QVector<QVector<QPoint> > regions;
-    
-//    BImage mark = img.makeImage();
-//    QVector<QPoint> startPoints;
-//    startPoints.push_back(crossOverPoint);
-//    mark.setPixel(crossOverPoint,false);
-//    while(!startPoints.empty())
-//    {
-//        QPoint startPoint = startPoints.front();
-//        startPoints.pop_front();
-        
-//        if (!mark.pixel(startPoint))
-//            continue;
-        
-//        QVector<QPoint> border;
-//        QVector<QPoint> collection;
-//        border.push_back(startPoint);
-        
-//        int furthestDistSqrd=0;
-//        int killTokenLoc=-1;
-//        int sumX=0;
-//        int sumY=0;
-        
-//        while(!border.empty())
-//        {
-//            QPoint toAdd = border.front();
-//            border.pop_front();
-            
-//            if (toAdd.x==-1)//hit kill token
-//                break;
-            
-//            int myFurthestDistSqrd=0;
-//            foreach (QPoint p, collection)
-//            {
-//                int distSqrd=pow(p.x()-toAdd.x(),2) + pow(p.y()-toAdd.y(),2);
-//                if (distSqrd>myFurthestDistSqrd)
-//                    myFurthestDistSqrd=distSqrd;
-//            }
-            
-            
-//            if (max(myFurthestDistSqrd,furthestDistSqrd)/collection.size() <= ECCENTRICITY_LIMIT)
-//            {
-//                if (killTokenLoc>=0)
-//                {
-//                    border.remove(killTokenLoc);//remove killToken
-//                    killTokenLoc=-1;
-//                }
-                
-//                if (myFurthestDistSqrd>furthestDistSqrd)
-//                    furthestDistSqrd=myFurthestDistSqrd;
-                
-//                collection.push_back(toAdd);
-//                sumX+=toAdd.x();
-//                sumY+=toAdd.y();
-                
-//                QPoint up(toAdd.x(),toAdd.y()-1);
-//                QPoint down(toAdd.x(),toAdd.y()+1);
-//                QPoint left(toAdd.x()-1,toAdd.y());
-//                QPoint right(toAdd.x()+1,toAdd.y());
-//                QPoint lu(toAdd.x()-1,toAdd.y()-1);
-//                QPoint ld(toAdd.x()-1,toAdd.y()+1);
-//                QPoint ru(toAdd.x()+1,toAdd.y()-1);
-//                QPoint rd(toAdd.x()+1,toAdd.y()+1);
-//                if (toAdd.y()>0 && mark.pixel(up))
-//                {
-//                    border.append(up);
-//                    mark.setPixel(up,false);
-//                }
-//                if (toAdd.y()+1<mark.height() && mark.pixel(down))
-//                {
-//                    border.append(down);
-//                    mark.setPixel(down,false);
-//                }
-//                if (toAdd.x()>0 && mark.pixel(left))
-//                {
-//                    border.append(left);
-//                    mark.setPixel(left,false);
-//                }
-//                if (toAdd.x()+1<mark.width() && mark.pixel(right))
-//                {
-//                    border.append(right);
-//                    mark.setPixel(right,false);
-//                }
-//                if (toAdd.x()>0 && toAdd.y()>0 &&mark.pixel(lu))
-//                {
-//                    border.append(lu);
-//                    mark.setPixel(lu,false);
-//                }
-//                if (toAdd.x()>0 && toAdd.y()+1<mark.height() && mark.pixel(ld))
-//                {
-//                    border.append(ld);
-//                    mark.setPixel(ld,false);
-//                }
-//                if (toAdd.x()+1<mark.width() && toAdd.y()>0 && mark.pixel(ru))
-//                {
-//                    border.append(ru);
-//                    mark.setPixel(ru,false);
-//                }
-//                if (toAdd.x()+1<mark.width() && toAdd.y()+1<mark.height() && mark.pixel(rd))
-//                {
-//                    border.append(rd);
-//                    mark.setPixel(rd,false);
-//                }
-                
-//            }
-//            else if (killTokenLoc<0)
-//            {
-//                killTokenLoc=border.size();
-//                QPoint killToken(-1,-1);
-//                border.push_back(killToken);
-//                border.push_back(toAdd);
-//            }
-            
-//        }
-        
-//        QPoint centerOfMass(sumX/collection.size(),sumY/collection.size());
-//        centersOfMass.append(centerOfMass);
-//        regions.append(collection);
-        
-//        foreach (QPoint notAdded, border)//reset points not added
-//        {
-//            mark.setPixel(notAdded,true);
-            
-//            //this is a dumb way, just testing to see if it works
-//            startPoints.push_back(notAdded);
-//        }
-        
-        
-//    }
-//}
+
+double getRelAngle(const BlobSkeleton &skeleton, int indexA, int indexB, int indexC)
+{
+    double angle1 = atan2(skeleton[indexA].y-skeleton[indexB].y,skeleton[indexA].x-skeleton[indexB].x);
+    double angle2 = atan2(skeleton[indexB].y-skeleton[indexC].y,skeleton[indexB].x-skeleton[indexC].x);
+    printf("getRelAngle test,\tone (%d,%d)(%d,%d):%f,\ttwo (%d,%d)(%d,%d):%f,\tres=%f\n",skeleton[indexA].x,skeleton[indexA].y,skeleton[indexB].x,skeleton[indexB].y,angle1,skeleton[indexB].x,skeleton[indexB].y,skeleton[indexC].x,skeleton[indexC].y,angle1-angle2);
+    return angle1-angle2;
+}
+
+void recurStr(int strFactor, const BlobSkeleton &skeleton, int curIndex, int prevIndex, bool* notVisited, GraphType *g, const Indexer3D &indexer,int depth)
+{
+    int internalIndex=0;
+    foreach (int nextIndex, skeleton[curIndex].connectedPoints)
+    {
+        if (notVisited[nextIndex])
+        {
+            notVisited[nextIndex]=false;
+            int bin = depth*(skeleton[curIndex].angleBetween[internalIndex++]/PI);
+            double relativeAngle = getRelAngle(skeleton, prevIndex, curIndex, nextIndex);
+            int newStrFactor = std::min(10,(int)(strFactor*std::max(.5,PI/relativeAngle)));
+            g -> add_edge(indexer.getIndex(skeleton[curIndex].x,skeleton[curIndex].y,bin), indexer.getIndex(skeleton[nextIndex].x,skeleton[nextIndex].y,bin),
+                          INV_A*newStrFactor/*skeleton[curIndex].distanceBetween[nextIndex]*/,
+                          INV_A*newStrFactor/*skeleton[curIndex].distanceBetween[nextIndex]*/);
+            recurStr(newStrFactor,skeleton,nextIndex,curIndex,notVisited,g,indexer,depth);
+        }
+    }
+}
+
+void GraphCut::strengthenDescenderComponent(const BPixelCollection &img, const QPoint &crossOverPoint, GraphType *g, const Indexer3D &indexer,int numAngleValues)
+{
+    BlobSkeleton skeleton(&img);
+    int startRegionId = skeleton.regionIdForPoint(crossOverPoint);
+    bool notVisited[skeleton.numberOfVertices()];
+    for (int i=0; i<skeleton.numberOfVertices(); i++)
+        notVisited[i]=true;
+    foreach (int nextIndex, skeleton[startRegionId].connectedPoints)
+    {
+        notVisited[nextIndex]=false;
+        recurStr(10,skeleton,nextIndex,startRegionId,notVisited,g,indexer,numAngleValues);
+    }
+}
+
+

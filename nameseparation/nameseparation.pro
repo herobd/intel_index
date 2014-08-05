@@ -18,7 +18,8 @@ SOURCES += main.cpp \
     evaluate.cpp \
     angleimage.cpp \
     distancetransform.cpp \
-    operators.cpp
+    operators.cpp \
+    blobskeleton.cpp
 
 HEADERS += \
     ./wordprofile.h \
@@ -40,7 +41,8 @@ HEADERS += \
     indexer3d.h \
     distancetransform.h \
     operators.h \
-    angleimage.h
+    angleimage.h \
+    blobskeleton.h
 
 OTHER_FILES += \
     maxflow/instances.inc \
