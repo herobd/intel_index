@@ -16,11 +16,13 @@ Algorithm originally created by Scott Swindle, modified by Brian Davis
 #define ECCENTRICITY_LIMIT 1.5
 #define MIN_REGION_SIZE 6
 
+#define NO_ASSIGMENT -2
+
 struct tracePoint
 {
     int x;
     int y;
-    QVector<int> connectedPoints;
+    QVector<unsigned int> connectedPoints;
     QVector<double> angleBetween;
     QVector<double> distanceBetween;
     tracePoint(int xx, int yy) {x=xx; y=yy;}
@@ -32,10 +34,11 @@ class BlobSkeleton
 public:
     BlobSkeleton(const BPixelCollection* src);
     ~BlobSkeleton();
-    int numberOfVertices()const {return centersOfMass.size();}
+    unsigned int numberOfVertices()const {return centersOfMass.size();}
     const tracePoint& operator[] (unsigned int index) const {return centersOfMass[index];}
     void draw(QString name);
     int regionIdForPoint(const QPoint &p);
+    const QVector<QPoint>& getRegion(unsigned int index) const {return regions[index];}
     
 private:
     QVector<QVector<QPoint> > regions;

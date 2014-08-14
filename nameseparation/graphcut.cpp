@@ -2371,10 +2371,17 @@ int GraphCut::pixelsOfSeparation(const long* invDistMap3D, int width, int height
 
 double getRelAngle(const BlobSkeleton &skeleton, int indexA, int indexB, int indexC)
 {
-    double angle1 = atan2(skeleton[indexA].y-skeleton[indexB].y,skeleton[indexA].x-skeleton[indexB].x);
-    double angle2 = atan2(skeleton[indexB].y-skeleton[indexC].y,skeleton[indexB].x-skeleton[indexC].x);
-    printf("getRelAngle test,\tone (%d,%d)(%d,%d):%f,\ttwo (%d,%d)(%d,%d):%f,\tres=%f\n",skeleton[indexA].x,skeleton[indexA].y,skeleton[indexB].x,skeleton[indexB].y,angle1,skeleton[indexB].x,skeleton[indexB].y,skeleton[indexC].x,skeleton[indexC].y,angle1-angle2);
-    return angle1-angle2;
+    double angle1 = (atan2((skeleton[indexA].y-skeleton[indexB].y),(skeleton[indexA].x-skeleton[indexB].x)));
+    double angle2 = (atan2((skeleton[indexB].y-skeleton[indexC].y),(skeleton[indexB].x-skeleton[indexC].x)));
+    double ret = PI-angle2+angle1;
+    if (ret<0) ret+=2*PI;
+//    printf("getRelAngle test,\tone (%d,%d)(%d,%d):%f,\ttwo (%d,%d)(%d,%d):%f,\tres=%f\n",skeleton[indexA].x,skeleton[indexA].y,skeleton[indexB].x,skeleton[indexB].y,angle1,skeleton[indexB].x,skeleton[indexB].y,skeleton[indexC].x,skeleton[indexC].y,angle2,ret/PI);
+    return ret;
+}
+
+double getDist(const BlobSkeleton &skeleton, int indexA, int indexB)
+{
+    return pow( (pow(skeleton[indexA].x-skeleton[indexB].x,2) + pow(skeleton[indexA].y-skeleton[indexB].y,2)) ,.5);
 }
 
 void recurStr(int strFactor, const BlobSkeleton &skeleton, int curIndex, int prevIndex, bool* notVisited, GraphType *g, const Indexer3D &indexer,int depth)
@@ -2388,26 +2395,250 @@ void recurStr(int strFactor, const BlobSkeleton &skeleton, int curIndex, int pre
             int bin = depth*(skeleton[curIndex].angleBetween[internalIndex++]/PI);
             double relativeAngle = getRelAngle(skeleton, prevIndex, curIndex, nextIndex);
             int newStrFactor = std::min(10,(int)(strFactor*std::max(.5,PI/relativeAngle)));
-            g -> add_edge(indexer.getIndex(skeleton[curIndex].x,skeleton[curIndex].y,bin), indexer.getIndex(skeleton[nextIndex].x,skeleton[nextIndex].y,bin),
-                          INV_A*newStrFactor/*skeleton[curIndex].distanceBetween[nextIndex]*/,
-                          INV_A*newStrFactor/*skeleton[curIndex].distanceBetween[nextIndex]*/);
-            recurStr(newStrFactor,skeleton,nextIndex,curIndex,notVisited,g,indexer,depth);
+//            g -> add_edge(indexer.getIndex(skeleton[curIndex].x,skeleton[curIndex].y,bin), indexer.getIndex(skeleton[nextIndex].x,skeleton[nextIndex].y,bin),
+//                          INV_A*newStrFactor/*skeleton[curIndex].distanceBetween[nextIndex]*/,
+//                          INV_A*newStrFactor/*skeleton[curIndex].distanceBetween[nextIndex]*/);
+//            recurStr(newStrFactor,skeleton,nextIndex,curIndex,notVisited,g,indexer,depth);
         }
     }
 }
 
 void GraphCut::strengthenDescenderComponent(const BPixelCollection &img, const QPoint &crossOverPoint, GraphType *g, const Indexer3D &indexer,int numAngleValues)
 {
+    assert(img.pixel(crossOverPoint));
+    
     BlobSkeleton skeleton(&img);
     int startRegionId = skeleton.regionIdForPoint(crossOverPoint);
-    bool notVisited[skeleton.numberOfVertices()];
-    for (int i=0; i<skeleton.numberOfVertices(); i++)
-        notVisited[i]=true;
-    foreach (int nextIndex, skeleton[startRegionId].connectedPoints)
+//    bool notVisited[skeleton.numberOfVertices()];
+//    for (int i=0; i<skeleton.numberOfVertices(); i++)
+//        notVisited[i]=true;
+//    notVisited[startRegionId]=false;
+    QVector<unsigned int> bestLowerPath;
+    double bestLowerScore=DOUBLE_POS_INFINITY;
+    QVector<unsigned int> bestUpperPath;
+    double bestUpperScore=DOUBLE_POS_INFINITY;
+    
+    
+    foreach (unsigned int curIndex, skeleton[startRegionId].connectedPoints)
     {
-        notVisited[nextIndex]=false;
-        recurStr(10,skeleton,nextIndex,startRegionId,notVisited,g,indexer,numAngleValues);
+        if (skeleton[curIndex].y>=crossOverPoint.y())
+        {
+            QVector<unsigned int> newPath;
+            newPath.append(startRegionId);
+            newPath.append(curIndex);
+            lowerDescenderTraverser(skeleton,&bestLowerPath,&bestLowerScore,&bestUpperPath,&bestUpperScore,&newPath,0);
+//            foreach (int nextIndex, skeleton[curIndex].connectedPoints)
+//            {
+//                if (skeleton[nextIndex].y>=crossOverPoint.y())
+//                {
+//                    QVector<unsigned int> newPath;
+//                    newPath.append(startRegionId);
+//                    newPath.append(curIndex);
+//                    newPath.append(nextIndex);
+//                    lowerDescenderTraverser(skeleton,&bestLowerPath,&bestLowerScore,&bestUpperPath,&bestUpperScore,&newPath,0);
+//                }
+//            }
+        }
+    }
+    
+    
+    //TODO: something about it
+    printf("[L] Best path (%f) is: ",bestLowerScore);
+    foreach (unsigned int i, bestLowerPath)
+        printf("(%d,%d), ",skeleton[i].x,skeleton[i].y);
+    printf("\n");
+    printf("[U] Best path (%f) is: ",bestUpperScore);
+    foreach (unsigned int i, bestUpperPath)
+        printf("(%d,%d), ",skeleton[i].x,skeleton[i].y);
+    printf("\n");
+}
+
+void GraphCut::lowerDescenderTraverser(const BlobSkeleton &skeleton, QVector<unsigned int>* bestLowerPath, double* bestLowerScore, QVector<unsigned int>* bestUpperPath, double* bestUpperScore, const QVector<unsigned int>* currentPath, double clockwiseScore)
+{
+//    if (skeleton[currentPath->last()].x==66 && skeleton[currentPath->last()].y==67)
+//        printf("ya, we get there\n");
+    
+    
+    if (currentPath->size() > 2)
+    {
+//        printf("[L] Current path is: ");
+//        foreach (unsigned int i, *currentPath)
+//            printf("(%d,%d), ",skeleton[i].x,skeleton[i].y);
+//        printf("\n");
+        
+        //get score
+        QVector<double> x;
+        QVector<double> y;
+        int sampleSize=extractSampleFromPath(skeleton,currentPath,&x,&y);
+        double quadOut[3];
+        polynomialfit(sampleSize,3,x.data(),y.data(),quadOut);
+        double currentScore = (copysign(1.0, quadOut[2]) == copysign(1.0, LOWER_MEAN_CURVE)) ? fabs(quadOut[2]-LOWER_MEAN_CURVE) : INT_POS_INFINITY; //Will not accept wrong direction
+        //compare score
+        if (currentScore < *bestLowerScore)
+        {
+            bestLowerPath->clear();
+            (*bestLowerPath) += *currentPath;
+            *bestLowerScore=currentScore;
+        }
+        
+//        printf("[L] Current clockwiseScore is: %f\n[L] Current score is: %f\n",clockwiseScore,currentScore);
+        if (currentPath->size()>3 && skeleton[currentPath->at(3)].x==88 && skeleton[currentPath->at(3)].y==50 && 
+                skeleton[currentPath->at(1)].x==96 && skeleton[currentPath->at(1)].y==40)
+            printf("right path, score: %f\tclockwise:%f\n",currentScore,clockwiseScore);        
+    }
+    
+    //check options, expand
+    double smallestAngle=DOUBLE_POS_INFINITY;
+    int smallestAngleIndex=-1;
+    foreach (unsigned int nextIndex, skeleton[currentPath->last()].connectedPoints)
+    {
+        if (currentPath->contains(nextIndex))
+            continue;
+        
+        double relativeAngle = getRelAngle(skeleton, currentPath->at(currentPath->size()-2), currentPath->last(), nextIndex);
+        double distance = getDist(skeleton, currentPath->last(), nextIndex);
+        double newClockwiseScore = (clockwiseScore/1.5)+(PI-relativeAngle)*distance;
+        
+        if (newClockwiseScore > CLOCKWISE_THRESH)
+        {
+            QVector<unsigned int> newPath = *currentPath;
+            newPath.append(nextIndex);
+            lowerDescenderTraverser(skeleton,bestLowerPath,bestLowerScore,bestUpperPath,bestUpperScore,&newPath,newClockwiseScore);
+        }
+        
+        if (relativeAngle < smallestAngle)
+        {
+            smallestAngle = relativeAngle;
+            smallestAngleIndex = nextIndex;
+        }
+    }
+    
+    if (skeleton[currentPath->last()].connectedPoints.size()>2 && smallestAngleIndex!=-1)
+    {
+        QVector<unsigned int> newPath;// = *currentPath;
+        newPath.append(currentPath->last());
+        newPath.append(smallestAngleIndex);
+        upperDescenderTraverser(skeleton,bestUpperPath,bestUpperScore,&newPath,0);
+    }
+    
+}
+
+void GraphCut::upperDescenderTraverser(const BlobSkeleton &skeleton, QVector<unsigned int>* bestUpperPath, double* bestUpperScore, const QVector<unsigned int>* currentPath, double counterClockwiseScore)
+{
+    
+    
+    if (currentPath->size() > 2)
+    {
+//        printf("[U] Current path is: ");
+//        foreach (int i, *currentPath)
+//            printf("(%d,%d), ",skeleton[i].x,skeleton[i].y);
+//        printf("\n");
+        
+        //get score
+        
+        QVector<double> x;
+        QVector<double> y;
+        int sampleSize=extractSampleFromPath(skeleton,currentPath,&x,&y);
+        
+        
+        double quadOut[3];
+        polynomialfit(sampleSize,3,x.data(),y.data(),quadOut);
+        double currentScore = (copysign(1.0, quadOut[2]) == copysign(1.0, UPPER_MEAN_CURVE)) ? fabs(quadOut[2]-UPPER_MEAN_CURVE) : INT_POS_INFINITY; //Will not accept wrong direction
+        //compare score
+        if (currentScore < *bestUpperScore)
+        {
+            bestUpperPath->clear();
+            (*bestUpperPath) += *currentPath;
+            *bestUpperScore = currentScore;
+        }
+        
+//        printf("[U] Current cclockwiseScore is: %f\n[U] Current score is: %f\n",counterClockwiseScore,currentScore);
+    }
+    
+    //check options, expand
+    foreach (unsigned int nextIndex, skeleton[currentPath->last()].connectedPoints)
+    {
+        if (currentPath->contains(nextIndex))
+            continue;
+        
+        double relativeAngle = getRelAngle(skeleton, currentPath->at(currentPath->size()-2), currentPath->last(), nextIndex);
+        double distance = getDist(skeleton, currentPath->last(), nextIndex);
+        double newCounterClockwiseScore = (counterClockwiseScore/1.5)+(relativeAngle - PI)*distance;
+        
+        if (newCounterClockwiseScore > COUNTER_CLOCKWISE_THRESH)
+        {
+            QVector<unsigned int> newPath = *currentPath;
+            newPath.append(nextIndex);
+            upperDescenderTraverser(skeleton,bestUpperPath,bestUpperScore,&newPath,newCounterClockwiseScore);
+        }
+        
     }
 }
 
+int GraphCut::extractSampleFromPath(const BlobSkeleton &skeleton, const QVector<unsigned int>* currentPath, QVector<double>* xOut, QVector<double>* yOut)
+{
+    int sampleSize=currentPath->size();
+    for (int i=0; i < currentPath->size(); i++)
+    {
+        yOut->append( skeleton[currentPath->at(i)].x );
+        xOut->append( skeleton[currentPath->at(i)].y );
+    }
+    return sampleSize;
+    
+    //or
+    
+    QVector<QPoint> samplePoints;
+    for (int i=0; i < currentPath->size(); i++)
+    {
+        samplePoints += skeleton.getRegion(currentPath->at(i));
+    }
+    foreach (QPoint p, samplePoints)
+    {
+        yOut->append(p.x());
+        xOut->append(p.y());
+    }
+    return samplePoints.size();
+}
 
+/*from < http://rosettacode.org/wiki/Polynomial_regression#C >*/
+
+bool GraphCut::polynomialfit(int obs, int degree, 
+		   double *dx, double *dy, double *store) /* n, p */
+{
+  gsl_multifit_linear_workspace *ws;
+  gsl_matrix *cov, *X;
+  gsl_vector *y, *c;
+  double chisq;
+ 
+  int i, j;
+ 
+  X = gsl_matrix_alloc(obs, degree);
+  y = gsl_vector_alloc(obs);
+  c = gsl_vector_alloc(degree);
+  cov = gsl_matrix_alloc(degree, degree);
+ 
+  for(i=0; i < obs; i++) {
+    gsl_matrix_set(X, i, 0, 1.0);
+    for(j=0; j < degree; j++) {
+      gsl_matrix_set(X, i, j, pow(dx[i], j));
+    }
+    gsl_vector_set(y, i, dy[i]);
+  }
+ 
+  ws = gsl_multifit_linear_alloc(obs, degree);
+  gsl_multifit_linear(X, y, c, cov, &chisq, ws);
+ 
+  /* store result ... */
+  for(i=0; i < degree; i++)
+  {
+    store[i] = gsl_vector_get(c, i);
+  }
+ 
+  gsl_multifit_linear_free(ws);
+  gsl_matrix_free(X);
+  gsl_matrix_free(cov);
+  gsl_vector_free(y);
+  gsl_vector_free(c);
+  return true; /* we do not "analyse" the result (cov matrix mainly)
+		  to know if the fit is "good" */
+}

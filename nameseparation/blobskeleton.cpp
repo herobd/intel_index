@@ -156,7 +156,7 @@ void BlobSkeleton::blobFill(const QPoint &begin)
         mark.setPixel(startPoint,false);
 //        printf("Using start point: (%d,%d)\n",startPoint.x(),startPoint.y());
         
-        int myRegionId = regions.size();
+        unsigned int myRegionId = regions.size();
         
         QVector<QPoint> border;
         QVector<QPoint> collection;
@@ -166,7 +166,7 @@ void BlobSkeleton::blobFill(const QPoint &begin)
         int killTokenLoc=-1;
         int sumX=0;
         int sumY=0;
-        QSet<int> neighborRegions;
+        QSet<unsigned int> neighborRegions;
         
         
         while(!border.empty())
@@ -224,9 +224,32 @@ void BlobSkeleton::blobFill(const QPoint &begin)
                             border.append(p);
                             mark.setPixel(p,false);
                         }
-                        else if (src->pixel(x,y) && myRegionId != assignments[x][y] && 0 <= assignments[x][y]/* && regions[assignments[x][y]].size()>=MIN_REGION_SIZE*/)
+                        else if (src->pixel(x,y) && 
+                                 myRegionId != assignments[x][y] && 
+                                 0 <= assignments[x][y])
                         {
                             neighborRegions.insert(assignments[x][y]);
+                        }
+                        else if (src->pixel(x,y) &&
+                                 NO_ASSIGMENT == assignments[x][y])
+                        {
+                            for (int mDelta=-1; mDelta<2; mDelta+=2)
+                            {
+                                if (x+mDelta>=0 && x+mDelta<mark.width() &&
+                                    src->pixel(x+mDelta,y) && 
+                                    myRegionId != assignments[x+mDelta][y] && 
+                                    0 <= assignments[x+mDelta][y])
+                                {
+                                    neighborRegions.insert(assignments[x+mDelta][y]);
+                                }
+                                if (y+mDelta>=0 && y+mDelta<mark.height() &&
+                                         src->pixel(x,y+mDelta) && 
+                                         myRegionId != assignments[x][y+mDelta] && 
+                                         0 <= assignments[x][y+mDelta])
+                                {
+                                    neighborRegions.insert(assignments[x][y+mDelta]);
+                                }
+                            }
                         }
                     }
                 }
@@ -254,7 +277,7 @@ void BlobSkeleton::blobFill(const QPoint &begin)
             
             regions.append(collection);
     //        printf("region %d found %d neighbors\n",myRegionId,neighborRegions.size());
-            foreach (int regionId, neighborRegions)
+            foreach (unsigned int regionId, neighborRegions)
             {
                 double angle = atan2((centerOfMass.y-centersOfMass[regionId].y),(centerOfMass.x-centersOfMass[regionId].x));
                 if (angle < 0)
@@ -272,9 +295,50 @@ void BlobSkeleton::blobFill(const QPoint &begin)
         }
         else
         {
+            
             foreach (QPoint p, collection)
             {
-                assignments[p.x()][p.y()]=-2;
+                QSet<unsigned int> localNeighboringRegions;
+                assignments[p.x()][p.y()]=NO_ASSIGMENT;
+                for (int mDelta=-1; mDelta<2; mDelta+=2)
+                {
+                    if (p.x()+mDelta>=0 && p.x()+mDelta<mark.width() &&
+                        src->pixel(p.x()+mDelta,p.y()) && 
+                        myRegionId != assignments[p.x()+mDelta][p.y()] &&
+                        0 <= assignments[p.x()+mDelta][p.y()])
+                    {
+                        localNeighboringRegions.insert(assignments[p.x()+mDelta][p.y()]);
+                    }
+                    if (p.y()+mDelta>=0 && p.y()+mDelta<mark.height() &&
+                             src->pixel(p.x(),p.y()+mDelta) && 
+                             myRegionId != assignments[p.x()][p.y()+mDelta] &&
+                             0 <= assignments[p.x()][p.y()+mDelta])
+                    {
+                        localNeighboringRegions.insert(assignments[p.x()][p.y()+mDelta]);
+                    }
+                }
+                
+                foreach (unsigned int regionId1, localNeighboringRegions)
+                {
+                    foreach (unsigned int regionId2, localNeighboringRegions)
+                    {
+                        if (!centersOfMass[regionId1].connectedPoints.contains(regionId2))
+                        {
+                            double angle = atan2((centersOfMass[regionId1].y-centersOfMass[regionId2].y),(centersOfMass[regionId1].x-centersOfMass[regionId2].x));
+                            if (angle < 0)
+                                angle += PI;
+                            double distance = sqrt(pow(centersOfMass[regionId1].x-centersOfMass[regionId2].x,2) + pow(centersOfMass[regionId1].y-centersOfMass[regionId2].y,2));
+                            
+                            centersOfMass[regionId1].connectedPoints.append(regionId2);
+                            centersOfMass[regionId1].angleBetween.append(angle);
+                            centersOfMass[regionId1].distanceBetween.append(distance);
+                            
+                            centersOfMass[regionId2].connectedPoints.append(regionId1);
+                            centersOfMass[regionId2].angleBetween.append(angle);
+                            centersOfMass[regionId2].distanceBetween.append(distance);
+                        }
+                    }
+                }
             }
         }
         
@@ -437,7 +501,7 @@ void BlobSkeleton::draw(QString name)
             
             for (int j=0; j<centersOfMass[i].connectedPoints.size(); j++)
             {
-                int index = centersOfMass[i].connectedPoints[j];
+                unsigned int index = centersOfMass[i].connectedPoints[j];
                 
                 double angle = centersOfMass[i].angleBetween[j];
 //                printf("Hue used: %d\n",(int)(360*(angle/PI)));

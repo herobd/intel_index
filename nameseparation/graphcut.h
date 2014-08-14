@@ -5,13 +5,21 @@
 #include "maxflow/graph.h"
 #include <QPoint>
 #include <QVector>
-//#include "BPixelCollection.h"
 #include "bimage.h"
 #include "dimension.h"
 #include "math.h"
 #include <stdio.h>
 #include "angleimage.h"
 #include "blobskeleton.h"
+
+#include <gsl/gsl_multifit.h>
+#include <stdbool.h>
+//#include <math.h>
+
+#define LOWER_MEAN_CURVE -0.022714
+#define UPPER_MEAN_CURVE 0.054275
+#define CLOCKWISE_THRESH 0
+#define COUNTER_CLOCKWISE_THRESH 0
 
 typedef Graph<int,int,int> GraphType;
 
@@ -33,6 +41,21 @@ public:
      
 private:
      static void strengthenDescenderComponent(const BPixelCollection &img, const QPoint &crossOverPoint, GraphType *g, const Indexer3D &indexer, int numAngleValues);
+     
+     static void lowerDescenderTraverser(const BlobSkeleton &skeleton, QVector<unsigned int>* bestLowerPath, double* bestLowerScore, QVector<unsigned int>* bestUpperPath, double* bestUpperScore, const QVector<unsigned int>* currentPath, double clockwiseScore);
+     static void upperDescenderTraverser(const BlobSkeleton &skeleton, QVector<unsigned int>* bestUpperPath, double* bestUpperScore, const QVector<unsigned int>* currentPath, double counterClockwiseScore);
+     static bool polynomialfit(int obs, int degree, double *dx, double *dy, double *store);
+     static int extractSampleFromPath(const BlobSkeleton &skeleton, const QVector<unsigned int>* currentPath, QVector<double>* xOut, QVector<double>* yOut);
+     
+};
+
+class SkeletonTraversePriorityQueue
+{
+public:
+    SkeletonTraversePriorityQueue(const BlobSkeleton* skeleton);
+    
+private:
+    
 };
 
 #endif // GRAPHCUT_H

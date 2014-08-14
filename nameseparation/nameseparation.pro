@@ -49,3 +49,6 @@ OTHER_FILES += \
     vxl-1.14.0/vcl/vcl_strstream.not \
     vxl-1.14.0/vcl/vcl_rel_ops.not
 
+LIBS += -lgsl
+LIBS += -lgslcblas
+LIBS += -lm

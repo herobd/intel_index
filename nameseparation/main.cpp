@@ -35,9 +35,14 @@ int main(int argc, char** argv)
     QVector<QPoint> sourceSeeds;
     QVector<QPoint> sinkSeeds;
     
+    //1
 //    QPoint p(4,29);
 //    QPoint p2(6,64);
     
+//    QPoint p(10,32);
+//    QPoint p2(83,70);
+    
+    //2
     QPoint p(63,18);
     QPoint p2(64,64);
     QPoint p2x(1,72);
@@ -50,10 +55,11 @@ int main(int argc, char** argv)
 //    QPoint p2x(71,17);
 //    QPoint p2xx(12,40);
     sinkSeeds.append(p2);
-    sinkSeeds.append(p2x);
+//    sinkSeeds.append(p2x);
 //    sinkSeeds.append(p2xx);
     
-    QPoint cross(31,37);
+//    QPoint cross(100,33);
+    QPoint cross(31,36);
     
     QVector<BPartition*> result = WordSeparator::cut3D(bimg, sourceSeeds, sinkSeeds,cross);
     result[0]->makeImage().save("./test0.ppm");
