@@ -32,41 +32,41 @@ int main(int argc, char** argv)
     
     BImage bimg(testimg);
     
-    QVector<QPoint> sourceSeeds;
-    QVector<QPoint> sinkSeeds;
+//    QVector<QPoint> sourceSeeds;
+//    QVector<QPoint> sinkSeeds;
     
-    //1
-//    QPoint p(4,29);
-//    QPoint p2(6,64);
+//    //1
+////    QPoint p(4,29);
+////    QPoint p2(6,64);
     
-//    QPoint p(10,32);
-//    QPoint p2(83,70);
+////    QPoint p(10,32);
+////    QPoint p2(83,70);
     
-    //2
-    QPoint p(63,18);
-    QPoint p2(64,64);
-    QPoint p2x(1,72);
+//    //2
+//    QPoint p(63,18);
+//    QPoint p2(64,64);
+//    QPoint p2x(1,72);
     
-//    QPoint p(13,15);
-//    QPoint px(64,69);
-    sourceSeeds.append(p);
-//    sourceSeeds.append(px);
-//    QPoint p2(15,73);
-//    QPoint p2x(71,17);
-//    QPoint p2xx(12,40);
-    sinkSeeds.append(p2);
-//    sinkSeeds.append(p2x);
-//    sinkSeeds.append(p2xx);
+////    QPoint p(13,15);
+////    QPoint px(64,69);
+//    sourceSeeds.append(p);
+////    sourceSeeds.append(px);
+////    QPoint p2(15,73);
+////    QPoint p2x(71,17);
+////    QPoint p2xx(12,40);
+//    sinkSeeds.append(p2);
+////    sinkSeeds.append(p2x);
+////    sinkSeeds.append(p2xx);
     
-//    QPoint cross(100,33);
-    QPoint cross(31,36);
+////    QPoint cross(100,33);
+//    QPoint cross(31,36);
     
-    QVector<BPartition*> result = WordSeparator::cut3D(bimg, sourceSeeds, sinkSeeds,cross);
-    result[0]->makeImage().save("./test0.ppm");
-    result[1]->makeImage().save("./test1.ppm");
-    bimg.claimOwnership(result[0],1);
-    bimg.claimOwnership(result[1],1);
-    bimg.saveOwners("./test.ppm");
+//    QVector<BPartition*> result = WordSeparator::cut3D(bimg, sourceSeeds, sinkSeeds,cross);
+//    result[0]->makeImage().save("./test0.ppm");
+//    result[1]->makeImage().save("./test1.ppm");
+//    bimg.claimOwnership(result[0],1);
+//    bimg.claimOwnership(result[1],1);
+//    bimg.saveOwners("./test.ppm");
     
     //////////////////////////
     
@@ -277,7 +277,7 @@ int main(int argc, char** argv)
     
     ////////////
 //    Evaluate::horizontalSegmentationTest(QString(argv[1]));
-//    Evaluate::verticleSegmentationTest(QString(argv[1]), QString(argv[2]));
+    Evaluate::verticleSegmentationTest(QString(argv[1]), QString(argv[2]));
     /////////////
 //    QImage img(argv[1]);
 //    BImage bimg(img);

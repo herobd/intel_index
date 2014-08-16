@@ -519,8 +519,8 @@ void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bot
                                     sinkSeeds.append(toAdd);
                                 }
                     }
-                    
-                    QVector<BPartition*> result3DCut = cut3D(newSubsection, sourceSeeds, sinkSeeds, keyPoint);
+                    QPoint newCrossOverPoint(keyPoint.x()-newSubsection.getXOffset(),keyPoint.y()-newSubsection.getYOffset());
+                    QVector<BPartition*> result3DCut = cut3D(newSubsection, sourceSeeds, sinkSeeds, newCrossOverPoint);
                     
                     ///test///start
 //                    xs.setNum(keyPoint.x());
@@ -694,8 +694,8 @@ QVector<BPartition*> WordSeparator::segmentLinesOfWords(const BPixelCollection &
 //        lineremoved.saveOwners("./test.ppm");
 //        printf("vert:%d, cuts[0].height=%d\n",dividingLines[i],cuts[0]->height());
         
-        int tempXOffset = accumulativeXOffset + cuts[1]->getXOffset();
-        int tempYOffset = accumulativeYOffset + cuts[1]->getYOffset();
+//        int tempXOffset = accumulativeXOffset + cuts[1]->getXOffset();
+//        int tempYOffset = accumulativeYOffset + cuts[1]->getYOffset();
         cuts[0]->changeSrc(&linesRemoved,accumulativeXOffset,accumulativeYOffset);
         cuts[1]->changeSrc(&linesRemoved,accumulativeXOffset,accumulativeYOffset);
         adjustHorzCutCrossOverAreas(cuts[0],cuts[1],crossPointsForLine[i],descenderProbMap);
