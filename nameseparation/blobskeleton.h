@@ -38,6 +38,7 @@ public:
     const tracePoint& operator[] (unsigned int index) const {return centersOfMass[index];}
     void draw(QString name);
     int regionIdForPoint(const QPoint &p);
+    int regionIdForPoint(int x, int y);
     const QVector<QPoint>& getRegion(unsigned int index) const {return regions[index];}
     
 private:

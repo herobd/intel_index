@@ -686,6 +686,13 @@ BImage BoxCleaner::clearLineAndCloseLetters(const BPixelCollection &src, int est
         int lineStart = -1;
         for (int i=0; i<ret.width(); i++)
         {
+            //also (this can be done more effeicently)
+            for (int j=0; j<ret.height(); j++)
+            {
+                if (ret.pixel(i,j) && !src.pixel(i,j))
+                    ret.setPixel(i,j,false);
+            }
+            
             if (ret.pixel(i,*vert_divide))
             {
                 if (!onLine)
@@ -700,12 +707,7 @@ BImage BoxCleaner::clearLineAndCloseLetters(const BPixelCollection &src, int est
                 QPoint keypoint((lineStart+i)/2,*vert_divide);
                 crossPoints->append(keypoint);
             }
-            //also (this can be done more effeicently)
-            for (int j=0; j<ret.height(); j++)
-            {
-                if (ret.pixel(i,j) && !src.pixel(i,j))
-                    ret.setPixel(i,j,false);
-            }
+            
             
         }
         if (onLine)

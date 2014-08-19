@@ -322,7 +322,7 @@ void BlobSkeleton::blobFill(const QPoint &begin)
                 {
                     foreach (unsigned int regionId2, localNeighboringRegions)
                     {
-                        if (!centersOfMass[regionId1].connectedPoints.contains(regionId2))
+                        if (regionId1!=regionId2 && !centersOfMass[regionId1].connectedPoints.contains(regionId2))
                         {
                             double angle = atan2((centersOfMass[regionId1].y-centersOfMass[regionId2].y),(centersOfMass[regionId1].x-centersOfMass[regionId2].x));
                             if (angle < 0)
@@ -559,4 +559,9 @@ void BlobSkeleton::draw(QString name)
 int BlobSkeleton::regionIdForPoint(const QPoint &p)
 {
     return assignments[p.x()][p.y()];
+}
+
+int BlobSkeleton::regionIdForPoint(int x, int y)
+{
+    return assignments[x][y];
 }

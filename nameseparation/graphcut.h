@@ -14,13 +14,18 @@
 #include "pathstackmap.h"
 
 #include <gsl/gsl_multifit.h>
+#include "gsl/gsl_statistics.h"
 #include <stdbool.h>
 //#include <math.h>
 
 #define LOWER_MEAN_SLOPE -0.695677
 #define UPPER_MEAN_SLOPE -0.667002
+#define LOWER_STD_DEV_SLOPE 0.406538    
+#define UPPER_STD_DEV_SLOPE 0.414845
 #define LOWER_MEAN_CURVE -0.022714
 #define UPPER_MEAN_CURVE 0.054275
+#define LOWER_STD_DEV_CURVE 0.023222
+#define UPPER_STD_DEV_CURVE 0.046421
 #define CLOCKWISE_THRESH -5
 #define COUNTER_CLOCKWISE_THRESH -5
 
@@ -44,15 +49,17 @@ public:
     
      static int pixelsOfSeparationNoDistMap(int* invDistMap, int width, int height, BPixelCollection &img, QVector<int> &outSource, QVector<int> &outSink, int anchor_weight=INT_POS_INFINITY, int split_method=SPLIT_HORZ, int vert_divide=-1);
      
+     static double polynomialfit(int obs, int degree, double *dx, double *dy, double *store, double *covarience);
+     
 private:
      static void strengthenDescenderComponent(const BPixelCollection &img, const QPoint &crossOverPoint, GraphType *g, const Indexer3D &indexer, int numAngleValues);
      
      static void lowerDescenderTraverser(const BlobSkeleton &skeleton, QVector<unsigned int>* bestLowerPath, double* bestLowerScore, QVector<unsigned int>* bestUpperPath, double* bestUpperScore, const QVector<unsigned int>* currentPath, double clockwiseScore, PathStackMap* upperPaths);
      static void upperDescenderTraverser(const BlobSkeleton &skeleton, const QVector<unsigned int>* currentPath, double counterClockwiseScore, PathStackMap* upperPaths);
-     static double polynomialfit(int obs, int degree, double *dx, double *dy, double *store);
+     
      static int extractSampleFromPath(const BlobSkeleton &skeleton, const QVector<unsigned int>* currentPath, QVector<double>* xOut, QVector<double>* yOut);
      
-     static double computeScore(int sampleSize, double* x, double* y, double meanSlope, double meanCurve, bool print=false);
+     static double computeScore(int sampleSize, double* x, double* y, double meanSlope, double stdDevSlope, double meanCurve, double stdDevCurve, bool print=false);
      
 };
 

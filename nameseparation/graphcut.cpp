@@ -2384,19 +2384,32 @@ inline double getDist(const BlobSkeleton &skeleton, int indexA, int indexB)
     return pow( (pow(skeleton[indexA].x-skeleton[indexB].x,2) + pow(skeleton[indexA].y-skeleton[indexB].y,2)) ,.5);
 }
 
-double GraphCut::computeScore(int sampleSize, double* x, double* y, double meanSlope, double meanCurve, bool print)
+double GraphCut::computeScore(int sampleSize, double* x, double* y, double meanSlope, double stdDevSlope, double meanCurve, double stdDevCurve, bool print)
 {
+    double tss = gsl_stats_tss(y,1,sampleSize);
+    double cov[9];
     double linOut[2];
-    double chisqSlope= polynomialfit(sampleSize,2,x,y,linOut);
+    double chisqSlope= polynomialfit(sampleSize,2,x,y,linOut,cov);
     double slope=linOut[1];
+    double rsqSlope=1-chisqSlope/tss;
     
     double quadOut[3];
-    double chisqCurve = polynomialfit(sampleSize,3,x,y,quadOut);
+    double chisqCurve = polynomialfit(sampleSize,3,x,y,quadOut,cov);
     double curvature=quadOut[2];
+    double rsqCurve=1-chisqCurve/tss;
     
+//    double score = (copysign(1.0, curvature) == copysign(1.0, meanCurve) && 
+//                    copysign(1.0, slope) == copysign(1.0, meanSlope)) ? 
+//                        (.75*pow(1.2,chisqCurve/20))*fabs(curvature-meanCurve) + (.1*pow(1.2,chisqSlope/30))*fabs(slope-meanSlope) : DOUBLE_POS_INFINITY;
+//    double score = (copysign(1.0, curvature) == copysign(1.0, meanCurve) && 
+//                    copysign(1.0, slope) == copysign(1.0, meanSlope)) ? 
+//                        .75*(1-rsqCurve)*fabs(curvature-meanCurve) + .1*(1-rsqSlope)*fabs(slope-meanSlope) : DOUBLE_POS_INFINITY;
+//    double score = (copysign(1.0, curvature) == copysign(1.0, meanCurve) && 
+//                    copysign(1.0, slope) == copysign(1.0, meanSlope)) ? 
+//                        .75*(1/rsqCurve)*std::max(fabs(curvature-meanCurve),2*stdDevCurve) + .1*(1/rsqSlope)*fabs(slope-meanSlope) : DOUBLE_POS_INFINITY;
     double score = (copysign(1.0, curvature) == copysign(1.0, meanCurve) && 
                     copysign(1.0, slope) == copysign(1.0, meanSlope)) ? 
-                        (.75*pow(1.2,chisqCurve/20))*fabs(curvature-meanCurve) + (.1*pow(1.2,chisqSlope/30))*fabs(slope-meanSlope) : DOUBLE_POS_INFINITY;
+                        10*(1/rsqCurve)*std::max(fabs(curvature-meanCurve),2*stdDevCurve) + .1*(1/rsqSlope)*std::max(fabs(slope-meanSlope),2*stdDevSlope) : DOUBLE_POS_INFINITY;
     
     
     if (print && score!=DOUBLE_POS_INFINITY)
@@ -2407,7 +2420,7 @@ double GraphCut::computeScore(int sampleSize, double* x, double* y, double meanS
         }
         else
             printf("[L] ");
-        printf("Slope=%f\tchi^2=%f\tCurve=%f\tchi^2=%f\tscore=%f\n",fabs(slope-meanSlope),chisqSlope,fabs(curvature-meanCurve),chisqCurve,score);
+        printf("Slope=%f\tR^2=%f\tCurve=%f\tR^2=%f\tscore=%f\n",fabs(slope-meanSlope),rsqSlope,fabs(curvature-meanCurve),rsqCurve,score);
     }
     
     return score;
@@ -2439,6 +2452,37 @@ void GraphCut::strengthenDescenderComponent(const BPixelCollection &img, const Q
     
     BlobSkeleton skeleton(&img);
     int startRegionId = skeleton.regionIdForPoint(crossOverPoint);
+    if (startRegionId==-2)
+    {
+        BImage mark = img.makeImage();
+        QVector<QPoint> stack;
+        stack.push_back(crossOverPoint);
+        mark.setPixel(crossOverPoint,false);
+        while (startRegionId==-2 && !stack.empty())
+        {
+            QPoint p = stack.front();
+            stack.pop_front();
+            int tableIndex=8;
+            for (int cc=0; cc<9 && startRegionId==-2; cc++)
+            {
+                tableIndex=(tableIndex+2)%9;
+                if (tableIndex==4)
+                    continue;
+                
+                int xDelta=(tableIndex%3)-1;
+                int yDelta=(tableIndex/3)-1;
+                int x = p.x()+xDelta;
+                int y = p.y()+yDelta;
+                if (mark.pixel(x,y))
+                {
+                    mark.setPixel(x,y,false);
+                    startRegionId = skeleton.regionIdForPoint(x,y);
+                    QPoint next(x,y);
+                    stack.push_back(next);
+                }
+            }
+        }
+    }
 //    bool notVisited[skeleton.numberOfVertices()];
 //    for (int i=0; i<skeleton.numberOfVertices(); i++)
 //        notVisited[i]=true;
@@ -2500,14 +2544,23 @@ void GraphCut::lowerDescenderTraverser(const BlobSkeleton &skeleton, QVector<uns
 //        foreach (unsigned int i, *currentPath)
 //            printf("(%d,%d), ",skeleton[i].x,skeleton[i].y);
 //        printf("\n");
-        bool print = (currentPath->size()==4 && 
+        bool print = /*(currentPath->size()==4 && 
                 skeleton[currentPath->at(3)].x==52 && skeleton[currentPath->at(3)].y==45 &&
                 skeleton[currentPath->at(2)].x==54 && skeleton[currentPath->at(2)].y==37)
                 ||
         (currentPath->size()==5 && 
          skeleton[currentPath->at(4)].x==47 && skeleton[currentPath->at(4)].y==51 &&       
          skeleton[currentPath->at(3)].x==52 && skeleton[currentPath->at(3)].y==45 &&
-                skeleton[currentPath->at(2)].x==54 && skeleton[currentPath->at(2)].y==37);
+                skeleton[currentPath->at(2)].x==54 && skeleton[currentPath->at(2)].y==37);*/
+                (currentPath->size()==5 &&
+                skeleton[currentPath->at(4)].x==11 && skeleton[currentPath->at(4)].y==69 &&
+                 skeleton[currentPath->at(3)].x==21 && skeleton[currentPath->at(3)].y==62 &&
+                 skeleton[currentPath->at(2)].x==24 && skeleton[currentPath->at(2)].y==52)
+                ||
+                (currentPath->size()==4 &&  
+//                 skeleton[currentPath->at(4)].x==13 && skeleton[currentPath->at(4)].y==56 &&
+                    skeleton[currentPath->at(3)].x==16 && skeleton[currentPath->at(3)].y==52 &&
+                    skeleton[currentPath->at(2)].x==19 && skeleton[currentPath->at(2)].y==47);
 //                (currentPath->size()==7 && 
 //                 skeleton[currentPath->at(6)].x==2 && skeleton[currentPath->at(6)].y==71 &&
 //                 skeleton[currentPath->at(5)].x==11 && skeleton[currentPath->at(5)].y==69 &&
@@ -2519,7 +2572,7 @@ void GraphCut::lowerDescenderTraverser(const BlobSkeleton &skeleton, QVector<uns
         QVector<double> x;
         QVector<double> y;
         int sampleSize=extractSampleFromPath(skeleton,currentPath,&x,&y);
-        double currentScore = computeScore(sampleSize,x.data(),y.data(),LOWER_MEAN_SLOPE,LOWER_MEAN_CURVE,print);
+        double currentScore = computeScore(sampleSize,x.data(),y.data(),LOWER_MEAN_SLOPE,LOWER_STD_DEV_SLOPE,LOWER_MEAN_CURVE,LOWER_STD_DEV_CURVE,print);
         //compare score
 //        if (currentScore < *bestLowerScore)
 //        {
@@ -2528,14 +2581,28 @@ void GraphCut::lowerDescenderTraverser(const BlobSkeleton &skeleton, QVector<uns
 //            *bestLowerScore=currentScore;
 //        }
         double upperScore = (*upperPaths)[currentPath->back()].score;
-        if (upperScore!=-1 && upperScore+currentScore<*bestUpperScore+*bestLowerScore)
+        if (upperScore!=-1 && upperScore!=DOUBLE_POS_INFINITY && currentScore!=DOUBLE_POS_INFINITY &&
+//                !currentPath->contains((*upperPaths)[currentPath->back()].path[1]) && 
+                ((*bestLowerScore==DOUBLE_POS_INFINITY || *bestUpperScore==DOUBLE_POS_INFINITY) ||upperScore+currentScore<*bestUpperScore+*bestLowerScore))
         {
-            bestLowerPath->clear();
-            (*bestLowerPath) += *currentPath;
-            *bestLowerScore=currentScore;
-            bestUpperPath->clear();
-            (*bestUpperPath) += (*upperPaths)[currentPath->back()].path;
-            *bestUpperScore=upperScore;
+            bool goodMatch = true;
+//            for (int i=1; i<currentPath->size()-2; i++)
+//            {
+//                if ((*upperPaths)[currentPath->back()].path.contains(currentPath->at(i)))
+//                {
+//                    goodMatch = false;
+//                    break;
+//                }
+//            }
+            if (goodMatch)
+            {
+                bestLowerPath->clear();
+                (*bestLowerPath) += *currentPath;
+                *bestLowerScore=currentScore;
+                bestUpperPath->clear();
+                (*bestUpperPath) += (*upperPaths)[currentPath->back()].path;
+                *bestUpperScore=upperScore;
+            }
         }
         
     }
@@ -2608,7 +2675,7 @@ void GraphCut::upperDescenderTraverser(const BlobSkeleton &skeleton, const QVect
 //        foreach (int i, *currentPath)
 //            printf("(%d,%d), ",skeleton[i].x,skeleton[i].y);
 //        printf("\n");
-        bool print = (currentPath->size()==5 && 
+        bool print = /*(currentPath->size()==5 && 
                 skeleton[currentPath->at(0)].x==55 && skeleton[currentPath->at(0)].y==28 &&
                 skeleton[currentPath->at(1)].x==48 && skeleton[currentPath->at(1)].y==32 &&
                 skeleton[currentPath->at(3)].x==47 && skeleton[currentPath->at(3)].y==41 &&
@@ -2619,21 +2686,26 @@ void GraphCut::upperDescenderTraverser(const BlobSkeleton &skeleton, const QVect
                                 skeleton[currentPath->at(1)].x==48 && skeleton[currentPath->at(1)].y==32 &&
                                 skeleton[currentPath->at(3)].x==47 && skeleton[currentPath->at(3)].y==41 &&
                                 skeleton[currentPath->at(4)].x==45 && skeleton[currentPath->at(4)].y==44 &&
-                                skeleton[currentPath->at(5)].x==47 && skeleton[currentPath->at(5)].y==51);
-//                (currentPath->size()==7 && 
-//                    skeleton[currentPath->at(0)].x==21 && skeleton[currentPath->at(0)].y==62 &&
-//                    skeleton[currentPath->at(1)].x==13 && skeleton[currentPath->at(1)].y==56 &&
-//                    skeleton[currentPath->at(2)].x==16 && skeleton[currentPath->at(2)].y==52 &&
-//                    skeleton[currentPath->at(3)].x==19 && skeleton[currentPath->at(3)].y==47 &&
-//                    skeleton[currentPath->at(4)].x==26 && skeleton[currentPath->at(4)].y==43 &&
-//                    skeleton[currentPath->at(6)].x==39 && skeleton[currentPath->at(6)].y==30);
+                                skeleton[currentPath->at(5)].x==47 && skeleton[currentPath->at(5)].y==51);*/
+                (currentPath->size()==6 && 
+                    skeleton[currentPath->at(0)].x==26 && skeleton[currentPath->at(0)].y==43 &&
+                    skeleton[currentPath->at(1)].x==19 && skeleton[currentPath->at(1)].y==47 &&
+                    skeleton[currentPath->at(2)].x==16 && skeleton[currentPath->at(2)].y==52 &&
+                    skeleton[currentPath->at(3)].x==13 && skeleton[currentPath->at(3)].y==56 &&
+                    skeleton[currentPath->at(4)].x==11 && skeleton[currentPath->at(4)].y==61 &&
+                    skeleton[currentPath->at(5)].x==11 && skeleton[currentPath->at(5)].y==69)
+                ||
+                (currentPath->size()==3 && 
+                    skeleton[currentPath->at(0)].x==26 && skeleton[currentPath->at(0)].y==43 &&
+                    skeleton[currentPath->at(2)].x==16 && skeleton[currentPath->at(2)].y==52 /*&&
+                    skeleton[currentPath->at(3)].x==13 && skeleton[currentPath->at(3)].y==56*/);
         
         //get score
         
         QVector<double> x;
         QVector<double> y;
         int sampleSize=extractSampleFromPath(skeleton,currentPath,&x,&y);
-        double currentScore = computeScore(sampleSize,x.data(),y.data(),UPPER_MEAN_SLOPE,UPPER_MEAN_CURVE,print);
+        double currentScore = computeScore(sampleSize,x.data(),y.data(),UPPER_MEAN_SLOPE,UPPER_STD_DEV_SLOPE,UPPER_MEAN_CURVE,UPPER_STD_DEV_CURVE,print);
         //compare score
 //        if (currentScore < *bestUpperScore)
 //        {
@@ -2682,23 +2754,23 @@ int GraphCut::extractSampleFromPath(const BlobSkeleton &skeleton, const QVector<
     
     //or
     
-    QVector<QPoint> samplePoints;
-    for (int i=0; i < currentPath->size(); i++)
-    {
-        samplePoints += skeleton.getRegion(currentPath->at(i));
-    }
-    foreach (QPoint p, samplePoints)
-    {
-        yOut->append(p.x());
-        xOut->append(p.y());
-    }
-    return samplePoints.size();
+//    QVector<QPoint> samplePoints;
+//    for (int i=0; i < currentPath->size(); i++)
+//    {
+//        samplePoints += skeleton.getRegion(currentPath->at(i));
+//    }
+//    foreach (QPoint p, samplePoints)
+//    {
+//        yOut->append(p.x());
+//        xOut->append(p.y());
+//    }
+//    return samplePoints.size();
 }
 
 /*from < http://rosettacode.org/wiki/Polynomial_regression#C >*/
 
 double GraphCut::polynomialfit(int obs, int degree, 
-		   double *dx, double *dy, double *store) /* n, p */
+		   double *dx, double *dy, double *store, double *covarience) /* n, p */
 {
   gsl_multifit_linear_workspace *ws;
   gsl_matrix *cov, *X;
@@ -2727,6 +2799,12 @@ double GraphCut::polynomialfit(int obs, int degree,
   for(i=0; i < degree; i++)
   {
     store[i] = gsl_vector_get(c, i);
+  }
+  
+  for(i=0; i < degree; i++)
+  {
+      for(j=0; j < degree; j++)
+        covarience[i+j*degree] = gsl_matrix_get(cov, i, j);
   }
  
   gsl_multifit_linear_free(ws);
