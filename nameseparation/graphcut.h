@@ -26,7 +26,7 @@
 #define UPPER_MEAN_CURVE 0.054275
 #define LOWER_STD_DEV_CURVE 0.023222
 #define UPPER_STD_DEV_CURVE 0.046421
-#define CLOCKWISE_THRESH -5
+#define CLOCKWISE_THRESH -10
 #define COUNTER_CLOCKWISE_THRESH -5
 
 typedef Graph<int,int,int> GraphType;
@@ -51,8 +51,10 @@ public:
      
      static double polynomialfit(int obs, int degree, double *dx, double *dy, double *store, double *covarience);
      
-private:
+
      static void strengthenDescenderComponent(const BPixelCollection &img, const QPoint &crossOverPoint, GraphType *g, const Indexer3D &indexer, int numAngleValues);
+     
+private:
      
      static void lowerDescenderTraverser(const BlobSkeleton &skeleton, QVector<unsigned int>* bestLowerPath, double* bestLowerScore, QVector<unsigned int>* bestUpperPath, double* bestUpperScore, const QVector<unsigned int>* currentPath, double clockwiseScore, PathStackMap* upperPaths);
      static void upperDescenderTraverser(const BlobSkeleton &skeleton, const QVector<unsigned int>* currentPath, double counterClockwiseScore, PathStackMap* upperPaths);

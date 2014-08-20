@@ -2398,6 +2398,8 @@ double GraphCut::computeScore(int sampleSize, double* x, double* y, double meanS
     double curvature=quadOut[2];
     double rsqCurve=1-chisqCurve/tss;
     
+    double yOfVertex = quadOut[1]/(2*quadOut[2]);
+    
 //    double score = (copysign(1.0, curvature) == copysign(1.0, meanCurve) && 
 //                    copysign(1.0, slope) == copysign(1.0, meanSlope)) ? 
 //                        (.75*pow(1.2,chisqCurve/20))*fabs(curvature-meanCurve) + (.1*pow(1.2,chisqSlope/30))*fabs(slope-meanSlope) : DOUBLE_POS_INFINITY;
@@ -2409,10 +2411,10 @@ double GraphCut::computeScore(int sampleSize, double* x, double* y, double meanS
 //                        .75*(1/rsqCurve)*std::max(fabs(curvature-meanCurve),2*stdDevCurve) + .1*(1/rsqSlope)*fabs(slope-meanSlope) : DOUBLE_POS_INFINITY;
     double score = (copysign(1.0, curvature) == copysign(1.0, meanCurve) && 
                     copysign(1.0, slope) == copysign(1.0, meanSlope)) ? 
-                        10*(1/rsqCurve)*std::max(fabs(curvature-meanCurve),2*stdDevCurve) + .1*(1/rsqSlope)*std::max(fabs(slope-meanSlope),2*stdDevSlope) : DOUBLE_POS_INFINITY;
+                        10*(1/std::max(rsqCurve,0.1))*std::max(fabs(curvature-meanCurve),2*stdDevCurve) + .1*std::max(fabs(slope-meanSlope),2*stdDevSlope) : DOUBLE_POS_INFINITY;
     
     
-    if (print && score!=DOUBLE_POS_INFINITY)
+    if (print /*&& score!=DOUBLE_POS_INFINITY*/)
     {
         if (meanSlope==UPPER_MEAN_SLOPE)
         {
@@ -2420,7 +2422,9 @@ double GraphCut::computeScore(int sampleSize, double* x, double* y, double meanS
         }
         else
             printf("[L] ");
-        printf("Slope=%f\tR^2=%f\tCurve=%f\tR^2=%f\tscore=%f\n",fabs(slope-meanSlope),rsqSlope,fabs(curvature-meanCurve),rsqCurve,score);
+        printf("Curve=%f\tR^2=%f\tscore=%f\tV_y=%d\n",curvature-meanCurve,rsqCurve,score,(int)yOfVertex);
+        
+//        printf("chi^2=%f\tTSS=%f\n",chisqSlope,tss);
     }
     
     return score;
@@ -2483,6 +2487,7 @@ void GraphCut::strengthenDescenderComponent(const BPixelCollection &img, const Q
             }
         }
     }
+    printf("Starting point:(%d,%d)\n",skeleton[startRegionId].x,skeleton[startRegionId].y);
 //    bool notVisited[skeleton.numberOfVertices()];
 //    for (int i=0; i<skeleton.numberOfVertices(); i++)
 //        notVisited[i]=true;
@@ -2494,28 +2499,19 @@ void GraphCut::strengthenDescenderComponent(const BPixelCollection &img, const Q
     
     PathStackMap upperPaths;
     
-    foreach (unsigned int curIndex, skeleton[startRegionId].connectedPoints)
-    {
-        if (skeleton[curIndex].y>=crossOverPoint.y())
-        {
-            QVector<unsigned int> newPath;
-            newPath.append(startRegionId);
-            newPath.append(curIndex);
-            lowerDescenderTraverser(skeleton,&bestLowerPath,&bestLowerScore,&bestUpperPath,&bestUpperScore,&newPath,0,&upperPaths);
-//            foreach (int nextIndex, skeleton[curIndex].connectedPoints)
-//            {
-//                if (skeleton[nextIndex].y>=crossOverPoint.y())
-//                {
-//                    QVector<unsigned int> newPath;
-//                    newPath.append(startRegionId);
-//                    newPath.append(curIndex);
-//                    newPath.append(nextIndex);
-//                    lowerDescenderTraverser(skeleton,&bestLowerPath,&bestLowerScore,&bestUpperPath,&bestUpperScore,&newPath,0);
-//                }
-//            }
-        }
-    }
-    
+//    foreach (unsigned int curIndex, skeleton[startRegionId].connectedPoints)
+//    {
+//        if (skeleton[curIndex].y>=crossOverPoint.y())
+//        {
+//            QVector<unsigned int> newPath;
+//            newPath.append(startRegionId);
+//            newPath.append(curIndex);
+//            lowerDescenderTraverser(skeleton,&bestLowerPath,&bestLowerScore,&bestUpperPath,&bestUpperScore,&newPath,0,&upperPaths);
+//        }
+//    }
+    QVector<unsigned int> newPath;
+    newPath.append(startRegionId);
+    lowerDescenderTraverser(skeleton,&bestLowerPath,&bestLowerScore,&bestUpperPath,&bestUpperScore,&newPath,0,&upperPaths);
     
     //TODO: something about it
     printf("[U] Best path (%f) is: ",bestUpperScore);
@@ -2527,10 +2523,10 @@ void GraphCut::strengthenDescenderComponent(const BPixelCollection &img, const Q
         printf("(%d,%d), ",skeleton[i].x,skeleton[i].y);
     printf("\n");
     
-    char a;
-    printf("Cont? ");
-    scanf("%c",&a);
-    printf("ok\n");
+//    char a;
+//    printf("Cont? ");
+//    scanf("%c",&a);
+//    printf("ok\n");
 }
 
 void GraphCut::lowerDescenderTraverser(const BlobSkeleton &skeleton, QVector<unsigned int>* bestLowerPath, double* bestLowerScore, QVector<unsigned int>* bestUpperPath, double* bestUpperScore, const QVector<unsigned int>* currentPath, double clockwiseScore, PathStackMap* upperPaths)
@@ -2544,23 +2540,27 @@ void GraphCut::lowerDescenderTraverser(const BlobSkeleton &skeleton, QVector<uns
 //        foreach (unsigned int i, *currentPath)
 //            printf("(%d,%d), ",skeleton[i].x,skeleton[i].y);
 //        printf("\n");
-        bool print = /*(currentPath->size()==4 && 
-                skeleton[currentPath->at(3)].x==52 && skeleton[currentPath->at(3)].y==45 &&
-                skeleton[currentPath->at(2)].x==54 && skeleton[currentPath->at(2)].y==37)
-                ||
-        (currentPath->size()==5 && 
-         skeleton[currentPath->at(4)].x==47 && skeleton[currentPath->at(4)].y==51 &&       
-         skeleton[currentPath->at(3)].x==52 && skeleton[currentPath->at(3)].y==45 &&
-                skeleton[currentPath->at(2)].x==54 && skeleton[currentPath->at(2)].y==37);*/
-                (currentPath->size()==5 &&
-                skeleton[currentPath->at(4)].x==11 && skeleton[currentPath->at(4)].y==69 &&
-                 skeleton[currentPath->at(3)].x==21 && skeleton[currentPath->at(3)].y==62 &&
-                 skeleton[currentPath->at(2)].x==24 && skeleton[currentPath->at(2)].y==52)
-                ||
-                (currentPath->size()==4 &&  
+        bool print = (currentPath->size()==5 && 
+                skeleton[currentPath->at(3)].x==24 && skeleton[currentPath->at(3)].y==61 &&
+                skeleton[currentPath->at(4)].x==25 && skeleton[currentPath->at(4)].y==69);
+//                ||
+//        (currentPath->size()==5 && 
+//         skeleton[currentPath->at(4)].x==47 && skeleton[currentPath->at(4)].y==51 &&       
+//         skeleton[currentPath->at(3)].x==52 && skeleton[currentPath->at(3)].y==45 &&
+//                skeleton[currentPath->at(2)].x==54 && skeleton[currentPath->at(2)].y==37);
+//                (currentPath->size()==5 &&
+//                skeleton[currentPath->at(4)].x==11 && skeleton[currentPath->at(4)].y==69 &&
+//                 skeleton[currentPath->at(3)].x==21 && skeleton[currentPath->at(3)].y==62 &&
+//                 skeleton[currentPath->at(2)].x==24 && skeleton[currentPath->at(2)].y==52)
+//                ((currentPath->size()==4 || (currentPath->size()==5 && skeleton[currentPath->at(4)].x==27 && skeleton[currentPath->at(4)].y==52)) &&  
+//                 skeleton[currentPath->at(3)].x==38 && skeleton[currentPath->at(3)].y==55 &&
+//                    skeleton[currentPath->at(1)].x==34 && skeleton[currentPath->at(1)].y==42 /*&&
+//                    skeleton[currentPath->at(2)].x==54 && skeleton[currentPath->at(2)].y==37*/);
+//                ||
+//                (currentPath->size()>=3 &&  
 //                 skeleton[currentPath->at(4)].x==13 && skeleton[currentPath->at(4)].y==56 &&
-                    skeleton[currentPath->at(3)].x==16 && skeleton[currentPath->at(3)].y==52 &&
-                    skeleton[currentPath->at(2)].x==19 && skeleton[currentPath->at(2)].y==47);
+//                    skeleton[currentPath->at(1)].x==55 && skeleton[currentPath->at(1)].y==28 &&
+//                    skeleton[currentPath->at(2)].x==60 && skeleton[currentPath->at(2)].y==47);
 //                (currentPath->size()==7 && 
 //                 skeleton[currentPath->at(6)].x==2 && skeleton[currentPath->at(6)].y==71 &&
 //                 skeleton[currentPath->at(5)].x==11 && skeleton[currentPath->at(5)].y==69 &&
@@ -2586,14 +2586,15 @@ void GraphCut::lowerDescenderTraverser(const BlobSkeleton &skeleton, QVector<uns
                 ((*bestLowerScore==DOUBLE_POS_INFINITY || *bestUpperScore==DOUBLE_POS_INFINITY) ||upperScore+currentScore<*bestUpperScore+*bestLowerScore))
         {
             bool goodMatch = true;
-//            for (int i=1; i<currentPath->size()-2; i++)
-//            {
-//                if ((*upperPaths)[currentPath->back()].path.contains(currentPath->at(i)))
-//                {
-//                    goodMatch = false;
-//                    break;
-//                }
-//            }
+            for (int i=0; i<currentPath->size()-1; i++)
+            {
+                if ((*upperPaths)[currentPath->back()].path.contains(currentPath->at(i)) &&
+                        (*upperPaths)[currentPath->back()].path[0] != currentPath->at(i))
+                {
+                    goodMatch = false;
+                    break;
+                }
+            }
             if (goodMatch)
             {
                 bestLowerPath->clear();
@@ -2616,28 +2617,40 @@ void GraphCut::lowerDescenderTraverser(const BlobSkeleton &skeleton, QVector<uns
         if (currentPath->contains(nextIndex))
             continue;
         
-        double relativeAngle = getRelAngle(skeleton, currentPath->at(currentPath->size()-2), currentPath->last(), nextIndex);
-        double distance = getDist(skeleton, currentPath->last(), nextIndex);
-        double newClockwiseScore = (clockwiseScore/1.5)+std::min(PI-relativeAngle,PI/3)*distance;
-        
-        if (newClockwiseScore > CLOCKWISE_THRESH)
+        if (currentPath->size()>1)
         {
-            toExpand[nextIndex]=newClockwiseScore;
+            double relativeAngle = getRelAngle(skeleton, currentPath->at(currentPath->size()-2), currentPath->last(), nextIndex);
+            double distance = getDist(skeleton, currentPath->last(), nextIndex);
+            double newClockwiseScore = (clockwiseScore/1.5)+std::min(PI-relativeAngle,PI/3)*distance;
+            
+            if (newClockwiseScore > CLOCKWISE_THRESH)
+            {
+                toExpand[nextIndex]=newClockwiseScore;
+            }
+            
+            if (relativeAngle > largestAngle)
+            {
+                largestAngle = relativeAngle;
+                largestAngleIndex = nextIndex;
+            }
+            
+//                    if (skeleton[currentPath->last()].x==38 && skeleton[currentPath->last()].y==55)
+//                    {
+//                        printf("score to (%d,%d) is %f\n",skeleton[nextIndex].x,skeleton[nextIndex].y,newClockwiseScore);
+//                    }
         }
-        
-        if (relativeAngle > largestAngle)
+        else if (skeleton[nextIndex].y >= skeleton[currentPath->last()].y)
         {
-            largestAngle = relativeAngle;
-            largestAngleIndex = nextIndex;
+            toExpand[nextIndex]=0;
         }
     }
     
     //expand upper branches
-    if (skeleton[currentPath->last()].connectedPoints.size()>2 && largestAngleIndex!=-1)
+//    if (skeleton[currentPath->last()].connectedPoints.size()>2 && largestAngleIndex!=-1)
     {
         foreach (unsigned int nextIndex, skeleton[currentPath->last()].connectedPoints)
         {
-            if (nextIndex==largestAngleIndex)
+            if (nextIndex==largestAngleIndex || currentPath->contains(nextIndex))
                 continue;
             
             
@@ -2675,30 +2688,28 @@ void GraphCut::upperDescenderTraverser(const BlobSkeleton &skeleton, const QVect
 //        foreach (int i, *currentPath)
 //            printf("(%d,%d), ",skeleton[i].x,skeleton[i].y);
 //        printf("\n");
-        bool print = /*(currentPath->size()==5 && 
-                skeleton[currentPath->at(0)].x==55 && skeleton[currentPath->at(0)].y==28 &&
-                skeleton[currentPath->at(1)].x==48 && skeleton[currentPath->at(1)].y==32 &&
-                skeleton[currentPath->at(3)].x==47 && skeleton[currentPath->at(3)].y==41 &&
-                skeleton[currentPath->at(4)].x==52 && skeleton[currentPath->at(4)].y==45)
+        bool print = (currentPath->size()==4 && 
+                skeleton[currentPath->at(0)].x==20 && skeleton[currentPath->at(0)].y==52 &&
+                skeleton[currentPath->at(1)].x==16 && skeleton[currentPath->at(1)].y==60 &&
+                skeleton[currentPath->at(3)].x==15 && skeleton[currentPath->at(3)].y==69 /*&&
+                skeleton[currentPath->at(4)].x==52 && skeleton[currentPath->at(4)].y==45*/)
                 ||
                 (currentPath->size()==6 && 
-                                skeleton[currentPath->at(0)].x==55 && skeleton[currentPath->at(0)].y==28 &&
-                                skeleton[currentPath->at(1)].x==48 && skeleton[currentPath->at(1)].y==32 &&
-                                skeleton[currentPath->at(3)].x==47 && skeleton[currentPath->at(3)].y==41 &&
-                                skeleton[currentPath->at(4)].x==45 && skeleton[currentPath->at(4)].y==44 &&
-                                skeleton[currentPath->at(5)].x==47 && skeleton[currentPath->at(5)].y==51);*/
-                (currentPath->size()==6 && 
-                    skeleton[currentPath->at(0)].x==26 && skeleton[currentPath->at(0)].y==43 &&
-                    skeleton[currentPath->at(1)].x==19 && skeleton[currentPath->at(1)].y==47 &&
-                    skeleton[currentPath->at(2)].x==16 && skeleton[currentPath->at(2)].y==52 &&
-                    skeleton[currentPath->at(3)].x==13 && skeleton[currentPath->at(3)].y==56 &&
-                    skeleton[currentPath->at(4)].x==11 && skeleton[currentPath->at(4)].y==61 &&
-                    skeleton[currentPath->at(5)].x==11 && skeleton[currentPath->at(5)].y==69)
-                ||
-                (currentPath->size()==3 && 
-                    skeleton[currentPath->at(0)].x==26 && skeleton[currentPath->at(0)].y==43 &&
-                    skeleton[currentPath->at(2)].x==16 && skeleton[currentPath->at(2)].y==52 /*&&
-                    skeleton[currentPath->at(3)].x==13 && skeleton[currentPath->at(3)].y==56*/);
+                                skeleton[currentPath->at(0)].x==21 && skeleton[currentPath->at(0)].y==44 &&
+                                skeleton[currentPath->at(1)].x==15 && skeleton[currentPath->at(1)].y==51 &&
+                                skeleton[currentPath->at(2)].x==15 && skeleton[currentPath->at(2)].y==55 &&
+                                skeleton[currentPath->at(5)].x==25 && skeleton[currentPath->at(5)].y==69 /*&&
+                                skeleton[currentPath->at(5)].x==47 && skeleton[currentPath->at(5)].y==51*/);
+//                (currentPath->size()==4 && 
+//                    skeleton[currentPath->at(0)].x==30 && skeleton[currentPath->at(0)].y==33 &&
+//                    skeleton[currentPath->at(1)].x==25 && skeleton[currentPath->at(1)].y==39 &&
+//                    skeleton[currentPath->at(3)].x==27 && skeleton[currentPath->at(3)].y==52 )
+//                ||
+//                (currentPath->size()==5 && 
+//                 skeleton[currentPath->at(0)].x==30 && skeleton[currentPath->at(0)].y==33 &&
+//                 skeleton[currentPath->at(1)].x==25 && skeleton[currentPath->at(1)].y==39 &&
+//                 skeleton[currentPath->at(3)].x==27 && skeleton[currentPath->at(3)].y==52 &&
+//                 skeleton[currentPath->at(4)].x==38 && skeleton[currentPath->at(4)].y==55);
         
         //get score
         
@@ -2738,6 +2749,15 @@ void GraphCut::upperDescenderTraverser(const BlobSkeleton &skeleton, const QVect
             newPath.append(nextIndex);
             upperDescenderTraverser(skeleton,&newPath,newCounterClockwiseScore,upperPaths);
         }
+        
+//        if (skeleton[currentPath->last()].x==27 && skeleton[currentPath->last()].y==52)
+//        {
+//            printf("score to [%d]:(%d,%d) is %f\n",nextIndex,skeleton[nextIndex].x,skeleton[nextIndex].y,newCounterClockwiseScore);
+//                    printf("[U] Current path is: ");
+//                    foreach (int i, *currentPath)
+//                        printf("(%d,%d), ",skeleton[i].x,skeleton[i].y);
+//                    printf("\n");
+//        }
         
     }
 }

@@ -279,6 +279,11 @@ void BlobSkeleton::blobFill(const QPoint &begin)
     //        printf("region %d found %d neighbors\n",myRegionId,neighborRegions.size());
             foreach (unsigned int regionId, neighborRegions)
             {
+                if (centerOfMass.connectedPoints.contains(regionId) || centersOfMass[regionId].connectedPoints.contains(myRegionId))
+                   {
+                    int i=0;
+                }
+                
                 double angle = atan2((centerOfMass.y-centersOfMass[regionId].y),(centerOfMass.x-centersOfMass[regionId].x));
                 if (angle < 0)
                     angle += PI;
@@ -324,6 +329,11 @@ void BlobSkeleton::blobFill(const QPoint &begin)
                     {
                         if (regionId1!=regionId2 && !centersOfMass[regionId1].connectedPoints.contains(regionId2))
                         {
+                            if (centersOfMass[regionId1].connectedPoints.contains(regionId2) || centersOfMass[regionId2].connectedPoints.contains(regionId1))
+                               {
+                                int i=0;
+                            }
+                            
                             double angle = atan2((centersOfMass[regionId1].y-centersOfMass[regionId2].y),(centersOfMass[regionId1].x-centersOfMass[regionId2].x));
                             if (angle < 0)
                                 angle += PI;
