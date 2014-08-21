@@ -1,6 +1,7 @@
 TEMPLATE = app
 CONFIG += console
 CONFIG += qt
+CONFIG += console debug
 
 SOURCES += main.cpp \
     ./wordprofile.cpp \

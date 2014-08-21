@@ -2289,39 +2289,39 @@ int GraphCut::pixelsOfSeparation(const long* invDistMap3D, int width, int height
     }//k
     
     strengthenDescenderComponent(img,crossOverPoint,g,indexer,depth);
-    
-    int ret = g -> maxflow();
+    int ret=0;
+//    int ret = g -> maxflow();
 
     
-    //add all black pixels which
-    int slopeDifRange = SLOPE_DIF_TOLERANCE*depth;
-    int THRESH=700;
-    for (int x=0; x<width; x++)
-    {
-//        printf("\n");
-        for (int y=0; y<height; y++)
-        {
-            int sourceScore=0;
-            int sinkScore=0;
-            for (int z=0; z<depth; z++)
-            {
-                int index = indexer.getIndex(x,y,z);
-                if (g->what_segment(index) == GraphType::SOURCE)
-                    sourceScore += invDistMap3D[index];
-                else
-                    sinkScore += invDistMap3D[index];
-            }
+//    //add all black pixels which
+//    int slopeDifRange = SLOPE_DIF_TOLERANCE*depth;
+//    int THRESH=700;
+//    for (int x=0; x<width; x++)
+//    {
+////        printf("\n");
+//        for (int y=0; y<height; y++)
+//        {
+//            int sourceScore=0;
+//            int sinkScore=0;
+//            for (int z=0; z<depth; z++)
+//            {
+//                int index = indexer.getIndex(x,y,z);
+//                if (g->what_segment(index) == GraphType::SOURCE)
+//                    sourceScore += invDistMap3D[index];
+//                else
+//                    sinkScore += invDistMap3D[index];
+//            }
             
-//            printf("(%d,%d) ",sourceScore,sinkScore);
+////            printf("(%d,%d) ",sourceScore,sinkScore);
             
-            if (sourceScore>=THRESH || sinkScore<THRESH && sourceScore>sinkScore)
-                outSource.append(x+width*y);
-            if (sinkScore>=THRESH || sourceScore<THRESH && sinkScore>sourceScore)
-                outSink.append(x+width*y);
+//            if (sourceScore>=THRESH || sinkScore<THRESH && sourceScore>sinkScore)
+//                outSource.append(x+width*y);
+//            if (sinkScore>=THRESH || sourceScore<THRESH && sinkScore>sourceScore)
+//                outSink.append(x+width*y);
             
             
-        }
-    }
+//        }
+//    }
     
     
     ///test///
@@ -2409,9 +2409,9 @@ double GraphCut::computeScore(int sampleSize, double* x, double* y, double meanS
 //    double score = (copysign(1.0, curvature) == copysign(1.0, meanCurve) && 
 //                    copysign(1.0, slope) == copysign(1.0, meanSlope)) ? 
 //                        .75*(1/rsqCurve)*std::max(fabs(curvature-meanCurve),2*stdDevCurve) + .1*(1/rsqSlope)*fabs(slope-meanSlope) : DOUBLE_POS_INFINITY;
-    double score = (copysign(1.0, curvature) == copysign(1.0, meanCurve) && 
-                    copysign(1.0, slope) == copysign(1.0, meanSlope)) ? 
-                        10*(1/std::max(rsqCurve,0.1))*std::max(fabs(curvature-meanCurve),2*stdDevCurve) + .1*std::max(fabs(slope-meanSlope),2*stdDevSlope) : DOUBLE_POS_INFINITY;
+    double score = (copysign(1.0, curvature) == copysign(1.0, meanCurve) ||
+                    fabs(curvature)<0.001) ? 
+                10*(1/std::max(rsqCurve,0.1))*std::max(fabs(curvature-meanCurve),2*stdDevCurve)/(2*stdDevCurve) + .1*std::max(fabs(slope-meanSlope),2*stdDevSlope)/(2*stdDevSlope) : DOUBLE_POS_INFINITY;
     
     
     if (print /*&& score!=DOUBLE_POS_INFINITY*/)
@@ -2422,7 +2422,22 @@ double GraphCut::computeScore(int sampleSize, double* x, double* y, double meanS
         }
         else
             printf("[L] ");
-        printf("Curve=%f\tR^2=%f\tscore=%f\tV_y=%d\n",curvature-meanCurve,rsqCurve,score,(int)yOfVertex);
+        printf("Curve=%f\tdif=%f\tR^2=%f\tscore=%f\tV_y=%d\n",curvature,curvature-meanCurve,rsqCurve,score==DOUBLE_POS_INFINITY?-1:score,(int)yOfVertex);
+        int maxY=0;
+        int minY=INT_POS_INFINITY;
+        for (int i=0; i<sampleSize; i++)
+        {
+            if (x[i]>maxY)
+                maxY=x[i];
+            if (x[i]<minY)
+                minY=x[i];
+        }
+        if (yOfVertex<minY && yOfVertex<maxY)
+            printf("Vertex is above.\n");
+        else if (yOfVertex>minY && yOfVertex>maxY)
+            printf("Vertex is below.\n");
+        else
+            printf("Vertex is between.\n");
         
 //        printf("chi^2=%f\tTSS=%f\n",chisqSlope,tss);
     }
@@ -2492,10 +2507,14 @@ void GraphCut::strengthenDescenderComponent(const BPixelCollection &img, const Q
 //    for (int i=0; i<skeleton.numberOfVertices(); i++)
 //        notVisited[i]=true;
 //    notVisited[startRegionId]=false;
-    QVector<unsigned int> bestLowerPath;
-    double bestLowerScore=DOUBLE_POS_INFINITY;
-    QVector<unsigned int> bestUpperPath;
-    double bestUpperScore=DOUBLE_POS_INFINITY;
+//    QVector<unsigned int> bestLowerPath;
+//    double bestLowerScore=DOUBLE_POS_INFINITY;
+//    QVector<unsigned int> bestUpperPath;
+//    double bestUpperScore=DOUBLE_POS_INFINITY;
+    QVector<QVector<unsigned int> > bestLowerPaths;
+    QVector<double> bestLowerScores;
+    QVector<QVector<unsigned int> > bestUpperPaths;
+    QVector<double> bestUpperScores;
     
     PathStackMap upperPaths;
     
@@ -2511,25 +2530,62 @@ void GraphCut::strengthenDescenderComponent(const BPixelCollection &img, const Q
 //    }
     QVector<unsigned int> newPath;
     newPath.append(startRegionId);
-    lowerDescenderTraverser(skeleton,&bestLowerPath,&bestLowerScore,&bestUpperPath,&bestUpperScore,&newPath,0,&upperPaths);
+    lowerDescenderTraverser(skeleton,&bestLowerPaths,&bestLowerScores,&bestUpperPaths,&bestUpperScores,&newPath,0,&upperPaths);
     
-    //TODO: something about it
-    printf("[U] Best path (%f) is: ",bestUpperScore);
-    foreach (unsigned int i, bestUpperPath)
-        printf("(%d,%d), ",skeleton[i].x,skeleton[i].y);
-    printf("\n");
-    printf("[L] Best path (%f) is: ",bestLowerScore);
-    foreach (unsigned int i, bestLowerPath)
-        printf("(%d,%d), ",skeleton[i].x,skeleton[i].y);
-    printf("\n");
+    //TODO: something about it. Use top 5 (?) paths only
     
-//    char a;
-//    printf("Cont? ");
-//    scanf("%c",&a);
-//    printf("ok\n");
+//    printf("[U] Best path (%f) is: ",bestUpperScore);
+//    foreach (unsigned int i, bestUpperPath)
+//        printf("(%d,%d), ",skeleton[i].x,skeleton[i].y);
+//    printf("\n");
+//    printf("[L] Best path (%f) is: ",bestLowerScore);
+//    foreach (unsigned int i, bestLowerPath)
+//        printf("(%d,%d), ",skeleton[i].x,skeleton[i].y);
+//    printf("\n");
+    QImage test(img.makeImage().getImage());
+    QVector<QRgb> colors=test.colorTable();
+    colors.append(qRgb(255,0,0));
+    test.setColorTable(colors);
+    printf("Best paths:\n");
+    QMap<double,unsigned int> byCombinedScore;
+    for (int i=0; i<bestLowerPaths.size(); i++)
+    {
+        byCombinedScore[bestUpperScores[i]+bestLowerScores[i]] = i;
+        printf("Combine (%f):\n[U] path (%f) is: ",bestUpperScores[i]+bestLowerScores[i],bestUpperScores[i]);
+        foreach (unsigned int j, bestUpperPaths[i])
+            printf("(%d,%d), ",skeleton[j].x,skeleton[j].y);
+        printf("\n");
+        printf("[L] path (%f) is: ",bestLowerScores[i]);
+        foreach (unsigned int j, bestLowerPaths[i])
+            printf("(%d,%d), ",skeleton[j].x,skeleton[j].y);
+        printf("\n");
+    }
+    
+    int count=0;
+    foreach (unsigned int i, byCombinedScore.values())
+    {
+        if (count++>=5)
+            break;
+        
+        foreach (unsigned int j, bestUpperPaths[i])
+        {
+            test.setPixel(skeleton[j].x,skeleton[j].y,colors.size()-1);
+        }
+        foreach (unsigned int j, bestLowerPaths[i])
+        {
+            test.setPixel(skeleton[j].x,skeleton[j].y,colors.size()-1);
+        }
+    }
+    
+    test.save("./test_descender_id.ppm");
+    
+    char a;
+    printf("Cont? ");
+    scanf("%c",&a);
+    printf("ok\n");
 }
 
-void GraphCut::lowerDescenderTraverser(const BlobSkeleton &skeleton, QVector<unsigned int>* bestLowerPath, double* bestLowerScore, QVector<unsigned int>* bestUpperPath, double* bestUpperScore, const QVector<unsigned int>* currentPath, double clockwiseScore, PathStackMap* upperPaths)
+void GraphCut::lowerDescenderTraverser(const BlobSkeleton &skeleton, QVector<QVector<unsigned int> >* bestLowerPaths, QVector<double>* bestLowerScores, QVector<QVector<unsigned int> >* bestUpperPaths, QVector<double>* bestUpperScores, const QVector<unsigned int>* currentPath, double clockwiseScore, PathStackMap* upperPaths)
 {
     
     int startUpperStack = upperPaths->size();
@@ -2540,9 +2596,9 @@ void GraphCut::lowerDescenderTraverser(const BlobSkeleton &skeleton, QVector<uns
 //        foreach (unsigned int i, *currentPath)
 //            printf("(%d,%d), ",skeleton[i].x,skeleton[i].y);
 //        printf("\n");
-        bool print = (currentPath->size()==5 && 
-                skeleton[currentPath->at(3)].x==24 && skeleton[currentPath->at(3)].y==61 &&
-                skeleton[currentPath->at(4)].x==25 && skeleton[currentPath->at(4)].y==69);
+        bool print = /*(currentPath->size()==5 && 
+                skeleton[currentPath->at(3)].x==46 && skeleton[currentPath->at(3)].y==54 &&
+                skeleton[currentPath->at(4)].x==42 && skeleton[currentPath->at(4)].y==54);*/
 //                ||
 //        (currentPath->size()==5 && 
 //         skeleton[currentPath->at(4)].x==47 && skeleton[currentPath->at(4)].y==51 &&       
@@ -2552,21 +2608,21 @@ void GraphCut::lowerDescenderTraverser(const BlobSkeleton &skeleton, QVector<uns
 //                skeleton[currentPath->at(4)].x==11 && skeleton[currentPath->at(4)].y==69 &&
 //                 skeleton[currentPath->at(3)].x==21 && skeleton[currentPath->at(3)].y==62 &&
 //                 skeleton[currentPath->at(2)].x==24 && skeleton[currentPath->at(2)].y==52)
-//                ((currentPath->size()==4 || (currentPath->size()==5 && skeleton[currentPath->at(4)].x==27 && skeleton[currentPath->at(4)].y==52)) &&  
-//                 skeleton[currentPath->at(3)].x==38 && skeleton[currentPath->at(3)].y==55 &&
-//                    skeleton[currentPath->at(1)].x==34 && skeleton[currentPath->at(1)].y==42 /*&&
-//                    skeleton[currentPath->at(2)].x==54 && skeleton[currentPath->at(2)].y==37*/);
+//                ((/*currentPath->size()==4 || */(currentPath->size()==5 && skeleton[currentPath->at(4)].x==47 && skeleton[currentPath->at(4)].y==49)) &&  
+//                 skeleton[currentPath->at(3)].x==52 && skeleton[currentPath->at(3)].y==51 &&
+//                    skeleton[currentPath->at(1)].x==34 && skeleton[currentPath->at(1)].y==42 &&
+//                    skeleton[currentPath->at(2)].x==60 && skeleton[currentPath->at(2)].y==47);
 //                ||
 //                (currentPath->size()>=3 &&  
 //                 skeleton[currentPath->at(4)].x==13 && skeleton[currentPath->at(4)].y==56 &&
 //                    skeleton[currentPath->at(1)].x==55 && skeleton[currentPath->at(1)].y==28 &&
 //                    skeleton[currentPath->at(2)].x==60 && skeleton[currentPath->at(2)].y==47);
-//                (currentPath->size()==7 && 
-//                 skeleton[currentPath->at(6)].x==2 && skeleton[currentPath->at(6)].y==71 &&
-//                 skeleton[currentPath->at(5)].x==11 && skeleton[currentPath->at(5)].y==69 &&
-//                 skeleton[currentPath->at(4)].x==11 && skeleton[currentPath->at(4)].y==61 &&
-//                 skeleton[currentPath->at(3)].x==21 && skeleton[currentPath->at(3)].y==62 &&
-//                 skeleton[currentPath->at(2)].x==24 && skeleton[currentPath->at(2)].y==52);
+                (currentPath->size()==11 && 
+                 skeleton[currentPath->at(5)].x==28 && skeleton[currentPath->at(5)].y==52 &&
+                 skeleton[currentPath->at(6)].x==24 && skeleton[currentPath->at(6)].y==55 &&
+                 skeleton[currentPath->at(8)].x==23 && skeleton[currentPath->at(8)].y==64 &&
+                 skeleton[currentPath->at(9)].x==25 && skeleton[currentPath->at(9)].y==69 &&
+                 skeleton[currentPath->at(10)].x==20 && skeleton[currentPath->at(10)].y==74);
         
         //get score
         QVector<double> x;
@@ -2580,29 +2636,42 @@ void GraphCut::lowerDescenderTraverser(const BlobSkeleton &skeleton, QVector<uns
 //            (*bestLowerPath) += *currentPath;
 //            *bestLowerScore=currentScore;
 //        }
-        double upperScore = (*upperPaths)[currentPath->back()].score;
-        if (upperScore!=-1 && upperScore!=DOUBLE_POS_INFINITY && currentScore!=DOUBLE_POS_INFINITY &&
-//                !currentPath->contains((*upperPaths)[currentPath->back()].path[1]) && 
-                ((*bestLowerScore==DOUBLE_POS_INFINITY || *bestUpperScore==DOUBLE_POS_INFINITY) ||upperScore+currentScore<*bestUpperScore+*bestLowerScore))
+        
+        for (int i=0; i< upperPaths->size(currentPath->back()); i++)
         {
-            bool goodMatch = true;
-            for (int i=0; i<currentPath->size()-1; i++)
+        
+            double upperScore = upperPaths->at(currentPath->back(),i).score;
+    //        if (upperScore!=-1 && upperScore!=DOUBLE_POS_INFINITY && currentScore!=DOUBLE_POS_INFINITY &&
+    //                ((*bestLowerScore==DOUBLE_POS_INFINITY || *bestUpperScore==DOUBLE_POS_INFINITY) ||upperScore+currentScore<*bestUpperScore+*bestLowerScore))
+            if (upperScore<SCORE_THRESH && currentScore<SCORE_THRESH && upperScore+currentScore<COMBINE_SCORE_THRESH)
             {
-                if ((*upperPaths)[currentPath->back()].path.contains(currentPath->at(i)) &&
-                        (*upperPaths)[currentPath->back()].path[0] != currentPath->at(i))
+                bool goodMatch = true;
+                for (int j=0; j<currentPath->size()-1; j++)
                 {
-                    goodMatch = false;
-                    break;
+                    if (upperPaths->at(currentPath->back(),i).path.contains(currentPath->at(j)) &&
+                            upperPaths->at(currentPath->back(),i).path[0] != currentPath->at(j))
+                    {
+                        goodMatch = false;
+                    }
+                }
+                if (goodMatch)
+                {
+    //                bestLowerPath->clear();
+    //                (*bestLowerPath) += *currentPath;
+    //                *bestLowerScore=currentScore;
+    //                bestUpperPath->clear();
+    //                (*bestUpperPath) += (*upperPaths)[currentPath->back()].path;
+    //                *bestUpperScore=upperScore;
+                    bestLowerPaths->append(*currentPath);
+                    bestLowerScores->append(currentScore);
+                    bestUpperPaths->append(upperPaths->at(currentPath->back(),i).path);
+                    bestUpperScores->append(upperScore);
+//                    break;
                 }
             }
-            if (goodMatch)
+            else
             {
-                bestLowerPath->clear();
-                (*bestLowerPath) += *currentPath;
-                *bestLowerScore=currentScore;
-                bestUpperPath->clear();
-                (*bestUpperPath) += (*upperPaths)[currentPath->back()].path;
-                *bestUpperScore=upperScore;
+                break;
             }
         }
         
@@ -2666,7 +2735,7 @@ void GraphCut::lowerDescenderTraverser(const BlobSkeleton &skeleton, QVector<uns
     {
         QVector<unsigned int> newPath = *currentPath;
         newPath.append(nextIndex);
-        lowerDescenderTraverser(skeleton,bestLowerPath,bestLowerScore,bestUpperPath,bestUpperScore,&newPath,toExpand[nextIndex],upperPaths);
+        lowerDescenderTraverser(skeleton,bestLowerPaths,bestLowerScores,bestUpperPaths,bestUpperScores,&newPath,toExpand[nextIndex],upperPaths);
     }
     
     
@@ -2688,17 +2757,17 @@ void GraphCut::upperDescenderTraverser(const BlobSkeleton &skeleton, const QVect
 //        foreach (int i, *currentPath)
 //            printf("(%d,%d), ",skeleton[i].x,skeleton[i].y);
 //        printf("\n");
-        bool print = (currentPath->size()==4 && 
-                skeleton[currentPath->at(0)].x==20 && skeleton[currentPath->at(0)].y==52 &&
-                skeleton[currentPath->at(1)].x==16 && skeleton[currentPath->at(1)].y==60 &&
-                skeleton[currentPath->at(3)].x==15 && skeleton[currentPath->at(3)].y==69 /*&&
-                skeleton[currentPath->at(4)].x==52 && skeleton[currentPath->at(4)].y==45*/)
-                ||
-                (currentPath->size()==6 && 
-                                skeleton[currentPath->at(0)].x==21 && skeleton[currentPath->at(0)].y==44 &&
-                                skeleton[currentPath->at(1)].x==15 && skeleton[currentPath->at(1)].y==51 &&
-                                skeleton[currentPath->at(2)].x==15 && skeleton[currentPath->at(2)].y==55 &&
-                                skeleton[currentPath->at(5)].x==25 && skeleton[currentPath->at(5)].y==69 /*&&
+        bool print = /*(currentPath->size()==3 && 
+                skeleton[currentPath->at(0)].x==42 && skeleton[currentPath->at(0)].y==43 &&
+                skeleton[currentPath->at(1)].x==40 && skeleton[currentPath->at(1)].y==50 &&
+                skeleton[currentPath->at(2)].x==42 && skeleton[currentPath->at(2)].y==54 &&
+                skeleton[currentPath->at(3)].x==46 && skeleton[currentPath->at(3)].y==54);*/
+//                ||
+                (currentPath->size()==11 && 
+                                skeleton[currentPath->at(0)].x==41 && skeleton[currentPath->at(0)].y==25 &&
+                                skeleton[currentPath->at(1)].x==29 && skeleton[currentPath->at(1)].y==28 &&
+                                skeleton[currentPath->at(10)].x==20 && skeleton[currentPath->at(10)].y==74 /*&&
+                                skeleton[currentPath->at(5)].x==25 && skeleton[currentPath->at(5)].y==69 &&
                                 skeleton[currentPath->at(5)].x==47 && skeleton[currentPath->at(5)].y==51*/);
 //                (currentPath->size()==4 && 
 //                    skeleton[currentPath->at(0)].x==30 && skeleton[currentPath->at(0)].y==33 &&

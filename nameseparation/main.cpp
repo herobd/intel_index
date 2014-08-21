@@ -30,6 +30,11 @@ int main(int argc, char** argv)
     
     ///Test descender identification/////
     
+//    BImage cleared = BoxCleaner::trimVerticleBoundaries(bimg);
+//    cleared = BoxCleaner::trimHorizontalBoundaries(cleared);
+//    cleared = BoxCleaner::removeVerticlePixelNoise(cleared);
+//    QVector<BPartition*> lines = WordSeparator::segmentLinesOfWords(cleared,40);
+    
     //9
 //    QPoint cross(60,29);
     
@@ -37,7 +42,28 @@ int main(int argc, char** argv)
 //    QPoint cross(31,28);
     
     //12
-    QPoint cross(21,45);
+//    QPoint cross(21,45);
+    
+    //13
+//    QPoint cross(29,39);
+    
+    //14
+//    QPoint cross(28,35);
+    
+    //15
+//    QPoint cross(23,33);
+    
+    //16
+//    QPoint cross(44,28);
+    
+    //18
+//    QPoint cross(44,30);
+    
+    //19
+//    QPoint cross(24,31);
+    
+    //20
+    QPoint cross(50,30);
     
     Indexer3D indexer(1,1);
     GraphCut::strengthenDescenderComponent(bimg,cross,NULL,indexer,0);

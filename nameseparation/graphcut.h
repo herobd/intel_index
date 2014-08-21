@@ -28,6 +28,8 @@
 #define UPPER_STD_DEV_CURVE 0.046421
 #define CLOCKWISE_THRESH -10
 #define COUNTER_CLOCKWISE_THRESH -5
+#define SCORE_THRESH 17//15
+#define COMBINE_SCORE_THRESH 30//27
 
 typedef Graph<int,int,int> GraphType;
 
@@ -56,7 +58,7 @@ public:
      
 private:
      
-     static void lowerDescenderTraverser(const BlobSkeleton &skeleton, QVector<unsigned int>* bestLowerPath, double* bestLowerScore, QVector<unsigned int>* bestUpperPath, double* bestUpperScore, const QVector<unsigned int>* currentPath, double clockwiseScore, PathStackMap* upperPaths);
+     static void lowerDescenderTraverser(const BlobSkeleton &skeleton, QVector<QVector<unsigned int> >* bestLowerPaths, QVector<double>* bestLowerScores, QVector<QVector<unsigned int> >* bestUpperPaths, QVector<double>* bestUpperScores, const QVector<unsigned int>* currentPath, double clockwiseScore, PathStackMap* upperPaths);
      static void upperDescenderTraverser(const BlobSkeleton &skeleton, const QVector<unsigned int>* currentPath, double counterClockwiseScore, PathStackMap* upperPaths);
      
      static int extractSampleFromPath(const BlobSkeleton &skeleton, const QVector<unsigned int>* currentPath, QVector<double>* xOut, QVector<double>* yOut);
