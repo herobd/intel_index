@@ -1210,9 +1210,9 @@ void phaseSaitoX(const double* V, long *sdt_x, const Indexer3D &ind, int sizeX, 
 	  
 	// Forward scan
 	for (int x = 1; x < sizeX ; x++) 	    
-	  if (V[ind.getIndex(x,y,z)]>0 && 10 - V[ind.getIndex(0,y,z)]*10 < sum(1, sdt_x[ind.getIndex(x-1,y,z)]))
+	  if (V[ind.getIndex(x,y,z)]>0 && 10 - V[ind.getIndex(x,y,z)]*10 < sum(1, sdt_x[ind.getIndex(x-1,y,z)]))
       {
-	    sdt_x[ind.getIndex(x,y,z)] = 10 - V[ind.getIndex(0,y,z)]*10;
+	    sdt_x[ind.getIndex(x,y,z)] = 10 - V[ind.getIndex(x,y,z)]*10;
       }
 	  else 
 	    sdt_x[ind.getIndex(x,y,z)]=sum(1, sdt_x[ind.getIndex(x-1,y,z)]);	  
@@ -1375,8 +1375,9 @@ void DistanceTransform::compute3DInverseDistanceMapNew(const double* src, long* 
     delete[] sdt_x;
     delete[] sdt_xy;
     
+    
     long newmax=0;
-    double e = 60;
+    double e = 100;//60;
     double b = 200;
     double m = 10000;
     double a = INV_A;
@@ -1386,7 +1387,6 @@ void DistanceTransform::compute3DInverseDistanceMapNew(const double* src, long* 
         if (out[i]>newmax)
             newmax=out[i];
     }
-    
 //    printf("3d newmax=%d\n",newmax);
     
     QVector<QRgb> default_color_table;
@@ -1406,15 +1406,12 @@ void DistanceTransform::compute3DInverseDistanceMapNew(const double* src, long* 
             for (int y=0; y<debug.height(); y++)
             {
                 debug.setPixel(x,y,(int)((out[ind.getIndex(x,y,z)]/((double)newmax))*254));
-                if (src[ind.getIndex(x,y,z)])
-                    debug2.setPixel(x,y,0);
-                else
-                    debug2.setPixel(x,y,254);
+                debug2.setPixel(x,y,src[ind.getIndex(x,y,z)]*254);
             }
             
         }
         QString debugfile = "./dist_3d/layer_";
-        QString debugfile2 = "./output/layer_";
+        QString debugfile2 = "./angleimage/layer_";
         QString num;
         num.setNum(z);
         debugfile.append(num);

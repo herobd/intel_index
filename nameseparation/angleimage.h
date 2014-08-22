@@ -68,8 +68,11 @@ public:
     void setNumOfBinsMinValMaxVal(int numOfBins, double minVal, double maxVal);
     int getNumOfBins() const;
     QMap<int,double> getBinsAndStrForPixel(int x, int y) const;
+    int getBinForAngle(double angle) const;
     bool noStrongerAngleForPixel(int x, int y, double angle, double strength) const;
     bool noAnglesForPixel(int x, int y) const;
+    
+    const BlobSkeleton& getSkeleton() const {return skeleton;}
     
 private:
     void init();
@@ -82,6 +85,7 @@ private:
     int numOfBins;
     double minValue;
     double maxValue;
+    BlobSkeleton skeleton;
 };
 
 

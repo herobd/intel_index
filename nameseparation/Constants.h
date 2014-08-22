@@ -23,7 +23,7 @@
 #define ANCHOR_L 2.4
 #define ANCHOR_R 2.4
 
-#define INV_A 50 //100
+#define INV_A 100
 
 inline int mod(int a, int b)
 {

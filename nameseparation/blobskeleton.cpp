@@ -1,6 +1,16 @@
 #include "blobskeleton.h"
 
+BlobSkeleton::BlobSkeleton()
+{
+    src=NULL;
+}
+
 BlobSkeleton::BlobSkeleton(const BPixelCollection* src)
+{
+    init(src);
+}
+
+void BlobSkeleton::init(const BPixelCollection* src)
 {
     this->src=src;
     assignments = new int*[src->width()];
@@ -18,11 +28,14 @@ BlobSkeleton::BlobSkeleton(const BPixelCollection* src)
 
 BlobSkeleton::~BlobSkeleton()
 {
-    for (int x=0; x<src->width(); x++)
+    if (src!=NULL)
     {
-        delete[] assignments[x];
+        for (int x=0; x<src->width(); x++)
+        {
+            delete[] assignments[x];
+        }
+        delete[] assignments;
     }
-    delete[] assignments;
 }
 
 QPoint BlobSkeleton::findStartPoint()
@@ -225,7 +238,7 @@ void BlobSkeleton::blobFill(const QPoint &begin)
                             mark.setPixel(p,false);
                         }
                         else if (src->pixel(x,y) && 
-                                 myRegionId != assignments[x][y] && 
+                                 (int)myRegionId != assignments[x][y] && 
                                  0 <= assignments[x][y])
                         {
                             neighborRegions.insert(assignments[x][y]);
@@ -237,14 +250,14 @@ void BlobSkeleton::blobFill(const QPoint &begin)
                             {
                                 if (x+mDelta>=0 && x+mDelta<mark.width() &&
                                     src->pixel(x+mDelta,y) && 
-                                    myRegionId != assignments[x+mDelta][y] && 
+                                    (int)myRegionId != assignments[x+mDelta][y] && 
                                     0 <= assignments[x+mDelta][y])
                                 {
                                     neighborRegions.insert(assignments[x+mDelta][y]);
                                 }
                                 if (y+mDelta>=0 && y+mDelta<mark.height() &&
                                          src->pixel(x,y+mDelta) && 
-                                         myRegionId != assignments[x][y+mDelta] && 
+                                         (int)myRegionId != assignments[x][y+mDelta] && 
                                          0 <= assignments[x][y+mDelta])
                                 {
                                     neighborRegions.insert(assignments[x][y+mDelta]);
@@ -465,113 +478,124 @@ void BlobSkeleton::blobFill(const QPoint &begin)
 }
 
 
-void BlobSkeleton::draw(QString name)
+void BlobSkeleton::draw(QString name) const
 {
-    //coloring
-    BImage img = src->makeImage();
-    QImage lines = img.getImage();
-    QVector<QRgb> colorTable=lines.colorTable();
-    int NUM_VALS = 245;
-    int ctOffset=colorTable.size();
-    for (int i=0; i<NUM_VALS; i++)
+    if (src!=NULL)
     {
-        QColor color;
-        color.setHsv(360*(i*1.0/NUM_VALS),255,255);
-        colorTable.append(color.rgb());
-    }
-    colorTable.append(qRgb(155,155,155));
-    
-    lines.setColorTable(colorTable);
-    
-    QVector<BPartition*> parts;
-    for (int i=0; i<centersOfMass.size(); i++)
-    {
-        QVector<QPoint> region = regions[i];
-        
-        if (region.size()<MIN_REGION_SIZE)
+        //coloring
+        BImage img = src->makeImage();
+        QImage lines = img.getImage();
+        QVector<QRgb> colorTable=lines.colorTable();
+        int NUM_VALS = 245;
+        int ctOffset=colorTable.size();
+        for (int i=0; i<NUM_VALS; i++)
         {
-            
-//            foreach(QPoint p, region)
-//            {
-//                img.setPixel(p,false);
-//            }
-            continue;
+            QColor color;
+            color.setHsv(360*(i*1.0/NUM_VALS),255,255);
+            colorTable.append(color.rgb());
         }
+        colorTable.append(qRgb(155,155,155));
         
-        img.setPixel(centersOfMass[i].x,centersOfMass[i].y,false);
-        BPartition* newPart = new BPartition(&img);
-        foreach(QPoint p, region)
-        {
-            newPart->addPixelFromSrc(p);
-        }
-        img.claimOwnership(newPart,1);
+        lines.setColorTable(colorTable);
         
-//        if (lines.pixel(centersOfMass[i].x,centersOfMass[i].y)!=blue)
+        QVector<BPartition*> parts;
+        for (int i=0; i<centersOfMass.size(); i++)
         {
+            QVector<QPoint> region = regions[i];
             
-            for (int j=0; j<centersOfMass[i].connectedPoints.size(); j++)
+            if (region.size()<MIN_REGION_SIZE)
             {
-                unsigned int index = centersOfMass[i].connectedPoints[j];
                 
-                double angle = centersOfMass[i].angleBetween[j];
-//                printf("Hue used: %d\n",(int)(360*(angle/PI)));
-                
-                //draw line
-                
-                if (centersOfMass[i].x != centersOfMass[index].x)
-                {
-                    double shiftAngle = angle;
-                    if (shiftAngle>HALF_PI)
-                        shiftAngle-=PI;
-                    double slope = tan(shiftAngle);
-//                    printf("line of slope %f\n",slope);
-                    int start = std::min(centersOfMass[i].x,centersOfMass[index].x);
-                    int end = std::max(centersOfMass[i].x,centersOfMass[index].x);
-                    double y;
-                    if (start==centersOfMass[i].x)
-                        y= centersOfMass[i].y;
-                    else
-                        y= centersOfMass[index].y;
-                    for (int x=start; x<end; x++)
-                    {
-                        lines.setPixel(x,(int)y,(int)(NUM_VALS*(angle/PI)+ctOffset));
-                        for (int yDelta=std::min(1,(int)ceil(slope)); yDelta<std::max(1,(int)ceil(slope)); yDelta++)
-                            lines.setPixel(x,(int)y + yDelta,(int)(NUM_VALS*(angle/PI)+ctOffset));
-                        y+=slope;
-                    }
-                    
-                }
-                else
-                {
-                    int start = std::min(centersOfMass[i].y,centersOfMass[index].y);
-                    int end = std::max(centersOfMass[i].y,centersOfMass[index].y);
-                    int x =centersOfMass[i].x;
-                    for (int y=start; y<=end; y++)
-                    {
-                        lines.setPixel(x,y,NUM_VALS/2);
-                    }
-                }
-                lines.setPixel(centersOfMass[index].x,centersOfMass[index].y,NUM_VALS+ctOffset);
+                //            foreach(QPoint p, region)
+                //            {
+                //                img.setPixel(p,false);
+                //            }
+                continue;
             }
-            lines.setPixel(centersOfMass[i].x,centersOfMass[i].y,NUM_VALS+ctOffset);
+            
+            img.setPixel(centersOfMass[i].x,centersOfMass[i].y,false);
+            BPartition* newPart = new BPartition(&img);
+            foreach(QPoint p, region)
+            {
+                newPart->addPixelFromSrc(p);
+            }
+            img.claimOwnership(newPart,1);
+            
+            //        if (lines.pixel(centersOfMass[i].x,centersOfMass[i].y)!=blue)
+            {
+                
+                for (int j=0; j<centersOfMass[i].connectedPoints.size(); j++)
+                {
+                    unsigned int index = centersOfMass[i].connectedPoints[j];
+                    
+                    double angle = centersOfMass[i].angleBetween[j];
+                    //                printf("Hue used: %d\n",(int)(360*(angle/PI)));
+                    
+                    //draw line
+                    
+                    if (centersOfMass[i].x != centersOfMass[index].x)
+                    {
+                        double shiftAngle = angle;
+                        if (shiftAngle>HALF_PI)
+                            shiftAngle-=PI;
+                        double slope = tan(shiftAngle);
+                        //                    printf("line of slope %f\n",slope);
+                        int start = std::min(centersOfMass[i].x,centersOfMass[index].x);
+                        int end = std::max(centersOfMass[i].x,centersOfMass[index].x);
+                        double y;
+                        if (start==centersOfMass[i].x)
+                            y= centersOfMass[i].y;
+                        else
+                            y= centersOfMass[index].y;
+                        for (int x=start; x<end; x++)
+                        {
+                            lines.setPixel(x,(int)y,(int)(NUM_VALS*(angle/PI)+ctOffset));
+                            for (int yDelta=std::min(1,(int)ceil(slope)); yDelta<std::max(1,(int)ceil(slope)); yDelta++)
+                                lines.setPixel(x,(int)y + yDelta,(int)(NUM_VALS*(angle/PI)+ctOffset));
+                            y+=slope;
+                        }
+                        
+                    }
+                    else
+                    {
+                        int start = std::min(centersOfMass[i].y,centersOfMass[index].y);
+                        int end = std::max(centersOfMass[i].y,centersOfMass[index].y);
+                        int x =centersOfMass[i].x;
+                        for (int y=start; y<=end; y++)
+                        {
+                            lines.setPixel(x,y,NUM_VALS/2);
+                        }
+                    }
+                    lines.setPixel(centersOfMass[index].x,centersOfMass[index].y,NUM_VALS+ctOffset);
+                }
+                lines.setPixel(centersOfMass[i].x,centersOfMass[i].y,NUM_VALS+ctOffset);
+            }
+            
         }
+        img.saveOwners("./" + name + "_blob.ppm");
+        lines.save("./" + name + "_lines.ppm");
         
+        foreach(BPartition* d,parts)
+        {
+            delete d;
+        }
     }
-    img.saveOwners("./" + name + "_blob.ppm");
-    lines.save("./" + name + "_lines.ppm");
-    
-    foreach(BPartition* d,parts)
-    {
-        delete d;
-    }
+//    else
+//        printf("BlobSkeleton: Nothing to draw.");
 }
 
-int BlobSkeleton::regionIdForPoint(const QPoint &p)
+int BlobSkeleton::regionIdForPoint(const QPoint &p) const
 {
-    return assignments[p.x()][p.y()];
+    if (src!=NULL)
+        return assignments[p.x()][p.y()];
+    else
+        return -1;
 }
 
-int BlobSkeleton::regionIdForPoint(int x, int y)
+int BlobSkeleton::regionIdForPoint(int x, int y) const
 {
-    return assignments[x][y];
+    if (src!=NULL)
+        return assignments[x][y];
+    else
+        return -1;
 }

@@ -116,7 +116,7 @@ void AngleImage::init()
 //        }
 //    }
     
-    BlobSkeleton skeleton(src);
+    skeleton.init(src);
     
     QVector<bool> visited(skeleton.numberOfVertices());
     for (int i=0; i<visited.size(); i++)
@@ -471,12 +471,17 @@ QMap<int,double> AngleImage::getBinsAndStrForPixel(int x, int y) const
 
     foreach (double angle, angles[x][y].keys())
     {
-        int bin = (int)((angle-minValue)*((numOfBins-1)/(maxValue-minValue)));
+        int bin = getBinForAngle(angle);
         double strength = angles[x][y][angle]/maxStr;
         ret[bin]=strength;
     }
 
     return ret;
+}
+
+int AngleImage::getBinForAngle(double angle) const
+{
+    return (int)((angle-minValue)*((numOfBins-1)/(maxValue-minValue)));
 }
 
 bool AngleImage::noStrongerAngleForPixel(int x, int y, double angle, double strength) const

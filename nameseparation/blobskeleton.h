@@ -32,13 +32,15 @@ struct tracePoint
 class BlobSkeleton
 {
 public:
+    BlobSkeleton();
     BlobSkeleton(const BPixelCollection* src);
     ~BlobSkeleton();
+    void init(const BPixelCollection* src);
     unsigned int numberOfVertices()const {return centersOfMass.size();}
     const tracePoint& operator[] (unsigned int index) const {return centersOfMass[index];}
-    void draw(QString name);
-    int regionIdForPoint(const QPoint &p);
-    int regionIdForPoint(int x, int y);
+    void draw(QString name) const;
+    int regionIdForPoint(const QPoint &p) const;
+    int regionIdForPoint(int x, int y) const;
     const QVector<QPoint>& getRegion(unsigned int index) const {return regions[index];}
     
 private:

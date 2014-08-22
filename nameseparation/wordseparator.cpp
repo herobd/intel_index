@@ -2602,7 +2602,7 @@ QVector<BPartition*> WordSeparator::cut3D(const BPixelCollection &img, QVector<Q
     DistanceTransform::compute3DInverseDistanceMapNew(img3d,distmap3d,angleImage.width(),angleImage.height(),numOfBins);
     ///test3ddist
     
-    int maxflow = GraphCut::pixelsOfSeparation(distmap3d,img.width(),img.height(),numOfBins,img,sourceSeeds,sinkSeeds,firstImgIndexes,secondImgIndexes, crossOverPoint);
+    int maxflow = GraphCut::pixelsOfSeparation(distmap3d,img.width(),img.height(),numOfBins,angleImage,sourceSeeds,sinkSeeds,firstImgIndexes,secondImgIndexes, crossOverPoint);
     
     delete[] distmap3d;
     delete[] img3d;
