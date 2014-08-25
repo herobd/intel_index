@@ -22,6 +22,7 @@
 
 #define ANCHOR_L 2.4
 #define ANCHOR_R 2.4
+#define NEW_ANCHOR 80
 
 #define INV_A 100
 

@@ -520,7 +520,8 @@ void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bot
                                 }
                     }
                     QPoint newCrossOverPoint(keyPoint.x()-newSubsection.getXOffset(),keyPoint.y()-newSubsection.getYOffset());
-                    QVector<BPartition*> result3DCut = cut3D(newSubsection, sourceSeeds, sinkSeeds, newCrossOverPoint);
+//                    QVector<BPartition*> result3DCut = recut3D(newSubsection, sourceSeeds, sinkSeeds, newCrossOverPoint);
+                    QVector<BPartition*> result3DCut = recut2D(newSubsection, sourceSeeds, sinkSeeds, newCrossOverPoint);
                     
                     ///test///start
 //                    xs.setNum(keyPoint.x());
@@ -2371,7 +2372,7 @@ QVector<BPartition*> WordSeparator::recursiveHorizontalCutFull(const BPixelColle
 
 
 
-QVector<BPartition*> WordSeparator::cut3D(const BPixelCollection &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, const QPoint &crossOverPoint)
+QVector<BPartition*> WordSeparator::recut3D(const BPixelCollection &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, const QPoint &crossOverPoint)
 {
 //    Dimension slopes(img.width(),img.height());
     
@@ -2602,7 +2603,7 @@ QVector<BPartition*> WordSeparator::cut3D(const BPixelCollection &img, QVector<Q
     DistanceTransform::compute3DInverseDistanceMapNew(img3d,distmap3d,angleImage.width(),angleImage.height(),numOfBins);
     ///test3ddist
     
-    int maxflow = GraphCut::pixelsOfSeparation(distmap3d,img.width(),img.height(),numOfBins,angleImage,sourceSeeds,sinkSeeds,firstImgIndexes,secondImgIndexes, crossOverPoint);
+    int maxflow = GraphCut::pixelsOfSeparation(distmap3d,img.width(),img.height(),numOfBins,angleImage,sourceSeeds,sinkSeeds,firstImgIndexes,secondImgIndexes, crossOverPoint, INT_POS_INFINITY/2);
     
     delete[] distmap3d;
     delete[] img3d;
@@ -2675,6 +2676,54 @@ QVector<BPartition*> WordSeparator::cutGivenSeeds(const BPixelCollection &img, Q
     }
   
     
+    QVector<BPartition*> ret;
+    ret.append(firstPart);
+    ret.append(secondPart);
+    return ret;
+}
+
+QVector<BPartition*> WordSeparator::recut2D(const BPixelCollection &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, const QPoint &crossOverPoint)
+{
+    
+    
+    
+    int invDistMap[img.width()*img.height()];
+    
+    DistanceTransform::computeInverseDistanceMap(img,invDistMap);
+    QVector<int> firstImgIndexes;
+    QVector<int> secondImgIndexes;
+    
+    ///test3ddist
+    
+    int maxflow = GraphCut::pixelsOfSeparationRecut2D(img,invDistMap,img.width(),img.height(),sourceSeeds,sinkSeeds,firstImgIndexes,secondImgIndexes, crossOverPoint);
+    
+    BPartition* firstPart = new BPartition(&img);
+    BPartition* secondPart = new BPartition(&img);
+    
+    int img_width = img.width();
+    
+    foreach (int index, firstImgIndexes)
+    {
+        int x = index%img_width;
+        int y = index/img_width;
+        firstPart->addPixelFromSrc(x,y);
+    }
+    
+    foreach (int index, secondImgIndexes)
+    {
+        int x = index%img_width;
+        int y = index/img_width;
+        secondPart->addPixelFromSrc(x,y);
+    }
+    
+    ///test//
+//    firstPart->makeImage().save("./3d1.ppm");
+//    secondPart->makeImage().save("./3d2.ppm");
+//    char dump;
+//    printf("3D cut done.");
+//    scanf("%c",&dump);
+    ///test///
+   
     QVector<BPartition*> ret;
     ret.append(firstPart);
     ret.append(secondPart);

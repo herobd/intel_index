@@ -7,7 +7,7 @@ int maxweight;
 int minweight;
 int minedge;
 
-inline void setEdge(int x1, int y1, int x2, int y2, GraphType* g, const BPixelCollection &img, int* invDistMap, double blackToBlackBias, double whiteToBlackBias, double blackToWhiteBias, double whiteToWhiteBias, double reducer, int width)
+inline void setEdge(int x1, int y1, int x2, int y2, GraphType* g, const BPixelCollection &img, const int* invDistMap, double blackToBlackBias, double whiteToBlackBias, double blackToWhiteBias, double whiteToWhiteBias, double reducer, int width)
 {
     
     if (img.pixel(x1,y1) && img.pixel(x2,y2))
@@ -537,7 +537,6 @@ inline void setEdge3d(int x1, int y1, int slope1, int x2, int y2, int slope2, Gr
 
 int GraphCut::pixelsOfSeparationNDimensions(int* invDistMap, int width, int height, const BPixelCollection &img, const NDimensions &dimensions, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, QVector<int> &outSource, QVector<int> &outSink, int anchor_weight, int split_method, int vert_divide)
 {
-    int NEW_ANCHOR = 80;
     assert(dimensions.numOfDim() == 1);//for now, we will only use three
     
     QVector<QVector<QVector<double> > > image3d = make3dImage(img,invDistMap,dimensions);
@@ -1436,7 +1435,6 @@ int GraphCut::pixelsOfSeparationNoDistMap(int* invDistMap, int width, int height
 ///exp
 int GraphCut::pixelsOfSeparation(int* invDistMap, int width, int height, const BPixelCollection &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, QVector<int> &outSource, QVector<int> &outSink, int anchor_weight, int split_method, int vert_divide)
 {
-    int NEW_ANCHOR = 80;
     typedef Graph<int,int,int> GraphType;
     GraphType *g = new GraphType(width*height, 4*(width-1)*(height-1)-(height+width)); 
     
@@ -1739,7 +1737,6 @@ inline void setEdge3d(int x1, int y1, int slope1, int x2, int y2, int slope2, Gr
 
 int GraphCut::pixelsOfSeparation(int* invDistMap, int width, int height, const BPixelCollection &img, const AngleImage &angleImage, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, QVector<int> &outSource, QVector<int> &outSink, int anchor_weight, int split_method, int vert_divide)
 {
-    int NEW_ANCHOR = 80;
     
     QVector<QVector<QVector<double> > > image3d = make3dImage(img,invDistMap,angleImage);
     
@@ -2093,7 +2090,6 @@ inline void setEdge3DMap(int x1, int y1, int slope1, int x2, int y2, int slope2,
 
 int GraphCut::pixelsOfSeparation(const long* invDistMap3D, int width, int height, int depth, const AngleImage &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, QVector<int> &outSource, QVector<int> &outSink, const QPoint &crossOverPoint, int anchor_weight, int split_method)
 {
-    int NEW_ANCHOR = 80;
     
 //    QVector<QVector<QVector<double> > > image3d = make3dImage(img,invDistMap,angleImage);
     
@@ -2116,21 +2112,25 @@ int GraphCut::pixelsOfSeparation(const long* invDistMap3D, int width, int height
     
     
     
-    
-    
     //connect all pixels
     //For simplicity, only doing three dimensions now
 //    double FLAT_WEIGHT = .5;
 //    double SLOPE_WEIGHT = 4;
     double FLAT_WEIGHT = 1;//1.5//6
-    double SLOPE_WEIGHT = .5;
+    double SLOPE_WEIGHT = .75;//.5;
     int slope_size = depth;
+    
+//    int numPixAbove=width*crossOverPoint.y()*depth;
+//    int numPixBelow=width*(height-crossOverPoint.y())*depth;
+    double CENTER_BIAS_ANCHOR_WIEGHT = 10;
     for (int k=0; k<slope_size; k++)
     {
         
-        for (int i=0; i<width; i++)
+        for (int j=0; j<height; j++)
         {
-            for (int j=0; j<height; j++)
+            double anchor_weight_for_level_top = CENTER_BIAS_ANCHOR_WIEGHT * ((2.5*crossOverPoint.y()-j)/(double)(2.5*crossOverPoint.y()));
+            double anchor_weight_for_level_bottom = CENTER_BIAS_ANCHOR_WIEGHT * ((((height-1) -(double)crossOverPoint.y()) + j-crossOverPoint.y())/(2.*((height-1) -(double)crossOverPoint.y())));
+            for (int i=0; i<width; i++)
             {   
                 
                 //C1
@@ -2171,12 +2171,12 @@ int GraphCut::pixelsOfSeparation(const long* invDistMap3D, int width, int height
                 //extra bias
 //                 QMap<int,double> bins = img.getBinsAndStrForPixel(i,j);
 //                if (img.pixel(i,j)/* && bins.keys().contains(k)*/)
-                {
-                    if (j<=crossOverPoint.y())
-                        g -> add_tweights(indexer.getIndex(i,j,k), 1, 0);
-                    else
-                        g -> add_tweights(indexer.getIndex(i,j,k), 0, 1);
-                }
+//                {
+//                    if (j<=crossOverPoint.y())
+//                        g -> add_tweights(indexer.getIndex(i,j,k), anchor_weight_for_level_top, 0);
+//                    else
+//                        g -> add_tweights(indexer.getIndex(i,j,k), 0, anchor_weight_for_level_bottom);
+//                }
                 
             }//j
         }//i
@@ -2300,10 +2300,12 @@ int GraphCut::pixelsOfSeparation(const long* invDistMap3D, int width, int height
         
         debug.save("./anchors.ppm");
     }
+    int ret=0;
+    strengthenDescenderComponent(img,crossOverPoint,g,indexer);
+//    int ret = g -> maxflow();
     
-//    strengthenDescenderComponent(img,crossOverPoint,g,indexer);
-    int ret = g -> maxflow();
-
+    //debug
+//    printf("Maxflow of cut is %d\n",ret);
     
     //add all black pixels which
     int slopeDifRange = SLOPE_DIF_TOLERANCE*depth;
@@ -2384,7 +2386,7 @@ int GraphCut::pixelsOfSeparation(const long* invDistMap3D, int width, int height
             topindex=i;
         }
     }
-    printf("invdistmap max was %d at %d:(%d,%d,%d)\t [%d,%d,%d]\n",newmax,topindex,topindex%width,(topindex/width)%height,topindex/(width*height),width,height,depth);
+//    printf("invdistmap max was %d at %d:(%d,%d,%d)\t [%d,%d,%d]\n",newmax,topindex,topindex%width,(topindex/width)%height,topindex/(width*height),width,height,depth);
 //    QVector<QRgb> default_color_table;
 //    for (int i=0; i<255; i++)
 //    {
@@ -2426,6 +2428,288 @@ int GraphCut::pixelsOfSeparation(const long* invDistMap3D, int width, int height
     delete g;
     return ret;
 }
+
+
+///////////
+int GraphCut::pixelsOfSeparationRecut2D(const BPixelCollection &img, const int* invDistMap, int width, int height, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, QVector<int> &outSource, QVector<int> &outSink, const QPoint &crossOverPoint, int anchor_weight, int split_method)
+{
+
+    GraphType *g = new GraphType(width*height, 4*(width-1)*(height-1)-(height+width)); 
+    
+    for (int i=0; i<width*height; i++)
+    {
+        g->add_node();
+    }
+    
+//    QImage debug = img.makeImage().getImage();
+//    QVector<QRgb> ct = debug.colorTable();
+//    ct.append(qRgb(205,50,50));
+//    ct.append(qRgb(50,205,50));
+//    debug.setColorTable(ct);
+    
+    //anchoring
+    QImage debug = img.makeImage().getImage();
+    QVector<QRgb> ct = debug.colorTable();
+    ct.append(qRgb(205,50,50));
+    ct.append(qRgb(50,205,50));
+    debug.setColorTable(ct);
+    
+    {
+        double anchor_weight_bias = 100;
+        int vert_divide = crossOverPoint.y();
+        
+        //all pixels are either source or sink
+        for (int j=0; j<vert_divide; j++)
+        {
+            double anchor_weight_for_level = anchor_weight_bias * ((2.5*vert_divide-j)/(double)(2.5*vert_divide));
+            //printf("%f, ",((vert_divide-j)/(double)vert_divide));
+            for (int i=0; i<width; i++)
+            {
+                if (img.pixel(i,j))
+                {
+                    int index = i+width*j;
+                    g -> add_tweights(index, (int)anchor_weight_for_level,0);
+    //                debug.setPixel(i,j,150);
+                }
+            }
+        }
+        for (int j=height-1; j>=vert_divide; j--)
+        {
+            double anchor_weight_for_level = anchor_weight_bias * ((((height-1) -(double)vert_divide) + j-vert_divide)/(2.*((height-1) -(double)vert_divide)));
+            //printf("%f- ",((j-vert_divide)/((height-1) -vert_divide)));
+            for (int i=0; i<width; i++)
+            {
+                if (img.pixel(i,j))
+                {
+                    int index = i+width*j;
+                    g -> add_tweights(index, 0, (int)anchor_weight_for_level);
+    //                debug.setPixel(i,j,150);
+                }
+            }
+        }
+
+    /////////////begin solid anchors
+        //find source pixels
+        int count_source = NEW_ANCHOR;
+        //fill
+        BImage mark = img.makeImage();
+        QVector<QPoint> workingStack;
+        foreach (QPoint seed, sourceSeeds)
+        {
+            workingStack.push_back(seed);
+            mark.setPixel(seed,false);
+        }
+        while (!workingStack.isEmpty() && count_source>0)
+        {   
+            QPoint cur = workingStack.front();
+            workingStack.pop_front();
+            int index = cur.x()+cur.y()*width;
+            g -> add_tweights(index, anchor_weight*2, 0);
+            debug.setPixel(cur,2);
+            count_source--;
+            
+            
+            
+            if (cur.x()<mark.width()-1 && mark.pixel(cur.x()+1,cur.y()))
+            {
+                QPoint pp(cur.x()+1,cur.y());
+                workingStack.push_back(pp);
+                mark.setPixel(pp,false);
+                
+            }
+            if (cur.x()>0 && mark.pixel(cur.x()-1,cur.y()))
+            {
+                QPoint pp(cur.x()-1,cur.y());
+                workingStack.push_back(pp);
+                mark.setPixel(pp,false);
+            }
+            if (cur.y()>0 && mark.pixel(cur.x(),cur.y()-1))
+            {
+                QPoint pp(cur.x(),cur.y()-1);
+                workingStack.push_back(pp);
+                mark.setPixel(pp,false);
+            }
+            if (cur.y()<mark.height()-1 && mark.pixel(cur.x(),cur.y()+1))
+            {
+                QPoint pp(cur.x(),cur.y()+1);
+                workingStack.push_back(pp);
+                mark.setPixel(pp,false);
+            }
+        }
+        
+        int count_sink=NEW_ANCHOR;
+        
+        //find sink pixels
+
+        //fill
+        workingStack.clear();
+        foreach (QPoint seed, sinkSeeds)
+        {
+            workingStack.push_back(seed);
+            mark.setPixel(seed,false);
+        }
+        while (!workingStack.isEmpty() && count_sink>0)
+        {   
+            QPoint cur = workingStack.front();
+            workingStack.pop_front();
+            int index = cur.x()+cur.y()*width;
+            g -> add_tweights(index, 0, anchor_weight*2);
+            debug.setPixel(cur,3);
+            count_sink--;
+            
+            
+            
+            if (cur.x()<mark.width()-1 && mark.pixel(cur.x()+1,cur.y()))
+            {
+                QPoint pp(cur.x()+1,cur.y());
+                workingStack.push_back(pp);
+                mark.setPixel(pp,false);
+                
+            }
+            if (cur.x()>0 && mark.pixel(cur.x()-1,cur.y()))
+            {
+                QPoint pp(cur.x()-1,cur.y());
+                workingStack.push_back(pp);
+                mark.setPixel(pp,false);
+            }
+            if (cur.y()>0 && mark.pixel(cur.x(),cur.y()-1))
+            {
+                QPoint pp(cur.x(),cur.y()-1);
+                workingStack.push_back(pp);
+                mark.setPixel(pp,false);
+            }
+            if (cur.y()<mark.height()-1 && mark.pixel(cur.x(),cur.y()+1))
+            {
+                QPoint pp(cur.x(),cur.y()+1);
+                workingStack.push_back(pp);
+                mark.setPixel(pp,false);
+            }
+        }
+        
+        
+        debug.save("./anchors.ppm");
+    }
+    
+    
+    //printf("num source:%d, num sink:%d\n",count_source,count_sink);
+    
+    double BLACK_TO_BLACK_V_BIAS = .5;
+    double BLACK_TO_BLACK_H_BIAS = .5;
+    double BLACK_TO_BLACK_D_BIAS = (BLACK_TO_BLACK_V_BIAS+BLACK_TO_BLACK_H_BIAS)-sqrt(pow(BLACK_TO_BLACK_V_BIAS,2)+pow(BLACK_TO_BLACK_H_BIAS,2));
+    double WHITE_TO_BLACK_BIAS = .5;
+    double BLACK_TO_WHITE_BIAS = .5;
+    double WHITE_TO_WHITE_V_BIAS = .5;
+    double WHITE_TO_WHITE_H_BIAS = .5;
+    double WHITE_TO_WHITE_D_BIAS = (WHITE_TO_WHITE_V_BIAS+WHITE_TO_WHITE_H_BIAS)-sqrt(pow(WHITE_TO_WHITE_V_BIAS,2)+pow(WHITE_TO_WHITE_H_BIAS,2));
+    
+//    if (split_method==SPLIT_VERT)
+//    {
+//        BLACK_TO_BLACK_V_BIAS = 0.75;
+//        BLACK_TO_BLACK_H_BIAS = 0.75;
+//        BLACK_TO_BLACK_D_BIAS = (BLACK_TO_BLACK_V_BIAS+BLACK_TO_BLACK_H_BIAS)-sqrt(pow(BLACK_TO_BLACK_V_BIAS,2)+pow(BLACK_TO_BLACK_H_BIAS,2));
+//        WHITE_TO_BLACK_BIAS = .5;
+//        BLACK_TO_WHITE_BIAS = .5;
+//        WHITE_TO_WHITE_V_BIAS = .5;
+//        WHITE_TO_WHITE_H_BIAS = .5;
+//        WHITE_TO_WHITE_D_BIAS = (WHITE_TO_WHITE_V_BIAS+WHITE_TO_WHITE_H_BIAS)-sqrt(pow(WHITE_TO_WHITE_V_BIAS,2)+pow(WHITE_TO_WHITE_H_BIAS,2));
+//    }
+
+    double reducer = 1;
+    
+    //connect all pixels
+    for (int i=0; i<width; i++)
+    {
+        for (int j=0; j<height; j++)
+        {   
+//            if (split_method==SPLIT_VERT)
+//            {
+//                if (j<vert_divide)
+//                {
+//                    reducer = ((2*vert_divide-j)/(double)(2*vert_divide));
+//                }
+//                else
+//                {
+//                    reducer = ((((height-1) -(double)vert_divide) + j-vert_divide)/(2.*((height-1) -(double)vert_divide)));
+//                }
+//            }
+//            else if (split_method==CHOP_TOP)
+//            {
+//                   reducer = ((3.0*height-j)/(double)(3*height));
+//            }
+            
+            
+            if (i+1<width)
+            {
+                setEdge(i,j,i+1,j,g,img,invDistMap,BLACK_TO_BLACK_H_BIAS,WHITE_TO_BLACK_BIAS,BLACK_TO_WHITE_BIAS,WHITE_TO_WHITE_H_BIAS,reducer,width);
+            }
+            
+            if (j+1<height)
+            {
+                setEdge(i,j,i,j+1,g,img,invDistMap,BLACK_TO_BLACK_V_BIAS,WHITE_TO_BLACK_BIAS,BLACK_TO_WHITE_BIAS,WHITE_TO_WHITE_V_BIAS,reducer,width);
+            }
+            
+            if (j>0 && i<width-1)
+            {
+                setEdge(i,j,i+1,j-1,g,img,invDistMap,BLACK_TO_BLACK_D_BIAS,WHITE_TO_BLACK_BIAS,BLACK_TO_WHITE_BIAS,WHITE_TO_WHITE_D_BIAS,reducer,width);
+            }
+            
+            if (j<height-1 && i<width-1)
+            {
+                setEdge(i,j,i+1,j+1,g,img,invDistMap,BLACK_TO_BLACK_D_BIAS,WHITE_TO_BLACK_BIAS,BLACK_TO_WHITE_BIAS,WHITE_TO_WHITE_D_BIAS,reducer,width);
+            }
+        }
+    }
+    strengthenDescenderComponent2D(img,crossOverPoint,g);
+    int ret = g -> maxflow();
+    
+//    QImage debug2 = debug.convertToFormat(QImage::Format_RGB16);
+//    QRgb lw = qRgb(255, 100, 100);
+//    QRgb lb = qRgb(155, 0, 0);
+//    QRgb rw = qRgb(100,255, 100);
+//    QRgb rb = qRgb(0, 155, 0);
+//    QRgb a = qRgb(255, 255, 255);
+    
+    //add all black pixels which
+    for (int index=0; index<width*height; index++)
+    {
+        if (img.pixelIsMine(index%width,index/width))
+        {
+            /*if (qGray(debug.pixel(index%width,index/width))!=BLACK && qGray(debug.pixel(index%width,index/width))!=WHITE)
+            {
+                debug2.setPixel(index%width,index/width,a);
+            }
+            else*/ if (g->what_segment(index) == GraphType::SOURCE)
+            {
+                outSource.append(index);
+    //            debug2.setPixel(index%width,index/width,lb);
+            }
+            else
+            {
+                outSink.append(index);
+            }
+    //        else if (g->what_segment(index) == GraphType::SOURCE)
+    //            debug2.setPixel(index%width,index/width,lw);
+    //        else if (qGray(img.pixel(index%width,index/width))==BLACK)
+    //            debug2.setPixel(index%width,index/width,rb);
+    //        else
+    //            debug2.setPixel(index%width,index/width,rw);
+        }
+    }
+    
+//    QString debugfile = "./cut_";
+//    QString num;
+//    num.setNum(width);
+//    debugfile.append(num);
+//    debugfile.append(".ppm");
+//    debug2.save(debugfile);
+    
+    delete g;
+    return ret;
+}
+///////////
+
+
+
 
 
 double getRelAngle(const BlobSkeleton &skeleton, int indexA, int indexB, int indexC)
@@ -2741,10 +3025,256 @@ void GraphCut::strengthenDescenderComponent(const AngleImage &img, const QPoint 
     
     test.save("./test_descender_id.ppm");
     
+    char a;
+    printf("Cont? ");
+    scanf("%c",&a);
+    printf("ok\n");
+}
+
+void GraphCut::strengthenDescenderComponent2D(const BPixelCollection &img, const QPoint &crossOverPoint, GraphType *g)
+{
+    assert(img.pixel(crossOverPoint));
+    int width = img.width();
+    BlobSkeleton skeleton(&img);
+    int startRegionId = skeleton.regionIdForPoint(crossOverPoint);
+    if (startRegionId==-2)
+    {
+        BImage mark = img.makeImage();
+        QVector<QPoint> stack;
+        stack.push_back(crossOverPoint);
+        mark.setPixel(crossOverPoint,false);
+        while (startRegionId==-2 && !stack.empty())
+        {
+            QPoint p = stack.front();
+            stack.pop_front();
+            int tableIndex=8;
+            for (int cc=0; cc<9 && startRegionId==-2; cc++)
+            {
+                tableIndex=(tableIndex+2)%9;
+                if (tableIndex==4)
+                    continue;
+                
+                int xDelta=(tableIndex%3)-1;
+                int yDelta=(tableIndex/3)-1;
+                int x = p.x()+xDelta;
+                int y = p.y()+yDelta;
+                if (mark.pixel(x,y))
+                {
+                    mark.setPixel(x,y,false);
+                    startRegionId = skeleton.regionIdForPoint(x,y);
+                    QPoint next(x,y);
+                    stack.push_back(next);
+                }
+            }
+        }
+    }
+//    printf("Starting point:(%d,%d)\n",skeleton[startRegionId].x,skeleton[startRegionId].y);
+    QVector<QVector<unsigned int> > bestLowerPaths;
+    QVector<double> bestLowerScores;
+    QVector<QVector<unsigned int> > bestUpperPaths;
+    QVector<double> bestUpperScores;
+    
+    PathStackMap upperPaths;
+    
+//    foreach (unsigned int curIndex, skeleton[startRegionId].connectedPoints)
+//    {
+//        if (skeleton[curIndex].y>=crossOverPoint.y())
+//        {
+//            QVector<unsigned int> newPath;
+//            newPath.append(startRegionId);
+//            newPath.append(curIndex);
+//            lowerDescenderTraverser(skeleton,&bestLowerPath,&bestLowerScore,&bestUpperPath,&bestUpperScore,&newPath,0,&upperPaths);
+//        }
+//    }
+    QVector<unsigned int> newPath;
+    newPath.append(startRegionId);
+    lowerDescenderTraverser(skeleton,&bestLowerPaths,&bestLowerScores,&bestUpperPaths,&bestUpperScores,&newPath,0,&upperPaths);
+    
+    
+    QImage test(img.makeImage().getImage());
+    QVector<QRgb> colors=test.colorTable();
+    colors.append(qRgb(255,0,0));
+    test.setColorTable(colors);
+//    printf("Best paths:\n");
+    QMap<double,unsigned int> byCombinedScore;
+    for (int i=0; i<bestLowerPaths.size(); i++)
+    {
+        byCombinedScore[bestUpperScores[i]+bestLowerScores[i]] = i;
+        
+//        printf("Combine (%f):\n[U] path (%f) is: ",bestUpperScores[i]+bestLowerScores[i],bestUpperScores[i]);
+//        foreach (unsigned int j, bestUpperPaths[i])
+//            printf("(%d,%d), ",skeleton[j].x,skeleton[j].y);
+//        printf("\n");
+//        printf("[L] path (%f) is: ",bestLowerScores[i]);
+//        foreach (unsigned int j, bestLowerPaths[i])
+//            printf("(%d,%d), ",skeleton[j].x,skeleton[j].y);
+//        printf("\n");
+    }
+    
+    int count=0;
+    foreach (unsigned int i, byCombinedScore.values())
+    {
+        if (count++>=5)
+            break;
+        
+//                printf("Combine (%f):\n[U] path (%f) is: ",bestUpperScores[i]+bestLowerScores[i],bestUpperScores[i]);
+//                foreach (unsigned int j, bestUpperPaths[i])
+//                    printf("(%d,%d), ",skeleton[j].x,skeleton[j].y);
+//                printf("\n");
+//                printf("[L] path (%f) is: ",bestLowerScores[i]);
+//                foreach (unsigned int j, bestLowerPaths[i])
+//                    printf("(%d,%d), ",skeleton[j].x,skeleton[j].y);
+//                printf("\n");
+        
+        int firstUpperX = skeleton[bestUpperPaths[i][0]].x;
+        int firstUpperY = skeleton[bestUpperPaths[i][0]].y;
+        int index = skeleton[bestUpperPaths[i][0]].connectedPoints.indexOf(bestUpperPaths[i][1]);
+//        double angle = skeleton[bestUpperPaths[i][0]].angleBetween[index];
+//        int firstUpperZ = img.getBinForAngle(angle);
+        
+        int curX=firstUpperX;
+        int curY=firstUpperY;
+//        int z=firstUpperZ;
+        
+        int nextX = skeleton[bestUpperPaths[i][1]].x;
+        int nextY = skeleton[bestUpperPaths[i][1]].y;
+        //connect to next
+        strengthenConnection(curX,curY,nextX,nextY,g,img,&test);
+//        int indexA = curX+curY*width;
+//        int indexB = nextX+nextY*width;
+//        g->add_edge(indexA,indexB,DESC_BIAS_LEN,DESC_BIAS_LEN);
+        
+        test.setPixel(skeleton[bestUpperPaths[i][0]].x,skeleton[bestUpperPaths[i][0]].y,colors.size()-1);
+        test.setPixel(skeleton[bestUpperPaths[i][1]].x,skeleton[bestUpperPaths[i][1]].y,colors.size()-1);
+        for (unsigned int j=1; j<bestUpperPaths[i].size()-1; j++)////////
+        {
+            test.setPixel(skeleton[bestUpperPaths[i][j+1]].x,skeleton[bestUpperPaths[i][j+1]].y,colors.size()-1);
+            
+            index = skeleton[bestUpperPaths[i][j]].connectedPoints.indexOf(bestUpperPaths[i][j+1]);
+//            angle = skeleton[bestUpperPaths[i][j]].angleBetween[index];
+//            z= img.getBinForAngle(angle);
+            
+            curX = nextX;
+            curY = nextY;
+            nextX = skeleton[bestUpperPaths[i][j+1]].x;
+            nextY = skeleton[bestUpperPaths[i][j+1]].y;
+            
+            
+            //connect to next
+            strengthenConnection(curX,curY,nextX,nextY,g,img,&test);
+    //        int indexA = curX+curY*width;
+    //        int indexB = nextX+nextY*width;
+//            g->add_edge(indexA,indexB,DESC_BIAS_LEN,DESC_BIAS_LEN);
+        }
+        
+        
+        curX = skeleton[bestLowerPaths[i][0]].x;                              
+        curY = skeleton[bestLowerPaths[i][0]].y;    
+        index = skeleton[bestLowerPaths[i][0]].connectedPoints.indexOf(bestLowerPaths[i][1]);
+//        angle = skeleton[bestLowerPaths[i][0]].angleBetween[index];
+//        z = img.getBinForAngle(angle);
+//        g->add_tweights(curX+curY*width,DESC_BIAS_LEN,0);
+        
+        nextX = skeleton[bestLowerPaths[i][1]].x;
+        nextY = skeleton[bestLowerPaths[i][1]].y;
+        //connect to next
+        strengthenConnection(curX,curY,nextX,nextY,g,img,&test);
+//        int indexA = curX+curY*width;
+//        int indexB = nextX+nextY*width;
+//        g->add_edge(indexA,indexB,DESC_BIAS_LEN,DESC_BIAS_LEN);
+        
+        test.setPixel(skeleton[bestLowerPaths[i][0]].x,skeleton[bestLowerPaths[i][0]].y,colors.size()-1);
+        test.setPixel(skeleton[bestLowerPaths[i][1]].x,skeleton[bestLowerPaths[i][1]].y,colors.size()-1);
+        for (unsigned int j=1; j<bestLowerPaths[i].size()-1; j++)////////
+        {
+            test.setPixel(skeleton[bestLowerPaths[i][j+1]].x,skeleton[bestLowerPaths[i][j+1]].y,colors.size()-1);
+            
+            index = skeleton[bestLowerPaths[i][j]].connectedPoints.indexOf(bestLowerPaths[i][j+1]);
+//            angle = skeleton[bestLowerPaths[i][j]].angleBetween[index];
+//            z= img.getBinForAngle(angle);
+            
+            
+            curX = nextX;
+            curY = nextY;
+            nextX = skeleton[bestLowerPaths[i][j+1]].x;
+            nextY = skeleton[bestLowerPaths[i][j+1]].y;
+            
+            
+            //connect to next
+            strengthenConnection(curX,curY,nextX,nextY,g,img,&test);
+    //        int indexA = curX+curY*width;
+    //        int indexB = nextX+nextY*width;
+//            g->add_edge(indexA,indexB,DESC_BIAS_LEN,DESC_BIAS_LEN);
+            
+            
+        }
+        
+
+        
+    }
+    
+    test.save("./test_descender_id.ppm");
+    
 //    char a;
 //    printf("Cont? ");
 //    scanf("%c",&a);
 //    printf("ok\n");
+}
+
+void GraphCut::strengthenConnection(int curX, int curY, int nextX, int nextY, GraphType *g, const BPixelCollection &img, QImage *test)
+{
+//    printf("Connecting (%d,%d) to (%d,%d)\n",curX,curY,nextX,nextY);
+    
+    QVector<QPoint> line;
+    QPoint start(curX,curY);
+    line.append(start);
+    if (curX==nextX || fabs((curY-nextY)/((double)curX-nextX)) > 1)
+    {
+        double slope = ((double)curX-nextX)/(curY-nextY);
+        double intersect = curX-curY*slope;
+        int inc = copysign(1.0, nextY-curY);
+        for (int y=curY+inc; inc*y<inc*nextY; y+=inc)
+        {
+            QPoint toAdd(y*slope+intersect,y);
+            if (img.pixel(toAdd))
+                line.append(toAdd);
+            else
+            {
+//                printf("fail on (%d,%d)\n",toAdd.x(),toAdd.y());
+                return;
+            }
+            test->setPixel(toAdd,test->colorTable().size()-1);
+        }
+    }
+    else
+    {
+        double slope = (curY-nextY)/((double)curX-nextX);
+        double intersect = curY-curX*slope;
+        int inc = copysign(1.0, nextX-curX);
+        for (int x=curX+inc; inc*x<inc*nextX; x+=inc)
+        {
+            QPoint toAdd(x,slope*x+intersect);
+            if (img.pixel(toAdd))
+                line.append(toAdd);
+            else
+            {
+//                printf("fail on (%d,%d)\n",toAdd.x(),toAdd.y());
+                return;
+            }
+            test->setPixel(toAdd,test->colorTable().size()-1);
+        }
+    }
+    QPoint end(nextX,nextY);
+    line.append(end);
+    
+    g->add_tweights(line[0].x() + line[0].y()*img.width(),600,0);
+    for (int i=1; i<line.size(); i++)
+    {
+        int indexA=line[i-1].x() + line[i-1].y()*img.width();
+        int indexB=line[i].x() + line[i].y()*img.width();
+        g->add_edge(indexA,indexB,DESC_BIAS_LEN,DESC_BIAS_LEN);
+        g->add_tweights(indexB,600,0);
+    }
 }
 
 void GraphCut::lowerDescenderTraverser(const BlobSkeleton &skeleton, QVector<QVector<unsigned int> >* bestLowerPaths, QVector<double>* bestLowerScores, QVector<QVector<unsigned int> >* bestUpperPaths, QVector<double>* bestUpperScores, const QVector<unsigned int>* currentPath, double clockwiseScore, PathStackMap* upperPaths)
@@ -2791,20 +3321,11 @@ void GraphCut::lowerDescenderTraverser(const BlobSkeleton &skeleton, QVector<QVe
         QVector<double> y;
         int sampleSize=extractSampleFromPath(skeleton,currentPath,&x,&y);
         double currentScore = computeScore(sampleSize,x.data(),y.data(),LOWER_MEAN_SLOPE,LOWER_STD_DEV_SLOPE,LOWER_MEAN_CURVE,LOWER_STD_DEV_CURVE,print);
-        //compare score
-//        if (currentScore < *bestLowerScore)
-//        {
-//            bestLowerPath->clear();
-//            (*bestLowerPath) += *currentPath;
-//            *bestLowerScore=currentScore;
-//        }
         
         for (int i=0; i< upperPaths->size(currentPath->back()); i++)
         {
         
             double upperScore = upperPaths->at(currentPath->back(),i).score;
-    //        if (upperScore!=-1 && upperScore!=DOUBLE_POS_INFINITY && currentScore!=DOUBLE_POS_INFINITY &&
-    //                ((*bestLowerScore==DOUBLE_POS_INFINITY || *bestUpperScore==DOUBLE_POS_INFINITY) ||upperScore+currentScore<*bestUpperScore+*bestLowerScore))
             if (upperScore<SCORE_THRESH && currentScore<SCORE_THRESH && upperScore+currentScore<COMBINE_SCORE_THRESH)
             {
                 bool goodMatch = true;
@@ -2818,12 +3339,6 @@ void GraphCut::lowerDescenderTraverser(const BlobSkeleton &skeleton, QVector<QVe
                 }
                 if (goodMatch)
                 {
-    //                bestLowerPath->clear();
-    //                (*bestLowerPath) += *currentPath;
-    //                *bestLowerScore=currentScore;
-    //                bestUpperPath->clear();
-    //                (*bestUpperPath) += (*upperPaths)[currentPath->back()].path;
-    //                *bestUpperScore=upperScore;
                     bestLowerPaths->append(*currentPath);
                     bestLowerScores->append(currentScore);
                     bestUpperPaths->append(upperPaths->at(currentPath->back(),i).path);
@@ -2865,10 +3380,6 @@ void GraphCut::lowerDescenderTraverser(const BlobSkeleton &skeleton, QVector<QVe
                 largestAngleIndex = nextIndex;
             }
             
-//                    if (skeleton[currentPath->last()].x==38 && skeleton[currentPath->last()].y==55)
-//                    {
-//                        printf("score to (%d,%d) is %f\n",skeleton[nextIndex].x,skeleton[nextIndex].y,newClockwiseScore);
-//                    }
         }
         else if (skeleton[nextIndex].y >= skeleton[currentPath->last()].y)
         {
