@@ -76,7 +76,7 @@ public:
     
 private:
     void init();
-    QPoint findClosestPoint(QPoint &start);
+//    QPoint findClosestPoint(QPoint &start);
     
     QMap<double, double>** angles;
     int myWidth;

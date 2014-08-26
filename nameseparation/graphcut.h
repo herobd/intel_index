@@ -12,6 +12,7 @@
 #include "angleimage.h"
 #include "blobskeleton.h"
 #include "pathstackmap.h"
+#include <QVector3D>
 
 #include <gsl/gsl_multifit.h>
 #include "gsl/gsl_statistics.h"
@@ -31,7 +32,12 @@
 #define SCORE_THRESH 17//15
 #define COMBINE_SCORE_THRESH 30//27
 
-#define DESC_BIAS_LEN 16000
+#define CENTER_BIAS_ANCHOR_WIEGHT 10.0
+
+#define DESC_BIAS_LEN_2D 16000
+#define DESC_BIAS_T_2D 600
+#define DESC_BIAS_LEN_3D 16000
+#define DESC_BIAS_T_3D 600
 #define DESC_BIAS_Z 14000
 
 typedef Graph<int,int,int> GraphType;
@@ -47,7 +53,7 @@ public:
     
     static int pixelsOfSeparation(int* invDistMap, int width, int height, const BPixelCollection &img, const AngleImage &angleImage, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, QVector<int> &outSource, QVector<int> &outSink, int anchor_weight=INT_POS_INFINITY/2, int split_method=SPLIT_HORZ, int vert_divide=-1);
     
-    static int pixelsOfSeparation(const long* invDistMap3D, int width, int height, int depth, const AngleImage &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, QVector<int> &outSource, QVector<int> &outSink, const QPoint &crossOverPoint, int anchor_weight=INT_POS_INFINITY/2, int split_method=SPLIT_HORZ);
+    static int pixelsOfSeparationRecut3D(const long* invDistMap3D, int width, int height, int depth, const AngleImage &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, QVector<int> &outSource, QVector<int> &outSink, const QPoint &crossOverPoint, int anchor_weight=INT_POS_INFINITY/2, int split_method=SPLIT_HORZ);
     
     static int pixelsOfSeparationWithSlope(int* invDistMap, int width, int height, BPixelCollection &img, const QVector<QVector<double> > &slopes, QVector<int> &outSource, QVector<int> &outSink, int anchor_weight=INT_POS_INFINITY/2, int split_method=SPLIT_HORZ, int vert_divide=-1);
     static int pixelsOfSeparationNDimensions(int* invDistMap, int width, int height, const BPixelCollection &img, const NDimensions &dimensions, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, QVector<int> &outSource, QVector<int> &outSink, int anchor_weight=INT_POS_INFINITY/2, int split_method=SPLIT_HORZ, int vert_divide=-1);
@@ -64,7 +70,8 @@ public:
      
 private:
      
-     static void strengthenConnection(int curX, int curY, int nextX, int nextY, GraphType *g, const BPixelCollection &img, QImage *test);
+     static void strengthenConnection3D(int curX, int curY, int curZ, int nextX, int nextY, int nextZ, GraphType *g, const BPixelCollection &img, QImage *test);
+     static void strengthenConnection2D(int curX, int curY, int nextX, int nextY, GraphType *g, const BPixelCollection &img, QImage *test);
      
      static void lowerDescenderTraverser(const BlobSkeleton &skeleton, QVector<QVector<unsigned int> >* bestLowerPaths, QVector<double>* bestLowerScores, QVector<QVector<unsigned int> >* bestUpperPaths, QVector<double>* bestUpperScores, const QVector<unsigned int>* currentPath, double clockwiseScore, PathStackMap* upperPaths);
      static void upperDescenderTraverser(const BlobSkeleton &skeleton, const QVector<unsigned int>* currentPath, double counterClockwiseScore, PathStackMap* upperPaths);

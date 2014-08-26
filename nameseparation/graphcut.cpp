@@ -2088,7 +2088,7 @@ inline void setEdge3DMap(int x1, int y1, int slope1, int x2, int y2, int slope2,
                       (invDistMap3D[indexer.getIndex(x1,y1,slope1)]+invDistMap3D[indexer.getIndex(x2,y2,slope2)])*weight);
 }
 
-int GraphCut::pixelsOfSeparation(const long* invDistMap3D, int width, int height, int depth, const AngleImage &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, QVector<int> &outSource, QVector<int> &outSink, const QPoint &crossOverPoint, int anchor_weight, int split_method)
+int GraphCut::pixelsOfSeparationRecut3D(const long* invDistMap3D, int width, int height, int depth, const AngleImage &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, QVector<int> &outSource, QVector<int> &outSink, const QPoint &crossOverPoint, int anchor_weight, int split_method)
 {
     
 //    QVector<QVector<QVector<double> > > image3d = make3dImage(img,invDistMap,angleImage);
@@ -2102,7 +2102,6 @@ int GraphCut::pixelsOfSeparation(const long* invDistMap3D, int width, int height
     
     Indexer3D indexer(width, height);
     
-    typedef Graph<int,int,int> GraphType;
     GraphType *g = new GraphType(numNodes, numEdges); 
     
     for (int i=0; i<numNodes; i++)
@@ -2122,7 +2121,7 @@ int GraphCut::pixelsOfSeparation(const long* invDistMap3D, int width, int height
     
 //    int numPixAbove=width*crossOverPoint.y()*depth;
 //    int numPixBelow=width*(height-crossOverPoint.y())*depth;
-    double CENTER_BIAS_ANCHOR_WIEGHT = 10;
+    
     for (int k=0; k<slope_size; k++)
     {
         
@@ -2170,13 +2169,13 @@ int GraphCut::pixelsOfSeparation(const long* invDistMap3D, int width, int height
                 
                 //extra bias
 //                 QMap<int,double> bins = img.getBinsAndStrForPixel(i,j);
-//                if (img.pixel(i,j)/* && bins.keys().contains(k)*/)
-//                {
-//                    if (j<=crossOverPoint.y())
-//                        g -> add_tweights(indexer.getIndex(i,j,k), anchor_weight_for_level_top, 0);
-//                    else
-//                        g -> add_tweights(indexer.getIndex(i,j,k), 0, anchor_weight_for_level_bottom);
-//                }
+                if (img.pixel(i,j)/* && bins.keys().contains(k)*/)
+                {
+                    if (j<=crossOverPoint.y())
+                        g -> add_tweights(indexer.getIndex(i,j,k), anchor_weight_for_level_top, 0);
+                    else
+                        g -> add_tweights(indexer.getIndex(i,j,k), 0, anchor_weight_for_level_bottom);
+                }
                 
             }//j
         }//i
@@ -2300,9 +2299,9 @@ int GraphCut::pixelsOfSeparation(const long* invDistMap3D, int width, int height
         
         debug.save("./anchors.ppm");
     }
-    int ret=0;
+    
     strengthenDescenderComponent(img,crossOverPoint,g,indexer);
-//    int ret = g -> maxflow();
+    int ret = g -> maxflow();
     
     //debug
 //    printf("Maxflow of cut is %d\n",ret);
@@ -2893,6 +2892,15 @@ void GraphCut::strengthenDescenderComponent(const AngleImage &img, const QPoint 
         if (count++>=5)
             break;
         
+//                printf("Combine (%f):\n[U] path (%f) is: ",bestUpperScores[i]+bestLowerScores[i],bestUpperScores[i]);
+//                foreach (unsigned int j, bestUpperPaths[i])
+//                    printf("(%d,%d), ",img.getSkeleton()[j].x,img.getSkeleton()[j].y);
+//                printf("\n");
+//                printf("[L] path (%f) is: ",bestLowerScores[i]);
+//                foreach (unsigned int j, bestLowerPaths[i])
+//                    printf("(%d,%d), ",img.getSkeleton()[j].x,img.getSkeleton()[j].y);
+//                printf("\n");
+        
         int firstUpperX = img.getSkeleton()[bestUpperPaths[i][0]].x;
         int firstUpperY = img.getSkeleton()[bestUpperPaths[i][0]].y;
         int index = img.getSkeleton()[bestUpperPaths[i][0]].connectedPoints.indexOf(bestUpperPaths[i][1]);
@@ -2909,9 +2917,10 @@ void GraphCut::strengthenDescenderComponent(const AngleImage &img, const QPoint 
         int nextX = img.getSkeleton()[bestUpperPaths[i][1]].x;
         int nextY = img.getSkeleton()[bestUpperPaths[i][1]].y;
         //connect to next
-        int indexA = indexer.getIndex(curX,curY,z);
-        int indexB = indexer.getIndex(nextX,nextY,z);
-        g->add_edge(indexA,indexB,DESC_BIAS_LEN,DESC_BIAS_LEN);
+        strengthenConnection3D(curX,curY,z,nextX,nextY,z,g,img,&test);
+//        int indexA = indexer.getIndex(curX,curY,z);
+//        int indexB = indexer.getIndex(nextX,nextY,z);
+//        g->add_edge(indexA,indexB,DESC_BIAS_LEN_2D,DESC_BIAS_LEN_2D);
         
         test.setPixel(img.getSkeleton()[bestUpperPaths[i][0]].x,img.getSkeleton()[bestUpperPaths[i][0]].y,colors.size()-1);
         test.setPixel(img.getSkeleton()[bestUpperPaths[i][1]].x,img.getSkeleton()[bestUpperPaths[i][1]].y,colors.size()-1);
@@ -2932,15 +2941,14 @@ void GraphCut::strengthenDescenderComponent(const AngleImage &img, const QPoint 
             //connect Z
             if (prevZ!=z)
             {
-                indexA = indexer.getIndex(curX,curY,prevZ);
-                indexB = indexer.getIndex(curX,curX,z);
-                g->add_edge(indexA,indexB,DESC_BIAS_Z,DESC_BIAS_Z);
+                strengthenConnection3D(curX,curY,prevZ,curX,curY,z,g,img,&test);
+//                indexA = indexer.getIndex(curX,curY,prevZ);
+//                indexB = indexer.getIndex(curX,curX,z);
+//                g->add_edge(indexA,indexB,DESC_BIAS_Z,DESC_BIAS_Z);
             }
             
             //connect to next
-            indexA = indexer.getIndex(curX,curY,z);
-            indexB = indexer.getIndex(nextX,nextY,z);
-            g->add_edge(indexA,indexB,DESC_BIAS_LEN,DESC_BIAS_LEN);
+            strengthenConnection3D(curX,curY,z,nextX,nextY,z,g,img,&test);
         }
         
         int lastUpperZ=z;
@@ -2954,15 +2962,14 @@ void GraphCut::strengthenDescenderComponent(const AngleImage &img, const QPoint 
         nextX = img.getSkeleton()[bestLowerPaths[i][1]].x;
         nextY = img.getSkeleton()[bestLowerPaths[i][1]].y;
         //connect to next
-        indexA = indexer.getIndex(curX,curY,z);
-        indexB = indexer.getIndex(nextX,nextY,z);
-        g->add_edge(indexA,indexB,DESC_BIAS_LEN,DESC_BIAS_LEN);
+        strengthenConnection3D(curX,curY,z,nextX,nextY,z,g,img,&test);
         
         if (curX==firstUpperX && curY==firstUpperY && firstUpperZ!=z)
         {
-            indexA = indexer.getIndex(curX,curY,firstUpperZ);
-            indexB = indexer.getIndex(curX,curX,z);
-            g->add_edge(indexA,indexB,DESC_BIAS_Z,DESC_BIAS_Z);
+            strengthenConnection3D(curX,curY,firstUpperZ,curX,curY,z,g,img,&test);
+//            indexA = indexer.getIndex(curX,curY,firstUpperZ);
+//            indexB = indexer.getIndex(curX,curX,z);
+//            g->add_edge(indexA,indexB,DESC_BIAS_Z,DESC_BIAS_Z);
         }
         
         test.setPixel(img.getSkeleton()[bestLowerPaths[i][0]].x,img.getSkeleton()[bestLowerPaths[i][0]].y,colors.size()-1);
@@ -2985,51 +2992,113 @@ void GraphCut::strengthenDescenderComponent(const AngleImage &img, const QPoint 
             //connect Z
             if (prevZ!=z)
             {
-                indexA = indexer.getIndex(curX,curY,prevZ);
-                indexB = indexer.getIndex(curX,curX,z);
-                g->add_edge(indexA,indexB,DESC_BIAS_Z,DESC_BIAS_Z);
+                strengthenConnection3D(curX,curY,prevZ,curX,curY,z,g,img,&test);
             }
             
             //connect to next
-            indexA = indexer.getIndex(curX,curY,z);
-            indexB = indexer.getIndex(nextX,nextY,z);
-            g->add_edge(indexA,indexB,DESC_BIAS_LEN,DESC_BIAS_LEN);
+            strengthenConnection3D(curX,curY,z,nextX,nextY,z,g,img,&test);
             
             //check upper start
             if (curX==firstUpperX && curY==firstUpperY)
             {
                 if (prevZ!=firstUpperZ)
                 {
-                    indexA = indexer.getIndex(curX,curY,prevZ);
-                    indexB = indexer.getIndex(curX,curX,firstUpperZ);
-                    g->add_edge(indexA,indexB,DESC_BIAS_Z,DESC_BIAS_Z);
+                    strengthenConnection3D(curX,curY,prevZ,curX,curY,firstUpperZ,g,img,&test);
                 }
                 
                 if (firstUpperZ!=z)
                 {
-                    indexA = indexer.getIndex(curX,curY,firstUpperZ);
-                    indexB = indexer.getIndex(curX,curX,z);
-                    g->add_edge(indexA,indexB,DESC_BIAS_Z,DESC_BIAS_Z);
+                    strengthenConnection3D(curX,curY,firstUpperZ,curX,curY,z,g,img,&test);
                 }
             }
         }
         
         if (lastUpperZ!=z)
         {
-            indexA = indexer.getIndex(nextX,nextY,lastUpperZ);
-            indexB = indexer.getIndex(nextX,nextX,z);
-            g->add_edge(indexA,indexB,DESC_BIAS_Z,DESC_BIAS_Z);
+            strengthenConnection3D(nextX,nextY,lastUpperZ,nextX,nextY,z,g,img,&test);
         }
         
     }
     
     test.save("./test_descender_id.ppm");
     
-    char a;
-    printf("Cont? ");
-    scanf("%c",&a);
-    printf("ok\n");
+//    char a;
+//    printf("Cont? ");
+//    scanf("%c",&a);
+//    printf("ok\n");
 }
+
+void GraphCut::strengthenConnection3D(int curX, int curY, int curZ, int nextX, int nextY, int nextZ, GraphType *g, const BPixelCollection &img, QImage *test)
+{
+//    printf("Connecting (%d,%d) to (%d,%d)\n",curX,curY,nextX,nextY);
+    
+    QVector<QVector3D> line;
+    QVector3D start(curX,curY,curZ);
+    line.append(start);
+    if (curX==nextX && curY==nextY)
+    {
+        int inc = copysign(1.0, nextZ-curZ);
+        for (int z=curZ+inc; inc*z<inc*nextZ; z+=inc)
+        {
+            QVector3D toAdd(curX,curY,z);
+            line.append(toAdd);
+        }
+    }
+    else if (curX==nextX || fabs((curY-nextY)/((double)curX-nextX)) > 1)
+    {
+        double slopeX = ((double)curX-nextX)/(curY-nextY);
+        double intersectX = curX-curY*slopeX;
+        double slopeZ = ((double)curZ-nextZ)/(curY-nextY);
+        double intersectZ = curZ-curY*slopeZ;
+        int inc = copysign(1.0, nextY-curY);
+        for (int y=curY+inc; inc*y<inc*nextY; y+=inc)
+        {
+            QVector3D toAdd(y*slopeX+intersectX,y,y*slopeZ+intersectZ);
+//            if (img.pixel(toAdd.toPoint()))
+                line.append(toAdd);
+//            else
+//            {
+//                return;
+//            }
+            test->setPixel(toAdd.toPoint(),test->colorTable().size()-1);
+        }
+    }
+    else
+    {
+        double slopeY = (curY-nextY)/((double)curX-nextX);
+        double intersectY = curY-curX*slopeY;
+        double slopeZ = (curZ-nextZ)/((double)curX-nextX);
+        double intersectZ = curZ-curX*slopeZ;
+        int inc = copysign(1.0, nextX-curX);
+        for (int x=curX+inc; inc*x<inc*nextX; x+=inc)
+        {
+            QVector3D toAdd(x,slopeY*x+intersectY,slopeZ*x+intersectZ);
+//            if (img.pixel(toAdd.toPoint()))
+                line.append(toAdd);
+//            else
+//            {
+//                return;
+//            }
+            test->setPixel(toAdd.toPoint(),test->colorTable().size()-1);
+        }
+    }
+    QVector3D end(nextX,nextY,nextZ);
+    line.append(end);
+    
+    g->add_tweights(line[0].x() + line[0].y()*img.width(),DESC_BIAS_T_3D,0);
+    for (int i=1; i<line.size(); i++)
+    {
+        for (int deltaZ=-2; deltaZ<=2; deltaZ++)
+        {
+            int indexA=line[i-1].x() + line[i-1].y()*img.width() + (line[i-1].z()+deltaZ)*img.width()*img.height();
+            int indexB=line[i].x() + line[i].y()*img.width() + (line[i].z()+deltaZ)*img.width()*img.height();
+            
+            g->add_edge(indexA,indexB,DESC_BIAS_LEN_3D,DESC_BIAS_LEN_3D);
+            g->add_tweights(indexB,DESC_BIAS_T_3D,0);
+        }
+    }
+}
+
 
 void GraphCut::strengthenDescenderComponent2D(const BPixelCollection &img, const QPoint &crossOverPoint, GraphType *g)
 {
@@ -3139,10 +3208,10 @@ void GraphCut::strengthenDescenderComponent2D(const BPixelCollection &img, const
         int nextX = skeleton[bestUpperPaths[i][1]].x;
         int nextY = skeleton[bestUpperPaths[i][1]].y;
         //connect to next
-        strengthenConnection(curX,curY,nextX,nextY,g,img,&test);
+        strengthenConnection2D(curX,curY,nextX,nextY,g,img,&test);
 //        int indexA = curX+curY*width;
 //        int indexB = nextX+nextY*width;
-//        g->add_edge(indexA,indexB,DESC_BIAS_LEN,DESC_BIAS_LEN);
+//        g->add_edge(indexA,indexB,DESC_BIAS_LEN_2D,DESC_BIAS_LEN_2D);
         
         test.setPixel(skeleton[bestUpperPaths[i][0]].x,skeleton[bestUpperPaths[i][0]].y,colors.size()-1);
         test.setPixel(skeleton[bestUpperPaths[i][1]].x,skeleton[bestUpperPaths[i][1]].y,colors.size()-1);
@@ -3161,10 +3230,10 @@ void GraphCut::strengthenDescenderComponent2D(const BPixelCollection &img, const
             
             
             //connect to next
-            strengthenConnection(curX,curY,nextX,nextY,g,img,&test);
+            strengthenConnection2D(curX,curY,nextX,nextY,g,img,&test);
     //        int indexA = curX+curY*width;
     //        int indexB = nextX+nextY*width;
-//            g->add_edge(indexA,indexB,DESC_BIAS_LEN,DESC_BIAS_LEN);
+//            g->add_edge(indexA,indexB,DESC_BIAS_LEN_2D,DESC_BIAS_LEN_2D);
         }
         
         
@@ -3173,15 +3242,15 @@ void GraphCut::strengthenDescenderComponent2D(const BPixelCollection &img, const
         index = skeleton[bestLowerPaths[i][0]].connectedPoints.indexOf(bestLowerPaths[i][1]);
 //        angle = skeleton[bestLowerPaths[i][0]].angleBetween[index];
 //        z = img.getBinForAngle(angle);
-//        g->add_tweights(curX+curY*width,DESC_BIAS_LEN,0);
+//        g->add_tweights(curX+curY*width,DESC_BIAS_LEN_2D,0);
         
         nextX = skeleton[bestLowerPaths[i][1]].x;
         nextY = skeleton[bestLowerPaths[i][1]].y;
         //connect to next
-        strengthenConnection(curX,curY,nextX,nextY,g,img,&test);
+        strengthenConnection2D(curX,curY,nextX,nextY,g,img,&test);
 //        int indexA = curX+curY*width;
 //        int indexB = nextX+nextY*width;
-//        g->add_edge(indexA,indexB,DESC_BIAS_LEN,DESC_BIAS_LEN);
+//        g->add_edge(indexA,indexB,DESC_BIAS_LEN_2D,DESC_BIAS_LEN_2D);
         
         test.setPixel(skeleton[bestLowerPaths[i][0]].x,skeleton[bestLowerPaths[i][0]].y,colors.size()-1);
         test.setPixel(skeleton[bestLowerPaths[i][1]].x,skeleton[bestLowerPaths[i][1]].y,colors.size()-1);
@@ -3201,10 +3270,10 @@ void GraphCut::strengthenDescenderComponent2D(const BPixelCollection &img, const
             
             
             //connect to next
-            strengthenConnection(curX,curY,nextX,nextY,g,img,&test);
+            strengthenConnection2D(curX,curY,nextX,nextY,g,img,&test);
     //        int indexA = curX+curY*width;
     //        int indexB = nextX+nextY*width;
-//            g->add_edge(indexA,indexB,DESC_BIAS_LEN,DESC_BIAS_LEN);
+//            g->add_edge(indexA,indexB,DESC_BIAS_LEN_2D,DESC_BIAS_LEN_2D);
             
             
         }
@@ -3221,7 +3290,7 @@ void GraphCut::strengthenDescenderComponent2D(const BPixelCollection &img, const
 //    printf("ok\n");
 }
 
-void GraphCut::strengthenConnection(int curX, int curY, int nextX, int nextY, GraphType *g, const BPixelCollection &img, QImage *test)
+void GraphCut::strengthenConnection2D(int curX, int curY, int nextX, int nextY, GraphType *g, const BPixelCollection &img, QImage *test)
 {
 //    printf("Connecting (%d,%d) to (%d,%d)\n",curX,curY,nextX,nextY);
     
@@ -3240,8 +3309,7 @@ void GraphCut::strengthenConnection(int curX, int curY, int nextX, int nextY, Gr
                 line.append(toAdd);
             else
             {
-//                printf("fail on (%d,%d)\n",toAdd.x(),toAdd.y());
-                return;
+//                return;
             }
             test->setPixel(toAdd,test->colorTable().size()-1);
         }
@@ -3258,8 +3326,7 @@ void GraphCut::strengthenConnection(int curX, int curY, int nextX, int nextY, Gr
                 line.append(toAdd);
             else
             {
-//                printf("fail on (%d,%d)\n",toAdd.x(),toAdd.y());
-                return;
+//                return;
             }
             test->setPixel(toAdd,test->colorTable().size()-1);
         }
@@ -3267,13 +3334,13 @@ void GraphCut::strengthenConnection(int curX, int curY, int nextX, int nextY, Gr
     QPoint end(nextX,nextY);
     line.append(end);
     
-    g->add_tweights(line[0].x() + line[0].y()*img.width(),600,0);
+    g->add_tweights(line[0].x() + line[0].y()*img.width(),DESC_BIAS_T_2D,0);
     for (int i=1; i<line.size(); i++)
     {
         int indexA=line[i-1].x() + line[i-1].y()*img.width();
         int indexB=line[i].x() + line[i].y()*img.width();
-        g->add_edge(indexA,indexB,DESC_BIAS_LEN,DESC_BIAS_LEN);
-        g->add_tweights(indexB,600,0);
+        g->add_edge(indexA,indexB,DESC_BIAS_LEN_2D,DESC_BIAS_LEN_2D);
+        g->add_tweights(indexB,DESC_BIAS_T_2D,0);
     }
 }
 

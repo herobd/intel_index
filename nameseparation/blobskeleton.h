@@ -29,7 +29,7 @@ struct tracePoint
     tracePoint() {x=-1; y=-1;}
 };
 
-class BlobSkeleton
+class BlobSkeleton : BPixelCollection
 {
 public:
     BlobSkeleton();
@@ -42,6 +42,14 @@ public:
     int regionIdForPoint(const QPoint &p) const;
     int regionIdForPoint(int x, int y) const;
     const QVector<QPoint>& getRegion(unsigned int index) const {return regions[index];}
+    
+    BImage makeImage() const;
+    bool pixelIsMine(int x, int y) const;
+    int width() const;
+    int height() const;
+    
+    //use
+    bool pixel(int x, int y) const;
     
 private:
     QVector<QVector<QPoint> > regions;

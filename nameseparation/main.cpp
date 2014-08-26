@@ -29,19 +29,19 @@ int main(int argc, char** argv)
     BImage bimg(testimg);
     
     ///Test descender identification/////
-    BImage cleared = BoxCleaner::trimVerticleBoundaries(bimg);
-    cleared = BoxCleaner::trimHorizontalBoundaries(cleared);
-    cleared = BoxCleaner::removeVerticlePixelNoise(cleared);
-    QVector<BPartition*> lines = WordSeparator::segmentLinesOfWords(cleared,40);
-    for (int i=0; i<lines.size(); i++)
-    {
-        cleared.claimOwnership(lines[i],1);
-    }
-    cleared.saveOwners("./rainbow.ppm");
-    for (int i=0; i<lines.size(); i++)
-    {
-        delete lines[i];
-    }
+//    BImage cleared = BoxCleaner::trimVerticleBoundaries(bimg);
+//    cleared = BoxCleaner::trimHorizontalBoundaries(cleared);
+//    cleared = BoxCleaner::removeVerticlePixelNoise(cleared);
+//    QVector<BPartition*> lines = WordSeparator::segmentLinesOfWords(cleared,40);
+//    for (int i=0; i<lines.size(); i++)
+//    {
+//        cleared.claimOwnership(lines[i],1);
+//    }
+//    cleared.saveOwners("./rainbow.ppm");
+//    for (int i=0; i<lines.size(); i++)
+//    {
+//        delete lines[i];
+//    }
     //9
 //    QPoint cross(60,29);
     
@@ -114,63 +114,73 @@ int main(int argc, char** argv)
 //    testimg.save("./test.ppm");
 //////////////////
     
-//    QVector<QPoint> sourceSeeds;
-//    QVector<QPoint> sinkSeeds;
+    QVector<QPoint> sourceSeeds;
+    QVector<QPoint> sinkSeeds;
     
-//    //1
-////    QPoint p(4,29);
-////    QPoint p2(6,64);
+    //1
+//    QPoint p(4,29);
+//    QPoint p2(6,64);
     
-////    QPoint p(10,32);
-////    QPoint p2(83,70);
+//    QPoint p(10,32);
+//    QPoint p2(83,70);
     
-//    //2
-////    QPoint p(63,18);
-////    QPoint p2(64,64);
-////    QPoint p2x(1,72);
-////    QPoint cross(31,36);
+    //2
+//    QPoint p(63,18);
+//    QPoint p2(64,64);
+//    QPoint p2x(1,72);
+//    QPoint cross(31,36);
     
-//    //4
-////    QPoint p(86,29);
-////    QPoint p2(13,72);
-////    QPoint cross(36,39);
+    //4
+//    QPoint p(86,29);
+//    QPoint p2(13,72);
+//    QPoint cross(36,39);
     
-//    //10
-////    QPoint p(1,19);
-////    QPoint p2(89,66);
-////    QPoint p2x(45,63);
-////    QPoint cross(31,28);
+    //10
+//    QPoint p(1,19);
+//    QPoint p2(89,66);
+//    QPoint p2x(45,63);
+//    QPoint cross(31,28);
     
-//    //14
-////    QPoint p(78,24);
-////    QPoint p2(1,67);
-////    QPoint p2x(52,66);
-////    QPoint cross(28,35);
+    //14
+//    QPoint p(78,24);
+//    QPoint p2(1,67);
+//    QPoint p2x(52,66);
+//    QPoint cross(28,35);
     
-//    //21
-//    QPoint p(65,25);
-//    QPoint p2(35,66);
-//    QPoint cross(14,41);
+    //21
+    QPoint p(65,25);
+    QPoint p2(35,66);
+    QPoint cross(14,41);
     
-////    QPoint p(13,15);
-////    QPoint px(64,69);
-//    sourceSeeds.append(p);
-////    sourceSeeds.append(px);
-////    QPoint p2(15,73);
-////    QPoint p2x(71,17);
-////    QPoint p2xx(12,40);
-//    sinkSeeds.append(p2);
-////    sinkSeeds.append(p2x);
-////    sinkSeeds.append(p2xx);
+    //22 this is a good example of 3d cut vanilla working (e=60, b=200, m=10000)
+//    QPoint p(1,18);
+//    QPoint px(69,12);
+//    QPoint p2(0,47);
+//    QPoint p2x(53,48);
+//    QPoint p2xx(28,63);
+//    QPoint cross(35,23);
     
-////    QPoint cross(100,33);
+//    QPoint p(13,15);
+//    QPoint px(64,69);
+    sourceSeeds.append(p);
+//    sourceSeeds.append(px);
+//    QPoint p2(15,73);
+//    QPoint p2x(71,17);
+//    QPoint p2xx(12,40);
+    sinkSeeds.append(p2);
+//    sinkSeeds.append(p2x);
+//    sinkSeeds.append(p2xx);
     
-//    QVector<BPartition*> result = WordSeparator::recut2D(bimg, sourceSeeds, sinkSeeds,cross);
-//    result[0]->makeImage().save("./test0.ppm");
-//    result[1]->makeImage().save("./test1.ppm");
-//    bimg.claimOwnership(result[0],1);
-//    bimg.claimOwnership(result[1],1);
-//    bimg.saveOwners("./test.ppm");
+//    QPoint cross(100,33);
+    
+    QVector<BPartition*> result = WordSeparator::recut3D(bimg, sourceSeeds, sinkSeeds,cross);
+    bool test = result[0]->makeImage().save("./test0.ppm");
+    test &= result[1]->makeImage().save("./test1.ppm");
+    if (!test)
+        printf("Save image failure.\n");
+    bimg.claimOwnership(result[0],1);
+    bimg.claimOwnership(result[1],1);
+    bimg.saveOwners("./test.ppm");
     
     //////////////////////////
     

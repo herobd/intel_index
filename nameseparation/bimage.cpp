@@ -136,18 +136,19 @@ BImage BImage::copy()//this doesn't handle paritions
 }
 
 
-void BImage::save(const QString& filepath)
+bool BImage::save(const QString& filepath)
 {
     QImage temp = getImage();
-    temp.save(filepath);
+    return temp.save(filepath);
 }
 
-void BImage::saveOwners(const QString& filepath)
+bool BImage::saveOwners(const QString& filepath)
 {
     QImage temp = getOwnersImage();
     bool test = temp.save(filepath);
     if (!test)
         printf("ERROR: failed to saveOwners\n");
+    return test;
 }
 
 bool BImage::pixel(const QPoint &p) const

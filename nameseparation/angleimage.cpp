@@ -502,80 +502,80 @@ bool AngleImage::noAnglesForPixel(int x, int y) const
 }
 
 
-QPoint AngleImage::findClosestPoint(QPoint &start)
-{
-    QVector<QPoint> searchQueue;
-    searchQueue.append(start);
-    BImage mark(src->width(),src->height());
-    for (int x=0; x<mark.width(); x++)
-    {
-        for (int y=0; y<mark.height(); y++)
-        {
-            mark.setPixel(x,y,true);
-        }
-    }
-    mark.setPixel(start,false);
-    while (!searchQueue.empty())
-    {
-        QPoint cur = searchQueue.front();
-        searchQueue.pop_front();
-        if (pixel(cur))
-            return cur;
+//QPoint AngleImage::findClosestPoint(QPoint &start)
+//{
+//    QVector<QPoint> searchQueue;
+//    searchQueue.append(start);
+//    BImage mark(src->width(),src->height());
+//    for (int x=0; x<mark.width(); x++)
+//    {
+//        for (int y=0; y<mark.height(); y++)
+//        {
+//            mark.setPixel(x,y,true);
+//        }
+//    }
+//    mark.setPixel(start,false);
+//    while (!searchQueue.empty())
+//    {
+//        QPoint cur = searchQueue.front();
+//        searchQueue.pop_front();
+//        if (pixel(cur))
+//            return cur;
         
-        QPoint up(cur.x(),cur.y()-1);
-        QPoint down(cur.x(),cur.y()+1);
-        QPoint left(cur.x()-1,cur.y());
-        QPoint right(cur.x()+1,cur.y());
-        QPoint lu(cur.x()-1,cur.y()-1);
-        QPoint ld(cur.x()-1,cur.y()+1);
-        QPoint ru(cur.x()+1,cur.y()-1);
-        QPoint rd(cur.x()+1,cur.y()+1);
-        if (cur.y()>0 && mark.pixel(up))
-        {
-            searchQueue.append(up);
-            mark.setPixel(up,false);
-        }
-        if (cur.y()+1<mark.height() && mark.pixel(down))
-        {
-            searchQueue.append(down);
-            mark.setPixel(down,false);
-        }
-        if (cur.x()>0 && mark.pixel(left))
-        {
-            searchQueue.append(left);
-            mark.setPixel(left,false);
-        }
-        if (cur.x()+1<mark.width() && mark.pixel(right))
-        {
-            searchQueue.append(right);
-            mark.setPixel(right,false);
-        }
-        if (cur.x()>0 && cur.y()>0 &&mark.pixel(lu))
-        {
-            searchQueue.append(lu);
-            mark.setPixel(lu,false);
-        }
-        if (cur.x()>0 && cur.y()+1<mark.height() && mark.pixel(ld))
-        {
-            searchQueue.append(ld);
-            mark.setPixel(ld,false);
-        }
-        if (cur.x()+1<mark.width() && cur.y()>0 && mark.pixel(ru))
-        {
-            searchQueue.append(ru);
-            mark.setPixel(ru,false);
-        }
-        if (cur.x()+1<mark.width() && cur.y()+1<mark.height() && mark.pixel(rd))
-        {
-            searchQueue.append(rd);
-            mark.setPixel(rd,false);
-        }
+//        QPoint up(cur.x(),cur.y()-1);
+//        QPoint down(cur.x(),cur.y()+1);
+//        QPoint left(cur.x()-1,cur.y());
+//        QPoint right(cur.x()+1,cur.y());
+//        QPoint lu(cur.x()-1,cur.y()-1);
+//        QPoint ld(cur.x()-1,cur.y()+1);
+//        QPoint ru(cur.x()+1,cur.y()-1);
+//        QPoint rd(cur.x()+1,cur.y()+1);
+//        if (cur.y()>0 && mark.pixel(up))
+//        {
+//            searchQueue.append(up);
+//            mark.setPixel(up,false);
+//        }
+//        if (cur.y()+1<mark.height() && mark.pixel(down))
+//        {
+//            searchQueue.append(down);
+//            mark.setPixel(down,false);
+//        }
+//        if (cur.x()>0 && mark.pixel(left))
+//        {
+//            searchQueue.append(left);
+//            mark.setPixel(left,false);
+//        }
+//        if (cur.x()+1<mark.width() && mark.pixel(right))
+//        {
+//            searchQueue.append(right);
+//            mark.setPixel(right,false);
+//        }
+//        if (cur.x()>0 && cur.y()>0 &&mark.pixel(lu))
+//        {
+//            searchQueue.append(lu);
+//            mark.setPixel(lu,false);
+//        }
+//        if (cur.x()>0 && cur.y()+1<mark.height() && mark.pixel(ld))
+//        {
+//            searchQueue.append(ld);
+//            mark.setPixel(ld,false);
+//        }
+//        if (cur.x()+1<mark.width() && cur.y()>0 && mark.pixel(ru))
+//        {
+//            searchQueue.append(ru);
+//            mark.setPixel(ru,false);
+//        }
+//        if (cur.x()+1<mark.width() && cur.y()+1<mark.height() && mark.pixel(rd))
+//        {
+//            searchQueue.append(rd);
+//            mark.setPixel(rd,false);
+//        }
         
-    }
-    printf("findClosestPointOn failed to find point\n");
-    QPoint x(-1,-1);
-    return x;
-}
+//    }
+//    printf("findClosestPointOn failed to find point\n");
+//    QPoint x(-1,-1);
+//    return x;
+//}
 
 //////////////////
 

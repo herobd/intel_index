@@ -154,8 +154,10 @@ void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bot
     if (crossPoints.empty())
         return;
     int SUBSECTION_WIDTH_FROM_KEYPOINT = 80;
-    int SUBSECTION_HEIGHT_FROM_KEYPOINT = 10 + crossPoints[0].y();
-    int SUBSECTION_PIXEL_COUNT_MAX = 750;
+    int SUBSECTION_HEIGHT_FROM_KEYPOINT = 80;//10 + crossPoints[0].y();
+    int SUBSECTION_PIXEL_COUNT_MAX = 950;
+    int NEW_SUBSECTION_WIDTH_FROM_KEYPOINT = 60;
+    
     int SOURCE_SINK_SEED_BUFFER = 5;
     //Find cross-over contected components
     assert(top->getSrc() == bottom->getSrc());
@@ -244,59 +246,28 @@ void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bot
                     continue;
                 }
                 
-//                if ((cur.x()-keyPoint.x()) == SUBSECTION_WIDTH_FROM_KEYPOINT-1 && )
+              
+                int tableIndex=8;
+                for (int cc=0; cc<9; cc++)
+                {
+                    tableIndex=(tableIndex+2)%9;
+                    if (tableIndex==4)
+                        continue;
+                    
+                    int xDelta=(tableIndex%3)-1;
+                    int yDelta=(tableIndex/3)-1;
+                    int x = cur.x()+xDelta;
+                    int y = cur.y()+yDelta;
+                    if (x>=0 && x<mark.width() && y>=0 && y<mark.height() && 
+                            mark.pixel(x,y) && 
+                            (top->pixelSrc(x,y) || bottom->pixelSrc(x,y)))
+                    {
+                        QPoint pp(x,y);
+                        workingStack.push_back(pp);
+                        mark.setPixel(pp,false);
+                    }
+                }
                 
-                
-                
-                if (cur.x()<mark.width()-1 && mark.pixel(cur.x()+1,cur.y()))
-                {
-                    QPoint pp(cur.x()+1,cur.y());
-                    workingStack.push_back(pp);
-                    mark.setPixel(pp,false);
-                }
-                if (cur.y()<mark.height()-1 && mark.pixel(cur.x(),cur.y()+1))
-                {
-                    QPoint pp(cur.x(),cur.y()+1);
-                    workingStack.push_back(pp);
-                    mark.setPixel(pp,false);
-                }
-                if (cur.x()>0 && mark.pixel(cur.x()-1,cur.y()))
-                {
-                    QPoint pp(cur.x()-1,cur.y());
-                    workingStack.push_back(pp);
-                    mark.setPixel(pp,false);
-                }
-                if (cur.y()>0 && mark.pixel(cur.x(),cur.y()-1))
-                {
-                    QPoint pp(cur.x(),cur.y()-1);
-                    workingStack.push_back(pp);
-                    mark.setPixel(pp,false);
-                }
-                //diagonals
-                if (cur.x()<mark.width()-1 && cur.y()<mark.height()-1 && mark.pixel(cur.x()+1,cur.y()+1))
-                {
-                    QPoint pp(cur.x()+1,cur.y()+1);
-                    workingStack.push_back(pp);
-                    mark.setPixel(pp,false);
-                }
-                if (cur.y()<mark.height()-1 && cur.x()>0 && mark.pixel(cur.x()-1,cur.y()+1))
-                {
-                    QPoint pp(cur.x()-1,cur.y()+1);
-                    workingStack.push_back(pp);
-                    mark.setPixel(pp,false);
-                }
-                if (cur.x()<mark.width()-1 && cur.y()>0 && mark.pixel(cur.x()+1,cur.y()-1))
-                {
-                    QPoint pp(cur.x()+1,cur.y()-1);
-                    workingStack.push_back(pp);
-                    mark.setPixel(pp,false);
-                }
-                if (cur.y()>0 && cur.x()>0 && mark.pixel(cur.x()-1,cur.y()-1))
-                {
-                    QPoint pp(cur.x()-1,cur.y()-1);
-                    workingStack.push_back(pp);
-                    mark.setPixel(pp,false);
-                }
             }
             
             if (crossover)
@@ -366,7 +337,7 @@ void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bot
                 }
                 else /*if(false)//skipping*/
                 {//do something fancy, like a 3D cut
-                    int NEW_SUBSECTION_WIDTH_FROM_KEYPOINT = 60;
+                    
                       //what is going on here? why do I make a second subsection?
                     
                     //Only do connected component
@@ -386,6 +357,7 @@ void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bot
                             continue;
                         
                         newSubsection.addPixelFromSrc(src_cur);
+                        
                         
                         if (cur.x()<mark.width()-1 && mark.pixel(cur.x()+1,cur.y()))
                         {
@@ -520,8 +492,8 @@ void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bot
                                 }
                     }
                     QPoint newCrossOverPoint(keyPoint.x()-newSubsection.getXOffset(),keyPoint.y()-newSubsection.getYOffset());
-//                    QVector<BPartition*> result3DCut = recut3D(newSubsection, sourceSeeds, sinkSeeds, newCrossOverPoint);
-                    QVector<BPartition*> result3DCut = recut2D(newSubsection, sourceSeeds, sinkSeeds, newCrossOverPoint);
+                    QVector<BPartition*> result3DCut = recut3D(newSubsection, sourceSeeds, sinkSeeds, newCrossOverPoint);
+//                    QVector<BPartition*> result3DCut = recut2D(newSubsection, sourceSeeds, sinkSeeds, newCrossOverPoint);
                     
                     ///test///start
 //                    xs.setNum(keyPoint.x());
@@ -706,14 +678,7 @@ QVector<BPartition*> WordSeparator::segmentLinesOfWords(const BPixelCollection &
 //        cuts[1]->changeSrc(&column,tempXOffset,tempYOffset);
         
 //        printf("cuts[0].height after change=%d\n",cuts[0]->height());
-        //test//
-        QString debugfile = "./output/cut_";
-        QString num;
-        num.setNum(test_count++);
-        debugfile.append(num);
-        debugfile.append(".ppm");;
-        cuts[0]->makeImage().save(debugfile);
-        //test//
+        
         
         ret.append(cuts[0]);
         delete unfinishedCol;
@@ -721,6 +686,20 @@ QVector<BPartition*> WordSeparator::segmentLinesOfWords(const BPixelCollection &
         
         
 //        cutEstimate = (unfinishedCol->height() - cut_dist_from_bottom) + spacingEstimate;
+        
+        //test//
+//        QString debugfile = "./segmentation/cut_";
+//        QString num;
+//        num.setNum(test_count++);
+//        debugfile.append(num);
+//        debugfile.append(".ppm");;
+//        cuts[0]->makeImage().save(debugfile);
+//        cuts[1]->makeImage().save("./segmentation/left.ppm");
+        
+//        char read;
+//        printf("cont? ");
+//        scanf("%c",&read);
+        //test//
     }
     unfinishedCol->changeSrc(&column,0,0);
     ret.append(unfinishedCol);
@@ -2380,68 +2359,6 @@ QVector<BPartition*> WordSeparator::recut3D(const BPixelCollection &img, QVector
     AngleImage angleImage(&img,numOfBins,0.0,PI);
     
     
-//    BImage mark(img);
-//    QVector<QVector<QPoint> > stacks(refPoints.size());
-//    for (int i=0; i<refPoints.size(); i++)
-//    {
-//        stacks[i].push_back(refPoints[i]);
-//        mark.setPixel(refPoints[i],false);
-//    }
-//    bool cont = true;
-//    while(cont)
-//    {
-//        cont = false;
-//        for (int i=0; i<stacks.size(); i++)
-//        {
-//            if (stacks[i].empty())
-//            {
-//                continue;
-//            }
-//            cont = true;
-//            QPoint cur = stacks[i].front();
-//            stacks[i].pop_front();
-            
-            
-////            slopes.setValueForPixel(cur,refSlopes[i]);
-////            if (refSlopes2[i]>=0)
-////                slopes.setSecondValueForPixel(cur,refSlopes2[i]);
-            
-//            slopes.setValuesForPixel(cur,refSlopesM[i]);
-            
-//            if (cur.x()<mark.width()-1 && mark.pixel(cur.x()+1,cur.y()))
-//            {
-//                QPoint pp(cur.x()+1,cur.y());
-//                stacks[i].push_back(pp);
-//                mark.setPixel(pp,false);
-//            }
-//            if (cur.y()<mark.height()-1 && mark.pixel(cur.x(),cur.y()+1))
-//            {
-//                QPoint pp(cur.x(),cur.y()+1);
-//                stacks[i].push_back(pp);
-//                mark.setPixel(pp,false);
-//            }
-//            if (cur.x()>0 && mark.pixel(cur.x()-1,cur.y()))
-//            {
-//                QPoint pp(cur.x()-1,cur.y());
-//                stacks[i].push_back(pp);
-//                mark.setPixel(pp,false);
-//            }
-//            if (cur.y()>0 && mark.pixel(cur.x(),cur.y()-1))
-//            {
-//                QPoint pp(cur.x(),cur.y()-1);
-//                stacks[i].push_back(pp);
-//                mark.setPixel(pp,false);
-//            }
-//        }
-//    }
-
-//    slopes.setNumOfBins(numOfBins);
-//    slopes.setMinMax(0,PI);
-    
-//    NDimensions dimensions;
-//    dimensions.addDimension(slopes);
-    
-    
     /////begin intensity
     
     //we first must read in a parallel, greyscale file
@@ -2603,7 +2520,7 @@ QVector<BPartition*> WordSeparator::recut3D(const BPixelCollection &img, QVector
     DistanceTransform::compute3DInverseDistanceMapNew(img3d,distmap3d,angleImage.width(),angleImage.height(),numOfBins);
     ///test3ddist
     
-    int maxflow = GraphCut::pixelsOfSeparation(distmap3d,img.width(),img.height(),numOfBins,angleImage,sourceSeeds,sinkSeeds,firstImgIndexes,secondImgIndexes, crossOverPoint, INT_POS_INFINITY/2);
+    int maxflow = GraphCut::pixelsOfSeparationRecut3D(distmap3d,img.width(),img.height(),numOfBins,angleImage,sourceSeeds,sinkSeeds,firstImgIndexes,secondImgIndexes, crossOverPoint, INT_POS_INFINITY/2);
     
     delete[] distmap3d;
     delete[] img3d;

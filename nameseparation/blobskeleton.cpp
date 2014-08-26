@@ -146,7 +146,10 @@ QPoint BlobSkeleton::findStartPoint()
         
     }
     QPoint ret(sumX/collection.size(),sumY/collection.size());
-    return ret;
+    if (src->pixel(ret))
+        return ret;
+    
+    return findClosestPoint(ret);
 }
 
 void BlobSkeleton::blobFill(const QPoint &begin)
@@ -598,4 +601,26 @@ int BlobSkeleton::regionIdForPoint(int x, int y) const
         return assignments[x][y];
     else
         return -1;
+}
+
+BImage BlobSkeleton::makeImage() const
+{
+    return src->makeImage();
+}
+
+bool BlobSkeleton::pixelIsMine(int x, int y) const{return true;}
+
+bool BlobSkeleton::pixel(int x, int y) const
+{
+    assert(x>=0 && x<width() && y>=0 && y<height());
+
+    return src->pixel(x,y);
+}
+int BlobSkeleton::width() const
+{
+    return src->width();
+}
+int BlobSkeleton::height() const
+{
+    return src->height();
 }

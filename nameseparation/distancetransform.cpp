@@ -1377,16 +1377,29 @@ void DistanceTransform::compute3DInverseDistanceMapNew(const double* src, long* 
     
     
     long newmax=0;
-    double e = 100;//60;
-    double b = 200;
+//    double e = 100;//60;
+//    double b = 200;
+//    double m = 10000;
+//    double a = INV_A;
+//    for (int i=0; i<width*height*depth; i++)
+//    {
+//        out[i] = pow(b-std::min(out[i]*(b/m),b),e)*a/(pow(b,e)) + 1;
+//        if (out[i]>newmax)
+//            newmax=out[i];
+//    }
+    
+    double e = 350;
+    double b = 3;
     double m = 10000;
     double a = INV_A;
     for (int i=0; i<width*height*depth; i++)
     {
-        out[i] = pow(b-std::min(out[i]*(b/m),b),e)*a/(pow(b,e)) + 1;
+        out[i] = pow(b,e*std::max(std::min(1-out[i]*(1/m),1.0),0.0))*a/(pow(b,e)) + 1;
         if (out[i]>newmax)
             newmax=out[i];
     }
+    
+    
 //    printf("3d newmax=%d\n",newmax);
     
     QVector<QRgb> default_color_table;

@@ -38,8 +38,8 @@ public:
     int width() const;
     int height() const;
     
-    void save(const QString& filepath);
-    void saveOwners(const QString& filepath);
+    bool save(const QString& filepath);
+    bool saveOwners(const QString& filepath);
     
     //use
     bool pixel(const QPoint &p) const;
