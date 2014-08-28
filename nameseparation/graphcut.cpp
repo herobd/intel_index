@@ -2658,7 +2658,10 @@ int GraphCut::pixelsOfSeparationRecut2D(const BPixelCollection &img, const int* 
             }
         }
     }
-    strengthenDescenderComponent2D(img,crossOverPoint,g);
+    
+    BlobSkeleton skeleton(&img);
+    findDescenderAccumulatively(skeleton,crossOverPoint);
+//    strengthenDescenderComponent2D(img,crossOverPoint,g);
     int ret = g -> maxflow();
     
 //    QImage debug2 = debug.convertToFormat(QImage::Format_RGB16);
@@ -2807,42 +2810,104 @@ void recurStr(int strFactor, const BlobSkeleton &skeleton, int curIndex, int pre
     }
 }
 
+class ComparePointer
+{
+public:
+    bool operator() (const DescenderPath* a, const DescenderPath* b) {return a->score() < b->score();}
+};
+
+DescenderPath* GraphCut::findDescenderAccumulatively(const BlobSkeleton &skeleton, const QPoint &startPoint)
+{
+    std::priority_queue<DescenderPath*,QVector<DescenderPath*>,ComparePointer>* queue = new std::priority_queue<DescenderPath*,QVector<DescenderPath*>,ComparePointer>();
+    QMap<double,DescenderPath*> finishedPaths;
+    int startRegionId = skeleton.closestRegionIdForPoint(startPoint);
+//    QVector<unsigned int> startPath;
+    DescenderPath* startPath = new DescenderPath(&skeleton);
+    startPath->append(startRegionId);
+    queue->push(startPath);
+    
+    int testCount=0;
+    
+    while (!queue->empty())
+    {
+        
+        
+        DescenderPath* path = queue->top();
+        queue->pop();
+        
+        ///test///
+        printf("Current path[%f]: ",path->score());
+        for (int i=0; i<path->size(); i++)
+            printf("(%d,%d), ",path->pointAt(i).x(),path->pointAt(i).y());
+        printf("\n");
+        ///test///
+        
+        
+        if (skeleton[path->last()].connectedPoints.size()>0)
+        {
+            bool betterFound;
+            foreach (unsigned int nextIndex, skeleton[path->last()].connectedPoints)
+            {
+                if (path->contains(nextIndex) || skeleton[nextIndex].y<startPoint.y())
+                    continue;
+                
+                DescenderPath* newPath = new DescenderPath(*path);
+                testCount++;
+                newPath->append(nextIndex);
+                if (newPath->score() < NEW_SCORE_THRESH)
+                {
+                    queue->push(newPath);
+                    
+                    betterFound = (newPath->score() > path->score());
+                }
+            }
+            
+            if (!betterFound && path->hasTop())
+                finishedPaths.insert(path->score(),path);
+            else
+                delete path;
+        }
+        else if (path->hasTop())
+        {
+            finishedPaths.insert(path->score(),path);
+        }
+        else
+        {
+            delete path;
+            testCount--;
+        }
+            
+
+        
+        //endcond
+//        if (finishedPaths.keys()[0]-)
+    }
+    
+    ///test
+    printf("Top 7 paths:\n");
+    for (int i=0; i<finishedPaths.size() && i<7; i++)
+    {
+        finishedPaths.values()[i]->printScore();
+        printf("Path %d [%f]: ",i,finishedPaths.values()[i]->score());
+        for (int j=0; j<finishedPaths.values()[i]->size(); j++)
+        {
+            printf("(%d,%d), ",skeleton[finishedPaths.values()[i]->at(j)].x,skeleton[finishedPaths.values()[i]->at(j)].y);
+        }
+        printf("\n");
+    }
+    ///test///
+    //delete??
+    delete queue;
+    return finishedPaths.values()[0];
+}
+
 void GraphCut::strengthenDescenderComponent(const AngleImage &img, const QPoint &crossOverPoint, GraphType *g, const Indexer3D &indexer)
 {
     assert(img.pixel(crossOverPoint));
     
-    int startRegionId = img.getSkeleton().regionIdForPoint(crossOverPoint);
-    if (startRegionId==-2)
-    {
-        BImage mark = img.makeImage();
-        QVector<QPoint> stack;
-        stack.push_back(crossOverPoint);
-        mark.setPixel(crossOverPoint,false);
-        while (startRegionId==-2 && !stack.empty())
-        {
-            QPoint p = stack.front();
-            stack.pop_front();
-            int tableIndex=8;
-            for (int cc=0; cc<9 && startRegionId==-2; cc++)
-            {
-                tableIndex=(tableIndex+2)%9;
-                if (tableIndex==4)
-                    continue;
-                
-                int xDelta=(tableIndex%3)-1;
-                int yDelta=(tableIndex/3)-1;
-                int x = p.x()+xDelta;
-                int y = p.y()+yDelta;
-                if (mark.pixel(x,y))
-                {
-                    mark.setPixel(x,y,false);
-                    startRegionId = img.getSkeleton().regionIdForPoint(x,y);
-                    QPoint next(x,y);
-                    stack.push_back(next);
-                }
-            }
-        }
-    }
+    int startRegionId = img.getSkeleton().closestRegionIdForPoint(crossOverPoint);
+    
+    
 //    printf("Starting point:(%d,%d)\n",img.getSkeleton()[startRegionId].x,img.getSkeleton()[startRegionId].y);
     QVector<QVector<unsigned int> > bestLowerPaths;
     QVector<double> bestLowerScores;

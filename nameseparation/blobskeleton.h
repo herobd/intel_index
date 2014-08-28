@@ -41,6 +41,7 @@ public:
     void draw(QString name) const;
     int regionIdForPoint(const QPoint &p) const;
     int regionIdForPoint(int x, int y) const;
+    int closestRegionIdForPoint(const QPoint &point) const;
     const QVector<QPoint>& getRegion(unsigned int index) const {return regions[index];}
     
     BImage makeImage() const;

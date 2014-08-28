@@ -21,7 +21,8 @@ SOURCES += main.cpp \
     distancetransform.cpp \
     operators.cpp \
     blobskeleton.cpp \
-    pathstackmap.cpp
+    pathstackmap.cpp \
+    descenderpath.cpp
 
 HEADERS += \
     ./wordprofile.h \
@@ -45,7 +46,8 @@ HEADERS += \
     operators.h \
     angleimage.h \
     blobskeleton.h \
-    pathstackmap.h
+    pathstackmap.h \
+    descenderpath.h
 
 OTHER_FILES += \
     maxflow/instances.inc \

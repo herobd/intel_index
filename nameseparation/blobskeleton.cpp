@@ -603,6 +603,53 @@ int BlobSkeleton::regionIdForPoint(int x, int y) const
         return -1;
 }
 
+
+
+int BlobSkeleton::closestRegionIdForPoint(const QPoint &point) const
+{
+    if (src!=NULL)
+    {
+        unsigned int ret = assignments[point.x()][point.y()];
+        if (ret==-2)
+        {
+            BImage mark = src->makeImage();
+            QVector<QPoint> stack;
+            
+            stack.push_back(point);
+            mark.setPixel(point,false);
+            while (ret=-2 && !stack.empty())
+            {
+                QPoint p = stack.front();
+                stack.pop_front();
+                int tableIndex=8;
+                for (int cc=0; cc<9 && ret==-2; cc++)
+                {
+                    tableIndex=(tableIndex+2)%9;
+                    if (tableIndex==4)
+                        continue;
+                    
+                    int xDelta=(tableIndex%3)-1;
+                    int yDelta=(tableIndex/3)-1;
+                    int x = p.x()+xDelta;
+                    int y = p.y()+yDelta;
+                    if (mark.pixel(x,y))
+                    {
+                        mark.setPixel(x,y,false);
+                        ret = assignments[x][y];
+                        QPoint next(x,y);
+                        stack.push_back(next);
+                    }
+                }
+            }
+        }
+       return ret;
+    }
+    else
+        return -1;
+    
+    
+}
+
 BImage BlobSkeleton::makeImage() const
 {
     return src->makeImage();

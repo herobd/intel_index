@@ -13,6 +13,8 @@
 #include "blobskeleton.h"
 #include "pathstackmap.h"
 #include <QVector3D>
+#include "descenderpath.h"
+#include <queue>
 
 #include <gsl/gsl_multifit.h>
 #include "gsl/gsl_statistics.h"
@@ -39,6 +41,8 @@
 #define DESC_BIAS_LEN_3D 16000
 #define DESC_BIAS_T_3D 600
 #define DESC_BIAS_Z 14000
+
+#define NEW_SCORE_THRESH 100
 
 typedef Graph<int,int,int> GraphType;
 
@@ -69,6 +73,8 @@ public:
      static void strengthenDescenderComponent2D(const BPixelCollection &img, const QPoint &crossOverPoint, GraphType *g);
      
 private:
+     
+     static DescenderPath* findDescenderAccumulatively(const BlobSkeleton &skeleton, const QPoint &startPoint);
      
      static void strengthenConnection3D(int curX, int curY, int curZ, int nextX, int nextY, int nextZ, GraphType *g, const BPixelCollection &img, QImage *test);
      static void strengthenConnection2D(int curX, int curY, int nextX, int nextY, GraphType *g, const BPixelCollection &img, QImage *test);

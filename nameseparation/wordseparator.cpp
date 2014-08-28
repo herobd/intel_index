@@ -492,8 +492,8 @@ void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bot
                                 }
                     }
                     QPoint newCrossOverPoint(keyPoint.x()-newSubsection.getXOffset(),keyPoint.y()-newSubsection.getYOffset());
-                    QVector<BPartition*> result3DCut = recut3D(newSubsection, sourceSeeds, sinkSeeds, newCrossOverPoint);
-//                    QVector<BPartition*> result3DCut = recut2D(newSubsection, sourceSeeds, sinkSeeds, newCrossOverPoint);
+//                    QVector<BPartition*> result3DCut = recut3D(newSubsection, sourceSeeds, sinkSeeds, newCrossOverPoint);
+                    QVector<BPartition*> result3DCut = recut2D(newSubsection, sourceSeeds, sinkSeeds, newCrossOverPoint);
                     
                     ///test///start
 //                    xs.setNum(keyPoint.x());
@@ -688,17 +688,17 @@ QVector<BPartition*> WordSeparator::segmentLinesOfWords(const BPixelCollection &
 //        cutEstimate = (unfinishedCol->height() - cut_dist_from_bottom) + spacingEstimate;
         
         //test//
-//        QString debugfile = "./segmentation/cut_";
-//        QString num;
-//        num.setNum(test_count++);
-//        debugfile.append(num);
-//        debugfile.append(".ppm");;
-//        cuts[0]->makeImage().save(debugfile);
-//        cuts[1]->makeImage().save("./segmentation/left.ppm");
+        QString debugfile = "./segmentation/cut_";
+        QString num;
+        num.setNum(test_count++);
+        debugfile.append(num);
+        debugfile.append(".ppm");;
+        cuts[0]->makeImage().save(debugfile);
+        cuts[1]->makeImage().save("./segmentation/left.ppm");
         
-//        char read;
-//        printf("cont? ");
-//        scanf("%c",&read);
+        char read;
+        printf("cont? ");
+        scanf("%c",&read);
         //test//
     }
     unfinishedCol->changeSrc(&column,0,0);

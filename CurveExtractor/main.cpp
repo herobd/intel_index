@@ -87,13 +87,13 @@ void evalCCs(const QVector<QVector<QPoint>* > &CCs, bool top)
         
         for (int i=0; i<cc->size(); i++)
         {
-            y[i] = cc->at(i).x()-xNorm;
-            x[i] = cc->at(i).y()-yNorm;
+            x[i] = cc->at(i).x()-xNorm;
+            y[i] = cc->at(i).y()-yNorm;
         }
         
-        polynomialfit(cc->size(),2,x,y,linear);
-        polynomialfit(cc->size(),3,x,y,quadratic);
-        polynomialfit(cc->size(),4,x,y,cubic);
+        polynomialfit(cc->size(),2,y,x,linear);
+        polynomialfit(cc->size(),3,y,x,quadratic);
+        polynomialfit(cc->size(),4,y,x,cubic);
         
 //        printf("obs l:(%f,%f)\tq:(%f,%f,%f)\tc:(%f,%f,%f,%f)\n",linear[0],linear[1],quadratic[0],quadratic[1],quadratic[2],cubic[0],cubic[1],cubic[2],cubic[3]);
         linear0.append(linear[0]);
@@ -124,14 +124,14 @@ void evalCCs(const QVector<QVector<QPoint>* > &CCs, bool top)
 //        {
 //            printf("bottom exception on instance %d (%f)\n",i,quadratic[2]);
 //        }
-        if (top && fabs(linear[1]+0.667002) > 2*0.414845)
-        {
-            printf("top, 2 std_dev on instance %d (%f)\n",i,quadratic[2]);
-        }
-        else if (!top && fabs(linear[1]+0.695677) > 2*406538)
-        {
-            printf("bottom 2 std_dev on instance %d (%f)\n",i,quadratic[2]);
-        }
+//        if (top && fabs(linear[1]+0.667002) > 2*0.414845)
+//        {
+//            printf("top, 2 std_dev on instance %d (%f)\n",i,quadratic[2]);
+//        }
+//        else if (!top && fabs(linear[1]+0.695677) > 2*406538)
+//        {
+//            printf("bottom 2 std_dev on instance %d (%f)\n",i,quadratic[2]);
+//        }
     }
     
     linearMean[0]/=CCs.size();
@@ -182,8 +182,8 @@ void evalCCs(const QVector<QVector<QPoint>* > &CCs, bool top)
     cubic[2]=pow(cubicSqrSum[2],.5);
     cubic[3]=pow(cubicSqrSum[3],.5);
     
-//    printf("avg l:(%f,%f)\tq:(%f,%f,%f)\tc:(%f,%f,%f,%f)\n",linearMean[0],linearMean[1],quadraticMean[0],quadraticMean[1],quadraticMean[2],cubicMean[0],cubicMean[1],cubicMean[2],cubicMean[3]);
-//    printf("std l:(%f,%f)\tq:(%f,%f,%f)\tc:(%f,%f,%f,%f)\n",linear[0],linear[1],quadratic[0],quadratic[1],quadratic[2],cubic[0],cubic[1],cubic[2],cubic[3]);
+    printf("avg l:(%f,%f)\tq:(%f,%f,%f)\tc:(%f,%f,%f,%f)\n",linearMean[0],linearMean[1],quadraticMean[0],quadraticMean[1],quadraticMean[2],cubicMean[0],cubicMean[1],cubicMean[2],cubicMean[3]);
+    printf("std l:(%f,%f)\tq:(%f,%f,%f)\tc:(%f,%f,%f,%f)\n",linear[0],linear[1],quadratic[0],quadratic[1],quadratic[2],cubic[0],cubic[1],cubic[2],cubic[3]);
 }
 
 QVector<QPoint>* getConnectedComponent(const QImage &image, BImage &mark, QRgb color, int startX, int startY)
@@ -222,16 +222,82 @@ QVector<QPoint>* getConnectedComponent(const QImage &image, BImage &mark, QRgb c
     }
     return ret;
 }
+QVector<QPoint>* getFullConnectedComponent(const QImage &image, BImage &mark, QRgb color1, QRgb color2, int startX, int startY)
+{
+    QVector<QPoint>* ret = new QVector<QPoint>();
+    QPoint start(startX,startY);
+    QVector<QPoint> stack;
+    stack.push_back(start);
+    mark.setPixel(startX,startY,false);
+    ret->append(start);
+    while (!stack.empty())
+    {
+        QPoint cur = stack.front();
+        stack.pop_front();
+        
+        int tableIndex=8;
+        for (int cc=0; cc<9; cc++)
+        {
+            tableIndex=(tableIndex+2)%9;
+            if (tableIndex==4)
+                continue;
+            
+            int xDelta=(tableIndex%3)-1;
+            int yDelta=(tableIndex/3)-1;
+            int x = cur.x()+xDelta;
+            int y = cur.y()+yDelta;
+            if (x>=0 && x<mark.width() && y>=0 && y<mark.height())
+            {
+                if (mark.pixel(x,y) && (image.pixel(x,y)==color1 || image.pixel(x,y)==color2))
+                {
+                    QPoint p(x,y);
+                    stack.push_back(p);
+                    mark.setPixel(p,false);
+                    ret->append(p);
+                }
+            }
+        }
+    }
+    return ret;
+}
+
+void seperateComponents(QVector<QPoint>* whole, QVector<QPoint>* top, QVector<QPoint>* bottom)
+{
+    int topY=whole->at(0).y();
+    int bottomY=whole->at(0).y();
+    bool lastedAddedToBottom=true;
+    int lastY=0;
+    foreach (QPoint p, *whole)
+    {
+        if ((p.y()>topY && p.y()<bottomY) || (abs(lastY-p.y())<2 && !lastedAddedToBottom))
+        {
+            top->append(p);
+            lastedAddedToBottom=false;
+            lastY=p.y();
+        }
+        else
+        {
+            if (p.y()<topY)
+                topY=p.y();
+            if (p.y()>bottomY)
+                bottomY=p.y();
+            
+            bottom->append(p);
+            lastedAddedToBottom=true;
+            lastY=p.y();
+        }
+    }
+}
 
 int main(int argc, char *argv[])
 {
-//    QVector<QVector<QPoint>* >* topCCs = new QVector<QVector<QPoint>* >();
-//    QVector<QVector<QPoint>* >* bottomCCs = new QVector<QVector<QPoint>* >();
+    QVector<QVector<QPoint>* >* topCCs = new QVector<QVector<QPoint>* >();
+    QVector<QVector<QPoint>* >* bottomCCs = new QVector<QVector<QPoint>* >();
     
     for (int i=1; i<argc; i++)
     {
-        QVector<QVector<QPoint>* >* topCCs = new QVector<QVector<QPoint>* >();
-        QVector<QVector<QPoint>* >* bottomCCs = new QVector<QVector<QPoint>* >();
+//        QVector<QVector<QPoint>* >* topCCs = new QVector<QVector<QPoint>* >();
+//        QVector<QVector<QPoint>* >* bottomCCs = new QVector<QVector<QPoint>* >();
         
         QString fileName(argv[i]);
         QImage image(fileName);
@@ -244,37 +310,74 @@ int main(int argc, char *argv[])
         
         
         
-        for (int y=1; y<image.height(); y++)
+//        for (int y=1; y<image.height(); y++)
+//        {
+//            for (int x=image.width()-1; x>=0; x--)
+//            {
+//                if (image.pixel(x,y)==top && mark.pixel(x,y))
+//                {
+//                    QVector<QPoint>* cc = getConnectedComponent(image,mark,top,x,y);
+//                    topCCs->append(cc);
+//                }
+//                else if (image.pixel(x,y)==bottom && mark.pixel(x,y))
+//                {
+//                    QVector<QPoint>* cc = getConnectedComponent(image,mark,bottom,x,y);
+//                    bottomCCs->append(cc);
+//                }
+//            }
+//        }
+        
+        
+        for (int x=image.width()-1; x>=0; x--)
         {
-            for (int x=image.width()-1; x>=0; x--)
+            for (int y=1; y<image.height(); y++)
             {
-                if (image.pixel(x,y)==top && mark.pixel(x,y))
+                if ((image.pixel(x,y)==top || image.pixel(x,y)==bottom) && mark.pixel(x,y))
                 {
-                    QVector<QPoint>* cc = getConnectedComponent(image,mark,top,x,y);
-                    topCCs->append(cc);
-                }
-                else if (image.pixel(x,y)==bottom && mark.pixel(x,y))
-                {
-                    QVector<QPoint>* cc = getConnectedComponent(image,mark,bottom,x,y);
-                    bottomCCs->append(cc);
+                    QVector<QPoint>* cc = getFullConnectedComponent(image,mark,top,bottom,x,y);
+                    QVector<QPoint>* top = new QVector<QPoint>();
+                    QVector<QPoint>* bottom = new QVector<QPoint>();
+                    seperateComponents(cc, top, bottom);
+                    topCCs->append(top);
+                    bottomCCs->append(bottom);
                 }
             }
         }
-        printf("Sheet %d\n", i);
-//        printf("top\n");
-        evalCCs(*topCCs,true);
-//        printf("bottom\n");
-        evalCCs(*bottomCCs,false);
-        foreach (QVector<QPoint>* cc, (*topCCs)+(*bottomCCs))
-            delete cc;
+        
+//        printf("Sheet %d\n", i);
+////        printf("top\n");
+//        evalCCs(*topCCs,true);
+////        printf("bottom\n");
+//        evalCCs(*bottomCCs,false);
+//        foreach (QVector<QPoint>* cc, (*topCCs)+(*bottomCCs))
+//            delete cc;
+        
+//        BImage testTop(image.width(),image.height());
+//        BImage testBottom(image.width(),image.height());
+//        foreach (QVector<QPoint>* cc, *topCCs)
+//        {
+//            foreach(QPoint p, *cc)
+//            {
+//                testTop.setPixel(p,true);
+//            }
+//        }
+//        foreach (QVector<QPoint>* cc, *bottomCCs)
+//        {
+//            foreach(QPoint p, *cc)
+//            {
+//                testBottom.setPixel(p,true);
+//            }
+//        }
+//        testTop.save("./testtop.ppm");
+//        testBottom.save("./testbottom.ppm");
     }
     
-//    printf("top\n");
-//    evalCCs(*topCCs);
-//    printf("bottom\n");
-//    evalCCs(*bottomCCs);
+    printf("top\n");
+    evalCCs(*topCCs,true);
+    printf("bottom\n");
+    evalCCs(*bottomCCs,false);
     
-//    foreach (QVector<QPoint>* cc, (*topCCs)+(*bottomCCs))
-//        delete cc;
+    foreach (QVector<QPoint>* cc, (*topCCs)+(*bottomCCs))
+        delete cc;
     return 0;
 }

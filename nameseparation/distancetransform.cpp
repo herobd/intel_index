@@ -233,7 +233,7 @@ void DistanceTransform::computeInverseDistanceMap(const BPixelCollection &src, i
             newmin=out[q];
     }
     
-    printf("newMax:%d, 2nd max:%d, newMin:%d\n",newmax,newmax2,newmin);
+//    printf("newMax:%d, 2nd max:%d, newMin:%d\n",newmax,newmax2,newmin);
     QImage debug(src.width(),src.height(),QImage::Format_Indexed8);
     QVector<QRgb> default_color_table;
     for (int i=0; i<255; i++)

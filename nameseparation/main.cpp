@@ -142,15 +142,15 @@ int main(int argc, char** argv)
 //    QPoint cross(31,28);
     
     //14
-//    QPoint p(78,24);
-//    QPoint p2(1,67);
-//    QPoint p2x(52,66);
-//    QPoint cross(28,35);
+    QPoint p(78,24);
+    QPoint p2(1,67);
+    QPoint p2x(52,66);
+    QPoint cross(28,35);
     
     //21
-    QPoint p(65,25);
-    QPoint p2(35,66);
-    QPoint cross(14,41);
+//    QPoint p(65,25);
+//    QPoint p2(35,66);
+//    QPoint cross(14,41);
     
     //22 this is a good example of 3d cut vanilla working (e=60, b=200, m=10000)
 //    QPoint p(1,18);
@@ -168,12 +168,12 @@ int main(int argc, char** argv)
 //    QPoint p2x(71,17);
 //    QPoint p2xx(12,40);
     sinkSeeds.append(p2);
-//    sinkSeeds.append(p2x);
+    sinkSeeds.append(p2x);
 //    sinkSeeds.append(p2xx);
     
 //    QPoint cross(100,33);
     
-    QVector<BPartition*> result = WordSeparator::recut3D(bimg, sourceSeeds, sinkSeeds,cross);
+    QVector<BPartition*> result = WordSeparator::recut2D(bimg, sourceSeeds, sinkSeeds,cross);
     bool test = result[0]->makeImage().save("./test0.ppm");
     test &= result[1]->makeImage().save("./test1.ppm");
     if (!test)
