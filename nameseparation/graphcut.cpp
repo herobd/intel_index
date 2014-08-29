@@ -2300,7 +2300,7 @@ int GraphCut::pixelsOfSeparationRecut3D(const long* invDistMap3D, int width, int
         debug.save("./anchors.ppm");
     }
     
-    strengthenDescenderComponent(img,crossOverPoint,g,indexer);
+    strengthenDescenderComponentAccum(img,crossOverPoint,g,indexer);
     int ret = g -> maxflow();
     
     //debug
@@ -2816,6 +2816,9 @@ public:
     bool operator() (const DescenderPath* a, const DescenderPath* b) {return a->score() < b->score();}
 };
 
+int testIterPass;
+//int testIterPassTotal;
+
 DescenderPath* GraphCut::findDescenderAccumulatively(const BlobSkeleton &skeleton, const QPoint &startPoint)
 {
     std::priority_queue<DescenderPath*,QVector<DescenderPath*>,ComparePointer>* queue = new std::priority_queue<DescenderPath*,QVector<DescenderPath*>,ComparePointer>();
@@ -2827,6 +2830,8 @@ DescenderPath* GraphCut::findDescenderAccumulatively(const BlobSkeleton &skeleto
     queue->push(startPath);
     
     int testCount=0;
+    int testIter=0;
+    QMap<DescenderPath*,int> finishedIters;
     
     while (!queue->empty())
     {
@@ -2836,19 +2841,19 @@ DescenderPath* GraphCut::findDescenderAccumulatively(const BlobSkeleton &skeleto
         queue->pop();
         
         ///test///
-        printf("Current path[%f]: ",path->score());
-        for (int i=0; i<path->size(); i++)
-            printf("(%d,%d), ",path->pointAt(i).x(),path->pointAt(i).y());
-        printf("\n");
+//        printf("Current path[%f]: ",path->score());
+//        for (int i=0; i<path->size(); i++)
+//            printf("(%d,%d), ",path->pointAt(i).x(),path->pointAt(i).y());
+//        printf("\n");
         ///test///
         
         
-        if (skeleton[path->last()].connectedPoints.size()>0)
+        if (skeleton[path->last()].connectedPoints.size()>0 && (path->size()==1 || path->last()!=path->at(0)))
         {
             bool betterFound;
             foreach (unsigned int nextIndex, skeleton[path->last()].connectedPoints)
             {
-                if (path->contains(nextIndex) || skeleton[nextIndex].y<startPoint.y())
+                if ((nextIndex!=path->at(0) && path->contains(nextIndex)) || skeleton[nextIndex].y<startPoint.y())
                     continue;
                 
                 DescenderPath* newPath = new DescenderPath(*path);
@@ -2860,45 +2865,145 @@ DescenderPath* GraphCut::findDescenderAccumulatively(const BlobSkeleton &skeleto
                     
                     betterFound = (newPath->score() > path->score());
                 }
+                else
+                {
+                    ///test///
+//                    printf("Tossed path[xxxxxxxxx]: ");
+//                    for (int i=0; i<newPath->size(); i++)
+//                        printf("(%d,%d), ",newPath->pointAt(i).x(),newPath->pointAt(i).y());
+//                    printf("\n");
+                    ///test///
+                }
             }
             
             if (!betterFound && path->hasTop())
+            {
                 finishedPaths.insert(path->score(),path);
+                finishedIters.insert(path,testIter);
+            }
             else
                 delete path;
         }
         else if (path->hasTop())
         {
             finishedPaths.insert(path->score(),path);
+            finishedIters.insert(path,testIter);
         }
         else
         {
             delete path;
             testCount--;
         }
-            
-
-        
-        //endcond
-//        if (finishedPaths.keys()[0]-)
+        testIter++;
     }
     
     ///test
-    printf("Top 7 paths:\n");
-    for (int i=0; i<finishedPaths.size() && i<7; i++)
-    {
-        finishedPaths.values()[i]->printScore();
-        printf("Path %d [%f]: ",i,finishedPaths.values()[i]->score());
-        for (int j=0; j<finishedPaths.values()[i]->size(); j++)
-        {
-            printf("(%d,%d), ",skeleton[finishedPaths.values()[i]->at(j)].x,skeleton[finishedPaths.values()[i]->at(j)].y);
-        }
-        printf("\n");
-    }
+//    printf("Top 7 paths:\n");
+//    for (int i=0; i<finishedPaths.size() && i<7; i++)
+//    {
+//        finishedPaths.values()[i]->printScore();
+//        printf("Path %d [%f]: ",i,finishedPaths.values()[i]->score());
+//        for (int j=0; j<finishedPaths.values()[i]->size(); j++)
+//        {
+//            printf("(%d,%d), ",skeleton[finishedPaths.values()[i]->at(j)].x,skeleton[finishedPaths.values()[i]->at(j)].y);
+//        }
+//        printf("\n");
+//    }
     ///test///
-    //delete??
+    //delete
     delete queue;
-    return finishedPaths.values()[0];
+    for (int i=1; i<finishedPaths.size(); i++)
+    {
+        delete finishedPaths.values()[i];
+    }
+    
+    if (finishedPaths.size()>0)
+    {
+        printf("Desc found : %f\t",finishedPaths.values()[0]->score());
+        printf("Found path in %d iterations \tof %d\n",finishedIters[finishedPaths.values()[0]],testIter);
+        testIterPass=finishedIters[finishedPaths.values()[0]];
+//        testIterPassTotal=testIter;
+        return finishedPaths.values()[0];
+    }
+    else
+        return NULL;
+}
+
+void GraphCut::strengthenDescenderComponentAccum(const AngleImage &img, const QPoint &crossOverPoint, GraphType *g, const Indexer3D &indexer)
+{
+    DescenderPath* descPath = findDescenderAccumulatively(img.getSkeleton(), crossOverPoint);
+    
+    if (descPath!=NULL/* && descPath->score() < DESCENDER_LIKELIHOOD_THRESH*/)
+    {
+        
+        
+        QImage test(img.makeImage().getImage());
+        QVector<QRgb> colors=test.colorTable();
+        colors.append(qRgb(255,0,0));
+        test.setColorTable(colors);
+        
+        int firstX = descPath->pointAt(0).x();
+        int firstY = descPath->pointAt(0).y();
+        int index = img.getSkeleton()[descPath->at(0)].connectedPoints.indexOf(descPath->at(1));
+        double angle = img.getSkeleton()[descPath->at(0)].angleBetween[index];
+        int firstZ = img.getBinForAngle(angle);
+        
+//        int prevUpperX=firstUpperX;
+//        int prevUpperY=firstUpperY;
+//        int prevUpperZ=firstUpperZ;
+        int curX=firstX;
+        int curY=firstY;
+        int z=firstZ;
+        
+        int nextX = descPath->pointAt(1).x();
+        int nextY = descPath->pointAt(1).y();
+        //connect to next
+        strengthenConnection3D(curX,curY,z,nextX,nextY,z,g,img,img.getNumOfBins(),&test);
+//        int indexA = indexer.getIndex(curX,curY,z);
+//        int indexB = indexer.getIndex(nextX,nextY,z);
+//        g->add_edge(indexA,indexB,DESC_BIAS_LEN_2D,DESC_BIAS_LEN_2D);
+        
+        test.setPixel(firstX,firstY,colors.size()-1);
+        test.setPixel(nextX,nextY,colors.size()-1);
+        for (unsigned int j=1; j<descPath->size()-1; j++)////////
+        {
+            
+            
+            int prevZ=z;
+            index = img.getSkeleton()[descPath->at(j)].connectedPoints.indexOf(descPath->at(j+1));
+            angle = img.getSkeleton()[descPath->at(j)].angleBetween[index];
+            z= img.getBinForAngle(angle);
+            
+            curX = nextX;
+            curY = nextY;
+            nextX = descPath->pointAt(j+1).x();
+            nextY = descPath->pointAt(j+1).y();
+            test.setPixel(nextX,nextY,colors.size()-1);
+            
+            //connect Z
+//            if (prevZ!=z)
+//            {
+//                strengthenConnection3D(curX,curY,prevZ,curX,curY,z,g,img,img.getNumOfBins(),&test);
+//            }
+            
+            //connect to next
+            strengthenConnection3D(curX,curY,z,nextX,nextY,z,g,img,img.getNumOfBins(),&test);
+        }
+        
+//        if (nextX==firstX && nextY == firstY && z!=firstZ)//close loops
+//        {
+//            strengthenConnection3D(firstX,firstY,firstZ,nextX,nextY,z,g,img,img.getNumOfBins(),&test);
+//        }
+        
+        test.save("./test_descender_id.ppm");
+//        if (testIterPass>50)
+//        {
+//                char a;
+//                printf("Is this right? ");
+//                scanf("%c",&a);
+//                printf("ok\n");
+//        }
+    }
 }
 
 void GraphCut::strengthenDescenderComponent(const AngleImage &img, const QPoint &crossOverPoint, GraphType *g, const Indexer3D &indexer)
@@ -2982,7 +3087,7 @@ void GraphCut::strengthenDescenderComponent(const AngleImage &img, const QPoint 
         int nextX = img.getSkeleton()[bestUpperPaths[i][1]].x;
         int nextY = img.getSkeleton()[bestUpperPaths[i][1]].y;
         //connect to next
-        strengthenConnection3D(curX,curY,z,nextX,nextY,z,g,img,&test);
+        strengthenConnection3D(curX,curY,z,nextX,nextY,z,g,img,img.getNumOfBins(),&test);
 //        int indexA = indexer.getIndex(curX,curY,z);
 //        int indexB = indexer.getIndex(nextX,nextY,z);
 //        g->add_edge(indexA,indexB,DESC_BIAS_LEN_2D,DESC_BIAS_LEN_2D);
@@ -3006,14 +3111,14 @@ void GraphCut::strengthenDescenderComponent(const AngleImage &img, const QPoint 
             //connect Z
             if (prevZ!=z)
             {
-                strengthenConnection3D(curX,curY,prevZ,curX,curY,z,g,img,&test);
+                strengthenConnection3D(curX,curY,prevZ,curX,curY,z,g,img,img.getNumOfBins(),&test);
 //                indexA = indexer.getIndex(curX,curY,prevZ);
 //                indexB = indexer.getIndex(curX,curX,z);
 //                g->add_edge(indexA,indexB,DESC_BIAS_Z,DESC_BIAS_Z);
             }
             
             //connect to next
-            strengthenConnection3D(curX,curY,z,nextX,nextY,z,g,img,&test);
+            strengthenConnection3D(curX,curY,z,nextX,nextY,z,g,img,img.getNumOfBins(),&test);
         }
         
         int lastUpperZ=z;
@@ -3027,11 +3132,11 @@ void GraphCut::strengthenDescenderComponent(const AngleImage &img, const QPoint 
         nextX = img.getSkeleton()[bestLowerPaths[i][1]].x;
         nextY = img.getSkeleton()[bestLowerPaths[i][1]].y;
         //connect to next
-        strengthenConnection3D(curX,curY,z,nextX,nextY,z,g,img,&test);
+        strengthenConnection3D(curX,curY,z,nextX,nextY,z,g,img,img.getNumOfBins(),&test);
         
         if (curX==firstUpperX && curY==firstUpperY && firstUpperZ!=z)
         {
-            strengthenConnection3D(curX,curY,firstUpperZ,curX,curY,z,g,img,&test);
+            strengthenConnection3D(curX,curY,firstUpperZ,curX,curY,z,g,img,img.getNumOfBins(),&test);
 //            indexA = indexer.getIndex(curX,curY,firstUpperZ);
 //            indexB = indexer.getIndex(curX,curX,z);
 //            g->add_edge(indexA,indexB,DESC_BIAS_Z,DESC_BIAS_Z);
@@ -3057,30 +3162,30 @@ void GraphCut::strengthenDescenderComponent(const AngleImage &img, const QPoint 
             //connect Z
             if (prevZ!=z)
             {
-                strengthenConnection3D(curX,curY,prevZ,curX,curY,z,g,img,&test);
+                strengthenConnection3D(curX,curY,prevZ,curX,curY,z,g,img,img.getNumOfBins(),&test);
             }
             
             //connect to next
-            strengthenConnection3D(curX,curY,z,nextX,nextY,z,g,img,&test);
+            strengthenConnection3D(curX,curY,z,nextX,nextY,z,g,img,img.getNumOfBins(),&test);
             
             //check upper start
             if (curX==firstUpperX && curY==firstUpperY)
             {
                 if (prevZ!=firstUpperZ)
                 {
-                    strengthenConnection3D(curX,curY,prevZ,curX,curY,firstUpperZ,g,img,&test);
+                    strengthenConnection3D(curX,curY,prevZ,curX,curY,firstUpperZ,g,img,img.getNumOfBins(),&test);
                 }
                 
                 if (firstUpperZ!=z)
                 {
-                    strengthenConnection3D(curX,curY,firstUpperZ,curX,curY,z,g,img,&test);
+                    strengthenConnection3D(curX,curY,firstUpperZ,curX,curY,z,g,img,img.getNumOfBins(),&test);
                 }
             }
         }
         
         if (lastUpperZ!=z)
         {
-            strengthenConnection3D(nextX,nextY,lastUpperZ,nextX,nextY,z,g,img,&test);
+            strengthenConnection3D(nextX,nextY,lastUpperZ,nextX,nextY,z,g,img,img.getNumOfBins(),&test);
         }
         
     }
@@ -3093,7 +3198,7 @@ void GraphCut::strengthenDescenderComponent(const AngleImage &img, const QPoint 
 //    printf("ok\n");
 }
 
-void GraphCut::strengthenConnection3D(int curX, int curY, int curZ, int nextX, int nextY, int nextZ, GraphType *g, const BPixelCollection &img, QImage *test)
+void GraphCut::strengthenConnection3D(int curX, int curY, int curZ, int nextX, int nextY, int nextZ, GraphType *g, const BPixelCollection &img, unsigned int depth, QImage *test)
 {
 //    printf("Connecting (%d,%d) to (%d,%d)\n",curX,curY,nextX,nextY);
     
@@ -3155,8 +3260,8 @@ void GraphCut::strengthenConnection3D(int curX, int curY, int curZ, int nextX, i
     {
         for (int deltaZ=-2; deltaZ<=2; deltaZ++)
         {
-            int indexA=line[i-1].x() + line[i-1].y()*img.width() + (line[i-1].z()+deltaZ)*img.width()*img.height();
-            int indexB=line[i].x() + line[i].y()*img.width() + (line[i].z()+deltaZ)*img.width()*img.height();
+            int indexA=line[i-1].x() + line[i-1].y()*img.width() + mod(line[i-1].z()+deltaZ,depth)*img.width()*img.height();
+            int indexB=line[i].x() + line[i].y()*img.width() + mod(line[i].z()+deltaZ,depth)*img.width()*img.height();
             
             g->add_edge(indexA,indexB,DESC_BIAS_LEN_3D,DESC_BIAS_LEN_3D);
             g->add_tweights(indexB,DESC_BIAS_T_3D,0);

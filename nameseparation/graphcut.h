@@ -42,7 +42,8 @@
 #define DESC_BIAS_T_3D 600
 #define DESC_BIAS_Z 14000
 
-#define NEW_SCORE_THRESH 100
+#define NEW_SCORE_THRESH 20
+#define DESCENDER_LIKELIHOOD_THRESH 10.5
 
 typedef Graph<int,int,int> GraphType;
 
@@ -68,7 +69,7 @@ public:
      
      static double polynomialfit(int obs, int degree, double *dx, double *dy, double *store, double *covarience);
      
-
+     static void strengthenDescenderComponentAccum(const AngleImage &img, const QPoint &crossOverPoint, GraphType *g, const Indexer3D &indexer);
      static void strengthenDescenderComponent(const AngleImage &img, const QPoint &crossOverPoint, GraphType *g, const Indexer3D &indexer);
      static void strengthenDescenderComponent2D(const BPixelCollection &img, const QPoint &crossOverPoint, GraphType *g);
      
@@ -76,7 +77,7 @@ private:
      
      static DescenderPath* findDescenderAccumulatively(const BlobSkeleton &skeleton, const QPoint &startPoint);
      
-     static void strengthenConnection3D(int curX, int curY, int curZ, int nextX, int nextY, int nextZ, GraphType *g, const BPixelCollection &img, QImage *test);
+     static void strengthenConnection3D(int curX, int curY, int curZ, int nextX, int nextY, int nextZ, GraphType *g, const BPixelCollection &img, unsigned int depth, QImage *test);
      static void strengthenConnection2D(int curX, int curY, int nextX, int nextY, GraphType *g, const BPixelCollection &img, QImage *test);
      
      static void lowerDescenderTraverser(const BlobSkeleton &skeleton, QVector<QVector<unsigned int> >* bestLowerPaths, QVector<double>* bestLowerScores, QVector<QVector<unsigned int> >* bestUpperPaths, QVector<double>* bestUpperScores, const QVector<unsigned int>* currentPath, double clockwiseScore, PathStackMap* upperPaths);

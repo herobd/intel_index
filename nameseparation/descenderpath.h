@@ -46,7 +46,7 @@ private:
     
     double getRelAngle(int indexA, int indexB, int indexC) const;
     double polynomialfit(int obs, int degree, double *dx, double *dy, double *store, double *covarience) const;
-    double computeHalfScore(bool upper, bool print/*=false*/, const DescenderPath* tt) const;
+    double computeHalfScore(bool upper, bool print=false) const;
 };
 
 

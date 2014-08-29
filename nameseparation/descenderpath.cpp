@@ -17,7 +17,7 @@ DescenderPath::DescenderPath(const DescenderPath &other)
     this->divideIndex = other.divideIndex;
 }
 
-void DescenderPath::append(unsigned int next)
+void DescenderPath::append(unsigned int next)//0x7fffffff7bd0
 {
 //    if (lowerPath.size()>0 && (upperPath.size()>0 || (*skeleton)[next].y < (*skeleton)[lowerPath.last()].y))
 //    {
@@ -28,24 +28,31 @@ void DescenderPath::append(unsigned int next)
 //        lowerPath.append(next);
 //    }
     
-    if (path.size()>0 && (divideIndex>0 || (*skeleton)[next].y < (*skeleton)[path.last()].y))
+    if (divideIndex<0 && path.size()>0 && (*skeleton)[next].y < (*skeleton)[path.last()].y)
     {
         divideIndex=path.size()-1;
     }
     
     path.append(next);
     
-    double lowerScore = this->computeHalfScore(false,false,this);
+    double lowerScore = this->computeHalfScore(false);
     
     if (divideIndex>0)
     {
-        double upperScore = this->computeHalfScore(true,false,this);
-        holdScore=(upperScore+lowerScore)/2;
+        double upperScore = this->computeHalfScore(true);
+        if (upperScore!=0 && lowerScore!=0)
+            holdScore=(upperScore+lowerScore)/2;
+        else
+            holdScore=std::max(upperScore, lowerScore);
     }
     else
     {
         holdScore=lowerScore;
     }
+    
+    //bias complete loops
+    if (next==path.first())
+        holdScore *= .75;
 }
 
 unsigned int DescenderPath::at(unsigned int index) const
@@ -135,7 +142,7 @@ double DescenderPath::polynomialfit(int obs, int degree,
 		  to know if the fit is "good" */
 }
 
-double DescenderPath::computeHalfScore(bool upper, bool print,  const DescenderPath* tt) const
+double DescenderPath::computeHalfScore(bool upper, bool print) const
 {
     double meanCurve;
     double stdDevCurve;
@@ -183,12 +190,13 @@ double DescenderPath::computeHalfScore(bool upper, bool print,  const DescenderP
     double y[sampleSize];
     for (int i=startIndex; i<=endIndex; i++)
     {
-        x[i]=(*skeleton)[path[i]].x;
-        y[i]=(*skeleton)[path[i]].y;
+        x[i-startIndex]=(*skeleton)[path[i]].x;
+        y[i-startIndex]=(*skeleton)[path[i]].y;
         
         if (i-startIndex>1)
         {
-            avgAngle += getRelAngle(path[i-2], path[i-1], path[i]);
+//            std::min(PI-relativeAngle,PI/3)
+            avgAngle += std::max(getRelAngle(path[i-2], path[i-1], path[i]),PI*0.6666);
         }
     }
     if (sampleSize>2)
@@ -218,16 +226,18 @@ double DescenderPath::computeHalfScore(bool upper, bool print,  const DescenderP
         
         double yOfVertex = quadOut[1]/(2*quadOut[2]);
         
+//        double curveScore = (copysign(1.0, curvature) == copysign(1.0, meanCurve) ||
+//                             fabs(curvature)<0.001) ? std::max(fabs(curvature-meanCurve),2*stdDevCurve) :
+//                                                               std::max(fabs(curvature-meanCurve),2*stdDevCurve);
+        halfScore = 10*(1/std::max(rsqCurve,0.1))*std::max(fabs(curvature-meanCurve),2*stdDevCurve)/(2*stdDevCurve) + .1*std::max(fabs(slope-meanSlope),2*stdDevSlope)/(2*stdDevSlope);
         
-        halfScore = (copysign(1.0, curvature) == copysign(1.0, meanCurve) ||
-                     fabs(curvature)<0.001) ? 
-                    10*(1/std::max(rsqCurve,0.1))*std::max(fabs(curvature-meanCurve),2*stdDevCurve)/(2*stdDevCurve) + .1*std::max(fabs(slope-meanSlope),2*stdDevSlope)/(2*stdDevSlope) : DOUBLE_POS_INFINITY;
+        
     }
     
     if(print)
-        printf("fit=%f\tangle=%f\t",halfScore,avgAngle);
+        printf("fit=%f\tangle=%f\t",halfScore,.1*avgAngle);
     
-    halfScore += avgAngle;
+    halfScore += .1*avgAngle;
     
     if(print)
         printf("total=%f\n",halfScore);
@@ -237,8 +247,8 @@ double DescenderPath::computeHalfScore(bool upper, bool print,  const DescenderP
 
 void DescenderPath::printScore() const
 {
-    computeHalfScore(true,true,this);
-    computeHalfScore(false,true,this);
+    computeHalfScore(true,true);
+    computeHalfScore(false,true);
 }
 
 double DescenderPath::score() const
@@ -249,7 +259,7 @@ double DescenderPath::score() const
 
 bool DescenderPath::hasTop() const
 {
-    return divideIndex>0;
+    return divideIndex>0 && path.size()-divideIndex>2 && holdScore>0;
 }
 
 unsigned int DescenderPath::last() const
