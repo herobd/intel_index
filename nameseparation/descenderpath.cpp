@@ -35,6 +35,8 @@ void DescenderPath::append(unsigned int next)//0x7fffffff7bd0
     
     path.append(next);
     
+    //recalculate score
+    
     double lowerScore = this->computeHalfScore(false);
     
     if (divideIndex>0)
@@ -51,8 +53,9 @@ void DescenderPath::append(unsigned int next)//0x7fffffff7bd0
     }
     
     //bias complete loops
-    if (next==path.first())
-        holdScore *= .75;
+    //TODO bias the connection towards the start point
+    if (path.indexOf(next)>-1 && path.indexOf(next)<= divideIndex)
+        holdScore *= 1 - .25*(divideIndex-path.indexOf(next))/divideIndex;
 }
 
 unsigned int DescenderPath::at(unsigned int index) const
@@ -226,10 +229,11 @@ double DescenderPath::computeHalfScore(bool upper, bool print) const
         
         double yOfVertex = quadOut[1]/(2*quadOut[2]);
         
-//        double curveScore = (copysign(1.0, curvature) == copysign(1.0, meanCurve) ||
-//                             fabs(curvature)<0.001) ? std::max(fabs(curvature-meanCurve),2*stdDevCurve) :
-//                                                               std::max(fabs(curvature-meanCurve),2*stdDevCurve);
-        halfScore = 10*(1/std::max(rsqCurve,0.1))*std::max(fabs(curvature-meanCurve),2*stdDevCurve)/(2*stdDevCurve) + .1*std::max(fabs(slope-meanSlope),2*stdDevSlope)/(2*stdDevSlope);
+        halfScore = (copysign(1.0, curvature) == copysign(1.0, meanCurve) ||
+                             fabs(curvature)<0.001) ? 
+                     10*(1/std::max(rsqCurve,0.1))*std::max(fabs(curvature-meanCurve),2*stdDevCurve)/(2*stdDevCurve) :
+                     15*(1/std::max(rsqCurve,0.1))*std::max(fabs(curvature-meanCurve),2*stdDevCurve)/(2*stdDevCurve);
+//        halfScore = 10*(1/std::max(rsqCurve,0.1))*std::max(fabs(curvature-meanCurve),2*stdDevCurve)/(2*stdDevCurve) + .1*std::max(fabs(slope-meanSlope),2*stdDevSlope)/(2*stdDevSlope);
         
         
     }
@@ -247,13 +251,14 @@ double DescenderPath::computeHalfScore(bool upper, bool print) const
 
 void DescenderPath::printScore() const
 {
-    computeHalfScore(true,true);
+    if (hasTop())
+        computeHalfScore(true,true);
+    
     computeHalfScore(false,true);
 }
 
 double DescenderPath::score() const
 {
-    
     return holdScore;
 }
 

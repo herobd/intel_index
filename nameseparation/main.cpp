@@ -138,10 +138,10 @@ int main(int argc, char** argv)
 ////    QPoint cross(36,39);
     
 //    //10
-////    QPoint p(1,19);
-////    QPoint p2(89,66);
-////    QPoint p2x(45,63);
-////    QPoint cross(31,28);
+//    QPoint p(1,19);
+//    QPoint p2(89,66);
+//    QPoint p2x(45,63);
+//    QPoint cross(31,28);
     
 //    //14
 ////    QPoint p(78,24);
@@ -160,25 +160,44 @@ int main(int argc, char** argv)
 ////    QPoint cross(14,41);
     
 //    //22 this is a good example of 3d cut vanilla working (e=60, b=200, m=10000)
-//    QPoint p(1,18);
-//    QPoint px(69,12);
-//    QPoint p2(0,47);
-//    QPoint p2x(53,48);
-//    QPoint p2xx(28,63);
-//    QPoint cross(35,23);
+////    QPoint p(1,18);
+////    QPoint px(69,12);
+////    QPoint p2(0,47);
+////    QPoint p2x(53,48);
+////    QPoint p2xx(28,63);
+////    QPoint cross(35,23);
     
-////    QPoint p(13,15);
-////    QPoint px(64,69);
+//    //23 
+////    QPoint p(5,10);
+////    QPoint px(80,14);
+////    QPoint p2(66,50);
+////    QPoint cross(35,24);
+    
+//    //24 
+////    QPoint p(1,23);
+////    QPoint px(18,4);
+////    QPoint p2(14,35);
+////    QPoint p2x(37,66);
+////    QPoint p2xx(70,58);
+////    QPoint cross(58,24);
+    
+//    //25
+////    QPoint p(17,17);
+////    QPoint px(99,14);
+////    QPoint p2(3,52);
+////    QPoint cross(60,28);
+    
+//    //26
+////    QPoint p(41,0);
+////    QPoint p2(51,58);
+////    QPoint cross(6,18);
+    
 //    sourceSeeds.append(p);
-//    sourceSeeds.append(px);
-////    QPoint p2(15,73);
-////    QPoint p2x(71,17);
-////    QPoint p2xx(12,40);
+////    sourceSeeds.append(px);
+    
 //    sinkSeeds.append(p2);
 //    sinkSeeds.append(p2x);
-//    sinkSeeds.append(p2xx);
-    
-////    QPoint cross(100,33);
+////    sinkSeeds.append(p2xx);
     
 //    QVector<BPartition*> result = WordSeparator::recut3D(bimg, sourceSeeds, sinkSeeds,cross);
 //    bool test = result[0]->makeImage().save("./test0.ppm");

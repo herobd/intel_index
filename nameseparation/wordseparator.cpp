@@ -698,12 +698,12 @@ QVector<BPartition*> WordSeparator::segmentLinesOfWords(const BPixelCollection &
         cuts[0]->makeImage().save(debugfile);
         cuts[1]->makeImage().save("./segmentation/left.ppm");
         
-        if (i==9)
-        {
-            char read;
-            printf("cont? ");
-            scanf("%c",&read);
-        }
+//        if (i==39)
+//        {
+//            char read;
+//            printf("cont? ");
+//            scanf("%c",&read);
+//        }
         //test//
     }
     unfinishedCol->changeSrc(&column,0,0);

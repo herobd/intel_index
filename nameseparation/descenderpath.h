@@ -36,6 +36,8 @@ public:
     
     void printScore() const;
     
+    int count(unsigned int i) const {return path.count(i);}
+    
 private:
     const BlobSkeleton* skeleton;
     double holdScore;

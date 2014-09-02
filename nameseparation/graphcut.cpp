@@ -2833,6 +2833,8 @@ DescenderPath* GraphCut::findDescenderAccumulatively(const BlobSkeleton &skeleto
     int testIter=0;
     QMap<DescenderPath*,int> finishedIters;
     
+//    printf("New Descender\n");
+    
     while (!queue->empty())
     {
         
@@ -2845,15 +2847,16 @@ DescenderPath* GraphCut::findDescenderAccumulatively(const BlobSkeleton &skeleto
 //        for (int i=0; i<path->size(); i++)
 //            printf("(%d,%d), ",path->pointAt(i).x(),path->pointAt(i).y());
 //        printf("\n");
+//        path->printScore();
         ///test///
         
         
-        if (skeleton[path->last()].connectedPoints.size()>0 && (path->size()==1 || path->last()!=path->at(0)))
+        if (skeleton[path->last()].connectedPoints.size()>0 && (path->size()==1 || path->count(path->last())<2))
         {
-            bool betterFound;
+            bool betterFound=false;
             foreach (unsigned int nextIndex, skeleton[path->last()].connectedPoints)
             {
-                if ((nextIndex!=path->at(0) && path->contains(nextIndex)) || skeleton[nextIndex].y<startPoint.y())
+                if (skeleton[nextIndex].y<startPoint.y() || (path->size()>1 && nextIndex==path->at(path->size()-2)))
                     continue;
                 
                 DescenderPath* newPath = new DescenderPath(*path);
@@ -2863,15 +2866,16 @@ DescenderPath* GraphCut::findDescenderAccumulatively(const BlobSkeleton &skeleto
                 {
                     queue->push(newPath);
                     
-                    betterFound = (newPath->score() > path->score());
+                    betterFound |= (newPath->score() < path->score());
                 }
                 else
                 {
                     ///test///
-//                    printf("Tossed path[xxxxxxxxx]: ");
+//                    printf("Tossed path[%f]: ",newPath->score());
 //                    for (int i=0; i<newPath->size(); i++)
 //                        printf("(%d,%d), ",newPath->pointAt(i).x(),newPath->pointAt(i).y());
 //                    printf("\n");
+//                    newPath->printScore();
                     ///test///
                 }
             }

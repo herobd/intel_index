@@ -42,7 +42,7 @@
 #define DESC_BIAS_T_3D 600
 #define DESC_BIAS_Z 14000
 
-#define NEW_SCORE_THRESH 20
+#define NEW_SCORE_THRESH 25//20
 #define DESCENDER_LIKELIHOOD_THRESH 10.5
 
 typedef Graph<int,int,int> GraphType;
