@@ -343,6 +343,7 @@ void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bot
                     //Only do connected component
                     BPartition newSubsection(subsection.getSrc());
                     mark = subsection.makeImage();
+                    
                     workingStack.clear();
                     QPoint rel_keyPoint(keyPoint.x()-subsection.getXOffset(), keyPoint.y()-subsection.getYOffset());
                     workingStack.push_back(rel_keyPoint);
@@ -358,56 +359,27 @@ void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bot
                         
                         newSubsection.addPixelFromSrc(src_cur);
                         
+                        int tableIndex=8;
+                        for (int cc=0; cc<9; cc++)
+                        {
+                            tableIndex=(tableIndex+2)%9;
+                            if (tableIndex==4)
+                                continue;
+                            
+                            int xDelta=(tableIndex%3)-1;
+                            int yDelta=(tableIndex/3)-1;
+                            int x = cur.x()+xDelta;
+                            int y = cur.y()+yDelta;
+                            
+                            if (x>0 && x<mark.width() && y>0 && y<mark.height() && mark.pixel(x,y) &&
+                                    (yDelta<=0 || x==rel_keyPoint.x() || y!=rel_keyPoint.y()))
+                            {
+                                QPoint pp(x,y);
+                                workingStack.push_back(pp);
+                                mark.setPixel(pp,false);
+                            }
+                        }
                         
-                        if (cur.x()<mark.width()-1 && mark.pixel(cur.x()+1,cur.y()))
-                        {
-                            QPoint pp(cur.x()+1,cur.y());
-                            workingStack.push_back(pp);
-                            mark.setPixel(pp,false);
-                        }
-                        if (cur.y()<mark.height()-1 && mark.pixel(cur.x(),cur.y()+1))
-                        {
-                            QPoint pp(cur.x(),cur.y()+1);
-                            workingStack.push_back(pp);
-                            mark.setPixel(pp,false);
-                        }
-                        if (cur.x()>0 && mark.pixel(cur.x()-1,cur.y()))
-                        {
-                            QPoint pp(cur.x()-1,cur.y());
-                            workingStack.push_back(pp);
-                            mark.setPixel(pp,false);
-                        }
-                        if (cur.y()>0 && mark.pixel(cur.x(),cur.y()-1))
-                        {
-                            QPoint pp(cur.x(),cur.y()-1);
-                            workingStack.push_back(pp);
-                            mark.setPixel(pp,false);
-                        }
-                        //diagonals
-                        if (cur.x()<mark.width()-1 && cur.y()<mark.height()-1 && mark.pixel(cur.x()+1,cur.y()+1))
-                        {
-                            QPoint pp(cur.x()+1,cur.y()+1);
-                            workingStack.push_back(pp);
-                            mark.setPixel(pp,false);
-                        }
-                        if (cur.y()<mark.height()-1 && cur.x()>0 && mark.pixel(cur.x()-1,cur.y()+1))
-                        {
-                            QPoint pp(cur.x()-1,cur.y()+1);
-                            workingStack.push_back(pp);
-                            mark.setPixel(pp,false);
-                        }
-                        if (cur.x()<mark.width()-1 && cur.y()>0 && mark.pixel(cur.x()+1,cur.y()-1))
-                        {
-                            QPoint pp(cur.x()+1,cur.y()-1);
-                            workingStack.push_back(pp);
-                            mark.setPixel(pp,false);
-                        }
-                        if (cur.y()>0 && cur.x()>0 && mark.pixel(cur.x()-1,cur.y()-1))
-                        {
-                            QPoint pp(cur.x()-1,cur.y()-1);
-                            workingStack.push_back(pp);
-                            mark.setPixel(pp,false);
-                        }
                     }
 
                     
@@ -662,6 +634,8 @@ QVector<BPartition*> WordSeparator::segmentLinesOfWords(const BPixelCollection &
         
         int cutY = dividingLines[i] - accumulativeYOffset;
         QVector<BPartition*> cuts = horzCutEntries(*unfinishedCol,cutY);
+        
+        assert(cuts[0]->width()>5 && cuts[1]->width()>5);
         
 //        cuts[0]->makeImage().save("./test0.ppm");
 //        cuts[1]->makeImage().save("./test1.ppm");

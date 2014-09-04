@@ -23,6 +23,8 @@ void BlobSkeleton::init(const BPixelCollection* src)
     
     QPoint startPoint = findStartPoint();
     blobFill(startPoint);
+    
+    //By default I'm saving an image
     draw("test");
 }
 
@@ -289,13 +291,13 @@ void BlobSkeleton::blobFill(const QPoint &begin)
         
         if (collection.size() >= MIN_REGION_SIZE)
         {
-            tracePoint centerOfMass(sumX/collection.size(),sumY/collection.size());
+            skeletonVertex centerOfMass(sumX/collection.size(),sumY/collection.size());
             
             regions.append(collection);
     //        printf("region %d found %d neighbors\n",myRegionId,neighborRegions.size());
             foreach (unsigned int regionId, neighborRegions)
             {
-                if (centerOfMass.connectedPoints.contains(regionId) || centersOfMass[regionId].connectedPoints.contains(myRegionId))
+                if (centerOfMass.connectedPoints().contains(regionId) || centersOfMass[regionId].connectedPoints().contains(myRegionId))
                    {
                     int i=0;
                 }
@@ -304,17 +306,13 @@ void BlobSkeleton::blobFill(const QPoint &begin)
                 if (angle < 0)
                     angle += PI;
                 double distance = sqrt(pow(centerOfMass.x-centersOfMass[regionId].x,2) + pow(centerOfMass.y-centersOfMass[regionId].y,2));
-                centerOfMass.connectedPoints.append(regionId);
-                centerOfMass.angleBetween.append(angle);
-                centerOfMass.distanceBetween.append(distance);
                 
-                centersOfMass[regionId].connectedPoints.append(myRegionId);
-                centersOfMass[regionId].angleBetween.append(angle);
-                centersOfMass[regionId].distanceBetween.append(distance);
+                centerOfMass.addNeighbor(regionId,angle,distance);
+                centersOfMass[regionId].addNeighbor(myRegionId,angle,distance);
             }
             centersOfMass.append(centerOfMass);
         }
-        else
+        else //We try and bridge regions only seperated by too-small-regions
         {
             
             foreach (QPoint p, collection)
@@ -343,9 +341,9 @@ void BlobSkeleton::blobFill(const QPoint &begin)
                 {
                     foreach (unsigned int regionId2, localNeighboringRegions)
                     {
-                        if (regionId1!=regionId2 && !centersOfMass[regionId1].connectedPoints.contains(regionId2))
+                        if (regionId1!=regionId2 && !centersOfMass[regionId1].connectedPoints().contains(regionId2))
                         {
-                            if (centersOfMass[regionId1].connectedPoints.contains(regionId2) || centersOfMass[regionId2].connectedPoints.contains(regionId1))
+                            if (centersOfMass[regionId1].connectedPoints().contains(regionId2) || centersOfMass[regionId2].connectedPoints().contains(regionId1))
                                {
                                 int i=0;
                             }
@@ -355,13 +353,8 @@ void BlobSkeleton::blobFill(const QPoint &begin)
                                 angle += PI;
                             double distance = sqrt(pow(centersOfMass[regionId1].x-centersOfMass[regionId2].x,2) + pow(centersOfMass[regionId1].y-centersOfMass[regionId2].y,2));
                             
-                            centersOfMass[regionId1].connectedPoints.append(regionId2);
-                            centersOfMass[regionId1].angleBetween.append(angle);
-                            centersOfMass[regionId1].distanceBetween.append(distance);
-                            
-                            centersOfMass[regionId2].connectedPoints.append(regionId1);
-                            centersOfMass[regionId2].angleBetween.append(angle);
-                            centersOfMass[regionId2].distanceBetween.append(distance);
+                            centersOfMass[regionId1].addNeighbor(regionId2,angle,distance);
+                            centersOfMass[regionId2].addNeighbor(regionId1,angle,distance);
                         }
                     }
                 }
@@ -527,11 +520,11 @@ void BlobSkeleton::draw(QString name) const
             //        if (lines.pixel(centersOfMass[i].x,centersOfMass[i].y)!=blue)
             {
                 
-                for (int j=0; j<centersOfMass[i].connectedPoints.size(); j++)
+                for (int j=0; j<centersOfMass[i].connectedPoints().size(); j++)
                 {
-                    unsigned int index = centersOfMass[i].connectedPoints[j];
+                    unsigned int index = centersOfMass[i].connectedPoints()[j];
                     
-                    double angle = centersOfMass[i].angleBetween[j];
+                    double angle = centersOfMass[i].angleBetween(index);
                     //                printf("Hue used: %d\n",(int)(360*(angle/PI)));
                     
                     //draw line

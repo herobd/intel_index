@@ -119,6 +119,11 @@ void AngleImage::init()
     skeleton.init(src);
     
     QVector<bool> visited(skeleton.numberOfVertices());
+    
+    //debug
+    if (visited.size()==0)
+        src->makeImage().save("./ttt.ppm");
+    
     for (int i=0; i<visited.size(); i++)
     {
         visited[i]=false;
@@ -136,14 +141,15 @@ void AngleImage::init()
 //        QPoint toAdd(tracePoints[curIndex].x,tracePoints[curIndex].y);
         
 //        QVector<double> slope;
-        for (int i=0; i<skeleton[curIndex].connectedPoints.size(); i++)
+        for (int i=0; i<skeleton[curIndex].connectedPoints().size(); i++)
         {
 //            slope.append(tracePoints[curIndex].angleBetween[i]);
-            if (!visited[skeleton[curIndex].connectedPoints[i]])
+            if (!visited[skeleton[curIndex].connectedPoints()[i]])
             {
-                pointStack.append(skeleton[curIndex].connectedPoints[i]);
-                int midX = (skeleton[curIndex].x + skeleton[ skeleton[curIndex].connectedPoints[i] ].x)/2;
-                int midY = (skeleton[curIndex].y + skeleton[ skeleton[curIndex].connectedPoints[i] ].y)/2;
+                unsigned int curRegionId = skeleton[curIndex].connectedPoints()[i];
+                pointStack.append(curRegionId);
+                int midX = (skeleton[curIndex].x + skeleton[curRegionId].x)/2;
+                int midY = (skeleton[curIndex].y + skeleton[curRegionId].y)/2;
                 QPoint mid(midX,midY);
                 if (!pixel(midX,midY))
                 {
@@ -153,15 +159,15 @@ void AngleImage::init()
                 
                 if(mid.x()>2000 || mid.y()>2000 || mid.x()<0)
                 {
-                    printf("Error on midpoint for (%d,%d) and (%d,%d)\n",skeleton[curIndex].x,skeleton[curIndex].y,skeleton[ skeleton[curIndex].connectedPoints[i] ].x,skeleton[ skeleton[curIndex].connectedPoints[i] ].y);
+                    printf("Error on midpoint for (%d,%d) and (%d,%d)\n",skeleton[curIndex].x,skeleton[curIndex].y,skeleton[curRegionId].x,skeleton[curRegionId].y);
                     continue;
                 }
                 
                 refPoints.append(mid);
-                double slopeMid=skeleton[curIndex].angleBetween[i];
+                double slopeMid=skeleton[curIndex].angleBetween(curRegionId);
 //                slopeMid.append(tracePoints[curIndex].angleBetween[i]);
                 refSlopesM.append(slopeMid);
-                refLengthsM.append(skeleton[curIndex].distanceBetween[i]);
+                refLengthsM.append(skeleton[curIndex].distanceBetween(curRegionId));
             }
         }
 //        refPoints.append(toAdd);

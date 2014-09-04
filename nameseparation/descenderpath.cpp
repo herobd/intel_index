@@ -5,16 +5,26 @@ DescenderPath::DescenderPath(const BlobSkeleton* skeleton)
     this->skeleton=skeleton;
     holdScore=-1;
     divideIndex=-1;
+    upperLength=0;
+    lowerLength=0;
 }
 
 DescenderPath::DescenderPath(const DescenderPath &other)
 {
     this->skeleton = other.skeleton;
     this->holdScore = other.holdScore;
+    this->upperLength = other.upperLength;
+    this->lowerLength = other.lowerLength;
 //    this->upperPath = other.upperPath;
 //    this->lowerPath = other.lowerPath;
     this->path = other.path;
     this->divideIndex = other.divideIndex;
+}
+
+inline double DescenderPath::computeLenRatioBias() const
+{
+    return upperLength < lowerLength*(2/3.0) || upperLength*(2/3.0) > lowerLength ? 
+                    .5+.5*fabs(lowerLength-upperLength)/std::max(lowerLength*(1/3.0),upperLength*(1/3.0)) : 1;
 }
 
 void DescenderPath::append(unsigned int next)//0x7fffffff7bd0
@@ -33,6 +43,7 @@ void DescenderPath::append(unsigned int next)//0x7fffffff7bd0
         divideIndex=path.size()-1;
     }
     
+    
     path.append(next);
     
     //recalculate score
@@ -41,21 +52,37 @@ void DescenderPath::append(unsigned int next)//0x7fffffff7bd0
     
     if (divideIndex>0)
     {
+        upperLength += (*skeleton)[next].distanceBetween(path[path.size()-2]);
+        
         double upperScore = this->computeHalfScore(true);
         if (upperScore!=0 && lowerScore!=0)
-            holdScore=(upperScore+lowerScore)/2;
+        {
+//            double lenRatioBias = upperLength > lowerLength/2 && upperLength < lowerLength*2 ? 
+//                        .8+.2*fabs(lowerLength-upperLength)/std::max(lowerLength/2,upperLength/2) : 1;
+            double lenRatioBias = computeLenRatioBias();
+            
+            holdScore=lenRatioBias*(upperScore+lowerScore)/2;
+        }
         else
             holdScore=std::max(upperScore, lowerScore);
+        
+        
     }
     else
     {
+        if (path.size()>1)
+        {
+            lowerLength += (*skeleton)[next].distanceBetween(path[path.size()-2]);
+        }
+        
         holdScore=lowerScore;
+        
+       
     }
     
     //bias complete loops
-    //TODO bias the connection towards the start point
     if (path.indexOf(next)>-1 && path.indexOf(next)<= divideIndex)
-        holdScore *= 1 - .25*(divideIndex-path.indexOf(next))/divideIndex;
+        holdScore *= .75;//1 - .25*(divideIndex-path.indexOf(next))/divideIndex;
 }
 
 unsigned int DescenderPath::at(unsigned int index) const
@@ -191,10 +218,72 @@ double DescenderPath::computeHalfScore(bool upper, bool print) const
     
     double x[sampleSize];
     double y[sampleSize];
+//    QVector<double> x;
+//    QVector<double> y;
     for (int i=startIndex; i<=endIndex; i++)
     {
         x[i-startIndex]=(*skeleton)[path[i]].x;
         y[i-startIndex]=(*skeleton)[path[i]].y;
+        
+//        foreach (QPoint p, (*skeleton).getRegion(path[i]))
+//        {
+//            if ((*skeleton).pixel(p.x(),p.y()))
+//            {
+//                x.append((double)p.x());
+//                y.append((double)p.y());
+//            }
+//        }
+//        if (i>startIndex)
+//        {
+//            int curX=(*skeleton)[path[i-1]].x;
+//            int curY=(*skeleton)[path[i-1]].y;
+//            int nextX=(*skeleton)[path[i]].x;
+//            int nextY=(*skeleton)[path[i]].y;
+//            QVector<QPoint> line;
+//            QPoint start(curX,curY);
+//            line.append(start);
+//            if (curX==nextX || fabs((curY-nextY)/((double)curX-nextX)) > 1)
+//            {
+//                double slope = ((double)curX-nextX)/(curY-nextY);
+//                double intersect = curX-curY*slope;
+//                int inc = copysign(1.0, nextY-curY);
+//                for (int y=curY+inc; inc*y<inc*nextY; y+=inc)
+//                {
+//                    QPoint toAdd(y*slope+intersect,y);
+//                    if (((BPixelCollection*)skeleton)->pixel(toAdd))
+//                        line.append(toAdd);
+//                    else
+//                    {
+//        //                return;
+//                    }
+//                }
+//            }
+//            else
+//            {
+//                double slope = (curY-nextY)/((double)curX-nextX);
+//                double intersect = curY-curX*slope;
+//                int inc = copysign(1.0, nextX-curX);
+//                for (int x=curX+inc; inc*x<inc*nextX; x+=inc)
+//                {
+//                    QPoint toAdd(x,slope*x+intersect);
+//                    if (((BPixelCollection*)skeleton)->pixel(toAdd))
+//                        line.append(toAdd);
+//                    else
+//                    {
+//        //                return;
+//                    }
+//                }
+//            }
+//            QPoint end(nextX,nextY);
+//            line.append(end);
+            
+//            foreach (QPoint p, line)
+//            {
+
+//                x.append((double)p.x());
+//                y.append((double)p.y());
+//            }
+//        }
         
         if (i-startIndex>1)
         {
@@ -202,6 +291,9 @@ double DescenderPath::computeHalfScore(bool upper, bool print) const
             avgAngle += std::max(getRelAngle(path[i-2], path[i-1], path[i]),PI*0.6666);
         }
     }
+    
+//    int sampleSize = x.size();
+    
     if (sampleSize>2)
     {
         avgAngle /= sampleSize-2;
@@ -255,6 +347,8 @@ void DescenderPath::printScore() const
         computeHalfScore(true,true);
     
     computeHalfScore(false,true);
+    double lenRatioBias = computeLenRatioBias();
+    printf("lenRatioBis=%f,\ttotal score=%f\n",lenRatioBias,holdScore);
 }
 
 double DescenderPath::score() const
@@ -264,7 +358,7 @@ double DescenderPath::score() const
 
 bool DescenderPath::hasTop() const
 {
-    return divideIndex>0 && path.size()-divideIndex>2 && holdScore>0;
+    return divideIndex>0 && path.size()-divideIndex>2 && holdScore>0 /**/ && (path.indexOf(path.last())>-1 && path.indexOf(path.last())<= divideIndex);
 }
 
 unsigned int DescenderPath::last() const

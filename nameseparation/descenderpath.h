@@ -45,7 +45,10 @@ private:
 //    QVector<unsigned int> lowerPath;
     QVector<unsigned int> path;
     int divideIndex;
+    double upperLength;
+    double lowerLength;
     
+    inline double computeLenRatioBias() const;
     double getRelAngle(int indexA, int indexB, int indexC) const;
     double polynomialfit(int obs, int degree, double *dx, double *dy, double *store, double *covarience) const;
     double computeHalfScore(bool upper, bool print=false) const;

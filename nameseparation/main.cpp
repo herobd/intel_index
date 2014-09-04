@@ -29,19 +29,19 @@ int main(int argc, char** argv)
     BImage bimg(testimg);
     
     ///Test descender identification/////
-    BImage cleared = BoxCleaner::trimVerticleBoundaries(bimg);
-    cleared = BoxCleaner::trimHorizontalBoundaries(cleared);
-    cleared = BoxCleaner::removeVerticlePixelNoise(cleared);
-    QVector<BPartition*> lines = WordSeparator::segmentLinesOfWords(cleared,40);
-    for (int i=0; i<lines.size(); i++)
-    {
-        cleared.claimOwnership(lines[i],1);
-    }
-    cleared.saveOwners("./rainbow.ppm");
-    for (int i=0; i<lines.size(); i++)
-    {
-        delete lines[i];
-    }
+//    BImage cleared = BoxCleaner::trimVerticleBoundaries(bimg);
+//    cleared = BoxCleaner::trimHorizontalBoundaries(cleared);
+//    cleared = BoxCleaner::removeVerticlePixelNoise(cleared);
+//    QVector<BPartition*> lines = WordSeparator::segmentLinesOfWords(cleared,40);
+//    for (int i=0; i<lines.size(); i++)
+//    {
+//        cleared.claimOwnership(lines[i],1);
+//    }
+//    cleared.saveOwners("./rainbow.ppm");
+//    for (int i=0; i<lines.size(); i++)
+//    {
+//        delete lines[i];
+//    }
     //9
 //    QPoint cross(60,29);
     
@@ -114,99 +114,99 @@ int main(int argc, char** argv)
 //    testimg.save("./test.ppm");
 //////////////////
     
-//    QVector<QPoint> sourceSeeds;
-//    QVector<QPoint> sinkSeeds;
+    QVector<QPoint> sourceSeeds;
+    QVector<QPoint> sinkSeeds;
     
-//    //1
-////    QPoint p(4,29);
-////    QPoint p2(6,64);
-////    QPoint cross(102,33);
+    //1
+//    QPoint p(4,29);
+//    QPoint p2(6,64);
+//    QPoint cross(102,33);
     
-//    //?
-////    QPoint p(10,32);
-////    QPoint p2(83,70);
+    //?
+//    QPoint p(10,32);
+//    QPoint p2(83,70);
     
-//    //2
-////    QPoint p(63,18);
-////    QPoint p2(64,64);
-////    QPoint p2x(1,72);
-////    QPoint cross(31,36);
+    //2
+//    QPoint p(63,18);
+//    QPoint p2(64,64);
+//    QPoint p2x(1,72);
+//    QPoint cross(31,36);
     
-//    //4
-////    QPoint p(86,29);
-////    QPoint p2(13,72);
-////    QPoint cross(36,39);
+    //4
+//    QPoint p(86,29);
+//    QPoint p2(13,72);
+//    QPoint cross(36,39);
     
-//    //10
-//    QPoint p(1,19);
-//    QPoint p2(89,66);
-//    QPoint p2x(45,63);
-//    QPoint cross(31,28);
+    //10
+    QPoint p(1,19);
+    QPoint px(82,28);
+    QPoint p2(99,66);
+    QPoint cross(42,28);
     
-//    //14
-////    QPoint p(78,24);
-////    QPoint p2(1,67);
-////    QPoint p2x(52,66);
-////    QPoint cross(28,35);
+    //14
+//    QPoint p(78,24);
+//    QPoint p2(1,67);
+//    QPoint p2x(52,66);
+//    QPoint cross(28,35);
     
-//    //18
-////    QPoint p(94,19);
-////    QPoint p2(22,79);
-////    QPoint cross(43,29);
+    //18
+//    QPoint p(94,19);
+//    QPoint p2(22,79);
+//    QPoint cross(43,29);
     
-//    //21
-////    QPoint p(65,25);
-////    QPoint p2(35,66);
-////    QPoint cross(14,41);
+    //21
+//    QPoint p(65,25);
+//    QPoint p2(35,66);
+//    QPoint cross(14,41);
     
-//    //22 this is a good example of 3d cut vanilla working (e=60, b=200, m=10000)
-////    QPoint p(1,18);
-////    QPoint px(69,12);
-////    QPoint p2(0,47);
-////    QPoint p2x(53,48);
-////    QPoint p2xx(28,63);
-////    QPoint cross(35,23);
+    //22 this is a good example of 3d cut vanilla working (e=60, b=200, m=10000)
+//    QPoint p(1,18);
+//    QPoint px(69,12);
+//    QPoint p2(0,47);
+//    QPoint p2x(53,48);
+//    QPoint p2xx(28,63);
+//    QPoint cross(35,23);
     
-//    //23 
-////    QPoint p(5,10);
-////    QPoint px(80,14);
-////    QPoint p2(66,50);
-////    QPoint cross(35,24);
+    //23 
+//    QPoint p(5,10);
+//    QPoint px(80,14);
+//    QPoint p2(66,50);
+//    QPoint cross(35,24);
     
-//    //24 
-////    QPoint p(1,23);
-////    QPoint px(18,4);
-////    QPoint p2(14,35);
-////    QPoint p2x(37,66);
-////    QPoint p2xx(70,58);
-////    QPoint cross(58,24);
+    //24 
+//    QPoint p(1,23);
+//    QPoint px(18,4);
+//    QPoint p2(14,35);
+//    QPoint p2x(37,66);
+//    QPoint p2xx(70,58);
+//    QPoint cross(58,24);
     
-//    //25
-////    QPoint p(17,17);
-////    QPoint px(99,14);
-////    QPoint p2(3,52);
-////    QPoint cross(60,28);
+    //25
+//    QPoint p(17,17);
+//    QPoint px(99,14);
+//    QPoint p2(3,52);
+//    QPoint cross(60,28);
     
-//    //26
-////    QPoint p(41,0);
-////    QPoint p2(51,58);
-////    QPoint cross(6,18);
+    //26
+//    QPoint p(41,0);
+//    QPoint p2(51,58);
+//    QPoint cross(6,18);
     
-//    sourceSeeds.append(p);
-////    sourceSeeds.append(px);
+    sourceSeeds.append(p);
+//    sourceSeeds.append(px);
     
-//    sinkSeeds.append(p2);
+    sinkSeeds.append(p2);
 //    sinkSeeds.append(p2x);
-////    sinkSeeds.append(p2xx);
+//    sinkSeeds.append(p2xx);
     
-//    QVector<BPartition*> result = WordSeparator::recut3D(bimg, sourceSeeds, sinkSeeds,cross);
-//    bool test = result[0]->makeImage().save("./test0.ppm");
-//    test &= result[1]->makeImage().save("./test1.ppm");
-//    if (!test)
-//        printf("Save image failure.\n");
-//    bimg.claimOwnership(result[0],1);
-//    bimg.claimOwnership(result[1],1);
-//    bimg.saveOwners("./test.ppm");
+    QVector<BPartition*> result = WordSeparator::recut3D(bimg, sourceSeeds, sinkSeeds,cross);
+    bool test = result[0]->makeImage().save("./test0.ppm");
+    test &= result[1]->makeImage().save("./test1.ppm");
+    if (!test)
+        printf("Save image failure.\n");
+    bimg.claimOwnership(result[0],1);
+    bimg.claimOwnership(result[1],1);
+    bimg.saveOwners("./test.ppm");
     
     //////////////////////////
     

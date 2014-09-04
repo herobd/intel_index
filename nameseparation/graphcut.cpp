@@ -2300,128 +2300,129 @@ int GraphCut::pixelsOfSeparationRecut3D(const long* invDistMap3D, int width, int
         debug.save("./anchors.ppm");
     }
     
+    int ret=0;
     strengthenDescenderComponentAccum(img,crossOverPoint,g,indexer);
-    int ret = g -> maxflow();
+//    int ret = g -> maxflow();
     
-    //debug
-//    printf("Maxflow of cut is %d\n",ret);
+//    //debug
+////    printf("Maxflow of cut is %d\n",ret);
     
-    //add all black pixels which
-    int slopeDifRange = SLOPE_DIF_TOLERANCE*depth;
-    int THRESH=700;
-    for (int x=0; x<width; x++)
-    {
-//        printf("\n");
-        for (int y=0; y<height; y++)
-        {
-            int sourceScore=0;
-            int sinkScore=0;
-            for (int z=0; z<depth; z++)
-            {
-                int index = indexer.getIndex(x,y,z);
-                if (g->what_segment(index) == GraphType::SOURCE)
-                    sourceScore += invDistMap3D[index];
-                else
-                    sinkScore += invDistMap3D[index];
-            }
-            
-//            printf("(%d,%d) ",sourceScore,sinkScore);
-            
-            if (sourceScore>=THRESH || sinkScore<THRESH && sourceScore>sinkScore)
-                outSource.append(x+width*y);
-            if (sinkScore>=THRESH || sourceScore<THRESH && sinkScore>sourceScore)
-                outSink.append(x+width*y);
-            
-            
-        }
-    }
-    
-    
-    ///test///
-//    for (int s=0; s<depth; s++)
+//    //add all black pixels which
+//    int slopeDifRange = SLOPE_DIF_TOLERANCE*depth;
+//    int THRESH=700;
+//    for (int x=0; x<width; x++)
 //    {
-//        BImage test(img.width(), img.height());
-//        BPartition tmp1((BPixelCollection*) &test);
-//        BPartition tmp2((BPixelCollection*) &test);
+////        printf("\n");
+//        for (int y=0; y<height; y++)
+//        {
+//            int sourceScore=0;
+//            int sinkScore=0;
+//            for (int z=0; z<depth; z++)
+//            {
+//                int index = indexer.getIndex(x,y,z);
+//                if (g->what_segment(index) == GraphType::SOURCE)
+//                    sourceScore += invDistMap3D[index];
+//                else
+//                    sinkScore += invDistMap3D[index];
+//            }
+            
+////            printf("(%d,%d) ",sourceScore,sinkScore);
+            
+//            if (sourceScore>=THRESH || sinkScore<THRESH && sourceScore>sinkScore)
+//                outSource.append(x+width*y);
+//            if (sinkScore>=THRESH || sourceScore<THRESH && sinkScore>sourceScore)
+//                outSink.append(x+width*y);
+            
+            
+//        }
+//    }
+    
+    
+//    ///test///
+////    for (int s=0; s<depth; s++)
+////    {
+////        BImage test(img.width(), img.height());
+////        BPartition tmp1((BPixelCollection*) &test);
+////        BPartition tmp2((BPixelCollection*) &test);
+////        for (int x=0; x<width; x++)
+////        {
+////            for (int y=0; y<height; y++)
+////            {
+//////                QMap<int,double> binsForDim = angleImage.getBinsAndStrForPixel(x,y);
+//////                foreach (int bin, binsForDim.keys())
+//////                {
+//////                    if (bin<s+11 && bin>s-11)
+//////                        test.setPixel(x,y,true);
+//////                }
+////                if (img.pixel(x,y))
+////                    test.setPixel(x,y,true);
+                
+////                int index = indexer.getIndex(x,y,s);
+////                if (g->what_segment(index) == GraphType::SOURCE)
+////                    tmp1.addPixelFromSrc(x,y);
+////                else
+////                    tmp2.addPixelFromSrc(x,y);           
+////            }
+////        }
+////        test.claimOwnership(&tmp2,1);
+////        test.claimOwnership(&tmp1,1);
+        
+////        QString debugfile = "./output/layer_";
+////        QString num;
+////        num.setNum(s);
+////        debugfile.append(num);
+////        debugfile.append(".ppm");
+////        test.saveOwners(debugfile);
+        
+////    }
+//    //////////////////////////////
+//    int newmax=0;
+//    int topindex=0;
+//    for (int i=0; i<width*height*depth; i++)
+//    {
+//        if (invDistMap3D[i]>newmax)
+//        {
+//            newmax=invDistMap3D[i];
+//            topindex=i;
+//        }
+//    }
+////    printf("invdistmap max was %d at %d:(%d,%d,%d)\t [%d,%d,%d]\n",newmax,topindex,topindex%width,(topindex/width)%height,topindex/(width*height),width,height,depth);
+////    QVector<QRgb> default_color_table;
+////    for (int i=0; i<255; i++)
+////    {
+////        default_color_table.append(qRgb(i*.8+255*.2,0,0));
+////    }
+////    for (int i=0; i<255; i++)
+////    {
+////        default_color_table.append(qRgb(0,0,i*.8+255*.2));
+////    }
+//    for (int z=0; z<depth; z++)
+//    {
+//        QImage debug(width,height,QImage::Format_RGB16);
+        
+////        debug.setColorTable(default_color_table);
 //        for (int x=0; x<width; x++)
 //        {
-//            for (int y=0; y<height; y++)
+//            for (int y=0; y<debug.height(); y++)
 //            {
-////                QMap<int,double> binsForDim = angleImage.getBinsAndStrForPixel(x,y);
-////                foreach (int bin, binsForDim.keys())
-////                {
-////                    if (bin<s+11 && bin>s-11)
-////                        test.setPixel(x,y,true);
-////                }
-//                if (img.pixel(x,y))
-//                    test.setPixel(x,y,true);
-                
-//                int index = indexer.getIndex(x,y,s);
-//                if (g->what_segment(index) == GraphType::SOURCE)
-//                    tmp1.addPixelFromSrc(x,y);
+//                int inten = (int)((invDistMap3D[indexer.getIndex(x,y,z)]/((double)newmax))*254);
+//                QRgb color;
+//                if (g->what_segment(indexer.getIndex(x,y,z)) == GraphType::SOURCE)
+//                    color=qRgb(inten*.8+255*.2,0,0);
 //                else
-//                    tmp2.addPixelFromSrc(x,y);           
+//                    color=qRgb(0,inten*.8+255*.2,0);  
+//                debug.setPixel(x,y,color);
 //            }
+            
 //        }
-//        test.claimOwnership(&tmp2,1);
-//        test.claimOwnership(&tmp1,1);
-        
 //        QString debugfile = "./output/layer_";
 //        QString num;
-//        num.setNum(s);
+//        num.setNum(z);
 //        debugfile.append(num);
 //        debugfile.append(".ppm");
-//        test.saveOwners(debugfile);
-        
+//        debug.save(debugfile);
 //    }
-    //////////////////////////////
-    int newmax=0;
-    int topindex=0;
-    for (int i=0; i<width*height*depth; i++)
-    {
-        if (invDistMap3D[i]>newmax)
-        {
-            newmax=invDistMap3D[i];
-            topindex=i;
-        }
-    }
-//    printf("invdistmap max was %d at %d:(%d,%d,%d)\t [%d,%d,%d]\n",newmax,topindex,topindex%width,(topindex/width)%height,topindex/(width*height),width,height,depth);
-//    QVector<QRgb> default_color_table;
-//    for (int i=0; i<255; i++)
-//    {
-//        default_color_table.append(qRgb(i*.8+255*.2,0,0));
-//    }
-//    for (int i=0; i<255; i++)
-//    {
-//        default_color_table.append(qRgb(0,0,i*.8+255*.2));
-//    }
-    for (int z=0; z<depth; z++)
-    {
-        QImage debug(width,height,QImage::Format_RGB16);
-        
-//        debug.setColorTable(default_color_table);
-        for (int x=0; x<width; x++)
-        {
-            for (int y=0; y<debug.height(); y++)
-            {
-                int inten = (int)((invDistMap3D[indexer.getIndex(x,y,z)]/((double)newmax))*254);
-                QRgb color;
-                if (g->what_segment(indexer.getIndex(x,y,z)) == GraphType::SOURCE)
-                    color=qRgb(inten*.8+255*.2,0,0);
-                else
-                    color=qRgb(0,inten*.8+255*.2,0);  
-                debug.setPixel(x,y,color);
-            }
-            
-        }
-        QString debugfile = "./output/layer_";
-        QString num;
-        num.setNum(z);
-        debugfile.append(num);
-        debugfile.append(".ppm");
-        debug.save(debugfile);
-    }
-    ///test///
+//    ///test///
     
     
     delete g;
@@ -2793,13 +2794,13 @@ double GraphCut::computeScore(int sampleSize, double* x, double* y, double meanS
 
 void recurStr(int strFactor, const BlobSkeleton &skeleton, int curIndex, int prevIndex, bool* notVisited, GraphType *g, const Indexer3D &indexer,int depth)
 {
-    int internalIndex=0;
-    foreach (int nextIndex, skeleton[curIndex].connectedPoints)
+//    int internalIndex=0;
+    foreach (int nextIndex, skeleton[curIndex].connectedPoints())
     {
         if (notVisited[nextIndex])
         {
             notVisited[nextIndex]=false;
-            int bin = depth*(skeleton[curIndex].angleBetween[internalIndex++]/PI);
+            int bin = depth*(skeleton[curIndex].angleBetween(nextIndex)/PI);
             double relativeAngle = getRelAngle(skeleton, prevIndex, curIndex, nextIndex);
             int newStrFactor = std::min(10,(int)(strFactor*std::max(.5,PI/relativeAngle)));
 //            g -> add_edge(indexer.getIndex(skeleton[curIndex].x,skeleton[curIndex].y,bin), indexer.getIndex(skeleton[nextIndex].x,skeleton[nextIndex].y,bin),
@@ -2843,20 +2844,20 @@ DescenderPath* GraphCut::findDescenderAccumulatively(const BlobSkeleton &skeleto
         queue->pop();
         
         ///test///
-//        printf("Current path[%f]: ",path->score());
-//        for (int i=0; i<path->size(); i++)
-//            printf("(%d,%d), ",path->pointAt(i).x(),path->pointAt(i).y());
-//        printf("\n");
-//        path->printScore();
+        printf("Current path[%f]: ",path->score());
+        for (int i=0; i<path->size(); i++)
+            printf("(%d,%d), ",path->pointAt(i).x(),path->pointAt(i).y());
+        printf("\t%d neighbors\n",skeleton[path->last()].connectedPoints().size());
+        path->printScore();
         ///test///
         
         
-        if (skeleton[path->last()].connectedPoints.size()>0 && (path->size()==1 || path->count(path->last())<2))
+        if (skeleton[path->last()].connectedPoints().size()>0 && (path->size()==1 || path->count(path->last())<2))
         {
             bool betterFound=false;
-            foreach (unsigned int nextIndex, skeleton[path->last()].connectedPoints)
+            foreach (unsigned int nextIndex, skeleton[path->last()].connectedPoints())
             {
-                if (skeleton[nextIndex].y<startPoint.y() || (path->size()>1 && nextIndex==path->at(path->size()-2)))
+                if (skeleton[nextIndex].y<skeleton[startRegionId].y || (path->size()>1 && nextIndex==path->at(path->size()-2)))
                     continue;
                 
                 DescenderPath* newPath = new DescenderPath(*path);
@@ -2871,11 +2872,11 @@ DescenderPath* GraphCut::findDescenderAccumulatively(const BlobSkeleton &skeleto
                 else
                 {
                     ///test///
-//                    printf("Tossed path[%f]: ",newPath->score());
-//                    for (int i=0; i<newPath->size(); i++)
-//                        printf("(%d,%d), ",newPath->pointAt(i).x(),newPath->pointAt(i).y());
-//                    printf("\n");
-//                    newPath->printScore();
+                    printf("Tossed path[%f]: ",newPath->score());
+                    for (int i=0; i<newPath->size(); i++)
+                        printf("(%d,%d), ",newPath->pointAt(i).x(),newPath->pointAt(i).y());
+                    printf("\n");
+                    newPath->printScore();
                     ///test///
                 }
             }
@@ -2924,7 +2925,9 @@ DescenderPath* GraphCut::findDescenderAccumulatively(const BlobSkeleton &skeleto
     if (finishedPaths.size()>0)
     {
         printf("Desc found : %f\t",finishedPaths.values()[0]->score());
+        
         printf("Found path in %d iterations \tof %d\n",finishedIters[finishedPaths.values()[0]],testIter);
+        finishedPaths.values()[0]->printScore();
         testIterPass=finishedIters[finishedPaths.values()[0]];
 //        testIterPassTotal=testIter;
         return finishedPaths.values()[0];
@@ -2948,8 +2951,9 @@ void GraphCut::strengthenDescenderComponentAccum(const AngleImage &img, const QP
         
         int firstX = descPath->pointAt(0).x();
         int firstY = descPath->pointAt(0).y();
-        int index = img.getSkeleton()[descPath->at(0)].connectedPoints.indexOf(descPath->at(1));
-        double angle = img.getSkeleton()[descPath->at(0)].angleBetween[index];
+//        int index = img.getSkeleton()[descPath->at(0)].connectedPoints.indexOf(descPath->at(1));
+//        double angle = img.getSkeleton()[descPath->at(0)].angleBetween[index];
+        double angle = img.getSkeleton()[descPath->at(0)].angleBetween(descPath->at(1));
         int firstZ = img.getBinForAngle(angle);
         
 //        int prevUpperX=firstUpperX;
@@ -2974,8 +2978,9 @@ void GraphCut::strengthenDescenderComponentAccum(const AngleImage &img, const QP
             
             
             int prevZ=z;
-            index = img.getSkeleton()[descPath->at(j)].connectedPoints.indexOf(descPath->at(j+1));
-            angle = img.getSkeleton()[descPath->at(j)].angleBetween[index];
+//            index = img.getSkeleton()[descPath->at(j)].connectedPoints.indexOf(descPath->at(j+1));
+//            angle = img.getSkeleton()[descPath->at(j)].angleBetween[index];
+            angle = img.getSkeleton()[descPath->at(j)].angleBetween(descPath->at(j+1));
             z= img.getBinForAngle(angle);
             
             curX = nextX;
@@ -3002,10 +3007,10 @@ void GraphCut::strengthenDescenderComponentAccum(const AngleImage &img, const QP
         test.save("./test_descender_id.ppm");
 //        if (testIterPass>50)
 //        {
-//                char a;
-//                printf("Is this right? ");
-//                scanf("%c",&a);
-//                printf("ok\n");
+                char a;
+                printf("Is this right? ");
+                scanf("%c",&a);
+                printf("ok\n");
 //        }
     }
 }
@@ -3077,8 +3082,9 @@ void GraphCut::strengthenDescenderComponent(const AngleImage &img, const QPoint 
         
         int firstUpperX = img.getSkeleton()[bestUpperPaths[i][0]].x;
         int firstUpperY = img.getSkeleton()[bestUpperPaths[i][0]].y;
-        int index = img.getSkeleton()[bestUpperPaths[i][0]].connectedPoints.indexOf(bestUpperPaths[i][1]);
-        double angle = img.getSkeleton()[bestUpperPaths[i][0]].angleBetween[index];
+//        int index = img.getSkeleton()[bestUpperPaths[i][0]].connectedPoints.indexOf(bestUpperPaths[i][1]);
+//        double angle = img.getSkeleton()[bestUpperPaths[i][0]].angleBetween[index];
+        double angle = img.getSkeleton()[bestUpperPaths[i][0]].angleBetween(bestUpperPaths[i][1]);
         int firstUpperZ = img.getBinForAngle(angle);
         
 //        int prevUpperX=firstUpperX;
@@ -3103,8 +3109,9 @@ void GraphCut::strengthenDescenderComponent(const AngleImage &img, const QPoint 
             test.setPixel(img.getSkeleton()[bestUpperPaths[i][j+1]].x,img.getSkeleton()[bestUpperPaths[i][j+1]].y,colors.size()-1);
             
             int prevZ=z;
-            index = img.getSkeleton()[bestUpperPaths[i][j]].connectedPoints.indexOf(bestUpperPaths[i][j+1]);
-            angle = img.getSkeleton()[bestUpperPaths[i][j]].angleBetween[index];
+//            index = img.getSkeleton()[bestUpperPaths[i][j]].connectedPoints.indexOf(bestUpperPaths[i][j+1]);
+//            angle = img.getSkeleton()[bestUpperPaths[i][j]].angleBetween[index];
+            angle = img.getSkeleton()[bestUpperPaths[i][j]].angleBetween(bestUpperPaths[i][j+1]);
             z= img.getBinForAngle(angle);
             
             curX = nextX;
@@ -3129,8 +3136,9 @@ void GraphCut::strengthenDescenderComponent(const AngleImage &img, const QPoint 
         
         curX = img.getSkeleton()[bestLowerPaths[i][0]].x;                              
         curY = img.getSkeleton()[bestLowerPaths[i][0]].y;    
-        index = img.getSkeleton()[bestLowerPaths[i][0]].connectedPoints.indexOf(bestLowerPaths[i][1]);
-        angle = img.getSkeleton()[bestLowerPaths[i][0]].angleBetween[index];
+//        index = img.getSkeleton()[bestLowerPaths[i][0]].connectedPoints.indexOf(bestLowerPaths[i][1]);
+//        angle = img.getSkeleton()[bestLowerPaths[i][0]].angleBetween[index];
+        angle = img.getSkeleton()[bestUpperPaths[i][0]].angleBetween(bestUpperPaths[i][1]);
         z = img.getBinForAngle(angle);
         
         nextX = img.getSkeleton()[bestLowerPaths[i][1]].x;
@@ -3153,8 +3161,9 @@ void GraphCut::strengthenDescenderComponent(const AngleImage &img, const QPoint 
             test.setPixel(img.getSkeleton()[bestLowerPaths[i][j+1]].x,img.getSkeleton()[bestLowerPaths[i][j+1]].y,colors.size()-1);
             
             int prevZ=z;
-            index = img.getSkeleton()[bestLowerPaths[i][j]].connectedPoints.indexOf(bestLowerPaths[i][j+1]);
-            angle = img.getSkeleton()[bestLowerPaths[i][j]].angleBetween[index];
+//            index = img.getSkeleton()[bestLowerPaths[i][j]].connectedPoints.indexOf(bestLowerPaths[i][j+1]);
+//            angle = img.getSkeleton()[bestLowerPaths[i][j]].angleBetween[index];
+            angle = img.getSkeleton()[bestUpperPaths[i][j]].angleBetween(bestUpperPaths[i][j+1]);
             z= img.getBinForAngle(angle);
             
             
@@ -3371,7 +3380,7 @@ void GraphCut::strengthenDescenderComponent2D(const BPixelCollection &img, const
         
         int firstUpperX = skeleton[bestUpperPaths[i][0]].x;
         int firstUpperY = skeleton[bestUpperPaths[i][0]].y;
-        int index = skeleton[bestUpperPaths[i][0]].connectedPoints.indexOf(bestUpperPaths[i][1]);
+//        int index = skeleton[bestUpperPaths[i][0]].connectedPoints.indexOf(bestUpperPaths[i][1]);
 //        double angle = skeleton[bestUpperPaths[i][0]].angleBetween[index];
 //        int firstUpperZ = img.getBinForAngle(angle);
         
@@ -3393,7 +3402,7 @@ void GraphCut::strengthenDescenderComponent2D(const BPixelCollection &img, const
         {
             test.setPixel(skeleton[bestUpperPaths[i][j+1]].x,skeleton[bestUpperPaths[i][j+1]].y,colors.size()-1);
             
-            index = skeleton[bestUpperPaths[i][j]].connectedPoints.indexOf(bestUpperPaths[i][j+1]);
+//            index = skeleton[bestUpperPaths[i][j]].connectedPoints.indexOf(bestUpperPaths[i][j+1]);
 //            angle = skeleton[bestUpperPaths[i][j]].angleBetween[index];
 //            z= img.getBinForAngle(angle);
             
@@ -3413,7 +3422,7 @@ void GraphCut::strengthenDescenderComponent2D(const BPixelCollection &img, const
         
         curX = skeleton[bestLowerPaths[i][0]].x;                              
         curY = skeleton[bestLowerPaths[i][0]].y;    
-        index = skeleton[bestLowerPaths[i][0]].connectedPoints.indexOf(bestLowerPaths[i][1]);
+//        index = skeleton[bestLowerPaths[i][0]].connectedPoints.indexOf(bestLowerPaths[i][1]);
 //        angle = skeleton[bestLowerPaths[i][0]].angleBetween[index];
 //        z = img.getBinForAngle(angle);
 //        g->add_tweights(curX+curY*width,DESC_BIAS_LEN_2D,0);
@@ -3432,7 +3441,7 @@ void GraphCut::strengthenDescenderComponent2D(const BPixelCollection &img, const
         {
             test.setPixel(skeleton[bestLowerPaths[i][j+1]].x,skeleton[bestLowerPaths[i][j+1]].y,colors.size()-1);
             
-            index = skeleton[bestLowerPaths[i][j]].connectedPoints.indexOf(bestLowerPaths[i][j+1]);
+//            index = skeleton[bestLowerPaths[i][j]].connectedPoints.indexOf(bestLowerPaths[i][j+1]);
 //            angle = skeleton[bestLowerPaths[i][j]].angleBetween[index];
 //            z= img.getBinForAngle(angle);
             
@@ -3599,7 +3608,7 @@ void GraphCut::lowerDescenderTraverser(const BlobSkeleton &skeleton, QVector<QVe
     double largestAngle=0;
     int largestAngleIndex=-1;
     QMap<unsigned int, double> toExpand;
-    foreach (unsigned int nextIndex, skeleton[currentPath->last()].connectedPoints)
+    foreach (unsigned int nextIndex, skeleton[currentPath->last()].connectedPoints())
     {
         if (currentPath->contains(nextIndex))
             continue;
@@ -3631,7 +3640,7 @@ void GraphCut::lowerDescenderTraverser(const BlobSkeleton &skeleton, QVector<QVe
     //expand upper branches
 //    if (skeleton[currentPath->last()].connectedPoints.size()>2 && largestAngleIndex!=-1)
     {
-        foreach (unsigned int nextIndex, skeleton[currentPath->last()].connectedPoints)
+        foreach (unsigned int nextIndex, skeleton[currentPath->last()].connectedPoints())
         {
             if (nextIndex==largestAngleIndex || currentPath->contains(nextIndex))
                 continue;
@@ -3717,7 +3726,7 @@ void GraphCut::upperDescenderTraverser(const BlobSkeleton &skeleton, const QVect
     }
     
     //check options, expand
-    foreach (unsigned int nextIndex, skeleton[currentPath->last()].connectedPoints)
+    foreach (unsigned int nextIndex, skeleton[currentPath->last()].connectedPoints())
     {
         if (currentPath->contains(nextIndex))
             continue;
