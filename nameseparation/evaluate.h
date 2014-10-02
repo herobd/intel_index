@@ -7,6 +7,7 @@
 //#include "bimage.h"
 #include "boxcleaner.h"
 #include "wordseparator.h"
+#include <string>
 
 
 
@@ -18,6 +19,8 @@ public:
     static double matchedScore(BPixelCollection &img1, BPixelCollection &img2);
     static double verticleSegmentationTest(QString imgPath, QString gtDirPath);
     static double horizontalSegmentationTest(QString root);
+    static void evaluateScoreInfo(QString correctPath, QString incorrectPath);
+    static void writeScores(QString imgPath, QString correctPath, QString incorrectPath);
 };
 
 #endif // EVALUATE_H

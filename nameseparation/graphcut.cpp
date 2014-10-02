@@ -7,6 +7,9 @@ int maxweight;
 int minweight;
 int minedge;
 
+QVector<double> GraphCut::correctScores;
+QVector<double> GraphCut::incorrectScores;
+
 inline void setEdge(int x1, int y1, int x2, int y2, GraphType* g, const BPixelCollection &img, const int* invDistMap, double blackToBlackBias, double whiteToBlackBias, double blackToWhiteBias, double whiteToWhiteBias, double reducer, int width)
 {
     
@@ -309,6 +312,177 @@ int GraphCut::pixelsOfSeparation(int* invDistMap, int width, int height, BPixelC
 //            {
 //                   reducer = ((3.0*height-j)/(double)(3*height));
 //            }
+            
+            
+            if (i+1<width)
+            {
+                setEdge(i,j,i+1,j,g,img,invDistMap,BLACK_TO_BLACK_H_BIAS,WHITE_TO_BLACK_BIAS,BLACK_TO_WHITE_BIAS,WHITE_TO_WHITE_H_BIAS,reducer,width);
+            }
+            
+            if (j+1<height)
+            {
+                setEdge(i,j,i,j+1,g,img,invDistMap,BLACK_TO_BLACK_V_BIAS,WHITE_TO_BLACK_BIAS,BLACK_TO_WHITE_BIAS,WHITE_TO_WHITE_V_BIAS,reducer,width);
+            }
+            
+            if (j>0 && i<width-1)
+            {
+                setEdge(i,j,i+1,j-1,g,img,invDistMap,BLACK_TO_BLACK_D_BIAS,WHITE_TO_BLACK_BIAS,BLACK_TO_WHITE_BIAS,WHITE_TO_WHITE_D_BIAS,reducer,width);
+            }
+            
+            if (j<height-1 && i<width-1)
+            {
+                setEdge(i,j,i+1,j+1,g,img,invDistMap,BLACK_TO_BLACK_D_BIAS,WHITE_TO_BLACK_BIAS,BLACK_TO_WHITE_BIAS,WHITE_TO_WHITE_D_BIAS,reducer,width);
+            }
+        }
+    }
+    
+    int ret = g -> maxflow();
+    
+//    QImage debug2 = debug.convertToFormat(QImage::Format_RGB16);
+//    QRgb lw = qRgb(255, 100, 100);
+//    QRgb lb = qRgb(155, 0, 0);
+//    QRgb rw = qRgb(100,255, 100);
+//    QRgb rb = qRgb(0, 155, 0);
+//    QRgb a = qRgb(255, 255, 255);
+    
+    //add all black pixels which
+    for (int index=0; index<width*height; index++)
+    {
+        if (img.pixelIsMine(index%width,index/width))
+        {
+            /*if (qGray(debug.pixel(index%width,index/width))!=BLACK && qGray(debug.pixel(index%width,index/width))!=WHITE)
+            {
+                debug2.setPixel(index%width,index/width,a);
+            }
+            else*/ if (g->what_segment(index) == GraphType::SOURCE)
+            {
+                outSource.append(index);
+    //            debug2.setPixel(index%width,index/width,lb);
+            }
+            else
+            {
+                outSink.append(index);
+            }
+    //        else if (g->what_segment(index) == GraphType::SOURCE)
+    //            debug2.setPixel(index%width,index/width,lw);
+    //        else if (qGray(img.pixel(index%width,index/width))==BLACK)
+    //            debug2.setPixel(index%width,index/width,rb);
+    //        else
+    //            debug2.setPixel(index%width,index/width,rw);
+        }
+    }
+    
+//    QString debugfile = "./cut_";
+//    QString num;
+//    num.setNum(width);
+//    debugfile.append(num);
+//    debugfile.append(".ppm");
+//    debug2.save(debugfile);
+    
+    delete g;
+    return ret;
+}
+
+
+int GraphCut::pixelsOfSeparationMicro(int* invDistMap, int width, int height, BPixelCollection &img, QVector<int> &outSource, QVector<int> &outSink, int anchor_weight, int split_method, int vert_divide)
+{
+
+    GraphType *g = new GraphType(width*height, 4*(width-1)*(height-1)-(height+width)); 
+    
+    for (int i=0; i<width*height; i++)
+    {
+        g->add_node();
+    }
+    
+    QImage debug = img.makeImage().getImage();
+    QVector<QRgb> ct = debug.colorTable();
+    ct.append(qRgb(205,50,50));
+    ct.append(qRgb(50,205,50));
+    debug.setColorTable(ct);
+    
+    if (split_method == SPLIT_HORZ)
+    {
+        //find source pixels
+        int count_source = std::min((int)(height*ANCHOR_MICRO),width);
+        
+        
+        
+        
+        //diag method
+//        QImage mark = img.copy(0,0,img.width(),img.height());
+        QVector<QPoint> workingStack;
+        for (int o=0; o<width && count_source>0; o++)
+        {
+            for (int i=0; i<=o && i<height && count_source>0; i++)
+            {
+                if (img.pixel(o-i,i))
+                {
+                    int index = (o-i)+width*i;
+                    g -> add_tweights(index, INT_POS_INFINITY,0);
+                    count_source--;
+                    debug.setPixel((o-i),i,2);
+
+                }
+            }
+        }
+        workingStack.clear();
+        
+        int count_sink=std::min((int)(height*ANCHOR_MICRO),width);
+        
+
+        
+        //diag method
+        for (int o=0; o<width && count_sink>0; o++)
+        {
+            for (int i=0; i<=o && i<height && count_sink>0; i++)
+            {
+                //debug.setPixel((width-1)-(o-i),(height-1)-i,220);
+                if (img.pixel((width-1)-(o-i),(height-1)-i))
+                {
+                    int index = ((width-1)-(o-i))+width*((height-1)-i);
+                    g -> add_tweights(index, 0, anchor_weight);
+                    count_sink--;
+                    debug.setPixel((width-1)-(o-i),(height-1)-i,3);
+                    
+
+                }
+            }
+        }
+    }
+    else 
+        assert(false);
+    
+    debug.save("./anchors.ppm");
+    
+
+    double BLACK_TO_BLACK_V_BIAS = .5;
+    double BLACK_TO_BLACK_H_BIAS = .5;
+    double BLACK_TO_BLACK_D_BIAS = (BLACK_TO_BLACK_V_BIAS+BLACK_TO_BLACK_H_BIAS)-sqrt(pow(BLACK_TO_BLACK_V_BIAS,2)+pow(BLACK_TO_BLACK_H_BIAS,2));
+    double WHITE_TO_BLACK_BIAS = .5;
+    double BLACK_TO_WHITE_BIAS = .5;
+    double WHITE_TO_WHITE_V_BIAS = .5;
+    double WHITE_TO_WHITE_H_BIAS = .5;
+    double WHITE_TO_WHITE_D_BIAS = (WHITE_TO_WHITE_V_BIAS+WHITE_TO_WHITE_H_BIAS)-sqrt(pow(WHITE_TO_WHITE_V_BIAS,2)+pow(WHITE_TO_WHITE_H_BIAS,2));
+    
+    if (split_method==SPLIT_VERT)
+    {
+        BLACK_TO_BLACK_V_BIAS = 0.75;
+        BLACK_TO_BLACK_H_BIAS = 0.75;
+        BLACK_TO_BLACK_D_BIAS = (BLACK_TO_BLACK_V_BIAS+BLACK_TO_BLACK_H_BIAS)-sqrt(pow(BLACK_TO_BLACK_V_BIAS,2)+pow(BLACK_TO_BLACK_H_BIAS,2));
+        WHITE_TO_BLACK_BIAS = .5;
+        BLACK_TO_WHITE_BIAS = .5;
+        WHITE_TO_WHITE_V_BIAS = .5;
+        WHITE_TO_WHITE_H_BIAS = .5;
+        WHITE_TO_WHITE_D_BIAS = (WHITE_TO_WHITE_V_BIAS+WHITE_TO_WHITE_H_BIAS)-sqrt(pow(WHITE_TO_WHITE_V_BIAS,2)+pow(WHITE_TO_WHITE_H_BIAS,2));
+    }
+    
+    double reducer = 1;
+    
+    //connect all pixels
+    for (int i=0; i<width; i++)
+    {
+        for (int j=0; j<height; j++)
+        {   
             
             
             if (i+1<width)
@@ -2300,42 +2474,42 @@ int GraphCut::pixelsOfSeparationRecut3D(const long* invDistMap3D, int width, int
         debug.save("./anchors.ppm");
     }
     
-    int ret=0;
+//    int ret=0;
     strengthenDescenderComponentAccum(img,crossOverPoint,g,indexer);
-//    int ret = g -> maxflow();
+    int ret = g -> maxflow();
     
-//    //debug
-////    printf("Maxflow of cut is %d\n",ret);
+    //debug
+//    printf("Maxflow of cut is %d\n",ret);
     
-//    //add all black pixels which
-//    int slopeDifRange = SLOPE_DIF_TOLERANCE*depth;
-//    int THRESH=700;
-//    for (int x=0; x<width; x++)
-//    {
-////        printf("\n");
-//        for (int y=0; y<height; y++)
-//        {
-//            int sourceScore=0;
-//            int sinkScore=0;
-//            for (int z=0; z<depth; z++)
-//            {
-//                int index = indexer.getIndex(x,y,z);
-//                if (g->what_segment(index) == GraphType::SOURCE)
-//                    sourceScore += invDistMap3D[index];
-//                else
-//                    sinkScore += invDistMap3D[index];
-//            }
+    //add all black pixels which
+    int slopeDifRange = SLOPE_DIF_TOLERANCE*depth;
+    int THRESH=700;
+    for (int x=0; x<width; x++)
+    {
+//        printf("\n");
+        for (int y=0; y<height; y++)
+        {
+            int sourceScore=0;
+            int sinkScore=0;
+            for (int z=0; z<depth; z++)
+            {
+                int index = indexer.getIndex(x,y,z);
+                if (g->what_segment(index) == GraphType::SOURCE)
+                    sourceScore += invDistMap3D[index];
+                else
+                    sinkScore += invDistMap3D[index];
+            }
             
-////            printf("(%d,%d) ",sourceScore,sinkScore);
+//            printf("(%d,%d) ",sourceScore,sinkScore);
             
-//            if (sourceScore>=THRESH || sinkScore<THRESH && sourceScore>sinkScore)
-//                outSource.append(x+width*y);
-//            if (sinkScore>=THRESH || sourceScore<THRESH && sinkScore>sourceScore)
-//                outSink.append(x+width*y);
+            if (sourceScore>=THRESH || sinkScore<THRESH && sourceScore>sinkScore)
+                outSource.append(x+width*y);
+            if (sinkScore>=THRESH || sourceScore<THRESH && sinkScore>sourceScore)
+                outSink.append(x+width*y);
             
             
-//        }
-//    }
+        }
+    }
     
     
 //    ///test///
@@ -2817,7 +2991,7 @@ public:
     bool operator() (const DescenderPath* a, const DescenderPath* b) {return a->score() < b->score();}
 };
 
-int testIterPass;
+//int testIterPass;
 //int testIterPassTotal;
 
 DescenderPath* GraphCut::findDescenderAccumulatively(const BlobSkeleton &skeleton, const QPoint &startPoint)
@@ -2844,11 +3018,11 @@ DescenderPath* GraphCut::findDescenderAccumulatively(const BlobSkeleton &skeleto
         queue->pop();
         
         ///test///
-        printf("Current path[%f]: ",path->score());
-        for (int i=0; i<path->size(); i++)
-            printf("(%d,%d), ",path->pointAt(i).x(),path->pointAt(i).y());
-        printf("\t%d neighbors\n",skeleton[path->last()].connectedPoints().size());
-        path->printScore();
+//        printf("Current path[%f]: ",path->score());
+//        for (int i=0; i<path->size(); i++)
+//            printf("(%d,%d), ",path->pointAt(i).x(),path->pointAt(i).y());
+//        printf("\t%d neighbors\n",skeleton[path->last()].connectedPoints().size());
+//        path->printScore();
         ///test///
         
         
@@ -2872,11 +3046,11 @@ DescenderPath* GraphCut::findDescenderAccumulatively(const BlobSkeleton &skeleto
                 else
                 {
                     ///test///
-                    printf("Tossed path[%f]: ",newPath->score());
-                    for (int i=0; i<newPath->size(); i++)
-                        printf("(%d,%d), ",newPath->pointAt(i).x(),newPath->pointAt(i).y());
-                    printf("\n");
-                    newPath->printScore();
+//                    printf("Tossed path[%f]: ",newPath->score());
+//                    for (int i=0; i<newPath->size(); i++)
+//                        printf("(%d,%d), ",newPath->pointAt(i).x(),newPath->pointAt(i).y());
+//                    printf("\n");
+//                    newPath->printScore();
                     ///test///
                 }
             }
@@ -2924,11 +3098,11 @@ DescenderPath* GraphCut::findDescenderAccumulatively(const BlobSkeleton &skeleto
     
     if (finishedPaths.size()>0)
     {
-        printf("Desc found : %f\t",finishedPaths.values()[0]->score());
+//        printf("Desc found : %f\t",finishedPaths.values()[0]->score());
         
-        printf("Found path in %d iterations \tof %d\n",finishedIters[finishedPaths.values()[0]],testIter);
-        finishedPaths.values()[0]->printScore();
-        testIterPass=finishedIters[finishedPaths.values()[0]];
+//        printf("Found path in %d iterations \tof %d\n",finishedIters[finishedPaths.values()[0]],testIter);
+//        finishedPaths.values()[0]->printScore();
+//        testIterPass=finishedIters[finishedPaths.values()[0]];
 //        testIterPassTotal=testIter;
         return finishedPaths.values()[0];
     }
@@ -2940,7 +3114,7 @@ void GraphCut::strengthenDescenderComponentAccum(const AngleImage &img, const QP
 {
     DescenderPath* descPath = findDescenderAccumulatively(img.getSkeleton(), crossOverPoint);
     
-    if (descPath!=NULL/* && descPath->score() < DESCENDER_LIKELIHOOD_THRESH*/)
+    if (descPath!=NULL && descPath->score() < DESCENDER_LIKELIHOOD_THRESH)
     {
         
         
@@ -3007,10 +3181,26 @@ void GraphCut::strengthenDescenderComponentAccum(const AngleImage &img, const QP
         test.save("./test_descender_id.ppm");
 //        if (testIterPass>50)
 //        {
-                char a;
-                printf("Is this right? ");
-                scanf("%c",&a);
-                printf("ok\n");
+        if (WRITE_SCORES)
+        {
+            char read;
+            char dump;
+            while (true)
+            {
+                printf("Correct(m/n)?:");
+                scanf("%c%c",&read,&dump);
+                if (read=='m')
+                {
+                    correctScores.append(descPath->score());
+                    break;
+                }
+                else if (read=='n')
+                {
+                    incorrectScores.append(descPath->score());
+                    break;
+                }
+            }
+        }
 //        }
     }
 }

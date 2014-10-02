@@ -24,6 +24,7 @@ class WordSeparator
 public:
     WordSeparator();
     static int minCut(BPixelCollection &toCut, QVector<BPartition*> &ret);
+    static int microMinCut(BPixelCollection &toCut, QVector<BPartition*> &ret);
     
 //    static QVector<QImage> cutNames(QImage &img);
 //    static QVector<QImage> recursiveCutWordToFirstLetter(QImage &img);
@@ -44,6 +45,8 @@ public:
     static QVector<BPartition*> recut3D(const BPixelCollection &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, const QPoint &crossOverPoint);
     static QVector<BPartition*> recut2D(const BPixelCollection &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, const QPoint &crossOverPoint);
     static QVector<BPartition*> cutGivenSeeds(const BPixelCollection &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds);
+    
+    static QVector<BPartition*> recursiveChunkWord(const BPixelCollection *img, const BPixelCollection *root, int accumulativeXOffset, int accumulativeYOffset);
     
 private:
     

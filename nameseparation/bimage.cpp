@@ -7,66 +7,71 @@ BImage::BImage()
 {
     myHeight=0;
     myWidth=0;
+    ownership=NULL;
 }
 
 BImage::BImage(const QImage &src)
 {
     myWidth = src.width();
     myHeight = src.height();
-    pixels = new bPixel*[myWidth];
+    pixels = new std::vector<bool>(myWidth*myHeight);
     for (int x=0; x<myWidth; x++)
     {
-        pixels[x] = new bPixel[myHeight];
+//        (*pixels)[x] = new bPixel[myHeight];
         for (int y=0; y<myHeight; y++)
         {
-            pixels[x][y].val= qGray(src.pixel(x,y)) == BLACK;
+            (*pixels)[x+y*myWidth]= qGray(src.pixel(x,y)) == BLACK;
         }
     }
+    ownership=NULL;
 }
 
 BImage::BImage(int width, int height)
 {
     myWidth=width;
     myHeight=height;
-    pixels = new bPixel*[myWidth];
+    pixels = new std::vector<bool>(myWidth*myHeight);
     for (int x=0; x<myWidth; x++)
     {
-        pixels[x] = new bPixel[myHeight];
+//        (*pixels)[x] = new bPixel[myHeight];
         for (int y=0; y<myHeight; y++)
         {
-            pixels[x][y].val= false;
+            (*pixels)[x+y*myWidth]= false;
         }
     }
+    ownership=NULL;
 }
 
 BImage::BImage(const BImage &other)
 {
     myWidth = other.width();
     myHeight = other.height();
-    pixels = new bPixel*[myWidth];
-    for (int x=0; x<myWidth; x++)
-    {
-        pixels[x] = new bPixel[myHeight];
-        for (int y=0; y<myHeight; y++)
-        {
-            pixels[x][y].val= other.pixel(x,y);
-        }
-    }
+    pixels = new std::vector<bool>(*other.pixels);
+//    for (int x=0; x<myWidth; x++)
+//    {
+////        (*pixels)[x] = new bPixel[myHeight];
+//        for (int y=0; y<myHeight; y++)
+//        {
+//            (*pixels)[x+y*myWidth]= other.pixel(x,y);
+//        }
+//    }
+    ownership=NULL;
 }
 
 BImage::BImage(const BPixelCollection &other)
 {
     myWidth = other.width();
     myHeight = other.height();
-    pixels = new bPixel*[myWidth];
+    pixels = new std::vector<bool>(myWidth*myHeight);
     for (int x=0; x<myWidth; x++)
     {
-        pixels[x] = new bPixel[myHeight];
+//        (*pixels)[x] = new bPixel[myHeight];
         for (int y=0; y<myHeight; y++)
         {
-            pixels[x][y].val= other.pixel(x,y);
+            (*pixels)[x+y*myWidth]= other.pixel(x,y);
         }
     }
+    ownership=NULL;
 }
 
 //BImage::BImage(const BPartition* src1, const BPartition* src2)
@@ -87,50 +92,88 @@ BImage::BImage(const BPixelCollection &other)
 
 BImage::~BImage()
 {
+//    for (int x=0; x<myWidth; x++)
+//    {
+//        delete[] (*pixels)[x];
+//        (*pixels)[x]=NULL;
+//    }
+    delete pixels;
+    pixels=NULL;
+    if (ownership!=NULL)
+        delete[] ownership;
+}
+
+BImage& BImage::operator=( const BPixelCollection& other )
+{
+    if (myWidth != 0)
+    {
+//        for (int x=0; x<myWidth; x++)
+//        {
+//            delete[] (*pixels)[x];
+//            (*pixels)[x]=NULL;
+//        }
+        delete pixels;
+        pixels=NULL;
+        
+        if (ownership!=NULL)
+            delete[] ownership;
+    }
+    
+    myHeight = other.height();
+    myWidth = other.width();
+    pixels = new std::vector<bool>(myHeight*myHeight);
     for (int x=0; x<myWidth; x++)
     {
-        delete[] pixels[x];
-        pixels[x]=NULL;
+//        (*pixels)[x] = new bPixel[myHeight];
+        for (int y=0; y<myHeight; y++)
+        {
+            (*pixels)[x+y*myWidth]= other.pixel(x,y);
+        }
     }
-    delete[] pixels;
-    pixels=NULL;
+    ownership=NULL;
+    return *this;
 }
 
 BImage& BImage::operator=( const BImage& other )
 {
     if (myWidth != 0)
     {
-        for (int x=0; x<myWidth; x++)
-        {
-            delete[] pixels[x];
-            pixels[x]=NULL;
-        }
-        delete[] pixels;
+//        for (int x=0; x<myWidth; x++)
+//        {
+//            delete[] (*pixels)[x];
+//            (*pixels)[x]=NULL;
+//        }
+        delete pixels;
         pixels=NULL;
+        
+        if (ownership!=NULL)
+            delete[] ownership;
     }
     
     myHeight = other.myHeight;
     myWidth = other.myWidth;
-    pixels = new bPixel*[myWidth];
-    for (int x=0; x<myWidth; x++)
-    {
-        pixels[x] = new bPixel[myHeight];
-        for (int y=0; y<myHeight; y++)
-        {
-            pixels[x][y].val= other.pixel(x,y);
-        }
-    }
+    pixels = new std::vector<bool>(*other.pixels);
+//    for (int x=0; x<myWidth; x++)
+//    {
+////        (*pixels)[x] = new bPixel[myHeight];
+//        for (int y=0; y<myHeight; y++)
+//        {
+//            (*pixels)[x+y*myWidth]= other.pixel(x,y);
+//        }
+//    }
+    ownership=NULL;
     return *this;
-  }
+}
 
 BImage BImage::copy()//this doesn't handle paritions
 {
     BImage ret(myWidth,myHeight);
-    for (int x=0; x<myWidth; x++)
-        for (int y=0; y<myHeight; y++)
-        {
-            ret.setPixelFull(x,y,pixels[x][y]);
-        }
+    ret.pixels = new std::vector<bool>(*pixels);
+//    for (int x=0; x<myWidth; x++)
+//        for (int y=0; y<myHeight; y++)
+//        {
+//            ret.setPixel(x,y,(*pixels)[x+y*myWidth]);
+//        }
     
     return ret;
 }
@@ -154,37 +197,44 @@ bool BImage::saveOwners(const QString& filepath)
 bool BImage::pixel(const QPoint &p) const
 {
     assert(p.x()>=0 && p.x()<myWidth && p.y()>=0 && p.y()<myHeight);
-    return pixels[p.x()][p.y()].val;
+    return (*pixels)[p.x()+p.y()*myWidth];
 }
 bool BImage::pixel(int x, int y) const
 {
     assert(x>=0 && x<myWidth && y>=0 && y<myHeight);
-    return pixels[x][y].val;
+    return (*pixels)[x+y*myWidth];
 }
-bPixel BImage::pixelFull(const QPoint &p) const
+bool BImage::pixelIgnoreOff(int x, int y) const
 {
-    assert(p.x()>=0 && p.x()<myWidth && p.y()>=0 && p.y()<myHeight);
-    return pixels[p.x()][p.y()];
+    if (x>=0 && x<myWidth && y>=0 && y<myHeight)
+        return (*pixels)[x+y*myWidth];
+    else
+        return false;
 }
-bPixel BImage::pixelFull(int x, int y) const
-{
-    assert(x>=0 && x<myWidth && y>=0 && y<myHeight);
-    return pixels[x][y];
-}
+//bPixel BImage::pixelFull(const QPoint &p) const
+//{
+//    assert(p.x()>=0 && p.x()<myWidth && p.y()>=0 && p.y()<myHeight);
+//    return (*pixels)[p.x()+p.y()*myWidth];
+//}
+//bPixel BImage::pixelFull(int x, int y) const
+//{
+//    assert(x>=0 && x<myWidth && y>=0 && y<myHeight);
+//    return (*pixels)[x+y*myWidth];
+//}
 
 float BImage::pixelOwnerPortion(const QPoint &p, BPartition* owner) const
 {
     assert(p.x()>=0 && p.x()<myWidth && p.y()>=0 && p.y()<myHeight);
-    if (pixels[p.x()][p.y()].ownership.contains(owner->id()))
-        return pixels[p.x()][p.y()].ownership[owner->id()];
+    if (ownership[p.x()+p.y()*myWidth].contains(owner->id()))
+        return ownership[p.x()+p.y()*myWidth][owner->id()];
     else 
         return 0;
 }
 float BImage::pixelOwnerPortion(int x, int y, BPartition* owner) const
 {
     assert(x>=0 && x<myWidth && y>=0 && y<myHeight);
-    if (pixels[x][y].ownership.contains(owner->id()))
-        return pixels[x][y].ownership[owner->id()];
+    if (ownership[x+y*myWidth].contains(owner->id()))
+        return ownership[x+y*myWidth][owner->id()];
     else 
         return 0;
 }
@@ -199,8 +249,8 @@ int BImage::pixelMajorityOwner(int x, int y) const
     assert(x>=0 && x<myWidth && y>=0 && y<myHeight);
     int mostId=-1;
     float most=0;
-    QMap<int,float>::const_iterator i = pixels[x][y].ownership.constBegin();
-    while (i != pixels[x][y].ownership.constEnd())
+    QMap<int,float>::const_iterator i = ownership[x+y*myWidth].constBegin();
+    while (i != ownership[x+y*myWidth].constEnd())
     {
         if (i.value() > most)
         {
@@ -215,28 +265,28 @@ int BImage::pixelMajorityOwner(int x, int y) const
 void BImage::setPixel(const QPoint &p, bool val)
 {
     assert(p.x()>=0 && p.x()<myWidth && p.y()>=0 && p.y()<myHeight);
-    pixels[p.x()][p.y()].val=val;
+    (*pixels)[p.x()+p.y()*myWidth]=val;
 }
 
 void BImage::setPixel(int x, int y, bool val)
 {
     assert(x>=0 && x<myWidth && y>=0 && y<myHeight);
-    pixels[x][y].val=val;
+    (*pixels)[x+y*myWidth]=val;
 }
 
-void BImage::setPixelFull(const QPoint &p, const bPixel &strct)
-{
-    assert(p.x()<myWidth && p.y()<myHeight);
-    pixels[p.x()][p.y()].val=strct.val;
-    pixels[p.x()][p.y()].ownership.unite(strct.ownership);
-}
+//void BImage::setPixelFull(const QPoint &p, const bPixel &strct)
+//{
+//    assert(p.x()<myWidth && p.y()<myHeight);
+//    (*pixels)[p.x()+p.y()*myWidth]=strct.val;
+//    (*pixels)[p.x()+p.y()*myWidth].ownership.unite(strct.ownership);
+//}
 
-void BImage::setPixelFull(int x, int y, const bPixel &strct)
-{
-    assert(x<myWidth && y<myHeight);
-    pixels[x][y].val=strct.val;
-    pixels[x][y].ownership.unite(strct.ownership);
-}
+//void BImage::setPixelFull(int x, int y, const bPixel &strct)
+//{
+//    assert(x<myWidth && y<myHeight);
+//    (*pixels)[x+y*myWidth]=strct.val;
+//    (*pixels)[x+y*myWidth].ownership.unite(strct.ownership);
+//}
 
 void BImage::setPixelOwner(const QPoint &p, BPartition* owner, float portion)
 {
@@ -247,16 +297,16 @@ void BImage::setPixelOwner(int x, int y, BPartition* owner, float portion)
 {
     assert(x>=0 && x<myWidth && y>=0 && y<myHeight);
     
-    if (pixels[x][y].ownership.size() > 0)
+    if (ownership[x+y*myWidth].size() > 0)
     {
         float old = 0;
-        if (pixels[x][y].ownership.contains(owner->id()))
+        if (ownership[x+y*myWidth].contains(owner->id()))
         {
-            old = pixels[x][y].ownership[owner->id()];
+            old = ownership[x+y*myWidth][owner->id()];
         }
         float converter = (1-portion)/(1-old);
-        QMap<int,float>::iterator i = pixels[x][y].ownership.begin();
-        while(i != pixels[x][y].ownership.end())
+        QMap<int,float>::iterator i = ownership[x+y*myWidth].begin();
+        while(i != ownership[x+y*myWidth].end())
         {
             if (i.key() != owner->id())
             {
@@ -270,7 +320,7 @@ void BImage::setPixelOwner(int x, int y, BPartition* owner, float portion)
             ++i;
         }
     }
-    pixels[x][y].ownership[owner->id()]=portion;
+    ownership[x+y*myWidth][owner->id()]=portion;
 //    owner->changedPortion(x,y,portion,old);
 }
 
@@ -278,8 +328,8 @@ void BImage::setPixelOwner(int x, int y, BPartition* owner, float portion)
 //{
 //    assert(x>=0 && x<myWidth && y>=0 && y<myHeight);
     
-//    pixels[x][y].ownership[to] += pixels[x][y].ownership[with];
-//    pixels[x][y].ownership[with] = 0;
+//    (*pixels)[x+y*myWidth].ownership[to] += (*pixels)[x+y*myWidth].ownership[with];
+//    (*pixels)[x+y*myWidth].ownership[with] = 0;
 //}
 
 QImage BImage::getImage()
@@ -293,7 +343,7 @@ QImage BImage::getImage()
     for (int x=0; x<myWidth; x++)
         for (int y=0; y<myHeight; y++)
         {
-            if (pixels[x][y].val)
+            if ((*pixels)[x+y*myWidth])
                 ret.setPixel(x,y,0);
             else
                 ret.setPixel(x,y,1);
@@ -344,7 +394,7 @@ QImage BImage::getOwnersImage()
     for (int y=0; y<myHeight; y++)
         for (int x=0; x<myWidth; x++)
         {
-            if (pixels[x][y].ownership.size()>0)
+            if (ownership[x+y*myWidth].size()>0)
             {
             
                 int mostId = pixelMajorityOwner(x,y);
@@ -357,7 +407,7 @@ QImage BImage::getOwnersImage()
                         partitionIndex[mostId]=currentIndex;
                     }
                     
-                    if (pixels[x][y].val)
+                    if ((*pixels)[x+y*myWidth])
                         ret.setPixel(x,y,2+partitionIndex[mostId]*2);
                     else
                         ret.setPixel(x,y,2+partitionIndex[mostId]*2 + 1);
@@ -366,7 +416,7 @@ QImage BImage::getOwnersImage()
                 }
             }
             
-            if (pixels[x][y].val)
+            if ((*pixels)[x+y*myWidth])
                 ret.setPixel(x,y,0);
             else
                 ret.setPixel(x,y,1);
@@ -384,9 +434,9 @@ void BImage::saveICDAR(QString name)
     for (int y=0; y<myHeight; y++)
         for (int x=0; x<myWidth; x++)
         {
-            if (pixels[x][y].val)
+            if ((*pixels)[x+y*myWidth])
             {
-                if (pixels[x][y].ownership.size()>0)
+                if (ownership[x+y*myWidth].size()>0)
                 {
                 
                     int mostId = pixelMajorityOwner(x,y);

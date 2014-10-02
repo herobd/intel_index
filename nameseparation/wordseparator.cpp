@@ -53,6 +53,45 @@ int WordSeparator::minCut(BPixelCollection &toCut, QVector<BPartition*> &ret)
     return maxflow;
 }
 
+int WordSeparator::microMinCut(BPixelCollection &toCut, QVector<BPartition*> &ret)
+{
+    int toCut_width = toCut.width();
+    int toCut_height = toCut.height();
+    int num_pix = toCut_width*toCut_height;
+    int invDistMap[num_pix];
+    
+    DistanceTransform::computeInverseDistanceMap(toCut,invDistMap);
+    QVector<int> firstImgPixelIndexes;
+    QVector<int> secondImgPixelIndexes;
+    int maxflow = GraphCut::pixelsOfSeparationMicro(invDistMap,toCut_width,toCut_height,toCut,firstImgPixelIndexes,secondImgPixelIndexes);
+    
+    BPartition* firstPart = new BPartition(&toCut);
+    BPartition* secondPart = new BPartition(&toCut);
+    
+    
+    foreach (int index, firstImgPixelIndexes)
+    {
+        int x = index%toCut_width;
+        int y = index/toCut_width;
+        firstPart->addPixelFromSrc(x,y);
+//        toCut.getSrc()->setPixelOwner(x+xOffset,y+yOffset,firstPart,claimPortion);
+    }
+    
+    foreach (int index, secondImgPixelIndexes)
+    {
+        int x = index%toCut_width;
+        int y = index/toCut_width;
+        secondPart->addPixelFromSrc(x,y);
+//        toCut.getSrc()->setPixelOwner(x+xOffset,y+yOffset,secondPart,claimPortion);
+    }
+    
+    
+   
+    ret.append(firstPart);
+    ret.append(secondPart);
+    return maxflow;
+}
+
 //This performs a verticle separation of two words, it identifys descenders in an attempt to increase accuracy
 QVector<BPartition*> WordSeparator::horzCutEntries(BPixelCollection &img, int vert_divide)
 {
@@ -2627,3 +2666,91 @@ QVector<BPartition*> WordSeparator::recut2D(const BPixelCollection &img, QVector
 }
 
 
+
+
+
+QVector<BPartition*> WordSeparator::recursiveChunkWord(const BPixelCollection *img, const BPixelCollection *root, int accumulativeXOffset, int accumulativeYOffset)
+{
+    QVector<BPartition*> ret;
+//    BImage base(column);
+//    base.save("./starting_image.ppm");
+    BPartition* unfinished = new BPartition(img);
+    for (int x=0; x<img->width(); x++)
+    {
+        for (int y=0; y<img->height(); y++)
+        {
+            unfinished->addPixelFromSrc(x,y);
+        }
+    }
+
+    QVector<BPartition*> cuts;
+    int maxflow = microMinCut(*unfinished,cuts);
+    BPartition* leftUnfinished = cuts[0];
+    BPartition* rightUnfinished = cuts[1];
+    
+    int leftCount=0;
+    int rightCount=0;
+    for (int x=0; x<cuts[0]->width(); x++)
+    {
+        for (int y=0; y<cuts[0]->height(); y++)
+        {
+            if (cuts[0]->pixel(x,y))
+                leftCount++;
+        }
+    }
+    for (int x=0; x<cuts[1]->width(); x++)
+    {
+        for (int y=0; y<cuts[1]->height(); y++)
+        {
+            if (cuts[1]->pixel(x,y))
+                rightCount++;
+        }
+    }
+    int leftWidth = leftUnfinished->width();
+    int rightWidth = rightUnfinished->width();
+    printf("cut lw=%d,\trw=%d\n",leftWidth,rightWidth);
+//    leftUnfinished->makeImage().save("./test0.ppm");
+//    rightUnfinished->makeImage().save("./test1.ppm");
+    printf("maxflow=%d\n",maxflow);
+    if (maxflow > 20000 || maxflow <= 0 || leftWidth < 9 || rightWidth < 9 || leftCount < 40 || rightCount < 40)
+    {
+        unfinished->changeSrc(root,accumulativeXOffset,accumulativeYOffset);
+        ret += unfinished;
+        delete leftUnfinished;
+        delete rightUnfinished;
+        return ret;
+    }
+    
+//    char a;
+//    printf("Cont? ");
+//    scanf("%c",&a);
+//    printf("ok\n");
+
+    
+    if (leftWidth > 20 && rightWidth!= 0)//left again
+    {
+        ret += recursiveChunkWord(leftUnfinished,root, accumulativeXOffset + leftUnfinished->getXOffset(), accumulativeYOffset + leftUnfinished->getYOffset());
+        delete leftUnfinished;
+    }
+    else
+    {
+        leftUnfinished->changeSrc(root,accumulativeXOffset,accumulativeYOffset);
+        ret += leftUnfinished;
+        
+    }
+    
+    if (rightWidth > 20 && leftWidth!= 0)//right again
+    {
+        ret += recursiveChunkWord(rightUnfinished,root, accumulativeXOffset + rightUnfinished->getXOffset(), accumulativeYOffset + rightUnfinished->getYOffset());
+        delete rightUnfinished;
+        
+    }
+    else
+    {
+        rightUnfinished->changeSrc(root,accumulativeXOffset,accumulativeYOffset);
+        ret += rightUnfinished;
+    }
+    
+    
+    return ret;
+}

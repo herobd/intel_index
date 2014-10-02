@@ -16,11 +16,11 @@ class BPixelCollection;
 class BPartition;
 
 
-struct bPixel
-{
-    bool val;
-    QMap<int, float> ownership;
-};
+//struct bPixel
+//{
+//    bool val;
+//    QMap<int, float> ownership;
+//};
 
 class BImage : public BPixelCollection
 {
@@ -33,7 +33,10 @@ public:
 //    BImage(const BPartition* src1, const BPartition* src2);
     BImage copy();
     ~BImage();
+    BImage& operator=( const BPixelCollection& other );
     BImage& operator=( const BImage& other );
+    
+    
     
     int width() const;
     int height() const;
@@ -44,10 +47,11 @@ public:
     //use
     bool pixel(const QPoint &p) const;
     bool pixel(int x, int y) const;
+    bool pixelIgnoreOff(int x, int y) const;
     
     //extras
-    bPixel pixelFull(const QPoint &p) const;
-    bPixel pixelFull(int x, int y) const;
+//    bPixel pixelFull(const QPoint &p) const;
+//    bPixel pixelFull(int x, int y) const;
     float pixelOwnerPortion(const QPoint &p, BPartition* owner) const;
     float pixelOwnerPortion(int x, int y, BPartition* owner) const;
     int pixelMajorityOwner(const QPoint &p) const;
@@ -58,8 +62,8 @@ public:
     void setPixel(int x, int y, bool val);
     
     //extras
-    void setPixelFull(const QPoint &p, const bPixel &strct);
-    void setPixelFull(int x, int y, const bPixel &strct);
+//    void setPixelFull(const QPoint &p, const bPixel &strct);
+//    void setPixelFull(int x, int y, const bPixel &strct);
     void setPixelOwner(const QPoint &p, BPartition* owner, float portion);
     void setPixelOwner(int x, int y, BPartition* owner, float portion);
     
@@ -78,7 +82,9 @@ public:
     bool pixelIsMine(int x, int y) const;
     
 private:
-    bPixel** pixels;
+    std::vector<bool>* pixels;
+    QMap<int, float> *ownership;
+    
     int myWidth;
     int myHeight;
 };

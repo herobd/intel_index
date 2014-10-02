@@ -88,6 +88,23 @@ public:
         QPoint x(-1,-1);
         return x;
     }
+    
+    QVector<int> horizontalProfile() {
+        QVector<int> ret(width());
+        ret.fill(0);
+        for (int x=0; x<width(); x++)
+        {
+            int sum=0;
+            for (int y=0; y<height(); y++)
+            {
+                if (pixel(x,y))
+                    sum++;
+            }
+            ret.append(sum);
+        }
+        return ret;
+    }
+    
 private:
     void setPixel(bool* mark, const QPoint &p, bool set) const
     {

@@ -43,7 +43,7 @@
 #define DESC_BIAS_Z 14000
 
 #define NEW_SCORE_THRESH 60//25//20
-#define DESCENDER_LIKELIHOOD_THRESH 10.5
+#define DESCENDER_LIKELIHOOD_THRESH 11
 
 typedef Graph<int,int,int> GraphType;
 
@@ -53,6 +53,8 @@ class GraphCut
 {
 public:
     static int pixelsOfSeparation(int* invDistMap, int width, int height, BPixelCollection &img, QVector<int> &outSource, QVector<int> &outSink, int anchor_weight=INT_POS_INFINITY/2, int split_method=SPLIT_HORZ, int vert_divide=-1);
+    
+    static int pixelsOfSeparationMicro(int* invDistMap, int width, int height, BPixelCollection &img, QVector<int> &outSource, QVector<int> &outSink, int anchor_weight=INT_POS_INFINITY/2, int split_method=SPLIT_HORZ, int vert_divide=-1);
     
     static int pixelsOfSeparation(int* invDistMap, int width, int height, const BPixelCollection &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, QVector<int> &outSource, QVector<int> &outSink, int anchor_weight=INT_POS_INFINITY/2, int split_method=SPLIT_HORZ, int vert_divide=-1);
     
@@ -72,6 +74,9 @@ public:
      static void strengthenDescenderComponentAccum(const AngleImage &img, const QPoint &crossOverPoint, GraphType *g, const Indexer3D &indexer);
      static void strengthenDescenderComponent(const AngleImage &img, const QPoint &crossOverPoint, GraphType *g, const Indexer3D &indexer);
      static void strengthenDescenderComponent2D(const BPixelCollection &img, const QPoint &crossOverPoint, GraphType *g);
+     
+     static QVector<double> correctScores;
+     static QVector<double> incorrectScores;
      
 private:
      

@@ -22,7 +22,15 @@ SOURCES += main.cpp \
     operators.cpp \
     blobskeleton.cpp \
     pathstackmap.cpp \
-    descenderpath.cpp
+    descenderpath.cpp \
+    bchunker.cpp \
+    probrecognizer.cpp \
+    ngramtrainingexample.cpp \
+    lrmfeaturevector.cpp \
+    ngramjumble.cpp \
+    fft/fft8g.c \
+    featurespace.cpp \
+    ngrammodel.cpp
 
 HEADERS += \
     ./wordprofile.h \
@@ -47,7 +55,14 @@ HEADERS += \
     angleimage.h \
     blobskeleton.h \
     pathstackmap.h \
-    descenderpath.h
+    descenderpath.h \
+    bchunker.h \
+    probrecognizer.h \
+    ngramtrainingexample.h \
+    lrmfeaturevector.h \
+    ngramjumble.h \
+    featurespace.h \
+    ngrammodel.h
 
 OTHER_FILES += \
     maxflow/instances.inc \
@@ -57,3 +72,7 @@ OTHER_FILES += \
 LIBS += -lgsl
 LIBS += -lgslcblas
 LIBS += -lm
+#added hr stuff
+INCLUDEPATH += /home/brian/intel_index/hr/src
+LIBS += -L/home/brian/intel_index/hr/lib/ -ldocumentproj_2013.08.30
+QMAKE_CXXFLAGS+= -std=c++11

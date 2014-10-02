@@ -22,6 +22,7 @@
 
 #define ANCHOR_L 2.4
 #define ANCHOR_R 2.4
+#define ANCHOR_MICRO 1.8
 #define NEW_ANCHOR 80
 
 #define INV_A 100
@@ -32,5 +33,7 @@ inline int mod(int a, int b)
         a+=b;
     return a%b;
 }
+
+#define WRITE_SCORES 0
 
 #endif // CONSTANTS_H
