@@ -144,6 +144,36 @@ QVector<BPartition*> WordSeparator::horzCutEntries(BPixelCollection &img, int ve
     return ret;
 }
 
+//This performs a verticle separation of two words based purly on the given divide
+QVector<BPartition*> WordSeparator::dumbHorzCutEntries(BPixelCollection &img, int vert_divide)
+{
+    
+    
+    BPartition* firstPart = new BPartition(&img);
+    BPartition* secondPart = new BPartition(&img);
+    
+    for (int y=0; y<vert_divide; y++)
+    {
+        for (int x=0; x<img.width(); x++)
+        {
+            firstPart->addPixelFromSrc(x,y);
+        }
+    }
+    
+    for (int y=vert_divide; y<img.height(); y++)
+    {
+        for (int x=0; x<img.width(); x++)
+        {
+            secondPart->addPixelFromSrc(x,y);
+        }
+    }
+   
+    QVector<BPartition*> ret;
+    ret.append(firstPart);
+    ret.append(secondPart);
+    return ret;
+}
+
 QVector<BPartition*> WordSeparator::testSlopeCut(BPixelCollection &img, const NDimensions &dimensions, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds /*const QVector<QVector<double> > &slopes*/)
 {
     int num_pix = img.width()*img.height();
@@ -376,6 +406,9 @@ void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bot
                 }
                 else /*if(false)//skipping*/
                 {//do something fancy, like a 3D cut
+                    
+                    
+                    
                     
                       //what is going on here? why do I make a second subsection?
                     
@@ -623,7 +656,7 @@ BPartition* WordSeparator::chopOutTop(BPixelCollection &src)
     return ret;
 }
 
-QVector<BPartition*> WordSeparator::segmentLinesOfWords(const BPixelCollection &column, int spacingEstimate)
+QVector<BPartition*> WordSeparator::segmentLinesOfWords(const BPixelCollection &column, int spacingEstimate, bool dumb)
 {
     QVector<BPartition*> ret;
 //    BImage base(column);
@@ -672,7 +705,11 @@ QVector<BPartition*> WordSeparator::segmentLinesOfWords(const BPixelCollection &
         printf("Cut %d:\t",i);
         
         int cutY = dividingLines[i] - accumulativeYOffset;
-        QVector<BPartition*> cuts = horzCutEntries(*unfinishedCol,cutY);
+        QVector<BPartition*> cuts;
+        if (dumb)
+            cuts = dumbHorzCutEntries(*unfinishedCol,cutY);
+        else
+            cuts= horzCutEntries(*unfinishedCol,cutY);
         
         assert(cuts[0]->width()>5 && cuts[1]->width()>5);
         
@@ -686,7 +723,9 @@ QVector<BPartition*> WordSeparator::segmentLinesOfWords(const BPixelCollection &
 //        int tempYOffset = accumulativeYOffset + cuts[1]->getYOffset();
         cuts[0]->changeSrc(&linesRemoved,accumulativeXOffset,accumulativeYOffset);
         cuts[1]->changeSrc(&linesRemoved,accumulativeXOffset,accumulativeYOffset);
-        adjustHorzCutCrossOverAreas(cuts[0],cuts[1],crossPointsForLine[i],descenderProbMap);
+        
+        if(!dumb)
+            adjustHorzCutCrossOverAreas(cuts[0],cuts[1],crossPointsForLine[i],descenderProbMap);
         accumulativeXOffset = cuts[1]->getXOffset();
         accumulativeYOffset = cuts[1]->getYOffset();
         cuts[0]->changeSrc(&column,0,0);
@@ -724,6 +763,9 @@ QVector<BPartition*> WordSeparator::segmentLinesOfWords(const BPixelCollection &
     
     return ret;
 }
+
+
+
 
 QVector<BPartition*> WordSeparator::recursiveHorizontalCutTwoWords(const BPixelCollection &img)
 {
@@ -2371,11 +2413,11 @@ QVector<BPartition*> WordSeparator::recursiveHorizontalCutFull(const BPixelColle
 
 QVector<BPartition*> WordSeparator::recut3D(const BPixelCollection &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, const QPoint &crossOverPoint)
 {
-//    Dimension slopes(img.width(),img.height());
     
-    int numOfBins = (img.width()+img.height())/2;
+    int numOfBins = (img.width()+img.height())/2;//std::min(img.width(),img.height());
+    
     AngleImage angleImage(&img,numOfBins,0.0,PI);
-    
+//    printf("%d x %d x %d\n",img.width(),img.height(),numOfBins);
     
     /////begin intensity
     
@@ -2528,15 +2570,16 @@ QVector<BPartition*> WordSeparator::recut3D(const BPixelCollection &img, QVector
             QMap<int,double> bins = angleImage.getBinsAndStrForPixel(x,y);
             foreach(int bin, bins.keys())
             {
+//                for ()
                 img3d[ind.getIndex(x,y,bin)]=bins[bin];
             }
         }
     }
     long* distmap3d = new long[angleImage.width()*angleImage.height()*numOfBins];
-//    DistanceTransform::computeKDInverseDistanceMap(img3d,distmap,3,dim);
-//    DistanceTransform::compute3DInverseDistanceMapTest(img3d,distmap,angleImage.width(),angleImage.height(),numOfBins);
+//    DistanceTransform::computeKDInverseDistanceMap(img3d,distmap,3,dim);old
+//    DistanceTransform::compute3DInverseDistanceMapTest(img3d,distmap,angleImage.width(),angleImage.height(),numOfBins);old
     DistanceTransform::compute3DInverseDistanceMapNew(img3d,distmap3d,angleImage.width(),angleImage.height(),numOfBins);
-    ///test3ddist
+    
     
     int maxflow = GraphCut::pixelsOfSeparationRecut3D(distmap3d,img.width(),img.height(),numOfBins,angleImage,sourceSeeds,sinkSeeds,firstImgIndexes,secondImgIndexes, crossOverPoint, INT_POS_INFINITY/2);
     
@@ -2548,11 +2591,17 @@ QVector<BPartition*> WordSeparator::recut3D(const BPixelCollection &img, QVector
     
     int img_width = img.width();
     
+    
+    
+    
     foreach (int index, firstImgIndexes)
     {
         int x = index%img_width;
         int y = index/img_width;
         firstPart->addPixelFromSrc(x,y);
+        
+        
+        
     }
     
     foreach (int index, secondImgIndexes)

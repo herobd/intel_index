@@ -32,7 +32,7 @@ class LRMFeatureVector
 public:
     LRMFeatureVector(const BImage &img);
     
-    double distance(const LRMFeatureVector &other);
+    double distance(const LRMFeatureVector &other){}
     
 private:
     std::array<double,27> v;

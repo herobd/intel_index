@@ -187,11 +187,16 @@ bool BImage::save(const QString& filepath)
 
 bool BImage::saveOwners(const QString& filepath)
 {
-    QImage temp = getOwnersImage();
-    bool test = temp.save(filepath);
-    if (!test)
-        printf("ERROR: failed to saveOwners\n");
-    return test;
+    if (ownership != NULL)
+    {
+        QImage temp = getOwnersImage();
+        bool test = temp.save(filepath);
+        if (!test)
+            printf("ERROR: failed to saveOwners\n");
+        return test;
+    }
+    printf("No ownership assigned.\n");
+    return false;
 }
 
 bool BImage::pixel(const QPoint &p) const
@@ -224,6 +229,9 @@ bool BImage::pixelIgnoreOff(int x, int y) const
 
 float BImage::pixelOwnerPortion(const QPoint &p, BPartition* owner) const
 {
+    if (ownership == NULL)
+        return 0;
+    
     assert(p.x()>=0 && p.x()<myWidth && p.y()>=0 && p.y()<myHeight);
     if (ownership[p.x()+p.y()*myWidth].contains(owner->id()))
         return ownership[p.x()+p.y()*myWidth][owner->id()];
@@ -232,6 +240,8 @@ float BImage::pixelOwnerPortion(const QPoint &p, BPartition* owner) const
 }
 float BImage::pixelOwnerPortion(int x, int y, BPartition* owner) const
 {
+    if (ownership == NULL)
+        return 0;
     assert(x>=0 && x<myWidth && y>=0 && y<myHeight);
     if (ownership[x+y*myWidth].contains(owner->id()))
         return ownership[x+y*myWidth][owner->id()];
@@ -246,6 +256,8 @@ int BImage::pixelMajorityOwner(const QPoint &p) const
 
 int BImage::pixelMajorityOwner(int x, int y) const
 {
+    if (ownership == NULL)
+        return 0;
     assert(x>=0 && x<myWidth && y>=0 && y<myHeight);
     int mostId=-1;
     float most=0;
@@ -295,6 +307,8 @@ void BImage::setPixelOwner(const QPoint &p, BPartition* owner, float portion)
 
 void BImage::setPixelOwner(int x, int y, BPartition* owner, float portion)
 {
+    if (ownership == NULL)
+        ownership = new QMap<int,float>[myWidth*myHeight];
     assert(x>=0 && x<myWidth && y>=0 && y<myHeight);
     
     if (ownership[x+y*myWidth].size() > 0)
@@ -354,6 +368,8 @@ QImage BImage::getImage()
 
 QImage BImage::getOwnersImage()
 {
+    if (ownership == NULL)
+        ownership = new QMap<int,float>[myWidth*myHeight];
     QVector<QRgb> color_table;
     color_table.append(qRgb(0,0,0));
     color_table.append(qRgb(255,255,255));
@@ -428,6 +444,8 @@ QImage BImage::getOwnersImage()
 
 void BImage::saveICDAR(QString name)
 {
+    if (ownership == NULL)
+        ownership = new QMap<int,float>[myWidth*myHeight];
     int* out = new int[myHeight*myWidth];
     int currentIndex=0;
     QMap<int,int> partitionIndex;
@@ -471,6 +489,8 @@ void BImage::saveICDAR(QString name)
 
 void BImage::claimOwnership(BPartition* claimer, float amount)
 {
+    if (ownership == NULL)
+        ownership = new QMap<int,float>[myWidth*myHeight];
     assert(claimer->getSrc() == this);
     for (int x=0; x<claimer->width(); x++)
     {
@@ -484,6 +504,8 @@ void BImage::claimOwnership(BPartition* claimer, float amount)
 
 void BImage::claimOwnershipVia(BPartition* intermediate, BPartition* claimer, float amount)
 {
+    if (ownership == NULL)
+        ownership = new QMap<int,float>[myWidth*myHeight];
     assert(intermediate->getSrc() == this);
     assert(claimer->getSrc() == intermediate);
     for (int x=0; x<claimer->width(); x++)

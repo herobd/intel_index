@@ -28,6 +28,23 @@ void BlobSkeleton::init(const BPixelCollection* src)
     draw("test");
 }
 
+void BlobSkeleton::initHand(const BPixelCollection* src, const QImage &handMarkedRegions)
+{
+    this->src=src;
+    assignments = new int*[src->width()];
+    for (int x=0; x<src->width(); x++)
+    {
+        assignments[x] = new int[src->height()];
+        for (int y=0; y<src->height(); y++)
+            assignments[x][y]=-1;
+    }
+    
+    evalHand(handMarkedRegions);
+    
+    //By default I'm saving an image
+    draw("test_hand");
+}
+
 BlobSkeleton::~BlobSkeleton()
 {
     if (src!=NULL)
@@ -472,6 +489,213 @@ void BlobSkeleton::blobFill(const QPoint &begin)
     
     
 }
+
+//hand
+void BlobSkeleton::evalHand(const QImage &markedRegions)
+{
+    
+            
+    
+    BImage mark(*src);
+    
+    for (int scanX=0; scanX<mark.width(); scanX++)
+        for (int scanY=0; scanY<mark.height(); scanY++)
+    {
+        
+        if (!mark.pixel(scanX,scanY) || markedRegions.pixel(scanX,scanY) == qRgb(255,255,255))
+            continue;
+        
+        mark.setPixel(scanX,scanY,false);
+//        printf("Using start point: (%d,%d)\n",startPoint.x(),startPoint.y());
+        QRgb color = markedRegions.pixel(scanX,scanY);
+        unsigned int myRegionId = regions.size();
+        
+        QVector<QPoint> border;
+        QVector<QPoint> collection;
+        
+        QPoint startPoint(scanX,scanY);
+        border.push_back(startPoint);
+        
+        int furthestDistSqrd=0;
+        int killTokenLoc=-1;
+        int sumX=0;
+        int sumY=0;
+        QSet<unsigned int> neighborRegions;
+        
+        
+        while(!border.empty())
+        {
+            QPoint toAdd = border.front();
+            border.pop_front();
+
+            
+            
+//            if (color == markedRegions.pixel(toAdd))
+            {
+
+                
+
+                
+                collection.push_back(toAdd);
+                assignments[toAdd.x()][toAdd.y()] = myRegionId;
+                sumX+=toAdd.x();
+                sumY+=toAdd.y();
+                
+                // 0 1 2 neighbor id table
+                // 3 4 5
+                // 6 7 8
+                int tableIndex=8;
+                for (int cc=0; cc<9; cc++)
+                {
+                    tableIndex=(tableIndex+2)%9;
+                    if (tableIndex==4)
+                        continue;
+                    
+                    int xDelta=(tableIndex%3)-1;
+                    int yDelta=(tableIndex/3)-1;
+                    int x = toAdd.x()+xDelta;
+                    int y = toAdd.y()+yDelta;
+                    if (x>=0 && x<mark.width() && y>=0 && y<mark.height())
+                    {
+                        if (color == markedRegions.pixel(x,y) && mark.pixel(x,y))
+                        {
+                            QPoint p(x,y);
+                            border.append(p);
+                            mark.setPixel(p,false);
+                        }
+                        else if (src->pixel(x,y) && 
+                                 (int)myRegionId != assignments[x][y] && 
+                                 0 <= assignments[x][y])
+                        {
+                            neighborRegions.insert(assignments[x][y]);
+                        }
+                        
+                    }
+                }
+              
+                
+            }
+            
+        }
+        
+//        if (collection.size() >= MIN_REGION_SIZE)
+        {
+            skeletonVertex centerOfMass(sumX/collection.size(),sumY/collection.size());
+            
+            regions.append(collection);
+    //        printf("region %d found %d neighbors\n",myRegionId,neighborRegions.size());
+            foreach (unsigned int regionId, neighborRegions)
+            {
+                if (centerOfMass.connectedPoints().contains(regionId) || centersOfMass[regionId].connectedPoints().contains(myRegionId))
+                   {
+                    int i=0;
+                }
+                
+                double angle = atan2((centerOfMass.y-centersOfMass[regionId].y),(centerOfMass.x-centersOfMass[regionId].x));
+                if (angle < 0)
+                    angle += PI;
+                double distance = sqrt(pow(centerOfMass.x-centersOfMass[regionId].x,2) + pow(centerOfMass.y-centersOfMass[regionId].y,2));
+                
+                centerOfMass.addNeighbor(regionId,angle,distance);
+                centersOfMass[regionId].addNeighbor(myRegionId,angle,distance);
+            }
+            centersOfMass.append(centerOfMass);
+        }
+        
+        
+//        printf("Center of mass found: (%d, %d)\n",centerOfMass.x,centerOfMass.y);
+        
+        foreach (QPoint notAdded, border)//reset points not added
+        {
+            if (mark.pixel(notAdded))
+            {
+//                printf("border (%d,%d) slipped\n",notAdded.x(),notAdded.y());
+                continue;
+            }
+            
+            QVector<QPoint> neighbors;
+            neighbors.push_back(notAdded);
+            mark.setPixel(notAdded,true);
+            int sumX=0;
+            int sumY=0;
+            int count=0;
+            
+            while(!neighbors.empty())
+            {
+                QPoint cur = neighbors.front();
+                neighbors.pop_front();
+                sumX+=cur.x();
+                sumY+=cur.y();
+                count++;
+                
+                QPoint up(cur.x(),cur.y()-1);
+                QPoint down(cur.x(),cur.y()+1);
+                QPoint left(cur.x()-1,cur.y());
+                QPoint right(cur.x()+1,cur.y());
+                QPoint lu(cur.x()-1,cur.y()-1);
+                QPoint ld(cur.x()-1,cur.y()+1);
+                QPoint ru(cur.x()+1,cur.y()-1);
+                QPoint rd(cur.x()+1,cur.y()+1);
+                if (cur.y()>0 && !mark.pixel(up) && border.contains(up))
+                {
+                    neighbors.append(up);
+                    mark.setPixel(up,true);
+                }
+                if (cur.y()+1<mark.height() && !mark.pixel(down) && border.contains(down))
+                {
+                    neighbors.append(down);
+                    mark.setPixel(down,true);
+                }
+                if (cur.x()>0 && !mark.pixel(left)  && border.contains(left))
+                {
+                    neighbors.append(left);
+                    mark.setPixel(left,true);
+                }
+                if (cur.x()+1<mark.width() && !mark.pixel(right) && border.contains(right))
+                {
+                    neighbors.append(right);
+                    mark.setPixel(right,true);
+                }
+                if (cur.x()>0 && cur.y()>0 && !mark.pixel(lu) && border.contains(lu))
+                {
+                    neighbors.append(lu);
+                    mark.setPixel(lu,true);
+                }
+                if (cur.x()>0 && cur.y()+1<mark.height() && !mark.pixel(ld) && border.contains(ld))
+                {
+                    neighbors.append(ld);
+                    mark.setPixel(ld,true);
+                }
+                if (cur.x()+1<mark.width() && cur.y()>0 && !mark.pixel(ru) && border.contains(ru))
+                {
+                    neighbors.append(ru);
+                    mark.setPixel(ru,true);
+                }
+                if (cur.x()+1<mark.width() && cur.y()+1<mark.height() && !mark.pixel(rd) && border.contains(rd))
+                {
+                    neighbors.append(rd);
+                    mark.setPixel(rd,true);
+                }
+            }
+            
+
+            
+            
+//            mark.setPixel(notAdded,true);
+            
+//            //this is a dumb way, just testing to see if it works
+//            startPoints.push_back(notAdded);
+        }
+        border.clear();
+        
+    }
+    
+    
+    
+    
+}
+
+
 
 
 void BlobSkeleton::draw(QString name) const

@@ -60,6 +60,8 @@ public:
     ~BlobSkeleton();
     void init(const BPixelCollection* src);
     
+    void initHand(const BPixelCollection* src, const QImage &handMarkedRegions);
+    
     //This returns the number of regions identified
     unsigned int numberOfVertices()const {return centersOfMass.size();}
     
@@ -96,6 +98,7 @@ private:
     
     QPoint findStartPoint();
     void blobFill(const QPoint &begin);//the actual blob algorithm
+    void evalHand(const QImage &markedRegions);
 };
 
 #endif // BLOBSKELETON_H

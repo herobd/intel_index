@@ -15,19 +15,20 @@
 
 #include "gsl/gsl_statistics.h"
 
-using namespace std;
+#include <opencv2/viz/vizcore.hpp>
 
+
+using namespace std;
 
 
 
 int main(int argc, char** argv)
 {
-//    cout << "Starting..." << endl;
-    QImage testimg(argv[1]);
+//    QImage testimg(argv[1]);
 
     
     
-    BImage bimg(testimg);
+//    BImage bimg(testimg);
     
     ///Test descender identification/////
 //    BImage cleared = BoxCleaner::trimVerticleBoundaries(bimg);
@@ -117,6 +118,15 @@ int main(int argc, char** argv)
     
 //    QVector<QPoint> sourceSeeds;
 //    QVector<QPoint> sinkSeeds;
+//    std::string xx = "angleImg";
+//    cv::viz::Viz3d myWindow(xx);
+    
+//    //horz
+//    QPoint p(2,36);
+//    QPoint px(35,33);
+//    QPoint p2(352,11);
+//    QPoint p2x(325,22);
+//    QPoint cross(0,0);
     
 //    //1
 ////    QPoint p(4,29);
@@ -139,10 +149,10 @@ int main(int argc, char** argv)
 ////    QPoint cross(36,39);
     
 //    //10
-//    QPoint p(1,19);
-//    QPoint px(82,28);
-//    QPoint p2(99,66);
-//    QPoint cross(42,28);
+////    QPoint p(1,19);
+////    QPoint px(82,28);
+////    QPoint p2(99,66);
+////    QPoint cross(42,28);
     
 //    //14
 ////    QPoint p(78,24);
@@ -170,7 +180,7 @@ int main(int argc, char** argv)
 ////    QPoint px(69,12);
 ////    QPoint p2(0,47);
 ////    QPoint p2x(53,48);
-////    QPoint p2xx(28,63);
+//////    QPoint p2xx(28,63);
 ////    QPoint cross(35,23);
     
 //    //23 
@@ -202,7 +212,7 @@ int main(int argc, char** argv)
 //    sourceSeeds.append(px);
     
 //    sinkSeeds.append(p2);
-////    sinkSeeds.append(p2x);
+//    sinkSeeds.append(p2x);
 ////    sinkSeeds.append(p2xx);
     
 //    QVector<BPartition*> result = WordSeparator::recut3D(bimg, sourceSeeds, sinkSeeds,cross);
@@ -214,6 +224,8 @@ int main(int argc, char** argv)
 //    bimg.claimOwnership(result[1],1);
 //    bimg.saveOwners("./test.ppm");
     
+//    /// Start event loop
+//    myWindow.spin();
     //////////////////////////
     
 //    BImage cleared = BoxCleaner::trimVerticleBoundaries(bimg);
@@ -431,9 +443,10 @@ int main(int argc, char** argv)
     
     ////////////
 //    Evaluate::horizontalSegmentationTest(QString(argv[1]));
-//    Evaluate::verticleSegmentationTest(QString(argv[1]), QString(argv[2]));
+    Evaluate::verticleSegmentationTest(QString(argv[1]), QString(argv[2]),true);//dumb
 //    Evaluate::evaluateScoreInfo(QString("/home/brian/intel_index/testing/results/correctScores.dat"),QString("/home/brian/intel_index/testing/results/incorrectScores.dat"));
 //    Evaluate::writeScores(QString(argv[1]),QString("/home/brian/intel_index/testing/results/correctScores.dat"),QString("/home/brian/intel_index/testing/results/incorrectScores.dat"));
+//    Evaluate::newHorizontalSegmentationTest(argv[1],argv[2]);
     /////////////
 //    QImage img(argv[1]);
 //    BImage bimg(img);
@@ -456,7 +469,7 @@ int main(int argc, char** argv)
     ///test/////////////////////////////////
     
     /////feature stuff
-    LRMFeatureVector fv(bimg);
+//    LRMFeatureVector fv(bimg);
     
     
     return 0;

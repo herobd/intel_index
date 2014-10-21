@@ -1,6 +1,6 @@
 #include "probrecognizer.h"
 
-ProbRecognizer::ProbRecognizer(const QMap<int,QVector<NGramTrainingInstance*> > *ngramTraining)
+ProbRecognizer::ProbRecognizer(const QMap<int,QVector< std::shared_ptr<NGramTrainingInstance> > > *ngramTraining)
 {
     foreach (int ngram, ngramTraining->keys())
     {
@@ -25,17 +25,27 @@ void ProbRecognizer::recog(const BPixelCollection *word)
         //I'm choosing to pile all possible matches for n together, with th assumption being that certain window sizes will find better matches than others and we can weed the bad out
         //But one may choose to do each window size seperately
         
-        QMap<double,std::pair<std::shared_ptr<NGramPossibleInstance>,std::shared_ptr<NGramTrainingInstance> > > instanceDistances;//distance,index
+        int k = 5;//TODO this is an arbtrary assignment
+        
+        //map values are <distance,instance>
+        QMap<double,std::pair<std::shared_ptr<NGramPossibleInstance>,std::shared_ptr<NGramTrainingInstance> > > instanceDistances;
+//        QList<std::shared_ptr<NGramPossibleInstance> > candidates;
         for (int windowSize = ngramWindowSizes[ngram].y(); windowSize>=ngramWindowSizes[ngram].x(); windowSize--)
         {
+            
             for (int windowOffset=0; windowOffset<chunker.number()-windowSize; windowOffset++)
             {
                 std::shared_ptr<NGramPossibleInstance> candidate = chunker.getChunks(chunker.number()-windowSize-windowOffset,chunker.number()-windowOffset-1);
-                int k = 5;//TODO this is an arbtrary assignment
+                
+                
                 instanceDistances.unite(trainingFeatureSpace[ngram].findKNearestNeighbors(candidate,k));
+//                candidates.append(candidate);
             }
             
         }
+        
+        
+//         = trainingFeatureSpace[ngram].findKNearestNeighborsForAll(candidates,k);
         
         //do we take the top x? the top y%? all below threshold z?
         QList<std::pair<std::shared_ptr<NGramPossibleInstance>,std::shared_ptr<NGramTrainingInstance> >> instancesToEvaluate;

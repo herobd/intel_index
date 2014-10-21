@@ -1,5 +1,6 @@
 #include "graphcut.h"
 
+#include <opencv2/viz/vizcore.hpp>
 
 
 int maxedge;
@@ -2342,14 +2343,14 @@ int GraphCut::pixelsOfSeparationRecut3D(const long* invDistMap3D, int width, int
                 //C3 nope
                 
                 //extra bias
-//                 QMap<int,double> bins = img.getBinsAndStrForPixel(i,j);
-                if (img.pixel(i,j)/* && bins.keys().contains(k)*/)
-                {
-                    if (j<=crossOverPoint.y())
-                        g -> add_tweights(indexer.getIndex(i,j,k), anchor_weight_for_level_top, 0);
-                    else
-                        g -> add_tweights(indexer.getIndex(i,j,k), 0, anchor_weight_for_level_bottom);
-                }
+////                 QMap<int,double> bins = img.getBinsAndStrForPixel(i,j);
+//                if (img.pixel(i,j)/* && bins.keys().contains(k)*/)
+//                {
+//                    if (j<=crossOverPoint.y())
+//                        g -> add_tweights(indexer.getIndex(i,j,k), anchor_weight_for_level_top, 0);
+//                    else
+//                        g -> add_tweights(indexer.getIndex(i,j,k), 0, anchor_weight_for_level_bottom);
+//                }
                 
             }//j
         }//i
@@ -2475,14 +2476,21 @@ int GraphCut::pixelsOfSeparationRecut3D(const long* invDistMap3D, int width, int
     }
     
 //    int ret=0;
-    strengthenDescenderComponentAccum(img,crossOverPoint,g,indexer);
+    
+    //Descender extra work
+//    strengthenDescenderComponentAccum(img,crossOverPoint,g,indexer);
     int ret = g -> maxflow();
     
     //debug
 //    printf("Maxflow of cut is %d\n",ret);
+    //visilization
+    cv::Mat cloud(1,width*height*depth, CV_32FC3);
+    cv::Point3f* anglePoints = cloud.ptr<cv::Point3f>();
+    cv::Mat color_cloud(1,width*height*depth, CV_8UC3);
+    
     
     //add all black pixels which
-    int slopeDifRange = SLOPE_DIF_TOLERANCE*depth;
+//    int slopeDifRange = SLOPE_DIF_TOLERANCE*depth;
     int THRESH=700;
     for (int x=0; x<width; x++)
     {
@@ -2498,6 +2506,29 @@ int GraphCut::pixelsOfSeparationRecut3D(const long* invDistMap3D, int width, int
                     sourceScore += invDistMap3D[index];
                 else
                     sinkScore += invDistMap3D[index];
+                
+                
+                //visulization
+                if (img.getBinsAndStrForPixel(x,y)[z] > .1)
+                {
+                    anglePoints[x+width*y+width*height*z].x=(float)x;
+                    anglePoints[x+width*y+width*height*z].y=(float)y;
+                    anglePoints[x+width*y+width*height*z].z=(float)z;
+                
+                
+                    if (g->what_segment(index) == GraphType::SOURCE)
+                    {
+                        color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[0]=0;
+                        color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[1]=(int)(img.getBinsAndStrForPixel(x,y)[z]*254);
+                        color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[2]=0;
+                    }
+                    else
+                    {
+                        color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[0]=0;
+                        color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[1]=0;
+                        color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[2]=(int)(img.getBinsAndStrForPixel(x,y)[z]*254);
+                    }
+                }
             }
             
 //            printf("(%d,%d) ",sourceScore,sinkScore);
@@ -2510,6 +2541,11 @@ int GraphCut::pixelsOfSeparationRecut3D(const long* invDistMap3D, int width, int
             
         }
     }
+    
+    //visulization
+    cv::viz::Viz3d window = cv::viz::getWindowByName("angleImg");
+    cv::viz::WCloud cloudImage(cloud,color_cloud);
+    window.showWidget("angleImage",cloudImage);
     
     
 //    ///test///

@@ -15,7 +15,7 @@ public:
 //    bool isKnown();
     BPixelCollection* geBPixelCollection();
     DImage* getDImage();
-    LRMFeatureVector getFeatureVector();
+    LRMFeatureVector getFeatureVector(){}
     
 private:
     int n;

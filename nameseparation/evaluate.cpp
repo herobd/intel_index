@@ -41,11 +41,48 @@ double Evaluate::matchedScore(BPixelCollection &img1, BPixelCollection &img2)
     return ((double) intersectCount) / ((double) joinCount);
 }
 
-
-
-double Evaluate::verticleSegmentationTest(QString imgPath, QString gtDirPath)
+double Evaluate::matchedScore(const BPartition &left, const BPartition &right, const QImage &coloredGT)
 {
-    QString outPath = "/home/brian/intel_index/testing/results/vertSegResults.dat"; 
+    assert(left.getSrc()->width()==coloredGT.width() && left.getSrc()->height()==coloredGT.height());
+    assert(right.getSrc()->width()==coloredGT.width() && right.getSrc()->height()==coloredGT.height());
+    int intersectCountL=0;
+    int joinCountL=0;
+    int intersectCountR=0;
+    int joinCountR=0;
+    QRgb leftColor = coloredGT.pixel(0,0);//should be red
+    QRgb rightColor = coloredGT.pixel(1,0);//should be blue
+    assert(qRed(leftColor)==255 && qBlue(rightColor)==255);
+    for (int y=0; y<coloredGT.height(); y++)
+    {
+        for (int x=0; x<coloredGT.width(); x++)
+        {
+            if (coloredGT.pixel(x,y)==leftColor || coloredGT.pixel(x,y)==rightColor)
+            {
+                if (left.pixelSrc(x,y) && coloredGT.pixel(x,y)==leftColor)
+                    intersectCountL++;
+                if (left.pixelSrc(x,y) || coloredGT.pixel(x,y)==leftColor)
+                    joinCountL++;
+                
+                if (right.pixelSrc(x,y) && coloredGT.pixel(x,y)==rightColor)
+                    intersectCountR++;
+                if (right.pixelSrc(x,y) || coloredGT.pixel(x,y)==rightColor)
+                    joinCountR++;
+            }
+            
+            
+        }
+    }
+    return (((double) intersectCountL) / ((double) joinCountL)) + (((double) intersectCountR) / ((double) joinCountR));
+}
+
+
+double Evaluate::verticleSegmentationTest(QString imgPath, QString gtDirPath, bool dumb)
+{
+    QString outPath;
+    if (dumb)
+        outPath= "/home/brian/intel_index/testing/results/vertSegResults_dumb.dat"; 
+    else
+        outPath= "/home/brian/intel_index/testing/results/vertSegResults.dat"; 
     std::ofstream results (outPath.toLocal8Bit().data(),std::ofstream::app);
     QImage img(imgPath);
     BImage bimg(img);
@@ -53,7 +90,7 @@ double Evaluate::verticleSegmentationTest(QString imgPath, QString gtDirPath)
     cleared = BoxCleaner::trimHorizontalBoundaries(cleared);
     cleared = BoxCleaner::removeVerticlePixelNoise(cleared);
     double summedScore=0;
-    QVector<BPartition*> lines = WordSeparator::segmentLinesOfWords(cleared,40);
+    QVector<BPartition*> lines= WordSeparator::segmentLinesOfWords(cleared,40,dumb);
     for (int i=0; i<lines.size(); i++)
     {
         if (i!=0)
@@ -83,6 +120,52 @@ double Evaluate::verticleSegmentationTest(QString imgPath, QString gtDirPath)
     {
         delete lines[i];
     }
+    return avgScore;
+}
+
+double Evaluate::newHorizontalSegmentationTest(QString imgDirPath, QString gtDirPath)
+{
+    QString outPath = "/home/brian/intel_index/testing/results/newHorzSegResults.dat"; 
+    std::ofstream results (outPath.toLocal8Bit().data(),std::ofstream::app);
+    double summedScore=0;
+//    QVector<BPartition*> lines = WordSeparator::segmentLinesOfWords(cleared,40);
+    DIR* dirp = opendir(qPrintable(imgDirPath));
+    struct dirent *dp;
+    int count=0;
+    
+    QRegExp re("(.+)\\.pgm");
+    while ((dp = readdir(dirp)) != NULL)
+    {
+        if (count!=0)
+            results << ", ";
+        QString file(dp->d_name);
+        re.indexIn(file);
+        if (re.matchedLength()==-1)
+            continue;
+        QString fileName=re.cap(1);
+        QString imgPath = imgDirPath + fileName + ".pgm";
+        QString gtPath = gtDirPath + fileName + ".ppm";
+//        printf("gt:%s\n",gtPath.toLocal8Bit().data());
+        QImage gt(gtPath);
+        QImage img(imgPath);
+        BImage bimg(img);
+//        BImage clean = BoxCleaner::trimBoundaries(bimg);
+        QVector<BPartition*> segmentation = WordSeparator::recursiveHorizontalCutTwoWords(bimg);
+        
+        double score=matchedScore(*segmentation[0], *segmentation[1], gt);
+        summedScore+=score;
+        results << score;
+        count++;
+        
+        segmentation[0]->changeSrc(&bimg,0,0);
+        segmentation[1]->changeSrc(&bimg,0,0);
+        bimg.claimOwnership(segmentation[0],1.0);
+        bimg.claimOwnership(segmentation[1],1.0);
+        bimg.saveOwners("./horz_seg_res/" + fileName + ".ppm");
+    }
+    double avgScore = summedScore/(count*2);
+    results << ": " << avgScore << std::endl;
+    results.close();
     return avgScore;
 }
 

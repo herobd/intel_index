@@ -69,34 +69,34 @@ LRMFeatureVector::LRMFeatureVector(const BImage &img)
         }
     }
     
-    //debug
-    for (int y=img.height(); y>0; y--)
-    {
-        for (int x=0; x<img.width(); x++)
-        {
-            if (horzProfile[x]>=y)
-                printf("#");
-            else
-                printf(" ");
-        }
-        printf("\n");
-    }
+    //debug, display profiles
+//    for (int y=img.height(); y>0; y--)
+//    {
+//        for (int x=0; x<img.width(); x++)
+//        {
+//            if (horzProfile[x]>=y)
+//                printf("#");
+//            else
+//                printf(" ");
+//        }
+//        printf("\n");
+//    }
     
-    for (int y=0; y<img.height(); y++)
-    {
-        for (int x=0; x<img.width(); x++)
-        {
-            if (upperProfile[x]==y && lowerProfile[x]==y)
-                printf("B");
-            else if (upperProfile[x]==y)
-                printf("U");
-            else if (lowerProfile[x]==y)
-                printf("L");
-            else
-                printf(" ");
-        }
-        printf("\n");
-    }
+//    for (int y=0; y<img.height(); y++)
+//    {
+//        for (int x=0; x<img.width(); x++)
+//        {
+//            if (upperProfile[x]==y && lowerProfile[x]==y)
+//                printf("B");
+//            else if (upperProfile[x]==y)
+//                printf("U");
+//            else if (lowerProfile[x]==y)
+//                printf("L");
+//            else
+//                printf(" ");
+//        }
+//        printf("\n");
+//    }
     
     
     

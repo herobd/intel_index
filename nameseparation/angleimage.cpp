@@ -116,6 +116,9 @@ void AngleImage::init()
 //        }
 //    }
     
+    
+//    QImage hand("/home/brian/test/marked_overlappingletters21.ppm");
+//    skeleton.initHand(src,hand);
     skeleton.init(src);
     
     QVector<bool> visited(skeleton.numberOfVertices());

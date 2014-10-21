@@ -69,6 +69,7 @@ public:
     int getNumOfBins() const;
     QMap<int,double> getBinsAndStrForPixel(int x, int y) const;
     int getBinForAngle(double angle) const;
+//    int sizeOfBin(){return 2*PI/numOfBins;}
     bool noStrongerAngleForPixel(int x, int y, double angle, double strength) const;
     bool noAnglesForPixel(int x, int y) const;
     

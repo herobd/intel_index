@@ -29,12 +29,13 @@ public:
 //    static QVector<QImage> cutNames(QImage &img);
 //    static QVector<QImage> recursiveCutWordToFirstLetter(QImage &img);
     static QVector<BPartition*> horzCutEntries(BPixelCollection &img, int vert_divide);
+    static QVector<BPartition*> dumbHorzCutEntries(BPixelCollection &img, int vert_divide);
     static void adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bottom, QVector<QPoint> crossPoints, QVector<QVector<double> > descenderProbMap);
     static BPartition* chopOutTop(BPixelCollection &src);
     
     static QVector<BPartition*> testSlopeCut(BPixelCollection &img, const NDimensions &dimensions, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds /*const QVector<QVector<double> > &slopes*/);
     
-    static QVector<BPartition*> segmentLinesOfWords(const BPixelCollection &column, int spacingEstimate);
+    static QVector<BPartition*> segmentLinesOfWords(const BPixelCollection &column, int spacingEstimate, bool dumb=false);
     static QVector<BPartition*> recursiveHorizontalCutTwoWords(const BPixelCollection &img);
     static QVector<BPartition*> recursiveHorizontalCutTwoWordsTraining(const BPixelCollection &img);
     static QVector<BPartition*> recursiveHorizontalCutFirstLetter(const BPixelCollection &img);

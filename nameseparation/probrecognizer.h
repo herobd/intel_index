@@ -14,7 +14,7 @@ class ProbRecognizer
 {
 public:
     //presumes the word is cleaned of noise and slant is removed
-    ProbRecognizer(const QMap<int,QVector<NGramTrainingInstance*> > *ngramTraining);
+    ProbRecognizer(const QMap<int,QVector< std::shared_ptr<NGramTrainingInstance> > > *ngramTraining);
     QVector<QString> topN(unsigned int n);
     void recog(const BPixelCollection *word);
     
