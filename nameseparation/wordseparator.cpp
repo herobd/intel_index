@@ -105,24 +105,24 @@ QVector<BPartition*> WordSeparator::horzCutEntries(BPixelCollection &img, int ve
     
     //best anchor weight:300 - 425
     int ANCHOR_WEIGHT = 270;
-    int maxflow = GraphCut::pixelsOfSeparation(invDistMap,img.width(),img.height(),img,firstImgIndexes,secondImgIndexes,ANCHOR_WEIGHT,SPLIT_VERT,vert_divide);
+    GraphCut::pixelsOfSeparation(invDistMap,img.width(),img.height(),img,firstImgIndexes,secondImgIndexes,ANCHOR_WEIGHT,SPLIT_VERT,vert_divide);
     
     BPartition* firstPart = new BPartition(&img);
     BPartition* secondPart = new BPartition(&img);
     
     int img_width = img.width();
 //    int img_height = img.height();
-    int h=0;
-    int w=0;
+//    int h=0;
+//    int w=0;
     foreach (int index, firstImgIndexes)
     {
         int x = index%img_width;
         int y = index/img_width;
-        if (y>h)
-        {
-            h=y;
-            w=x;
-        }
+//        if (y>h)
+//        {
+//            h=y;
+//            w=x;
+//        }
         firstPart->addPixelFromSrc(x,y);
 //        img.getSrc()->setPixelOwner(x+xOffset,y+yOffset,firstPart,claimPortion);
     }
@@ -185,7 +185,7 @@ QVector<BPartition*> WordSeparator::testSlopeCut(BPixelCollection &img, const ND
     QVector<int> secondImgIndexes;
     
 //    int maxflow = GraphCut::pixelsOfSeparationWithSlope(invDistMap,img.width(),img.height(),img, slopes,firstImgIndexes,secondImgIndexes);
-    int maxflow = GraphCut::pixelsOfSeparationNDimensions(invDistMap,img.width(),img.height(),img, dimensions,sourceSeeds,sinkSeeds,firstImgIndexes,secondImgIndexes);
+    GraphCut::pixelsOfSeparationNDimensions(invDistMap,img.width(),img.height(),img, dimensions,sourceSeeds,sinkSeeds,firstImgIndexes,secondImgIndexes);
     
     BPartition* firstPart = new BPartition(&img);
     BPartition* secondPart = new BPartition(&img);
@@ -223,7 +223,8 @@ void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bot
     if (crossPoints.empty())
         return;
     int SUBSECTION_WIDTH_FROM_KEYPOINT = 80;
-    int SUBSECTION_HEIGHT_FROM_KEYPOINT = 80;//10 + crossPoints[0].y();
+    int SUBSECTION_HEIGHT_ABOVE_KEYPOINT = 40;//10 + crossPoints[0].y();
+    int SUBSECTION_HEIGHT_BELOW_KEYPOINT = 60;
     int SUBSECTION_PIXEL_COUNT_MAX = 950;
     int NEW_SUBSECTION_WIDTH_FROM_KEYPOINT = 60;
     
@@ -241,9 +242,19 @@ void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bot
     
     
 //    mark.save("./mark.ppm");
-    
-    foreach (QPoint keyPoint, crossPoints)
+    QMap<int,bool> skip;
+    for (int cpIndex=0; cpIndex<crossPoints.size(); cpIndex++)
     {
+        if (skip[cpIndex])
+            continue;
+        
+        QPoint keyPoint = crossPoints[cpIndex];
+        printf("Evaluating keyPoint(%d,%d)\n",keyPoint.x(),keyPoint.y());
+        QVector<QPoint> keyPoints;
+        keyPoints.append(keyPoint);
+        int vert_divide = keyPoint.y();
+        int leftmost_key = keyPoint.x();
+        int rightmost_key = keyPoint.x();
         BImage mark = (top->getSrc())->makeImage();
 //        for (int x=0; x<top->getSrc()->width(); x++)
 //        {
@@ -252,6 +263,7 @@ void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bot
 //        if (mark.pixel(keyPoint))
         {
             workingStack.push_back(keyPoint);
+            mark.setPixel(keyPoint,false);
             bool topStarted = top->pixelIsMineSrc(keyPoint);
             QVector<QPoint> lowerPoints;
             BPartition subsection(top->getSrc());
@@ -260,6 +272,7 @@ void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bot
             int subsectionBottomPixelCount=0;
             QVector<QPoint> sourceStart;
             QVector<QPoint> sinkStart;
+            QVector<QPoint> rightBorder;
             
             while (!workingStack.isEmpty())
             {   
@@ -268,14 +281,19 @@ void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bot
                 
                 int bottomX = cur.x()-bottom->getXOffset();
                 int bottomY = cur.y()-bottom->getYOffset();
-                if ((bottomX>=0 && bottomX<bottom->width() && bottomY>=0 && bottomY<bottom->height() && bottom->pixelIsMine(bottomX, bottomY)))
+                if ((bottomX>=0 && bottomX<bottom->width() && bottomY>=0 && bottomY<bottom->height() && bottom->pixelIsMine(bottomX, bottomY))/* && cur.y()>vert_divide*/)
                     lowerPoints.append(cur);
                 
                 
-                if (abs(cur.x()-keyPoint.x()) < SUBSECTION_WIDTH_FROM_KEYPOINT && abs(cur.y()-keyPoint.y()) < SUBSECTION_HEIGHT_FROM_KEYPOINT)
+                if (    (cur.y()>vert_divide || (cpIndex==0 || (leftmost_key-cur.x()) < (leftmost_key-crossPoints[cpIndex-1 ].x())/2) &&
+                        (cpIndex+keyPoints.size()>=crossPoints.size() || (cur.x()-rightmost_key) < (crossPoints[cpIndex+keyPoints.size()].x()-rightmost_key)/2)) &&
+                        std::min(abs(cur.x()-leftmost_key),abs(cur.x()-rightmost_key)) < SUBSECTION_WIDTH_FROM_KEYPOINT && 
+                        cur.y()-vert_divide < SUBSECTION_HEIGHT_BELOW_KEYPOINT &&
+                        vert_divide-cur.y() < SUBSECTION_HEIGHT_ABOVE_KEYPOINT)
                 {
                     
-                    if (cur.y() <= keyPoint.y() && (subsectionTopPixelCount < SUBSECTION_PIXEL_COUNT_MAX /*|| abs(cur.x()-keyPoint.x())<10*/))
+                    if (cur.y() <= vert_divide && 
+                            (subsectionTopPixelCount < SUBSECTION_PIXEL_COUNT_MAX*keyPoints.size() /*|| abs(cur.x()-keyPoint.x())<10*/))
                     {
                         if (!crossover && top->pixelIsMineSrc(cur) != topStarted)
                         {
@@ -285,7 +303,9 @@ void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bot
                         subsection.addPixelFromSrc(cur);
                         subsectionTopPixelCount++;
                     }
-                    else if (cur.y() > keyPoint.y() && (subsectionBottomPixelCount < SUBSECTION_PIXEL_COUNT_MAX /*|| abs(cur.x()-keyPoint.x())<10*/))
+                    else if ((keyPoints.size()+cpIndex<crossPoints.size() && abs(crossPoints[keyPoints.size()+cpIndex].x()-rightmost_key) < SUBSECTION_WIDTH_FROM_KEYPOINT) || 
+                            cur.y() > vert_divide && 
+                            (subsectionBottomPixelCount < SUBSECTION_PIXEL_COUNT_MAX*keyPoints.size() /*|| abs(cur.x()-keyPoint.x())<10*/))
                     {
                         if (!crossover && top->pixelIsMineSrc(cur) != topStarted)
                         {
@@ -298,25 +318,36 @@ void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bot
                     else
                     {
                         //
-                        if (cur.y() <= keyPoint.y() - SOURCE_SINK_SEED_BUFFER)
+                        
+                        if (cur.y() <= vert_divide - SOURCE_SINK_SEED_BUFFER)
                             sourceStart.append(cur);
-                        else if (cur.y() > keyPoint.y() + SOURCE_SINK_SEED_BUFFER)
+                        else if (cur.y() > vert_divide + SOURCE_SINK_SEED_BUFFER)
                             sinkStart.append(cur);
                         continue;
                     }
                 }
+                else if (    (cur.y()>vert_divide || cpIndex==0 || (leftmost_key-cur.x()) < (leftmost_key-crossPoints[cpIndex-1 ].x())/2) &&
+                             std::min(abs(cur.x()-leftmost_key),abs(cur.x()-rightmost_key)) < SUBSECTION_WIDTH_FROM_KEYPOINT && 
+                             cur.y()-vert_divide < SUBSECTION_HEIGHT_BELOW_KEYPOINT &&
+                             vert_divide-cur.y() < SUBSECTION_HEIGHT_ABOVE_KEYPOINT)
+                {
+                    rightBorder.append(cur);
+                    continue;
+                }
                 else
                 {
                     //
-                    if (cur.y() <= keyPoint.y() - SOURCE_SINK_SEED_BUFFER)
+                    
+                    if (cur.y() <= vert_divide - SOURCE_SINK_SEED_BUFFER)
                         sourceStart.append(cur);
-                    else if (cur.y() > keyPoint.y() + SOURCE_SINK_SEED_BUFFER)
+                    else if (cur.y() > vert_divide + SOURCE_SINK_SEED_BUFFER)
                         sinkStart.append(cur);
                     continue;
                 }
                 
               
                 int tableIndex=8;
+                int pIndex;
                 for (int cc=0; cc<9; cc++)
                 {
                     tableIndex=(tableIndex+2)%9;
@@ -334,77 +365,106 @@ void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bot
                         QPoint pp(x,y);
                         workingStack.push_back(pp);
                         mark.setPixel(pp,false);
+                        
+                        if (yDelta<0 && (pIndex = crossPoints.indexOf(pp))!=-1)
+                        {
+                            keyPoints.append(pp);
+                            if (pp.x()<leftmost_key)
+                                leftmost_key=pp.x();
+                            if(pp.x()>rightmost_key)
+                            {
+                                rightmost_key=pp.x();
+                                workingStack += rightBorder;
+                            }
+                            
+                            skip[pIndex]=true;
+                        }
                     }
                 }
                 
             }
             
+            foreach (QPoint p, rightBorder)
+            {
+                if (p.y() <= vert_divide - SOURCE_SINK_SEED_BUFFER)
+                    sourceStart.append(p);
+//                else if (p.y() > vert_divide + SOURCE_SINK_SEED_BUFFER)
+//                    sinkStart.append(p);
+            }
+            
             if (crossover)
             {
-                ccccKeyPoints.append(keyPoint);
-                ccccLowerPoints.append(lowerPoints);
-                
-                ///test///
-//                BPartition test(top->getSrc());
-//                foreach (QPoint p, lowerPoints)
-//                {
-//                    test.addPixelFromSrc(p.x(),p.y());
-//                }
-//                QString xs;
-//               QString ys;
-//               xs.setNum(keyPoint.x());
-//               ys.setNum(keyPoint.y());
-//               QString loc = "./lowerPoints/lowerPoints";
-//               loc+=xs;
-//               loc+="_";
-//               loc+=ys;
-//               loc+=".ppm";
-//                test.makeImage().save(loc);
-                ///test///
-                
-                QVector<QVector<double> > scoreMap(descenderProbMap.size());
-                QVector<double> temp(descenderProbMap[0].size());
-                temp.fill(0);
-                scoreMap.fill(temp);
-                double scoreTotal=0;
-//                int num_points_outside=0;
-                foreach (QPoint ccccP, lowerPoints)
+                bool foundDesc=false;
+                if (keyPoints.size()==1)
                 {
-                    int x = ccccP.x()-keyPoint.x() + descenderProbMap.size()/2;
-                    int y = ccccP.y()-keyPoint.y();
+                    ccccKeyPoints.append(keyPoint);
+                    ccccLowerPoints.append(lowerPoints);
                     
-                    if(x>=0 && x<descenderProbMap.size() && y>=0 && y<descenderProbMap[0].size())
+                    ///test///
+    //                BPartition test(top->getSrc());
+    //                foreach (QPoint p, lowerPoints)
+    //                {
+    //                    test.addPixelFromSrc(p.x(),p.y());
+    //                }
+    //                QString xs;
+    //               QString ys;
+    //               xs.setNum(keyPoint.x());
+    //               ys.setNum(keyPoint.y());
+    //               QString loc = "./lowerPoints/lowerPoints";
+    //               loc+=xs;
+    //               loc+="_";
+    //               loc+=ys;
+    //               loc+=".ppm";
+    //                test.makeImage().save(loc);
+                    ///test///
+                    
+                    QVector<QVector<double> > scoreMap(descenderProbMap.size());
+                    QVector<double> temp(descenderProbMap[0].size());
+                    temp.fill(0);
+                    scoreMap.fill(temp);
+                    double scoreTotal=0;
+    //                int num_points_outside=0;
+                    foreach (QPoint ccccP, lowerPoints)
                     {
-                        scoreMap[x][y] = descenderProbMap[x][y];//-.4;
-                        scoreTotal+=scoreMap[x][y];
+                        int x = ccccP.x()-keyPoint.x() + descenderProbMap.size()/2;
+                        int y = ccccP.y()-keyPoint.y();
+                        
+                        if(x>=0 && x<descenderProbMap.size() && y>=0 && y<descenderProbMap[0].size())
+                        {
+                            scoreMap[x][y] = descenderProbMap[x][y];//-.4;
+                            scoreTotal+=scoreMap[x][y];
+                        }
+    //                    else
+    //                    {
+    //                        scoreTotal-=.4;
+    //                        num_points_outside++;
+    //                    }
+                        
+                        
                     }
-//                    else
-//                    {
-//                        scoreTotal-=.4;
-//                        num_points_outside++;
-//                    }
                     
-                    
-                }
-                
-//                printf("total score for point (%d,%d): %f\n",keyPoint.x(),keyPoint.y(),scoreTotal);
-//                double DESCENDER_SCORE_THRESH = 45;
-                double scoreRatio = scoreTotal/lowerPoints.size();
-//                printf("scoreRario for point (%d,%d): %f\n",keyPoint.x(),keyPoint.y(),scoreRatio);
-                if (scoreRatio>.5)//if (scoreTotal>DESCENDER_SCORE_THRESH)
-                {
-                    //if this is disconnected (all pixels are important in map) we can add all
-                    //but what if we are intersected with something else?
-                    
-                    //expiriment
-                    foreach (QPoint p, lowerPoints)
+    //                printf("total score for point (%d,%d): %f\n",keyPoint.x(),keyPoint.y(),scoreTotal);
+    //                double DESCENDER_SCORE_THRESH = 45;
+                    double scoreRatio = scoreTotal/lowerPoints.size();
+    //                printf("scoreRario for point (%d,%d): %f\n",keyPoint.x(),keyPoint.y(),scoreRatio);
+                    if (scoreRatio>.5)//if (scoreTotal>DESCENDER_SCORE_THRESH)
                     {
-//                        firstImgBlackPixelIndexes.append(p.x()+p.y()*img.width());
-                        top->addPixelFromSrc(p);
-                        bottom->removePixel(p);
+                        //if this is disconnected (all pixels are important in map) we can add all
+                        //but what if we are intersected with something else?
+                        
+                        //expiriment
+                        foreach (QPoint p, lowerPoints)
+                        {
+    //                        firstImgBlackPixelIndexes.append(p.x()+p.y()*img.width());
+                            top->addPixelFromSrc(p);
+                            bottom->removePixel(p);
+                        }
+                        foundDesc=true;
                     }
                 }
-                else /*if(false)//skipping*/
+                        
+                        
+                if (!foundDesc) /*if(false)//skipping*/
                 {//do something fancy, like a 3D cut
                     
                     
@@ -427,7 +487,14 @@ void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bot
                         QPoint src_cur(cur.x()+subsection.getXOffset(), cur.y()+subsection.getYOffset());
                         
                         if (abs(src_cur.x()-keyPoint.x()) > NEW_SUBSECTION_WIDTH_FROM_KEYPOINT)
+                        {
+                            //add new anchors
+                            if (src_cur.y() <= vert_divide - SOURCE_SINK_SEED_BUFFER)
+                                sourceStart.append(src_cur);
+                            else if (src_cur.y() > vert_divide + SOURCE_SINK_SEED_BUFFER)
+                                sinkStart.append(src_cur);
                             continue;
+                        }
                         
                         newSubsection.addPixelFromSrc(src_cur);
                         
@@ -536,13 +603,15 @@ void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bot
                                 }
                     }
                     QPoint newCrossOverPoint(keyPoint.x()-newSubsection.getXOffset(),keyPoint.y()-newSubsection.getYOffset());
-                    QVector<BPartition*> result3DCut = recut3D(newSubsection, sourceSeeds, sinkSeeds, newCrossOverPoint);
+                    QVector<BPartition*> result3DCut = recut3D(newSubsection, sourceSeeds, sinkSeeds, newCrossOverPoint.y());
 //                    QVector<BPartition*> result3DCut = recut2D(newSubsection, sourceSeeds, sinkSeeds, newCrossOverPoint);
                     
                     ///test///start
+//                    QString xs;
+//                    QString ys;
 //                    xs.setNum(keyPoint.x());
 //                    ys.setNum(keyPoint.y());
-//                    loc = "./subsection/subsection";
+//                    QString loc = "./subsection/subsection";
 //                    loc+=xs;
 //                    loc+="_";
 //                    loc+=ys;
@@ -641,7 +710,7 @@ BPartition* WordSeparator::chopOutTop(BPixelCollection &src)
     
     //best anchor weight:300 - 425
     int ANCHOR_WEIGHT = 1200;
-    int maxflow = GraphCut::pixelsOfSeparation(invDistMap,src.width(),src.height(),src,cutIndexes,unused,ANCHOR_WEIGHT,CHOP_TOP);
+    GraphCut::pixelsOfSeparation(invDistMap,src.width(),src.height(),src,cutIndexes,unused,ANCHOR_WEIGHT,CHOP_TOP);
     
     BPartition* ret = new BPartition(&src);
     
@@ -2411,13 +2480,13 @@ QVector<BPartition*> WordSeparator::recursiveHorizontalCutFull(const BPixelColle
 
 
 
-QVector<BPartition*> WordSeparator::recut3D(const BPixelCollection &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, const QPoint &crossOverPoint)
+QVector<BPartition*> WordSeparator::recut3D(const BPixelCollection &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, int crossOverY)
 {
     
     int numOfBins = (img.width()+img.height())/2;//std::min(img.width(),img.height());
     
     AngleImage angleImage(&img,numOfBins,0.0,PI);
-//    printf("%d x %d x %d\n",img.width(),img.height(),numOfBins);
+    printf("%d x %d x %d\n",img.width(),img.height(),numOfBins);
     
     /////begin intensity
     
@@ -2581,7 +2650,7 @@ QVector<BPartition*> WordSeparator::recut3D(const BPixelCollection &img, QVector
     DistanceTransform::compute3DInverseDistanceMapNew(img3d,distmap3d,angleImage.width(),angleImage.height(),numOfBins);
     
     
-    int maxflow = GraphCut::pixelsOfSeparationRecut3D(distmap3d,img.width(),img.height(),numOfBins,angleImage,sourceSeeds,sinkSeeds,firstImgIndexes,secondImgIndexes, crossOverPoint, INT_POS_INFINITY/2);
+    GraphCut::pixelsOfSeparationRecut3D(distmap3d,img.width(),img.height(),numOfBins,angleImage,sourceSeeds,sinkSeeds,firstImgIndexes,secondImgIndexes, crossOverY, INT_POS_INFINITY/2);
     
     delete[] distmap3d;
     delete[] img3d;
@@ -2635,7 +2704,7 @@ QVector<BPartition*> WordSeparator::cutGivenSeeds(const BPixelCollection &img, Q
     QVector<int> firstImgIndexes;
     QVector<int> secondImgIndexes;
     
-    int maxflow = GraphCut::pixelsOfSeparation(invDistMap,img.width(),img.height(),img,sourceSeeds,sinkSeeds,firstImgIndexes,secondImgIndexes);
+    GraphCut::pixelsOfSeparation(invDistMap,img.width(),img.height(),img,sourceSeeds,sinkSeeds,firstImgIndexes,secondImgIndexes);
     
     BPartition* firstPart = new BPartition(&img);
     BPartition* secondPart = new BPartition(&img);
@@ -2679,7 +2748,7 @@ QVector<BPartition*> WordSeparator::recut2D(const BPixelCollection &img, QVector
     
     ///test3ddist
     
-    int maxflow = GraphCut::pixelsOfSeparationRecut2D(img,invDistMap,img.width(),img.height(),sourceSeeds,sinkSeeds,firstImgIndexes,secondImgIndexes, crossOverPoint);
+    GraphCut::pixelsOfSeparationRecut2D(img,invDistMap,img.width(),img.height(),sourceSeeds,sinkSeeds,firstImgIndexes,secondImgIndexes, crossOverPoint);
     
     BPartition* firstPart = new BPartition(&img);
     BPartition* secondPart = new BPartition(&img);

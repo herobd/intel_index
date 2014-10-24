@@ -9,6 +9,7 @@ class BImage;
 class BPixelCollection
 {
 public:
+    virtual ~BPixelCollection(){}
     virtual bool pixel(const QPoint &p) const {return pixel(p.x(),p.y());}
     virtual bool pixel(int x, int y) const =0;
     virtual bool pixelIsMine(const QPoint &p) const {return pixelIsMine(p.x(),p.y());}

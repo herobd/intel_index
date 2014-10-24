@@ -24,11 +24,11 @@ using namespace std;
 
 int main(int argc, char** argv)
 {
-//    QImage testimg(argv[1]);
+    QImage testimg(argv[1]);
 
     
     
-//    BImage bimg(testimg);
+    BImage bimg(testimg);
     
     ///Test descender identification/////
 //    BImage cleared = BoxCleaner::trimVerticleBoundaries(bimg);
@@ -116,10 +116,13 @@ int main(int argc, char** argv)
 //    testimg.save("./test.ppm");
 //////////////////
     
+    ////////////////////////
+    //test recut3d//////////
+    ////////////////////////
 //    QVector<QPoint> sourceSeeds;
 //    QVector<QPoint> sinkSeeds;
 //    std::string xx = "angleImg";
-//    cv::viz::Viz3d myWindow(xx);
+////    cv::viz::Viz3d myWindow(xx);
     
 //    //horz
 //    QPoint p(2,36);
@@ -225,7 +228,7 @@ int main(int argc, char** argv)
 //    bimg.saveOwners("./test.ppm");
     
 //    /// Start event loop
-//    myWindow.spin();
+////    myWindow.spin();
     //////////////////////////
     
 //    BImage cleared = BoxCleaner::trimVerticleBoundaries(bimg);
@@ -268,20 +271,25 @@ int main(int argc, char** argv)
     
     ///////////////////////////////
     
-//    BImage cleared = BoxCleaner::trimVerticleBoundaries(bimg);
-//    cleared = BoxCleaner::trimHorizontalBoundaries(cleared);
-//    cleared = BoxCleaner::removeVerticlePixelNoise(cleared);
-//    QVector<BPartition*> lines = WordSeparator::segmentLinesOfWords(cleared,40);
-//    for (int i=0; i<lines.size(); i++)
-//    {
-//        cleared.claimOwnership(lines[i],1);
-////        segmentation[i]->makeImage().save("./output/");
-//    }
-//    cleared.saveOwners("./rainbow.ppm");
-//    for (int i=0; i<lines.size(); i++)
-//    {
-//        delete lines[i];
-//    }
+    BImage cleared = BoxCleaner::trimVerticleBoundaries(bimg);
+    cleared = BoxCleaner::trimHorizontalBoundaries(cleared);
+    cleared = BoxCleaner::removeVerticlePixelNoise(cleared);
+    QVector<BPartition*> lines = WordSeparator::segmentLinesOfWords(cleared,40);
+    for (int i=0; i<lines.size(); i++)
+    {
+        cleared.claimOwnership(lines[i],1);
+//        segmentation[i]->makeImage().save("./output/");
+        QString imageNumber;
+        imageNumber.setNum(1+i);
+        if (i+1<10)
+            imageNumber = "0" + imageNumber;
+        lines[i]->makeImage().save("./vert_seg_res/" + imageNumber + ".ppm");
+    }
+    cleared.saveOwners("./rainbow.ppm");
+    for (int i=0; i<lines.size(); i++)
+    {
+        delete lines[i];
+    }
     
     //////////////////////////////////////////////////////
         
@@ -443,7 +451,7 @@ int main(int argc, char** argv)
     
     ////////////
 //    Evaluate::horizontalSegmentationTest(QString(argv[1]));
-    Evaluate::verticleSegmentationTest(QString(argv[1]), QString(argv[2]),true);//dumb
+//    Evaluate::verticleSegmentationTest(QString(argv[1]), QString(argv[2]));
 //    Evaluate::evaluateScoreInfo(QString("/home/brian/intel_index/testing/results/correctScores.dat"),QString("/home/brian/intel_index/testing/results/incorrectScores.dat"));
 //    Evaluate::writeScores(QString(argv[1]),QString("/home/brian/intel_index/testing/results/correctScores.dat"),QString("/home/brian/intel_index/testing/results/incorrectScores.dat"));
 //    Evaluate::newHorizontalSegmentationTest(argv[1],argv[2]);

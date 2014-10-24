@@ -439,18 +439,18 @@ void BPartition::removePixel(int src_x, int src_y)
     }
 }
 
-void BPartition::joinInto(BPartition* other)
-{
-    assert(false);//imcomplete
-    for (int x=leftX; x<=rightX; x++)
-    {
-        for (int y=upperY; y<= lowerY; y++)
-        {
-            //src->setPixelCombineOwner(x,y,other,this);
-            addPixelFromSrc(x,y);
-        }
-    }
-}
+//void BPartition::joinInto(BPartition* other)
+//{
+//    assert(false);//imcomplete
+//    for (int x=leftX; x<=rightX; x++)
+//    {
+//        for (int y=upperY; y<= lowerY; y++)
+//        {
+//            //src->setPixelCombineOwner(x,y,other,this);
+//            addPixelFromSrc(x,y);
+//        }
+//    }
+//}
 
 void BPartition::join(BPartition* other)
 {

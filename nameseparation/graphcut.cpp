@@ -2263,7 +2263,7 @@ inline void setEdge3DMap(int x1, int y1, int slope1, int x2, int y2, int slope2,
                       (invDistMap3D[indexer.getIndex(x1,y1,slope1)]+invDistMap3D[indexer.getIndex(x2,y2,slope2)])*weight);
 }
 
-int GraphCut::pixelsOfSeparationRecut3D(const long* invDistMap3D, int width, int height, int depth, const AngleImage &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, QVector<int> &outSource, QVector<int> &outSink, const QPoint &crossOverPoint, int anchor_weight, int split_method)
+int GraphCut::pixelsOfSeparationRecut3D(const long* invDistMap3D, int width, int height, int depth, const AngleImage &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, QVector<int> &outSource, QVector<int> &outSink, int crossOverY, int anchor_weight, int split_method)
 {
     
 //    QVector<QVector<QVector<double> > > image3d = make3dImage(img,invDistMap,angleImage);
@@ -2302,8 +2302,8 @@ int GraphCut::pixelsOfSeparationRecut3D(const long* invDistMap3D, int width, int
         
         for (int j=0; j<height; j++)
         {
-            double anchor_weight_for_level_top = CENTER_BIAS_ANCHOR_WIEGHT * ((2.5*crossOverPoint.y()-j)/(double)(2.5*crossOverPoint.y()));
-            double anchor_weight_for_level_bottom = CENTER_BIAS_ANCHOR_WIEGHT * ((((height-1) -(double)crossOverPoint.y()) + j-crossOverPoint.y())/(2.*((height-1) -(double)crossOverPoint.y())));
+//            double anchor_weight_for_level_top = CENTER_BIAS_ANCHOR_WIEGHT * ((2.5*crossOverY-j)/(double)(2.5*crossOverY));
+//            double anchor_weight_for_level_bottom = CENTER_BIAS_ANCHOR_WIEGHT * ((((height-1) -(double)crossOverY) + j-crossOverY)/(2.*((height-1) -(double)crossOverY)));
             for (int i=0; i<width; i++)
             {   
                 
@@ -2346,7 +2346,7 @@ int GraphCut::pixelsOfSeparationRecut3D(const long* invDistMap3D, int width, int
 ////                 QMap<int,double> bins = img.getBinsAndStrForPixel(i,j);
 //                if (img.pixel(i,j)/* && bins.keys().contains(k)*/)
 //                {
-//                    if (j<=crossOverPoint.y())
+//                    if (j<=crossOverY)
 //                        g -> add_tweights(indexer.getIndex(i,j,k), anchor_weight_for_level_top, 0);
 //                    else
 //                        g -> add_tweights(indexer.getIndex(i,j,k), 0, anchor_weight_for_level_bottom);
@@ -2478,15 +2478,16 @@ int GraphCut::pixelsOfSeparationRecut3D(const long* invDistMap3D, int width, int
 //    int ret=0;
     
     //Descender extra work
+    //This is broken now that I have allowed multiple crossoverpoints into a single evaluation/cut
 //    strengthenDescenderComponentAccum(img,crossOverPoint,g,indexer);
     int ret = g -> maxflow();
     
     //debug
 //    printf("Maxflow of cut is %d\n",ret);
     //visilization
-    cv::Mat cloud(1,width*height*depth, CV_32FC3);
-    cv::Point3f* anglePoints = cloud.ptr<cv::Point3f>();
-    cv::Mat color_cloud(1,width*height*depth, CV_8UC3);
+//    cv::Mat cloud(1,width*height*depth, CV_32FC3);
+//    cv::Point3f* anglePoints = cloud.ptr<cv::Point3f>();
+//    cv::Mat color_cloud(1,width*height*depth, CV_8UC3);
     
     
     //add all black pixels which
@@ -2509,33 +2510,33 @@ int GraphCut::pixelsOfSeparationRecut3D(const long* invDistMap3D, int width, int
                 
                 
                 //visulization
-                if (img.getBinsAndStrForPixel(x,y)[z] > .1)
-                {
-                    anglePoints[x+width*y+width*height*z].x=(float)x;
-                    anglePoints[x+width*y+width*height*z].y=(float)y;
-                    anglePoints[x+width*y+width*height*z].z=(float)z;
+//                if (img.getBinsAndStrForPixel(x,y)[z] > .15)
+//                {
+//                    anglePoints[x+width*y+width*height*z].x=(float)x;
+//                    anglePoints[x+width*y+width*height*z].y=(float)y;
+//                    anglePoints[x+width*y+width*height*z].z=(float)z;
                 
                 
-                    if (g->what_segment(index) == GraphType::SOURCE)
-                    {
-                        color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[0]=0;
-                        color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[1]=(int)(img.getBinsAndStrForPixel(x,y)[z]*254);
-                        color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[2]=0;
-                    }
-                    else
-                    {
-                        color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[0]=0;
-                        color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[1]=0;
-                        color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[2]=(int)(img.getBinsAndStrForPixel(x,y)[z]*254);
-                    }
-                }
+//                    if (g->what_segment(index) == GraphType::SOURCE)
+//                    {
+//                        color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[0]=0;
+//                        color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[1]=(int)(img.getBinsAndStrForPixel(x,y)[z]*254);
+//                        color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[2]=0;
+//                    }
+//                    else
+//                    {
+//                        color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[0]=0;
+//                        color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[1]=0;
+//                        color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[2]=(int)(img.getBinsAndStrForPixel(x,y)[z]*254);
+//                    }
+//                }
             }
             
 //            printf("(%d,%d) ",sourceScore,sinkScore);
             
-            if (sourceScore>=THRESH || sinkScore<THRESH && sourceScore>sinkScore)
+            if (sourceScore>=THRESH || (sinkScore<THRESH && sourceScore>sinkScore))
                 outSource.append(x+width*y);
-            if (sinkScore>=THRESH || sourceScore<THRESH && sinkScore>sourceScore)
+            if (sinkScore>=THRESH || (sourceScore<THRESH && sinkScore>sourceScore))
                 outSink.append(x+width*y);
             
             
@@ -2543,10 +2544,10 @@ int GraphCut::pixelsOfSeparationRecut3D(const long* invDistMap3D, int width, int
     }
     
     //visulization
-    cv::viz::Viz3d window = cv::viz::getWindowByName("angleImg");
-    cv::viz::WCloud cloudImage(cloud,color_cloud);
-    window.showWidget("angleImage",cloudImage);
-    
+//    cv::viz::Viz3d window("segmentation");
+//    cv::viz::WCloud cloudImage(cloud,color_cloud);
+//    window.showWidget("segmentation",cloudImage);
+//    window.spin();
     
 //    ///test///
 ////    for (int s=0; s<depth; s++)
@@ -2945,9 +2946,9 @@ double GraphCut::computeScore(int sampleSize, double* x, double* y, double meanS
     double tss = gsl_stats_tss(y,1,sampleSize);
     double cov[9];
     double linOut[2];
-    double chisqSlope= polynomialfit(sampleSize,2,x,y,linOut,cov);
+//    double chisqSlope= polynomialfit(sampleSize,2,x,y,linOut,cov);
     double slope=linOut[1];
-    double rsqSlope=1-chisqSlope/tss;
+//    double rsqSlope=1-chisqSlope/tss;
     
     double quadOut[3];
     double chisqCurve = polynomialfit(sampleSize,3,x,y,quadOut,cov);
@@ -3002,24 +3003,6 @@ double GraphCut::computeScore(int sampleSize, double* x, double* y, double meanS
 }
 
 
-void recurStr(int strFactor, const BlobSkeleton &skeleton, int curIndex, int prevIndex, bool* notVisited, GraphType *g, const Indexer3D &indexer,int depth)
-{
-//    int internalIndex=0;
-    foreach (int nextIndex, skeleton[curIndex].connectedPoints())
-    {
-        if (notVisited[nextIndex])
-        {
-            notVisited[nextIndex]=false;
-            int bin = depth*(skeleton[curIndex].angleBetween(nextIndex)/PI);
-            double relativeAngle = getRelAngle(skeleton, prevIndex, curIndex, nextIndex);
-            int newStrFactor = std::min(10,(int)(strFactor*std::max(.5,PI/relativeAngle)));
-//            g -> add_edge(indexer.getIndex(skeleton[curIndex].x,skeleton[curIndex].y,bin), indexer.getIndex(skeleton[nextIndex].x,skeleton[nextIndex].y,bin),
-//                          INV_A*newStrFactor/*skeleton[curIndex].distanceBetween[nextIndex]*/,
-//                          INV_A*newStrFactor/*skeleton[curIndex].distanceBetween[nextIndex]*/);
-//            recurStr(newStrFactor,skeleton,nextIndex,curIndex,notVisited,g,indexer,depth);
-        }
-    }
-}
 
 class ComparePointer
 {
@@ -3187,7 +3170,8 @@ void GraphCut::strengthenDescenderComponentAccum(const AngleImage &img, const QP
         {
             
             
-            int prevZ=z;
+//            int prevZ=z;
+            
 //            index = img.getSkeleton()[descPath->at(j)].connectedPoints.indexOf(descPath->at(j+1));
 //            angle = img.getSkeleton()[descPath->at(j)].angleBetween[index];
             angle = img.getSkeleton()[descPath->at(j)].angleBetween(descPath->at(j+1));
@@ -3512,7 +3496,6 @@ void GraphCut::strengthenConnection3D(int curX, int curY, int curZ, int nextX, i
 void GraphCut::strengthenDescenderComponent2D(const BPixelCollection &img, const QPoint &crossOverPoint, GraphType *g)
 {
     assert(img.pixel(crossOverPoint));
-    int width = img.width();
     BlobSkeleton skeleton(&img);
     int startRegionId = skeleton.regionIdForPoint(crossOverPoint);
     if (startRegionId==-2)

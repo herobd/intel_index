@@ -1405,68 +1405,63 @@ void DistanceTransform::compute3DInverseDistanceMapNew(const double* src, long* 
     ///debug from hereon down
 //    printf("3d newmax=%d\n",newmax);
     
-    cv::Mat cloud(1,width*height*depth, CV_32FC3);
-//    std::vector<CV_32FC3> anglePoints;
-    cv::Point3f* anglePoints = cloud.ptr<cv::Point3f>();
+    //visulazation
+//    cv::Mat cloud(1,width*height*depth, CV_32FC3);
+//    cv::Point3f* anglePoints = cloud.ptr<cv::Point3f>();
+//    cv::Mat color_cloud(1,width*height*depth, CV_8UC3);
     
-//    std::vector<cv::viz::Color> colors;
-    cv::Mat color_cloud(1,width*height*depth, CV_8UC3);
-    
-    QVector<QRgb> default_color_table;
-    for (int i=0; i<255; i++)
-    {
-        default_color_table.append(qRgb(i,i,i));
-    }
-    for (int z=0; z<depth; z++)
-    {
-        QImage debug(width,height,QImage::Format_Indexed8);
-        QImage debug2(width,height,QImage::Format_Indexed8);
+//    QVector<QRgb> default_color_table;
+//    for (int i=0; i<255; i++)
+//    {
+//        default_color_table.append(qRgb(i,i,i));
+//    }
+//    for (int z=0; z<depth; z++)
+//    {
+//        QImage debug(width,height,QImage::Format_Indexed8);
+//        QImage debug2(width,height,QImage::Format_Indexed8);
         
         
         
-        debug.setColorTable(default_color_table);
-        debug2.setColorTable(default_color_table);
-        for (int x=0; x<width; x++)
-        {
-            for (int y=0; y<debug.height(); y++)
-            {
-                debug.setPixel(x,y,(int)((out[ind.getIndex(x,y,z)]/((double)newmax))*254));
-                debug2.setPixel(x,y,src[ind.getIndex(x,y,z)]*254);
+//        debug.setColorTable(default_color_table);
+//        debug2.setColorTable(default_color_table);
+//        for (int x=0; x<width; x++)
+//        {
+//            for (int y=0; y<debug.height(); y++)
+//            {
+//                debug.setPixel(x,y,(int)((out[ind.getIndex(x,y,z)]/((double)newmax))*254));
+//                debug2.setPixel(x,y,src[ind.getIndex(x,y,z)]*254);
                 
-//                if (src[ind.getIndex(x,y,z)]>0)
-                if ((int)((out[ind.getIndex(x,y,z)]/((double)newmax))*254) >150)
-                {
-                    anglePoints[x+width*y+width*height*z].x=(float)x;
-                    anglePoints[x+width*y+width*height*z].y=(float)y;
-                    anglePoints[x+width*y+width*height*z].z=(float)z;
-//                    printf("Write color %f\n",src[ind.getIndex(x,y,z)]*254);
-                }
+////                if (src[ind.getIndex(x,y,z)]>0)
+//                if ((int)((out[ind.getIndex(x,y,z)]/((double)newmax))*254) >150)
+//                {
+//                    anglePoints[x+width*y+width*height*z].x=(float)x;
+//                    anglePoints[x+width*y+width*height*z].y=(float)y;
+//                    anglePoints[x+width*y+width*height*z].z=(float)z;
+////                    printf("Write color %f\n",src[ind.getIndex(x,y,z)]*254);
+//                }
                 
 
-//                color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[0]=(int) src[ind.getIndex(x,y,z)]*254;
-//                color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[1]=(int) src[ind.getIndex(x,y,z)]*254;
-//                color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[2]=(int) src[ind.getIndex(x,y,z)]*254;
-                color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[0]=(int)((out[ind.getIndex(x,y,z)]/((double)newmax))*254);
-                color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[1]=(int)((out[ind.getIndex(x,y,z)]/((double)newmax))*254);
-                color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[2]=(int)((out[ind.getIndex(x,y,z)]/((double)newmax))*254);
-            }
+//                color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[0]=(int)((out[ind.getIndex(x,y,z)]/((double)newmax))*254);
+//                color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[1]=(int)((out[ind.getIndex(x,y,z)]/((double)newmax))*254);
+//                color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[2]=(int)((out[ind.getIndex(x,y,z)]/((double)newmax))*254);
+//            }
             
-        }
-        QString debugfile = "./dist_3d/layer_";
-        QString debugfile2 = "./angleimage/layer_";
-        QString num;
-        num.setNum(z);
-        debugfile.append(num);
-        debugfile.append(".ppm");
-        debugfile2.append(num);
-        debugfile2.append(".ppm");
-        debug.save(debugfile);
-        debug2.save(debugfile2);
-    }
+//        }
+//        QString debugfile = "./dist_3d/layer_";
+//        QString debugfile2 = "./angleimage/layer_";
+//        QString num;
+//        num.setNum(z);
+//        debugfile.append(num);
+//        debugfile.append(".ppm");
+//        debugfile2.append(num);
+//        debugfile2.append(".ppm");
+//        debug.save(debugfile);
+//        debug2.save(debugfile2);
+//    }
     
-    cv::viz::Viz3d window("distMap");
-    cv::viz::WCloud cloudImage(cloud,color_cloud);
-    window.showWidget("angleImage",cloudImage);
+//    cv::viz::Viz3d window("distMap");
+//    cv::viz::WCloud cloudImage(cloud,color_cloud);
+//    window.showWidget("angleImage",cloudImage);
     
-    window.spin();
+//    window.spin();
 }
