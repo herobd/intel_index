@@ -2302,8 +2302,8 @@ int GraphCut::pixelsOfSeparationRecut3D(const long* invDistMap3D, int width, int
         
         for (int j=0; j<height; j++)
         {
-//            double anchor_weight_for_level_top = CENTER_BIAS_ANCHOR_WIEGHT * ((2.5*crossOverY-j)/(double)(2.5*crossOverY));
-//            double anchor_weight_for_level_bottom = CENTER_BIAS_ANCHOR_WIEGHT * ((((height-1) -(double)crossOverY) + j-crossOverY)/(2.*((height-1) -(double)crossOverY)));
+            double anchor_weight_for_level_top = CENTER_BIAS_ANCHOR_WIEGHT * ((2.5*crossOverY-j)/(double)(2.5*crossOverY));
+            double anchor_weight_for_level_bottom = CENTER_BIAS_ANCHOR_WIEGHT * ((((height-1) -(double)crossOverY) + j-crossOverY)/(2.*((height-1) -(double)crossOverY)));
             for (int i=0; i<width; i++)
             {   
                 
@@ -2343,14 +2343,14 @@ int GraphCut::pixelsOfSeparationRecut3D(const long* invDistMap3D, int width, int
                 //C3 nope
                 
                 //extra bias
-////                 QMap<int,double> bins = img.getBinsAndStrForPixel(i,j);
-//                if (img.pixel(i,j)/* && bins.keys().contains(k)*/)
-//                {
-//                    if (j<=crossOverY)
-//                        g -> add_tweights(indexer.getIndex(i,j,k), anchor_weight_for_level_top, 0);
-//                    else
-//                        g -> add_tweights(indexer.getIndex(i,j,k), 0, anchor_weight_for_level_bottom);
-//                }
+//                 QMap<int,double> bins = img.getBinsAndStrForPixel(i,j);
+                if (img.pixel(i,j)/* && bins.keys().contains(k)*/)
+                {
+                    if (j<=crossOverY)
+                        g -> add_tweights(indexer.getIndex(i,j,k), anchor_weight_for_level_top, 0);
+                    else
+                        g -> add_tweights(indexer.getIndex(i,j,k), 0, anchor_weight_for_level_bottom);
+                }
                 
             }//j
         }//i
