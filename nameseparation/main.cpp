@@ -270,36 +270,37 @@ int main(int argc, char** argv)
 //    delete cuts[1];
     
     ///////////////////////////////
+    //segment full column
     
-    BImage cleared = BoxCleaner::trimVerticleBoundaries(bimg);
-    cleared = BoxCleaner::trimHorizontalBoundaries(cleared);
-    cleared = BoxCleaner::removeVerticlePixelNoise(cleared);
-    QVector<BPartition*> lines = WordSeparator::segmentLinesOfWords(cleared,40);
-    for (int i=0; i<lines.size(); i++)
-    {
-        cleared.claimOwnership(lines[i],1);
-//        segmentation[i]->makeImage().save("./output/");
-        QString imageNumber;
-        imageNumber.setNum(1+i);
-        if (i+1<10)
-            imageNumber = "0" + imageNumber;
-        lines[i]->makeImage().save("./vert_seg_res/" + imageNumber + ".ppm");
-    }
-    cleared.saveOwners("./rainbow.ppm");
-    for (int i=0; i<lines.size(); i++)
-    {
-        delete lines[i];
-    }
+//    BImage cleared = BoxCleaner::trimVerticleBoundaries(bimg);
+//    cleared = BoxCleaner::trimHorizontalBoundaries(cleared);
+//    cleared = BoxCleaner::removeVerticlePixelNoise(cleared);
+//    QVector<BPartition*> lines = WordSeparator::segmentLinesOfWords(cleared,40);
+//    for (int i=0; i<lines.size(); i++)
+//    {
+//        cleared.claimOwnership(lines[i],1);
+////        segmentation[i]->makeImage().save("./output/");
+//        QString imageNumber;
+//        imageNumber.setNum(1+i);
+//        if (i+1<10)
+//            imageNumber = "0" + imageNumber;
+//        lines[i]->makeImage().save("./vert_seg_res/" + imageNumber + ".ppm");
+//    }
+//    cleared.saveOwners("./rainbow.ppm");
+//    for (int i=0; i<lines.size(); i++)
+//    {
+//        delete lines[i];
+//    }
     
     //////////////////////////////////////////////////////
         
     
-//        BImage clean = BoxCleaner::trimBoundaries(bimg);
-//        QVector<BPartition*> cuts;
-//        WordSeparator::minCut(clean,cuts);
-//        clean.claimOwnership(cuts[0],1);
-//        clean.claimOwnership(cuts[1],1);
-//        clean.saveOwners("./test.ppm");
+        BImage clean = BoxCleaner::trimBoundaries(bimg);
+        QVector<BPartition*> cuts;
+        WordSeparator::minCut(clean,cuts);
+        clean.claimOwnership(cuts[0],1);
+        clean.claimOwnership(cuts[1],1);
+        clean.saveOwners("./test.ppm");
     ////////////////////////////////////////////////////////
     ///Horz seg///
     

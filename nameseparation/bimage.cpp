@@ -373,32 +373,41 @@ QImage BImage::getOwnersImage()
     QVector<QRgb> color_table;
     color_table.append(qRgb(0,0,0));
     color_table.append(qRgb(255,255,255));
+    color_table.append(qRgb(155,155,155));
     
+    color_table.append(qRgb(3,10,155));
     color_table.append(qRgb(3,21,255));
     color_table.append(qRgb(123,136,255));
     
+    color_table.append(qRgb(155,0,0));
     color_table.append(qRgb(255,0,0));
     color_table.append(qRgb(255,120,120));
     
+    color_table.append(qRgb(0,90,80));
     color_table.append(qRgb(0,184,179));
     color_table.append(qRgb(149,255,252));
     
-    
+    color_table.append(qRgb(135,0,70));
     color_table.append(qRgb(235,0,135));
     color_table.append(qRgb(235,132,192));
     
+    color_table.append(qRgb(80,112,0));
     color_table.append(qRgb(179,212,0));
     color_table.append(qRgb(221,242,133));
     
+    color_table.append(qRgb(125,50,9));
     color_table.append(qRgb(225,94,13));
     color_table.append(qRgb(224,147,125));
     
+    color_table.append(qRgb(11,112,0));
     color_table.append(qRgb(21,212,0));
     color_table.append(qRgb(193,255,149));
     
+    color_table.append(qRgb(107,90,3));
     color_table.append(qRgb(207,178,3));
     color_table.append(qRgb(255,241,159));
     
+    color_table.append(qRgb(65,0,65));
     color_table.append(qRgb(122,0,122));
     color_table.append(qRgb(224,0,223));
     
@@ -419,14 +428,24 @@ QImage BImage::getOwnersImage()
                 {
                     if (!partitionIndex.contains(mostId))
                     {
-                        currentIndex = (1+currentIndex)%((color_table.size()-2)/2);
+                        currentIndex = (1+currentIndex)%((color_table.size()-3)/3);
                         partitionIndex[mostId]=currentIndex;
                     }
                     
-                    if ((*pixels)[x+y*myWidth])
-                        ret.setPixel(x,y,2+partitionIndex[mostId]*2);
+                    if (ownership[x+y*myWidth].size()==1)
+                    {
+                        if ((*pixels)[x+y*myWidth])
+                            ret.setPixel(x,y,2+partitionIndex[mostId]*3 +2);
+                        else
+                            ret.setPixel(x,y,2+partitionIndex[mostId]*3 + 3);
+                    }
                     else
-                        ret.setPixel(x,y,2+partitionIndex[mostId]*2 + 1);
+                    {
+                        //if ((*pixels)[x+y*myWidth])
+                            ret.setPixel(x,y,2+partitionIndex[mostId]*3+1);
+                        //else
+                            //ret.setPixel(x,y,2+partitionIndex[mostId]*2 + 1);
+                    }
                     
                     continue;
                 }

@@ -35,5 +35,11 @@ inline int mod(int a, int b)
 }
 
 #define WRITE_SCORES 0
+#define USE_3D_CUT 1
+#define VERT_BIAS_3D_CUT 0
+#define USE_DESC_LOOP_FINDER 0
+
+#define SHOW_VIZ 0
+#define SAVE_SUBSECTION 0
 
 #endif // CONSTANTS_H

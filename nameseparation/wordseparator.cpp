@@ -92,6 +92,55 @@ int WordSeparator::microMinCut(BPixelCollection &toCut, QVector<BPartition*> &re
     return maxflow;
 }
 
+int WordSeparator::dumbMinCut(BPixelCollection &toCut, QVector<BPartition*> &ret)
+{
+    int toCut_width = toCut.width();
+    int toCut_height = toCut.height();
+    int num_pix = toCut_width*toCut_height;
+    int dumbInvDistMap[num_pix];
+    
+    for (int x=0; x<toCut_width; x++)
+    {
+        for (int y=0; y<toCut_height; y++)
+        {
+            if (toCut.pixel(x,y))
+                dumbInvDistMap[x+toCut_width*y]=100;
+            else
+                dumbInvDistMap[x+toCut_width*y]=1;
+        }
+    }
+    
+    QVector<int> firstImgPixelIndexes;
+    QVector<int> secondImgPixelIndexes;
+    int maxflow = GraphCut::pixelsOfSeparation(dumbInvDistMap,toCut_width,toCut_height,toCut,firstImgPixelIndexes,secondImgPixelIndexes);
+    
+    BPartition* firstPart = new BPartition(&toCut);
+    BPartition* secondPart = new BPartition(&toCut);
+    
+    
+    foreach (int index, firstImgPixelIndexes)
+    {
+        int x = index%toCut_width;
+        int y = index/toCut_width;
+        firstPart->addPixelFromSrc(x,y);
+//        toCut.getSrc()->setPixelOwner(x+xOffset,y+yOffset,firstPart,claimPortion);
+    }
+    
+    foreach (int index, secondImgPixelIndexes)
+    {
+        int x = index%toCut_width;
+        int y = index/toCut_width;
+        secondPart->addPixelFromSrc(x,y);
+//        toCut.getSrc()->setPixelOwner(x+xOffset,y+yOffset,secondPart,claimPortion);
+    }
+    
+    
+   
+    ret.append(firstPart);
+    ret.append(secondPart);
+    return maxflow;
+}
+
 //This performs a verticle separation of two words, it identifys descenders in an attempt to increase accuracy
 QVector<BPartition*> WordSeparator::horzCutEntries(BPixelCollection &img, int vert_divide)
 {
@@ -463,7 +512,7 @@ void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bot
                     }
                 }
                         
-                        
+#if USE_3D_CUT       
                 if (!foundDesc) /*if(false)//skipping*/
                 {//do something fancy, like a 3D cut
                     
@@ -603,23 +652,31 @@ void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bot
                                 }
                     }
                     QPoint newCrossOverPoint(keyPoint.x()-newSubsection.getXOffset(),keyPoint.y()-newSubsection.getYOffset());
-                    QVector<BPartition*> result3DCut = recut3D(newSubsection, sourceSeeds, sinkSeeds, newCrossOverPoint.y());
+                    QVector<QPoint> newKeyPoints;
+                    foreach (QPoint kp, keyPoints)
+                    {
+                        QPoint nkp(kp.x()-newSubsection.getXOffset(),kp.y()-newSubsection.getYOffset());
+                        newKeyPoints.append(nkp);
+                    }
+
+                    QVector<BPartition*> result3DCut = recut3D(newSubsection, sourceSeeds, sinkSeeds, newCrossOverPoint.y(),newKeyPoints);
 //                    QVector<BPartition*> result3DCut = recut2D(newSubsection, sourceSeeds, sinkSeeds, newCrossOverPoint);
-                    
+                
+#if SAVE_SUBSECTION
                     ///test///start
-//                    QString xs;
-//                    QString ys;
-//                    xs.setNum(keyPoint.x());
-//                    ys.setNum(keyPoint.y());
-//                    QString loc = "./subsection/subsection";
-//                    loc+=xs;
-//                    loc+="_";
-//                    loc+=ys;
-//                    loc+=".ppm";
+                    QString xs;
+                    QString ys;
+                    xs.setNum(keyPoint.x());
+                    ys.setNum(keyPoint.y());
+                    QString loc = "./subsection/subsection";
+                    loc+=xs;
+                    loc+="_";
+                    loc+=ys;
+                    loc+=".ppm";
                     
-//                    newSubsection.makeImage().save(loc);
+                    newSubsection.makeImage().save(loc);
                     ///test///end
-                    
+#endif
                     
                     
                     result3DCut[0]->changeSrc(newSubsection.getSrc(), newSubsection.getXOffset(), newSubsection.getYOffset());
@@ -679,6 +736,7 @@ void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bot
                     delete result3DCut[1];
                     
                 }
+#endif
             }
             
         }
@@ -693,37 +751,6 @@ void WordSeparator::adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bot
 }
 
 
-
-
-
-
-
-BPartition* WordSeparator::chopOutTop(BPixelCollection &src)
-{
-    int num_pix = src.width()*src.height();
-    //double pix_vals[num_pix];
-    int invDistMap[num_pix];
-    
-    DistanceTransform::computeInverseDistanceMap(src,invDistMap);
-    QVector<int> cutIndexes;
-    QVector<int> unused;
-    
-    //best anchor weight:300 - 425
-    int ANCHOR_WEIGHT = 1200;
-    GraphCut::pixelsOfSeparation(invDistMap,src.width(),src.height(),src,cutIndexes,unused,ANCHOR_WEIGHT,CHOP_TOP);
-    
-    BPartition* ret = new BPartition(&src);
-    
-    
-    foreach (int index, cutIndexes)
-    {
-        int x = index%src.width();
-        int y = index/src.width();
-        ret->addPixelFromSrc(x,y);
-    }
-    
-    return ret;
-}
 
 QVector<BPartition*> WordSeparator::segmentLinesOfWords(const BPixelCollection &column, int spacingEstimate, bool dumb)
 {
@@ -2480,10 +2507,10 @@ QVector<BPartition*> WordSeparator::recursiveHorizontalCutFull(const BPixelColle
 
 
 
-QVector<BPartition*> WordSeparator::recut3D(const BPixelCollection &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, int crossOverY)
+QVector<BPartition*> WordSeparator::recut3D(const BPixelCollection &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, int crossOverY, const QVector<QPoint> &crossOverPoints)
 {
     
-    int numOfBins = (img.width()+img.height())/2;//std::min(img.width(),img.height());
+    int numOfBins = std::min((img.width()+img.height())/2, 80);//std::min(img.width(),img.height());
     
     AngleImage angleImage(&img,numOfBins,0.0,PI);
     printf("%d x %d x %d\n",img.width(),img.height(),numOfBins);
@@ -2650,7 +2677,7 @@ QVector<BPartition*> WordSeparator::recut3D(const BPixelCollection &img, QVector
     DistanceTransform::compute3DInverseDistanceMapNew(img3d,distmap3d,angleImage.width(),angleImage.height(),numOfBins);
     
     
-    GraphCut::pixelsOfSeparationRecut3D(distmap3d,img.width(),img.height(),numOfBins,angleImage,sourceSeeds,sinkSeeds,firstImgIndexes,secondImgIndexes, crossOverY, INT_POS_INFINITY/2);
+    GraphCut::pixelsOfSeparationRecut3D(distmap3d,img.width(),img.height(),numOfBins,angleImage,sourceSeeds,sinkSeeds,firstImgIndexes,secondImgIndexes, crossOverY, crossOverPoints, INT_POS_INFINITY/2);
     
     delete[] distmap3d;
     delete[] img3d;

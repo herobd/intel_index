@@ -30,7 +30,8 @@ SOURCES += main.cpp \
     ngramjumble.cpp \
     fft/fft8g.c \
     featurespace.cpp \
-    ngrammodel.cpp
+    ngrammodel.cpp \
+    trainer.cpp
 
 HEADERS += \
     ./wordprofile.h \
@@ -62,7 +63,8 @@ HEADERS += \
     lrmfeaturevector.h \
     ngramjumble.h \
     featurespace.h \
-    ngrammodel.h
+    ngrammodel.h \
+    trainer.h
 
 OTHER_FILES += \
     maxflow/instances.inc \
