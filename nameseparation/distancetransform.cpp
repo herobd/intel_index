@@ -236,6 +236,7 @@ void DistanceTransform::computeInverseDistanceMap(const BPixelCollection &src, i
     }
     
 //    printf("newMax:%d, 2nd max:%d, newMin:%d\n",newmax,newmax2,newmin);
+#if HORZ_SAVE_INV_DIST_MAP
 //    QImage debug(src.width(),src.height(),QImage::Format_Indexed8);
 //    QVector<QRgb> default_color_table;
 //    for (int i=0; i<255; i++)
@@ -251,13 +252,30 @@ void DistanceTransform::computeInverseDistanceMap(const BPixelCollection &src, i
 //        default_color_table.append(qRgb(255,255,255));
 //    }
 //    debug.setColorTable(default_color_table);
-//    for (int i=0; i<debug.width(); i++)
-//    {
-//        for (int j=0; j<debug.height(); j++)
-//            debug.setPixel(i,j,(int)((out[i+j*debug.width()]/((double)newmax))*254));
+    QImage debug(src.width(),src.height(),QImage::Format_RGB32);
+    
+    for (int i=0; i<debug.width(); i++)
+    {
+        for (int j=0; j<debug.height(); j++)
+        {
+//            if (out[i+j*debug.width()]!=newmax)
+//                debug.setPixel(i,j,(int)((out[i+j*debug.width()]/((double)newmax2))*254));
+//            else
+//                debug.setPixel(i,j,0);
+            int val =(int)((out[i+j*debug.width()]/((double)newmax2))*(255));
+            debug.setPixel(i,j,qRgb(val,val,val));
+            if (out[i+j*debug.width()]!=newmax)
+            {
+                int val =(int)((out[i+j*debug.width()]/((double)newmax2))*(255));
+                debug.setPixel(i,j,qRgb(val,val,val));
+            }
+            else
+                debug.setPixel(i,j,qRgb(200,220,255));
+        }
         
-//    }
-//    debug.save("./inv_dist_map.ppm");
+    }
+    debug.save("./inv_dist_map.ppm");
+#endif
 }
 
 void DistanceTransform::compute3DInverseDistanceMap(const bool* src, int* out, int width, int height, int depth)

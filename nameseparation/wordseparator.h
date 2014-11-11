@@ -32,7 +32,7 @@ public:
     static QVector<BPartition*> horzCutEntries(BPixelCollection &img, int vert_divide);
     static QVector<BPartition*> dumbHorzCutEntries(BPixelCollection &img, int vert_divide);
     static void adjustHorzCutCrossOverAreas(BPartition* top, BPartition* bottom, QVector<QPoint> crossPoints, QVector<QVector<double> > descenderProbMap);
-    static BPartition* chopOutTop(BPixelCollection &src);
+   
     
     static QVector<BPartition*> testSlopeCut(BPixelCollection &img, const NDimensions &dimensions, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds /*const QVector<QVector<double> > &slopes*/);
     
@@ -40,9 +40,12 @@ public:
     static QVector<BPartition*> recursiveHorizontalCutTwoWords(const BPixelCollection &img);
     static QVector<BPartition*> recursiveHorizontalCutTwoWordsTraining(const BPixelCollection &img);
     static QVector<BPartition*> recursiveHorizontalCutFirstLetter(const BPixelCollection &img);
-    static QVector<BPartition*> recursiveHorizontalCutFirstLetterTraining(const BPixelCollection &img);
+    static bool recursiveHorizontalCutFirstLetterTraining(const BPixelCollection &img, QVector<BPartition*> &ret);
     static QVector<BPartition*> recursiveHorizontalCutFullTraining(const BPixelCollection &img);
     static QVector<BPartition*> recursiveHorizontalCutFull(const BPixelCollection &img);
+    
+    static QVector<BPartition*> recursiveHorizontalCutTwoWordsDumb(const BPixelCollection &img);
+    static QVector<BPartition*> recursiveHorizontalCutTwoWordsTrainingDumb(const BPixelCollection &img);
     
     static QVector<BPartition*> recut3D(const BPixelCollection &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, int crossOverY, const QVector<QPoint> &crossOverPoints);
     static QVector<BPartition*> recut2D(const BPixelCollection &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, const QPoint &crossOverPoint);

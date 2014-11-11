@@ -9,6 +9,7 @@
 #include <math.h>
 #include "evaluate.h"
 #include "lrmfeaturevector.h"
+#include "trainer.h"
 
 #include "gimage.h"
 #include "gpartition.h"
@@ -295,7 +296,7 @@ int main(int argc, char** argv)
     //////////////////////////////////////////////////////
         
     
-        BImage clean = BoxCleaner::trimBoundaries(bimg);
+        BImage clean = bimg;//BoxCleaner::trimBoundaries(bimg);
         QVector<BPartition*> cuts;
         WordSeparator::minCut(clean,cuts);
         clean.claimOwnership(cuts[0],1);
@@ -455,7 +456,12 @@ int main(int argc, char** argv)
 //    Evaluate::verticleSegmentationTest(QString(argv[1]), QString(argv[2]));
 //    Evaluate::evaluateScoreInfo(QString("/home/brian/intel_index/testing/results/correctScores.dat"),QString("/home/brian/intel_index/testing/results/incorrectScores.dat"));
 //    Evaluate::writeScores(QString(argv[1]),QString("/home/brian/intel_index/testing/results/correctScores.dat"),QString("/home/brian/intel_index/testing/results/incorrectScores.dat"));
-//    Evaluate::newHorizontalSegmentationTest(argv[1],argv[2]);
+//    Evaluate::newTwoNameHorizontalSegmentationTest(argv[1],argv[2]);
+//    Evaluate::newFirstLetterHorizontalSegmentationTest(argv[1],argv[2],argv[3]);
+//    Evaluate::newDumbTwoNameHorizontalSegmentationTest(argv[1],argv[2]);
+    
+//    Trainer::trainTwoWordSeparation(argv[1]);
+//    Trainer::trainTwoWordSeparationDumb(argv[1]);
     /////////////
 //    QImage img(argv[1]);
 //    BImage bimg(img);

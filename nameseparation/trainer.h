@@ -1,10 +1,16 @@
 #ifndef TRAINER_H
 #define TRAINER_H
 
+#include <QString>
+#include <QImage>
+
 class Trainer
 {
 public:
-    Trainer();
+    
+    
+    static void trainTwoWordSeparation(QString dir);
+    static void trainTwoWordSeparationDumb(QString dir);
 };
 
 #endif // TRAINER_H

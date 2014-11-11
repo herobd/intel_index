@@ -50,12 +50,13 @@ int GraphCut::pixelsOfSeparation(int* invDistMap, int width, int height, BPixelC
     {
         g->add_node();
     }
-    
-//    QImage debug = img.makeImage().getImage();
-//    QVector<QRgb> ct = debug.colorTable();
-//    ct.append(qRgb(205,50,50));
-//    ct.append(qRgb(50,205,50));
-//    debug.setColorTable(ct);
+#if NORM_SAVE_ANCHOR 
+    QImage debug = img.makeImage().getImage();
+    QVector<QRgb> ct = debug.colorTable();
+    ct.append(qRgb(205,50,50));
+    ct.append(qRgb(50,205,50));
+    debug.setColorTable(ct);
+#endif
     
     if (split_method == SPLIT_HORZ)
     {
@@ -69,7 +70,9 @@ int GraphCut::pixelsOfSeparation(int* invDistMap, int width, int height, BPixelC
                 {
                     int index = i+width*j;
                     g -> add_tweights(index, anchor_weight,0);//invDistMap[index], 0);
-//                    debug.setPixel(i,j,2);
+#if NORM_SAVE_ANCHOR
+                    debug.setPixel(i,j,2);
+#endif
                     count_source--;
                 }
             }
@@ -163,8 +166,9 @@ int GraphCut::pixelsOfSeparation(int* invDistMap, int width, int height, BPixelC
                     int index = ((width-1)-(o-i))+width*((height-1)-i);
                     g -> add_tweights(index, 0, anchor_weight);
                     count_sink--;
-//                    debug.setPixel((width-1)-(o-i),(height-1)-i,3);
-                    
+#if NORM_SAVE_ANCHOR
+                    debug.setPixel((width-1)-(o-i),(height-1)-i,3);
+#endif
                     //fill
     //                QPoint p((width-1)-(o-i),(height-1)-i);
     //                workingStack.push_back(p);
@@ -220,7 +224,9 @@ int GraphCut::pixelsOfSeparation(int* invDistMap, int width, int height, BPixelC
                 {
                     int index = i+width*j;
                     g -> add_tweights(index, (int)anchor_weight_for_level,0);
-    //                debug.setPixel(i,j,150);
+#if NORM_SAVE_ANCHOR
+                    debug.setPixel(i,j,2);
+#endif
                 }
             }
         }
@@ -234,7 +240,9 @@ int GraphCut::pixelsOfSeparation(int* invDistMap, int width, int height, BPixelC
                 {
                     int index = i+width*j;
                     g -> add_tweights(index, 0, (int)anchor_weight_for_level);
-    //                debug.setPixel(i,j,150);
+#if NORM_SAVE_ANCHOR
+                    debug.setPixel(i,j,3);
+#endif
                 }
             }
         }
@@ -258,7 +266,9 @@ int GraphCut::pixelsOfSeparation(int* invDistMap, int width, int height, BPixelC
         }
     }
     
-//    debug.save("./anchors.ppm");
+#if NORM_SAVE_ANCHOR
+    debug.save("./anchors.ppm");
+#endif
     
     //printf("num source:%d, num sink:%d\n",count_source,count_sink);
     
@@ -1608,7 +1618,7 @@ int GraphCut::pixelsOfSeparationNoDistMap(int* invDistMap, int width, int height
 
 
 ///exp
-int GraphCut::pixelsOfSeparation(int* invDistMap, int width, int height, const BPixelCollection &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, QVector<int> &outSource, QVector<int> &outSink, int anchor_weight, int split_method, int vert_divide)
+int GraphCut::pixelsOfSeparationExperimental(int* invDistMap, int width, int height, const BPixelCollection &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, QVector<int> &outSource, QVector<int> &outSink, int anchor_weight, int split_method, int vert_divide)
 {
     typedef Graph<int,int,int> GraphType;
     GraphType *g = new GraphType(width*height, 4*(width-1)*(height-1)-(height+width)); 
@@ -1910,7 +1920,7 @@ inline void setEdge3d(int x1, int y1, int slope1, int x2, int y2, int slope2, Gr
                       (image3d[x1][y1][slope1]+image3d[x2][y2][slope2])*weight);
 }
 
-int GraphCut::pixelsOfSeparation(int* invDistMap, int width, int height, const BPixelCollection &img, const AngleImage &angleImage, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, QVector<int> &outSource, QVector<int> &outSink, int anchor_weight, int split_method, int vert_divide)
+int GraphCut::pixelsOfSeparationOld3D(int* invDistMap, int width, int height, const BPixelCollection &img, const AngleImage &angleImage, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, QVector<int> &outSource, QVector<int> &outSink, int anchor_weight, int split_method, int vert_divide)
 {
     
     QVector<QVector<QVector<double> > > image3d = make3dImage(img,invDistMap,angleImage);

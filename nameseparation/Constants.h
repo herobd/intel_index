@@ -41,5 +41,7 @@ inline int mod(int a, int b)
 
 #define SHOW_VIZ 0
 #define SAVE_SUBSECTION 0
+#define HORZ_SAVE_INV_DIST_MAP 1
+#define NORM_SAVE_ANCHOR 1
 
 #endif // CONSTANTS_H

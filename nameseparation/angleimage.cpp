@@ -124,8 +124,8 @@ void AngleImage::init()
     QVector<bool> visited(skeleton.numberOfVertices());
     
     //debug
-    if (visited.size()==0)
-        src->makeImage().save("./ttt.ppm");
+//    if (visited.size()==0)
+//        src->makeImage().save("./ttt.ppm");
     
     for (int i=0; i<visited.size(); i++)
     {
@@ -466,6 +466,7 @@ int AngleImage::getNumOfBins() const
     return numOfBins;
 }
 
+//returns the relative strength to the highest
 QMap<int,double> AngleImage::getBinsAndStrForPixel(int x, int y) const
 {
     QMap<int,double> ret;
@@ -482,7 +483,7 @@ QMap<int,double> AngleImage::getBinsAndStrForPixel(int x, int y) const
     {
         int bin = getBinForAngle(angle);
         double strength = angles[x][y][angle]/maxStr;
-        ret[bin]=strength;
+        ret[bin]=strength;//this overwrites previous data
     }
 
     return ret;

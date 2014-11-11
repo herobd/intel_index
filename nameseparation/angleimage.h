@@ -67,6 +67,7 @@ public:
     
     void setNumOfBinsMinValMaxVal(int numOfBins, double minVal, double maxVal);
     int getNumOfBins() const;
+    //returns the relative strength to the highest
     QMap<int,double> getBinsAndStrForPixel(int x, int y) const;
     int getBinForAngle(double angle) const;
 //    int sizeOfBin(){return 2*PI/numOfBins;}

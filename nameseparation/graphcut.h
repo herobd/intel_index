@@ -56,9 +56,9 @@ public:
     
     static int pixelsOfSeparationMicro(int* invDistMap, int width, int height, BPixelCollection &img, QVector<int> &outSource, QVector<int> &outSink, int anchor_weight=INT_POS_INFINITY/2, int split_method=SPLIT_HORZ, int vert_divide=-1);
     
-    static int pixelsOfSeparation(int* invDistMap, int width, int height, const BPixelCollection &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, QVector<int> &outSource, QVector<int> &outSink, int anchor_weight=INT_POS_INFINITY/2, int split_method=SPLIT_HORZ, int vert_divide=-1);
+    static int pixelsOfSeparationExperimental(int* invDistMap, int width, int height, const BPixelCollection &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, QVector<int> &outSource, QVector<int> &outSink, int anchor_weight=INT_POS_INFINITY/2, int split_method=SPLIT_HORZ, int vert_divide=-1);
     
-    static int pixelsOfSeparation(int* invDistMap, int width, int height, const BPixelCollection &img, const AngleImage &angleImage, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, QVector<int> &outSource, QVector<int> &outSink, int anchor_weight=INT_POS_INFINITY/2, int split_method=SPLIT_HORZ, int vert_divide=-1);
+    static int pixelsOfSeparationOld3D(int* invDistMap, int width, int height, const BPixelCollection &img, const AngleImage &angleImage, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, QVector<int> &outSource, QVector<int> &outSink, int anchor_weight=INT_POS_INFINITY/2, int split_method=SPLIT_HORZ, int vert_divide=-1);
     
     static int pixelsOfSeparationRecut3D(const long* invDistMap3D, int width, int height, int depth, const AngleImage &img, QVector<QPoint> sourceSeeds, QVector<QPoint> sinkSeeds, QVector<int> &outSource, QVector<int> &outSink, int crossOverY, const QVector<QPoint> &crossOverPoints, int anchor_weight=INT_POS_INFINITY/2, int split_method=SPLIT_HORZ);
     

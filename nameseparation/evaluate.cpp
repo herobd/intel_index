@@ -75,14 +75,49 @@ double Evaluate::matchedScore(const BPartition &left, const BPartition &right, c
     return (((double) intersectCountL) / ((double) joinCountL)) + (((double) intersectCountR) / ((double) joinCountR));
 }
 
+//no recal pentalty for 2nd portion on loose score
+void Evaluate::matchedScoreFirstLetter(bool left, const BPartition &part, const QImage &coloredGT, double &score, double &looseScore)
+{
+    assert(part.getSrc()->width()==coloredGT.width() && part.getSrc()->height()==coloredGT.height());
+    int intersectCount1=0;
+    int joinCount1=0;
+    int intersectCount2=0;
+//    int joinCount2=0;
+    QRgb leftColor = coloredGT.pixel(0,0);//should be red
+    QRgb rightColor = coloredGT.pixel(1,0);//should be blue
+    QRgb firstColor = coloredGT.pixel(2,0);//should be green
+    QRgb secondColor = coloredGT.pixel(3,0);//should be magenta
+    assert(qRed(leftColor)==255 && qBlue(rightColor)==255);
+    for (int y=0; y<coloredGT.height(); y++)
+    {
+        for (int x=0; x<coloredGT.width(); x++)
+        {
+            if ((coloredGT.pixel(x,y)==leftColor&&left || coloredGT.pixel(x,y)==rightColor&&!left) || coloredGT.pixel(x,y)==firstColor || coloredGT.pixel(x,y)==secondColor)
+            {
+                if (part.pixelSrc(x,y) && coloredGT.pixel(x,y)==firstColor)
+                    intersectCount1++;
+                if (part.pixelSrc(x,y) || (coloredGT.pixel(x,y)==firstColor))
+                    joinCount1++;
+                
+                if (part.pixelSrc(x,y) && (coloredGT.pixel(x,y)==firstColor || coloredGT.pixel(x,y)==secondColor))
+                    intersectCount2++;
+            }
+            
+            
+        }
+    }
+    score = ((double)intersectCount1)/joinCount1;
+    looseScore = ((double)intersectCount2)/joinCount1;
+}
+
 
 double Evaluate::verticleSegmentationTest(QString imgPath, QString gtDirPath, bool dumb)
 {
     QString outPath;
     if (dumb)
-        outPath= "/home/brian/intel_index/testing/results/vertSegResults_dumb.dat"; 
+        outPath= "/home/brian/intel_index/testing/results/newDumbVertSegResults.dat"; 
     else
-        outPath= "/home/brian/intel_index/testing/results/vertSegResults.dat"; 
+        outPath= "/home/brian/intel_index/testing/results/newVertSegResults.dat"; 
     std::ofstream results (outPath.toLocal8Bit().data(),std::ofstream::app);
     QImage img(imgPath);
     BImage bimg(img);
@@ -123,9 +158,13 @@ double Evaluate::verticleSegmentationTest(QString imgPath, QString gtDirPath, bo
     return avgScore;
 }
 
-double Evaluate::newHorizontalSegmentationTest(QString imgDirPath, QString gtDirPath)
+double Evaluate::newTwoNameHorizontalSegmentationTest(QString imgDirPath, QString gtDirPath)
 {
-    QString outPath = "/home/brian/intel_index/testing/results/newHorzSegResults.dat"; 
+    if (imgDirPath[imgDirPath.size()-1]!='/')
+        imgDirPath+='/';
+    if (gtDirPath[gtDirPath.size()-1]!='/')
+        gtDirPath+='/';
+    QString outPath = "/home/brian/intel_index/testing/results/newTwoNameHorzSegResults.dat"; 
     std::ofstream results (outPath.toLocal8Bit().data(),std::ofstream::app);
     double summedScore=0;
 //    QVector<BPartition*> lines = WordSeparator::segmentLinesOfWords(cleared,40);
@@ -145,7 +184,8 @@ double Evaluate::newHorizontalSegmentationTest(QString imgDirPath, QString gtDir
         QString fileName=re.cap(1);
         QString imgPath = imgDirPath + fileName + ".pgm";
         QString gtPath = gtDirPath + fileName + ".ppm";
-//        printf("gt:%s\n",gtPath.toLocal8Bit().data());
+//        printf("img: %s\n",imgPath.toLocal8Bit().data());
+//        printf("gt: %s\n",gtPath.toLocal8Bit().data());
         QImage gt(gtPath);
         QImage img(imgPath);
         BImage bimg(img);
@@ -165,6 +205,138 @@ double Evaluate::newHorizontalSegmentationTest(QString imgDirPath, QString gtDir
     }
     double avgScore = summedScore/(count*2);
     results << ": " << avgScore << std::endl;
+    results.close();
+    return avgScore;
+}
+
+double Evaluate::newDumbTwoNameHorizontalSegmentationTest(QString imgDirPath, QString gtDirPath)
+{
+    if (imgDirPath[imgDirPath.size()-1]!='/')
+        imgDirPath+='/';
+    if (gtDirPath[gtDirPath.size()-1]!='/')
+        gtDirPath+='/';
+    QString outPath = "/home/brian/intel_index/testing/results/newDumbTwoNameHorzSegResults.dat"; 
+    std::ofstream results (outPath.toLocal8Bit().data(),std::ofstream::app);
+    double summedScore=0;
+//    QVector<BPartition*> lines = WordSeparator::segmentLinesOfWords(cleared,40);
+    DIR* dirp = opendir(qPrintable(imgDirPath));
+    struct dirent *dp;
+    int count=0;
+    
+    QRegExp re("(.+)\\.pgm");
+    while ((dp = readdir(dirp)) != NULL)
+    {
+        if (count!=0)
+            results << ", ";
+        QString file(dp->d_name);
+        re.indexIn(file);
+        if (re.matchedLength()==-1)
+            continue;
+        QString fileName=re.cap(1);
+        QString imgPath = imgDirPath + fileName + ".pgm";
+        QString gtPath = gtDirPath + fileName + ".ppm";
+//        printf("img: %s\n",imgPath.toLocal8Bit().data());
+//        printf("gt: %s\n",gtPath.toLocal8Bit().data());
+        QImage gt(gtPath);
+        QImage img(imgPath);
+        BImage bimg(img);
+//        BImage clean = BoxCleaner::trimBoundaries(bimg);
+        QVector<BPartition*> segmentation = WordSeparator::recursiveHorizontalCutTwoWordsDumb(bimg);
+        
+        double score=matchedScore(*segmentation[0], *segmentation[1], gt);
+        summedScore+=score;
+        results << score;
+        count++;
+        
+        segmentation[0]->changeSrc(&bimg,0,0);
+        segmentation[1]->changeSrc(&bimg,0,0);
+        bimg.claimOwnership(segmentation[0],1.0);
+        bimg.claimOwnership(segmentation[1],1.0);
+        bimg.saveOwners("./horz_seg_res/" + fileName + ".ppm");
+    }
+    double avgScore = summedScore/(count*2);
+    results << ": " << avgScore << std::endl;
+    results.close();
+    return avgScore;
+}
+
+double Evaluate::newFirstLetterHorizontalSegmentationTest(QString twoNamesGtDirPath, QString firstLetterLastNameGtDirPath, QString firstLetterFirstNameGtDirPath)
+{
+    if (twoNamesGtDirPath[twoNamesGtDirPath.size()-1]!='/')
+        twoNamesGtDirPath+='/';
+    if (firstLetterLastNameGtDirPath[firstLetterLastNameGtDirPath.size()-1]!='/')
+        firstLetterLastNameGtDirPath+='/';
+    if (firstLetterFirstNameGtDirPath[firstLetterFirstNameGtDirPath.size()-1]!='/')
+        firstLetterFirstNameGtDirPath+='/';
+    QString outPath = "/home/brian/intel_index/testing/results/newFirstLetterHorzSegResults.dat"; 
+    std::ofstream results (outPath.toLocal8Bit().data(),std::ofstream::app);
+    double summedScore=0;
+    double summedScoreLoose=0;
+//    QVector<BPartition*> lines = WordSeparator::segmentLinesOfWords(cleared,40);
+    DIR* dirp = opendir(qPrintable(twoNamesGtDirPath));
+    struct dirent *dp;
+    int count=0;
+    
+    QRegExp re("(.+)\\.ppm");
+    while ((dp = readdir(dirp)) != NULL)
+    {
+        if (count!=0)
+            results << ", ";
+        QString file(dp->d_name);
+        re.indexIn(file);
+        if (re.matchedLength()==-1)
+            continue;
+        QString fileName=re.cap(1);
+        QString imgPath = twoNamesGtDirPath + fileName + ".ppm";
+        QString gtPathL = firstLetterLastNameGtDirPath + fileName + ".ppm";
+        QString gtPathR = firstLetterFirstNameGtDirPath + fileName + ".ppm";
+//        printf("img: %s\n",imgPath.toLocal8Bit().data());
+//        printf("gt: %s\n",gtPathR.toLocal8Bit().data());
+        QImage gtL(gtPathL);
+        QImage gtR(gtPathR);
+        QImage img(imgPath);
+        BImage leftName(img.width(), img.height());
+        BImage rightName(img.width(), img.height());
+        QRgb leftColor = img.pixel(0,0);//should be red
+        QRgb rightColor = img.pixel(1,0);//should be blue
+        assert(qRed(leftColor)==255 && qBlue(rightColor)==255);
+        for (int x=0; x<img.width(); x++)
+        {
+            for (int y=0; y<img.height(); y++)
+            {
+                if (img.pixel(x,y)==leftColor)
+                    leftName.setPixel(x,y,true);
+                if (img.pixel(x,y)==rightColor)
+                    rightName.setPixel(x,y,true);
+            }
+        }
+        
+        
+//        BImage clean = BoxCleaner::trimBoundaries(bimg);
+        QVector<BPartition*> segmentationL = WordSeparator::recursiveHorizontalCutFirstLetter(leftName);
+        QVector<BPartition*> segmentationR = WordSeparator::recursiveHorizontalCutFirstLetter(rightName);
+        
+        double scoreL;
+        double looseScoreL;
+        double scoreR;
+        double looseScoreR;
+//        printf("test %dx%d, %dx%d, %dx%d, %dx%d\n",segmentationL[0]->width(),segmentationL[0]->height(),gtL.width(), gtL.height(),segmentationR[0]->width(),segmentationR[0]->height(),gtR.width(), gtR.height());
+        matchedScoreFirstLetter(true,*segmentationL[0], gtL, scoreL, looseScoreL);
+        matchedScoreFirstLetter(false,*segmentationR[0], gtR, scoreR, looseScoreR);
+        summedScore+=scoreL+scoreR;
+        summedScoreLoose+=looseScoreL+looseScoreR;
+        results << scoreL << ":" << looseScoreL << ", " << scoreR << ":" << looseScoreR;
+        count++;
+        
+//        segmentation[0]->changeSrc(&bimg,0,0);
+//        segmentation[1]->changeSrc(&bimg,0,0);
+//        bimg.claimOwnership(segmentation[0],1.0);
+//        bimg.claimOwnership(segmentation[1],1.0);
+//        bimg.saveOwners("./horz_seg_res/" + fileName + ".ppm");
+    }
+    double avgScore = summedScore/(count*2);
+    double avgScoreLoose = summedScoreLoose/(count*2);
+    results << "AVG= " << avgScore << ":" << avgScoreLoose << std::endl;
     results.close();
     return avgScore;
 }
