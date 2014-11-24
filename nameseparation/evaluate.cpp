@@ -117,7 +117,17 @@ double Evaluate::verticleSegmentationTest(QString imgPath, QString gtDirPath, bo
     if (dumb)
         outPath= "/home/brian/intel_index/testing/results/newDumbVertSegResults.dat"; 
     else
-        outPath= "/home/brian/intel_index/testing/results/newVertSegResults.dat"; 
+    {
+#if USE_3D_CUT
+  #if VERT_BIAS_3D_CUT
+        outPath= "/home/brian/intel_index/testing/results/newVertSegResults_3D_bias.dat"; 
+  #else
+        outPath= "/home/brian/intel_index/testing/results/newVertSegResults_3D.dat"; 
+  #endif
+#else
+        outPath= "/home/brian/intel_index/testing/results/newVertSegResults_2D.dat";
+#endif
+    }
     std::ofstream results (outPath.toLocal8Bit().data(),std::ofstream::app);
     QImage img(imgPath);
     BImage bimg(img);
@@ -160,6 +170,9 @@ double Evaluate::verticleSegmentationTest(QString imgPath, QString gtDirPath, bo
 
 double Evaluate::newTwoNameHorizontalSegmentationTest(QString imgDirPath, QString gtDirPath)
 {
+    WordSeparator::recursiveCountTwoWords=0;
+    WordSeparator::recursiveSumTwoWords=0;
+    WordSeparator::recursiveModeTwoWords;
     if (imgDirPath[imgDirPath.size()-1]!='/')
         imgDirPath+='/';
     if (gtDirPath[gtDirPath.size()-1]!='/')
@@ -206,6 +219,20 @@ double Evaluate::newTwoNameHorizontalSegmentationTest(QString imgDirPath, QStrin
     double avgScore = summedScore/(count*2);
     results << ": " << avgScore << std::endl;
     results.close();
+    
+    int maxCount=0;
+    int recurs=-1;
+    foreach(int r, WordSeparator::recursiveModeTwoWords.keys())
+    {
+        int count=WordSeparator::recursiveModeTwoWords[r];
+        if (count > maxCount)
+        {
+            maxCount=count;
+            recurs=r;
+        }
+    }
+    printf("Average recursions TwoWord: %f\tmode: %d\n",(WordSeparator::recursiveSumTwoWords*1.0)/WordSeparator::recursiveCountTwoWords,recurs);
+    
     return avgScore;
 }
 
@@ -262,6 +289,9 @@ double Evaluate::newDumbTwoNameHorizontalSegmentationTest(QString imgDirPath, QS
 
 double Evaluate::newFirstLetterHorizontalSegmentationTest(QString twoNamesGtDirPath, QString firstLetterLastNameGtDirPath, QString firstLetterFirstNameGtDirPath)
 {
+    WordSeparator::recursiveCountFirstLetter=0;
+    WordSeparator::recursiveSumFirstLetter=0;
+    
     if (twoNamesGtDirPath[twoNamesGtDirPath.size()-1]!='/')
         twoNamesGtDirPath+='/';
     if (firstLetterLastNameGtDirPath[firstLetterLastNameGtDirPath.size()-1]!='/')
@@ -338,6 +368,21 @@ double Evaluate::newFirstLetterHorizontalSegmentationTest(QString twoNamesGtDirP
     double avgScoreLoose = summedScoreLoose/(count*2);
     results << "AVG= " << avgScore << ":" << avgScoreLoose << std::endl;
     results.close();
+    
+    
+    int maxCount=0;
+    int recurs=-1;
+    foreach(int r, WordSeparator::recursiveModeFirstLetter.keys())
+    {
+        int count=WordSeparator::recursiveModeFirstLetter[r];
+        if (count > maxCount)
+        {
+            maxCount=count;
+            recurs=r;
+        }
+    }
+    printf("Average recursions FirstLetter: %f\tmode:%d\n",(WordSeparator::recursiveSumFirstLetter*1.0)/WordSeparator::recursiveCountFirstLetter,recurs);
+
     return avgScore;
 }
 

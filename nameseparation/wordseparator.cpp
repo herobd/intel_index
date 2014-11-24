@@ -7,10 +7,16 @@
 
 
 
-
-WordSeparator::WordSeparator()
-{
-}
+int WordSeparator::recursiveCountTwoWords;            
+int WordSeparator::recursiveCountFirstLetter;         
+                                       
+int WordSeparator::recursiveCountFull;                
+int WordSeparator::recursiveSumTwoWords;              
+int WordSeparator::recursiveSumFirstLetter;           
+int WordSeparator::recursiveSumFull;                  
+QMap<int,int> WordSeparator::recursiveModeTwoWords;   
+QMap<int,int> WordSeparator::recursiveModeFirstLetter;
+QMap<int,int> WordSeparator::recursiveModeFull; 
 
 
 //This performs a horizontal separation of the image by creating a distance map and then doing a graph cut on it.
@@ -924,9 +930,10 @@ QVector<BPartition*> WordSeparator::recursiveHorizontalCutTwoWords(const BPixelC
     
 //    char lastread='%';
     bool recurLeft;
-    
+    WordSeparator::recursiveCountTwoWords++;
     while (cont)
     {
+        recursiveSumTwoWords++;
 //        leftUnfinished->makeImage().save("./test0.ppm");
 //        rightUnfinished->makeImage().save("./test1.ppm");
 //        char dump;
@@ -1147,6 +1154,8 @@ QVector<BPartition*> WordSeparator::recursiveHorizontalCutTwoWords(const BPixelC
     ret.clear();
     ret.append(left);
     ret.append(right);
+    
+    recursiveModeTwoWords[test_count] += 1;
     
     return ret;
 }
@@ -1473,9 +1482,10 @@ QVector<BPartition*> WordSeparator::recursiveHorizontalCutFirstLetter(const BPix
         }
     }
     
-    
+    recursiveCountFirstLetter++;
     while (cont)
     {
+        recursiveSumFirstLetter++;
 //        leftUnfinished->makeImage().save("./test0.ppm");
 //        rightUnfinished->makeImage().save("./test1.ppm");
         
@@ -1667,6 +1677,7 @@ QVector<BPartition*> WordSeparator::recursiveHorizontalCutFirstLetter(const BPix
         
         
     }
+    recursiveModeFirstLetter[test_count] += 1;
     return ret;
 }
 
@@ -2355,8 +2366,10 @@ QVector<BPartition*> WordSeparator::recursiveHorizontalCutFull(const BPixelColle
     QVector<side> stack;
     stack.append(first);
     
+    recursiveCountFull++;
     while (!stack.empty())
     {
+        recursiveSumFull++;
         bool cont = true;
         side cur = stack.back();
         stack.pop_back();
@@ -2556,7 +2569,7 @@ QVector<BPartition*> WordSeparator::recursiveHorizontalCutFull(const BPixelColle
             
         }
     }
-
+    recursiveModeFull[test_count] += 1;
     return ret;
 }
 

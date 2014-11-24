@@ -120,113 +120,131 @@ int main(int argc, char** argv)
     ////////////////////////
     //test recut3d//////////
     ////////////////////////
-//    QVector<QPoint> sourceSeeds;
-//    QVector<QPoint> sinkSeeds;
+    QVector<QPoint> sourceSeeds;
+    QVector<QPoint> sinkSeeds;
 //    std::string xx = "angleImg";
-////    cv::viz::Viz3d myWindow(xx);
+//    cv::viz::Viz3d myWindow(xx);
     
-//    //horz
+    //horz
 //    QPoint p(2,36);
 //    QPoint px(35,33);
 //    QPoint p2(352,11);
 //    QPoint p2x(325,22);
 //    QPoint cross(0,0);
     
-//    //1
-////    QPoint p(4,29);
-////    QPoint p2(6,64);
-////    QPoint cross(102,33);
+    //1
+//    QPoint p(4,29);
+//    QPoint p2(6,64);
+//    QPoint cross(102,33);
     
-//    //?
-////    QPoint p(10,32);
-////    QPoint p2(83,70);
+    //?
+//    QPoint p(10,32);
+//    QPoint p2(83,70);
     
-//    //2
-////    QPoint p(63,18);
-////    QPoint p2(64,64);
-////    QPoint p2x(1,72);
-////    QPoint cross(31,36);
+    //2
+//    QPoint p(63,18);
+//    QPoint p2(64,64);
+//    QPoint p2x(1,72);
+//    QPoint cross(31,36);
     
-//    //4
-////    QPoint p(86,29);
-////    QPoint p2(13,72);
-////    QPoint cross(36,39);
+    //4
+//    QPoint p(86,29);
+//    QPoint p2(13,72);
+//    QPoint cross(36,39);
     
-//    //10
-////    QPoint p(1,19);
-////    QPoint px(82,28);
-////    QPoint p2(99,66);
-////    QPoint cross(42,28);
+    //10
+//    QPoint p(1,19);
+//    QPoint px(82,28);
+//    QPoint p2(99,66);
+//    QPoint cross(42,28);
     
-//    //14
-////    QPoint p(78,24);
-////    QPoint p2(1,67);
-////    QPoint p2x(52,66);
-////    QPoint cross(28,35);
+    //14
+//    QPoint p(78,24);
+//    QPoint p2(1,67);
+//    QPoint p2x(52,66);
+//    QPoint cross(28,35);
     
-//    //18
-////    QPoint p(94,19);
-////    QPoint p2(22,79);
-////    QPoint cross(43,29);
+    //18
+//    QPoint p(94,19);
+//    QPoint p2(22,79);
+//    QPoint cross(43,29);
 
-//    //20
-////    QPoint p(17,2);
-////    QPoint p2(49,68);
-////    QPoint cross(50,29);
+    //20
+//    QPoint p(17,2);
+//    QPoint p2(49,68);
+//    QPoint cross(50,29);
     
-//    //21
-////    QPoint p(65,25);
-////    QPoint p2(35,66);
-////    QPoint cross(14,41);
+    //21
+//    QPoint p(65,25);
+//    QPoint p2(35,66);
+//    QPoint cross(14,41);
     
-//    //22 this is a good example of 3d cut vanilla working (e=60, b=200, m=10000)
-////    QPoint p(1,18);
-////    QPoint px(69,12);
-////    QPoint p2(0,47);
-////    QPoint p2x(53,48);
-//////    QPoint p2xx(28,63);
-////    QPoint cross(35,23);
+    //22 this is a good example of 3d cut vanilla working (e=60, b=200, m=10000)
+//    QPoint p(1,18);
+//    QPoint px(69,12);
+//    QPoint p2(0,47);
+//    QPoint p2x(53,48);
+////    QPoint p2xx(28,63);
+//    QPoint cross(35,23);
     
-//    //23 
-////    QPoint p(5,10);
-////    QPoint px(80,14);
-////    QPoint p2(66,50);
-////    QPoint cross(35,24);
+    //23 
+//    QPoint p(5,10);
+//    QPoint px(80,14);
+//    QPoint p2(66,50);
+//    QPoint cross(35,24);
     
-//    //24 
-////    QPoint p(1,23);
-////    QPoint px(18,4);
-////    QPoint p2(14,35);
-////    QPoint p2x(37,66);
-////    QPoint p2xx(70,58);
-////    QPoint cross(58,24);
+    //24 
+//    QPoint p(1,23);
+//    QPoint px(18,4);
+//    QPoint p2(14,35);
+//    QPoint p2x(37,66);
+//    QPoint p2xx(70,58);
+//    QPoint cross(58,24);
     
-//    //25
-////    QPoint p(17,17);
-////    QPoint px(99,14);
-////    QPoint p2(3,52);
-////    QPoint cross(60,28);
+    //25
+//    QPoint p(17,17);
+//    QPoint px(99,14);
+//    QPoint p2(3,52);
+//    QPoint cross(60,28);
     
-//    //26
-////    QPoint p(41,0);
-////    QPoint p2(51,58);
-////    QPoint cross(6,18);
+    //26
+//    QPoint p(41,0);
+//    QPoint p2(51,58);
+//    QPoint cross(6,18);
     
-//    sourceSeeds.append(p);
+    //27
+//    QPoint p(39,14);
+//    QPoint p2(0,52);
+//    QPoint p2x(112,51);
+//    QPoint cross(0,0);
+    
+    //x2
+//    QPoint p(12,14);
+//    QPoint p2(70,16);
+//    QPoint cross(0,0);
+    
+    //x3
+    QPoint p(73,1);
+    QPoint p2(29,54);
+    QPoint p2x(67,57);
+    QPoint cross(56,25);
+    
+    sourceSeeds.append(p);
 //    sourceSeeds.append(px);
     
-//    sinkSeeds.append(p2);
-//    sinkSeeds.append(p2x);
-////    sinkSeeds.append(p2xx);
-    
-//    QVector<BPartition*> result = WordSeparator::recut3D(bimg, sourceSeeds, sinkSeeds,cross);
-//    bool test = result[0]->makeImage().save("./test0.ppm");
-//    test &= result[1]->makeImage().save("./test1.ppm");
-//    if (!test)
-//        printf("Save image failure.\n");
-//    bimg.claimOwnership(result[0],1);
-//    bimg.claimOwnership(result[1],1);
-//    bimg.saveOwners("./test.ppm");
+    sinkSeeds.append(p2);
+    sinkSeeds.append(p2x);
+//    sinkSeeds.append(p2xx);
+    QVector<QPoint> crossing;
+    crossing.append(cross);
+    QVector<BPartition*> result = WordSeparator::recut3D(bimg, sourceSeeds, sinkSeeds,cross.y(),crossing);
+    bool test = result[0]->makeImage().save("./test0.ppm");
+    test &= result[1]->makeImage().save("./test1.ppm");
+    if (!test)
+        printf("Save image failure.\n");
+    bimg.claimOwnership(result[0],1);
+    bimg.claimOwnership(result[1],1);
+    bimg.saveOwners("./test.ppm");
     
 //    /// Start event loop
 ////    myWindow.spin();
@@ -296,12 +314,18 @@ int main(int argc, char** argv)
     //////////////////////////////////////////////////////
         
     
-        BImage clean = bimg;//BoxCleaner::trimBoundaries(bimg);
-        QVector<BPartition*> cuts;
-        WordSeparator::minCut(clean,cuts);
-        clean.claimOwnership(cuts[0],1);
-        clean.claimOwnership(cuts[1],1);
-        clean.saveOwners("./test.ppm");
+//        BImage clean = bimg;//BoxCleaner::trimBoundaries(bimg);
+//        QVector<BPartition*> cuts;
+//        WordSeparator::minCut(clean,cuts);
+//        clean.claimOwnership(cuts[0],1);
+//        clean.claimOwnership(cuts[1],1);
+//        clean.saveOwners("./test.ppm");
+    
+//    QVector<BPartition*> cuts = WordSeparator::recursiveHorizontalCutTwoWordsTraining(bimg);
+//    bimg.claimOwnership(cuts[0],1);
+//    bimg.claimOwnership(cuts[1],1);
+//    bimg.saveOwners("./test.ppm");
+    
     ////////////////////////////////////////////////////////
     ///Horz seg///
     
@@ -356,17 +380,26 @@ int main(int argc, char** argv)
     
     /////////////////////////////////////////////////////////
     
-//    //ICDAR handler
+    //New ICDAR trainer
+//    int only=-1;
+//    if (argc>2)
+//    {
+//        only=QString(argv[2]).toInt();
+//    }
+//    QString root(argv[1]);
+//    Trainer::trainIcdar(root,only);
+    
+    //ICDAR handler
 //    QString icdarRoot(argv[1]);
-//    int start = 205;
-//    int end = 350;
+//    int start = 3; 
+//    int end = 10;
 //    if (argc>2)
 //    {
 //        start=QString(argv[2]).toInt();
 //        end=QString(argv[2]).toInt();
 //    }
     
-//    for (int i=start; i<=end; i++)    
+//    for (int i=start; i<=end; i++)     
 //    {
 //        QString imageNumber;
 //        imageNumber.setNum(i);
@@ -375,8 +408,8 @@ int main(int argc, char** argv)
 //        if (i<10)
 //            imageNumber = "0" + imageNumber;
 //    //    QString saveResultsRoot(argv[3]);
-//        QString imgPath = icdarRoot + "images_test/" + imageNumber + ".tif";
-//        QString gtPath = icdarRoot + "gt_lines_test/" + imageNumber + ".tif.dat";
+//        QString imgPath = icdarRoot + "images_train/" + imageNumber + ".tif";
+//        QString gtPath = icdarRoot + "gt_lines_train/" + imageNumber + ".tif.dat";
         
         
 //        QImage img(imgPath);
@@ -420,7 +453,7 @@ int main(int argc, char** argv)
 //        {
 ////            bimg.claimOwnership(part,1);
 ////            BImage temp = part->makeImage();
-//            QVector<BPartition*> segmentation = WordSeparator::recursiveHorizontalCutFull(*part);
+//            QVector<BPartition*> segmentation = WordSeparator::recursiveHorizontalCutFullTraining(*part);
 //            for (int i=0; i<segmentation.size(); i++)
 //            {
 ////                temp.claimOwnership(segmentation[i],1);
@@ -441,19 +474,19 @@ int main(int argc, char** argv)
         
 ////        bimg.saveOwners("./icdartest_words_result.ppm");
         
-//        QString savePath = icdarRoot + "results/" + imageNumber + ".tif.dat";
-//        bimg.saveICDAR(savePath);
+////        QString savePath = icdarRoot + "results/" + imageNumber + ".tif.dat";
+////        bimg.saveICDAR(savePath);
 ////        for (int i=0; i<allSegmentations.size(); i++)
 ////        {
 ////            delete allSegmentations[i];
 ////        }
 //        printf("Finished image %d\n",i);
 //    }
-    
+////END ICDAR/////
     
     ////////////
 //    Evaluate::horizontalSegmentationTest(QString(argv[1]));
-//    Evaluate::verticleSegmentationTest(QString(argv[1]), QString(argv[2]));
+//    Evaluate::verticleSegmentationTest(QString(argv[1]), QString(argv[2]),false);
 //    Evaluate::evaluateScoreInfo(QString("/home/brian/intel_index/testing/results/correctScores.dat"),QString("/home/brian/intel_index/testing/results/incorrectScores.dat"));
 //    Evaluate::writeScores(QString(argv[1]),QString("/home/brian/intel_index/testing/results/correctScores.dat"),QString("/home/brian/intel_index/testing/results/incorrectScores.dat"));
 //    Evaluate::newTwoNameHorizontalSegmentationTest(argv[1],argv[2]);

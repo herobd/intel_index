@@ -22,7 +22,17 @@ class WordSeparator
     
     
 public:
-    WordSeparator();
+    static int recursiveCountTwoWords;
+    static int recursiveCountFirstLetter;
+    
+    static int recursiveCountFull;
+    static int recursiveSumTwoWords;
+    static int recursiveSumFirstLetter;
+    static int recursiveSumFull;
+    static QMap<int,int> recursiveModeTwoWords;
+    static QMap<int,int> recursiveModeFirstLetter;
+    static QMap<int,int> recursiveModeFull;
+    
     static int minCut(BPixelCollection &toCut, QVector<BPartition*> &ret);
     static int microMinCut(BPixelCollection &toCut, QVector<BPartition*> &ret);
     static int dumbMinCut(BPixelCollection &toCut, QVector<BPartition*> &ret);
@@ -59,5 +69,7 @@ private:
     
 //    static QPoint findClosestPointOn(const BPixelCollection &img, QPoint &start);
 };
+     
+  
 
 #endif // WORDSEPERATOR_H

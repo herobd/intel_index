@@ -2499,7 +2499,7 @@ int GraphCut::pixelsOfSeparationRecut3D(const long* invDistMap3D, int width, int
     
     //debug
 //    printf("Maxflow of cut is %d\n",ret);
-#if SHOW_VIZ
+#if SHOW_VIZ_CUT
     //visilization
     cv::Mat cloud(1,width*height*depth, CV_32FC3);
     cv::Point3f* anglePoints = cloud.ptr<cv::Point3f>();
@@ -2524,7 +2524,7 @@ int GraphCut::pixelsOfSeparationRecut3D(const long* invDistMap3D, int width, int
                 else
                     sinkScore += invDistMap3D[index];
                 
-#if SHOW_VIZ
+#if SHOW_VIZ_CUT
                 //visulization
                 if (img.getBinsAndStrForPixel(x,y)[z] > .15)
                 {
@@ -2560,7 +2560,7 @@ int GraphCut::pixelsOfSeparationRecut3D(const long* invDistMap3D, int width, int
         }
     }
     
-#if SHOW_VIZ
+#if SHOW_VIZ_CUT
     //visulization
     cv::viz::Viz3d window("segmentation");
     cv::viz::WCloud cloudImage(cloud,color_cloud);

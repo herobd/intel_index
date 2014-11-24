@@ -7,14 +7,12 @@ AngleImage::AngleImage(const BPixelCollection* ofImage, int numOfBins, double mi
     minValue=minVal;
     maxValue=maxVal;
     
-    angles = new QMap<double, double>*[src->width()];
+//    angles = new QMap<double, double>*[src->width()];
+    binStr = new QMap<int, double>*[src->width()];
     for (int x=0; x<src->width(); x++)
     {
-        angles[x] = new QMap<double, double>[src->height()];
-//        for (int y=0; y<src->height(); y++)
-//        {
-//            angles[x][y][-1]=1;
-//        }
+//        angles[x] = new QMap<double, double>[src->height()];
+        binStr[x] = new QMap<int, double>[src->height()];
     }
     
     //Do it all yourself
@@ -26,9 +24,11 @@ AngleImage::~AngleImage()
 {
     for (int i=0; i<src->width(); i++)
     {
-        delete[] angles[i];
+//        delete[] angles[i];
+        delete[] binStr[i];
     }
-    delete[] angles;
+//    delete[] angles;
+    delete[] binStr;
 }
 
 void AngleImage::init()
@@ -403,10 +403,15 @@ void AngleImage::setPixelSlope(const QPoint &p, double angle, double strength)
 void AngleImage::setPixelSlope(int x, int y, double angle, double strength)
 {
     assert(x>=0 && x<width() && y>=0 && y<height());
-    if (!angles[x][y].contains(angle))
-        angles[x][y][angle]=strength;
+//    if (!angles[x][y].contains(angle))
+//        angles[x][y][angle]=strength;
+//    else
+//        angles[x][y][angle]=std::max(strength,angles[x][y][angle]);
+    int bin = getBinForAngle(angle);
+    if (!binStr[x][y].contains(bin))
+        binStr[x][y][bin]=strength;
     else
-        angles[x][y][angle]=std::max(strength,angles[x][y][angle]);
+        binStr[x][y][bin]=std::max(strength,binStr[x][y][bin]);
     
 //    double portionLeft=portion;
 //    if (angles[x][y].contains(-1))
@@ -472,17 +477,30 @@ QMap<int,double> AngleImage::getBinsAndStrForPixel(int x, int y) const
     QMap<int,double> ret;
     double totalStr=0;
     double maxStr=0;
-    foreach (double str, angles[x][y].values())
+//    foreach (double str, angles[x][y].values())
+//    {
+//        totalStr+=str;
+//        if (str>maxStr)
+//            maxStr=str;
+//    }
+
+//    foreach (double angle, angles[x][y].keys())
+//    {
+//        int bin = getBinForAngle(angle);
+//        double strength = angles[x][y][angle]/maxStr;
+//        ret[bin]=strength;//this overwrites previous data
+//    }
+    
+    foreach (double str, binStr[x][y].values())
     {
         totalStr+=str;
         if (str>maxStr)
             maxStr=str;
     }
 
-    foreach (double angle, angles[x][y].keys())
+    foreach (int bin, binStr[x][y].keys())
     {
-        int bin = getBinForAngle(angle);
-        double strength = angles[x][y][angle]/maxStr;
+        double strength = binStr[x][y][bin]/maxStr;
         ret[bin]=strength;//this overwrites previous data
     }
 
@@ -496,19 +514,28 @@ int AngleImage::getBinForAngle(double angle) const
 
 bool AngleImage::noStrongerAngleForPixel(int x, int y, double angle, double strength) const
 {
+//    if (pixel(x,y))
+//    {
+//        if(!angles[x][y].contains(angle))
+//            return true;
+//        else
+//            return angles[x][y][angle]<strength;
+//    }
+    int bin = getBinForAngle(angle);
     if (pixel(x,y))
     {
-        if(!angles[x][y].contains(angle))
+        if(!binStr[x][y].contains(bin))
             return true;
         else
-            return angles[x][y][angle]<strength;
+            return binStr[x][y][bin]<strength;
     }
     return false;
 }
 
 bool AngleImage::noAnglesForPixel(int x, int y) const
 {
-    return pixel(x,y) && angles[x][y].empty();
+//    return pixel(x,y) && angles[x][y].empty();
+    return pixel(x,y) && binStr[x][y].empty();
 }
 
 

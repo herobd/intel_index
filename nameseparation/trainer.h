@@ -11,6 +11,7 @@ public:
     
     static void trainTwoWordSeparation(QString dir);
     static void trainTwoWordSeparationDumb(QString dir);
+    static void trainIcdar(QString icdarRoot, int only);
 };
 
 #endif // TRAINER_H

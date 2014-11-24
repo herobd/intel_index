@@ -80,7 +80,8 @@ private:
     void init();
 //    QPoint findClosestPoint(QPoint &start);
     
-    QMap<double, double>** angles;
+//    QMap<double, double>** angles;
+    QMap<int, double>** binStr;
     int myWidth;
     int myHeight;
     const BPixelCollection* src;

@@ -39,7 +39,8 @@ inline int mod(int a, int b)
 #define VERT_BIAS_3D_CUT 0
 #define USE_DESC_LOOP_FINDER 0
 
-#define SHOW_VIZ 0
+#define SHOW_VIZ_DIST 0
+#define SHOW_VIZ_CUT 1
 #define SAVE_SUBSECTION 0
 #define HORZ_SAVE_INV_DIST_MAP 1
 #define NORM_SAVE_ANCHOR 1

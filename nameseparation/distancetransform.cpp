@@ -235,7 +235,7 @@ void DistanceTransform::computeInverseDistanceMap(const BPixelCollection &src, i
             newmin=out[q];
     }
     
-//    printf("newMax:%d, 2nd max:%d, newMin:%d\n",newmax,newmax2,newmin);
+//    printf("newMax:%d, newMin:%d\n",newmax,newmin);
 #if HORZ_SAVE_INV_DIST_MAP
 //    QImage debug(src.width(),src.height(),QImage::Format_Indexed8);
 //    QVector<QRgb> default_color_table;
@@ -1397,6 +1397,7 @@ void DistanceTransform::compute3DInverseDistanceMapNew(const double* src, long* 
     
     
     long newmax=0;
+    long newmin=INT_POS_INFINITY;
 //    double e = 100;//60;
 //    double b = 200;
 //    double m = 10000;
@@ -1414,15 +1415,18 @@ void DistanceTransform::compute3DInverseDistanceMapNew(const double* src, long* 
     double a = INV_A;
     for (int i=0; i<width*height*depth; i++)
     {
+        //       pow(b-std::min(out[index]*(b/m),b),e)*a/(pow(b,e)) + 1 + std::min(cc_size,max_cc_size);
         out[i] = pow(b,e*std::max(std::min(1-out[i]*(1/m),1.0),0.0))*a/(pow(b,e)) + 1;
         if (out[i]>newmax)
             newmax=out[i];
+        if (out[i]<newmin)
+            newmin=out[i];
     }
     
     
     ///debug from hereon down
-//    printf("3d newmax=%d\n",newmax);
-#if SHOW_VIZ
+    printf("3d newmin=%d  newmax=%d\n",newmin,newmax);
+#if SHOW_VIZ_DIST
     //visulazation
     cv::Mat cloud(1,width*height*depth, CV_32FC3);
     cv::Point3f* anglePoints = cloud.ptr<cv::Point3f>();
