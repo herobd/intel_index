@@ -2318,53 +2318,56 @@ int GraphCut::pixelsOfSeparationRecut3D(const long* invDistMap3D, int width, int
 #endif
             for (int i=0; i<width; i++)
             {   
-                
-                //C1
-                if (i+1<width)
+                if (img.pixel(i,j))
                 {
-                    setEdge3DMap(i,j,k,i+1,j,k,g,indexer,invDistMap3D,FLAT_WEIGHT);
-                }
-                
-                if (j+1<height)
-                {
-                    setEdge3DMap(i,j,k,i,j+1,k,g,indexer,invDistMap3D,FLAT_WEIGHT);
-                }
-                
-                if (k+1<slope_size)
-                {
-                    setEdge3DMap(i,j,k,i,j,k+1,g,indexer,invDistMap3D,SLOPE_WEIGHT);
-                }
-                else//fold
-                {
-                    setEdge3DMap(i,j,k,i,j,0,g,indexer,invDistMap3D,SLOPE_WEIGHT);
-                }
-                
-                //C2 dumbed down
-                if (j>0 && i<width-1)
-                {
-                    setEdge3DMap(i,j,k,i+1,j-1,k,g,indexer,invDistMap3D,2*FLAT_WEIGHT-sqrt(2*pow(FLAT_WEIGHT,2)));
-                }
-                
-                if (j<height-1 && i<width-1)
-                {
-                    setEdge3DMap(i,j,k,i+1,j+1,k,g,indexer,invDistMap3D,2*FLAT_WEIGHT-sqrt(2*pow(FLAT_WEIGHT,2)));
-                }
-                
-                
-                
-                //C3 nope
-                
-                //extra bias
+                    //C1
+                    if (i+1<width && img.pixel(i+1,j))
+                    {
+                        setEdge3DMap(i,j,k,i+1,j,k,g,indexer,invDistMap3D,FLAT_WEIGHT);
+                    }
+                    
+                    if (j+1<height && img.pixel(i,j+1))
+                    {
+                        setEdge3DMap(i,j,k,i,j+1,k,g,indexer,invDistMap3D,FLAT_WEIGHT);
+                    }
+                    
+                    if (k+1<slope_size)
+                    {
+                        setEdge3DMap(i,j,k,i,j,k+1,g,indexer,invDistMap3D,SLOPE_WEIGHT);
+                    }
+                    else//fold
+                    {
+                        setEdge3DMap(i,j,k,i,j,0,g,indexer,invDistMap3D,SLOPE_WEIGHT);
+                    }
+                    
+                    //C2 dumbed down
+                    if (j>0 && i<width-1 && img.pixel(i+1,j-1))
+                    {
+                        setEdge3DMap(i,j,k,i+1,j-1,k,g,indexer,invDistMap3D,2*FLAT_WEIGHT-sqrt(2*pow(FLAT_WEIGHT,2)));
+                    }
+                    
+                    if (j<height-1 && i<width-1 && img.pixel(i+1,j+1))
+                    {
+                        setEdge3DMap(i,j,k,i+1,j+1,k,g,indexer,invDistMap3D,2*FLAT_WEIGHT-sqrt(2*pow(FLAT_WEIGHT,2)));
+                    }
+                    
+                    
+                    
+                    //C3 nope
+                    
+                    //extra bias
 #if VERT_BIAS_3D_CUT
-//                 QMap<int,double> bins = img.getBinsAndStrForPixel(i,j);
-                if (img.pixel(i,j)/* && bins.keys().contains(k)*/)
-                {
-                    if (j<=crossOverY)
-                        g -> add_tweights(indexer.getIndex(i,j,k), anchor_weight_for_level_top, 0);
-                    else
-                        g -> add_tweights(indexer.getIndex(i,j,k), 0, anchor_weight_for_level_bottom);
-                }
+                    //                 QMap<int,double> bins = img.getBinsAndStrForPixel(i,j);
+                    if (img.pixel(i,j)/* && bins.keys().contains(k)*/)
+                    {
+                        if (j<=crossOverY)
+                            g -> add_tweights(indexer.getIndex(i,j,k), anchor_weight_for_level_top, 0);
+                        else
+                            g -> add_tweights(indexer.getIndex(i,j,k), 0, anchor_weight_for_level_bottom);
+                    }
 #endif
+                    
+                }
             }//j
         }//i
     }//k
@@ -2514,47 +2517,51 @@ int GraphCut::pixelsOfSeparationRecut3D(const long* invDistMap3D, int width, int
 //        printf("\n");
         for (int y=0; y<height; y++)
         {
-            int sourceScore=0;
-            int sinkScore=0;
-            for (int z=0; z<depth; z++)
+            
+            if (img.pixel(x,y))
             {
-                int index = indexer.getIndex(x,y,z);
-                if (g->what_segment(index) == GraphType::SOURCE)
-                    sourceScore += invDistMap3D[index];
-                else
-                    sinkScore += invDistMap3D[index];
-                
-#if SHOW_VIZ_CUT
-                //visulization
-                if (img.getBinsAndStrForPixel(x,y)[z] > .15)
+                int sourceScore=0;
+                int sinkScore=0;
+                for (int z=0; z<depth; z++)
                 {
-                    anglePoints[x+width*y+width*height*z].x=(float)x;
-                    anglePoints[x+width*y+width*height*z].y=(float)y;
-                    anglePoints[x+width*y+width*height*z].z=(float)z;
-                
-                
+                    int index = indexer.getIndex(x,y,z);
                     if (g->what_segment(index) == GraphType::SOURCE)
-                    {
-                        color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[0]=0;
-                        color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[1]=(int)(img.getBinsAndStrForPixel(x,y)[z]*254);
-                        color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[2]=0;
-                    }
+                        sourceScore += invDistMap3D[index];
                     else
+                        sinkScore += invDistMap3D[index];
+                    
+#if SHOW_VIZ_CUT
+                    //visulization
+                    if (img.getBinsAndStrForPixel(x,y)[z] > .15)
                     {
-                        color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[0]=0;
-                        color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[1]=0;
-                        color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[2]=(int)(img.getBinsAndStrForPixel(x,y)[z]*254);
+                        anglePoints[x+width*y+width*height*z].x=(float)x;
+                        anglePoints[x+width*y+width*height*z].y=(float)y;
+                        anglePoints[x+width*y+width*height*z].z=(float)z;
+                        
+                        
+                        if (g->what_segment(index) == GraphType::SOURCE)
+                        {
+                            color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[0]=0;
+                            color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[1]=(int)(img.getBinsAndStrForPixel(x,y)[z]*254);
+                            color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[2]=0;
+                        }
+                        else
+                        {
+                            color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[0]=0;
+                            color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[1]=0;
+                            color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[2]=(int)(img.getBinsAndStrForPixel(x,y)[z]*254);
+                        }
                     }
-                }
 #endif
+                }
+                
+                //            printf("(%d,%d) ",sourceScore,sinkScore);
+                
+                if (sourceScore>=THRESH || (sinkScore<THRESH && sourceScore>sinkScore))
+                    outSource.append(x+width*y);
+                if (sinkScore>=THRESH || (sourceScore<THRESH && sinkScore>sourceScore))
+                    outSink.append(x+width*y);
             }
-            
-//            printf("(%d,%d) ",sourceScore,sinkScore);
-            
-            if (sourceScore>=THRESH || (sinkScore<THRESH && sourceScore>sinkScore))
-                outSource.append(x+width*y);
-            if (sinkScore>=THRESH || (sourceScore<THRESH && sinkScore>sourceScore))
-                outSink.append(x+width*y);
             
             
         }
@@ -2563,6 +2570,8 @@ int GraphCut::pixelsOfSeparationRecut3D(const long* invDistMap3D, int width, int
 #if SHOW_VIZ_CUT
     //visulization
     cv::viz::Viz3d window("segmentation");
+    cv::viz::WCoordinateSystem axis(20.0);
+    window.showWidget("axis",axis);
     cv::viz::WCloud cloudImage(cloud,color_cloud);
     window.showWidget("segmentation",cloudImage);
     window.spin();

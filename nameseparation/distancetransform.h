@@ -19,7 +19,7 @@ public:
     
     static void compute3DInverseDistanceMapNaive(const bool* src, int* out, int width, int height, int depth);
     static void compute3DInverseDistanceMap(const bool* src, int* out, int width, int height, int depth);
-    static void compute3DInverseDistanceMapNew(const double* src, long* out, int width, int height, int depth);
+    static void compute3DInverseDistanceMapNew(const double* src, long* out, int width, int height, int depth,const BPixelCollection &img);
     static void compute3DInverseDistanceMapTest(const bool* src, int* out, int width, int height, int depth);
     static void computeKDInverseDistanceMap(const bool* in, int* out, int k, const int* dim);
     

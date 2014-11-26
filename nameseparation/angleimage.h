@@ -77,7 +77,8 @@ public:
     const BlobSkeleton& getSkeleton() const {return skeleton;}
     
 private:
-    void init();
+    void init();//fills from slope line midpoint
+    void init2();//fills from slope line
 //    QPoint findClosestPoint(QPoint &start);
     
 //    QMap<double, double>** angles;

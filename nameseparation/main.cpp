@@ -137,9 +137,6 @@ int main(int argc, char** argv)
 //    QPoint p2(6,64);
 //    QPoint cross(102,33);
     
-    //?
-//    QPoint p(10,32);
-//    QPoint p2(83,70);
     
     //2
 //    QPoint p(63,18);
@@ -213,9 +210,16 @@ int main(int argc, char** argv)
 //    QPoint cross(6,18);
     
     //27
-//    QPoint p(39,14);
-//    QPoint p2(0,52);
-//    QPoint p2x(112,51);
+    QPoint p(39,14);
+    QPoint p2(0,52);
+    QPoint p2x(112,51);
+    QPoint cross(0,0);
+    
+    //28
+//    QPoint p(0,17);
+//    QPoint px(16,6);
+//    QPoint p2(22,56);
+//    QPoint p2x(67,64);
 //    QPoint cross(0,0);
     
     //x2
@@ -224,17 +228,21 @@ int main(int argc, char** argv)
 //    QPoint cross(0,0);
     
     //x3
-    QPoint p(73,1);
-    QPoint p2(29,54);
-    QPoint p2x(67,57);
-    QPoint cross(56,25);
+//    QPoint p(73,1);
+//    QPoint p2(29,54);
+//    QPoint p2x(67,57);
+//    QPoint cross(56,25);
+    
+    //x4
+//    QPoint p(73,1);
+//    QPoint p2(67,57);
+//    QPoint cross(56,25);
     
     sourceSeeds.append(p);
 //    sourceSeeds.append(px);
     
     sinkSeeds.append(p2);
     sinkSeeds.append(p2x);
-//    sinkSeeds.append(p2xx);
     QVector<QPoint> crossing;
     crossing.append(cross);
     QVector<BPartition*> result = WordSeparator::recut3D(bimg, sourceSeeds, sinkSeeds,cross.y(),crossing);

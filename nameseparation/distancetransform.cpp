@@ -1383,7 +1383,7 @@ void phaseSaitoZ(const long *sdt_xy, long *sdt_xyz, const Indexer3D &ind, int si
 }
 
 //<http://tc18.liris.cnrs.fr/code_data_set/Code/SEDT/>
-void DistanceTransform::compute3DInverseDistanceMapNew(const double* src, long* out, int width, int height, int depth)
+void DistanceTransform::compute3DInverseDistanceMapNew(const double* src, long* out, int width, int height, int depth, const BPixelCollection &img)
 {
     Indexer3D ind(width,height);
     long* sdt_x = new long[width*height*depth];
@@ -1450,22 +1450,25 @@ void DistanceTransform::compute3DInverseDistanceMapNew(const double* src, long* 
         {
             for (int y=0; y<debug.height(); y++)
             {
-                debug.setPixel(x,y,(int)((out[ind.getIndex(x,y,z)]/((double)newmax))*254));
-                debug2.setPixel(x,y,src[ind.getIndex(x,y,z)]*254);
-                
-//                if (src[ind.getIndex(x,y,z)]>0)
-                if ((int)((out[ind.getIndex(x,y,z)]/((double)newmax))*254) >150)
+                if (img.pixel(x,y))
                 {
-                    anglePoints[x+width*y+width*height*z].x=(float)x;
-                    anglePoints[x+width*y+width*height*z].y=(float)y;
-                    anglePoints[x+width*y+width*height*z].z=(float)z;
-//                    printf("Write color %f\n",src[ind.getIndex(x,y,z)]*254);
+                    debug.setPixel(x,y,(int)((out[ind.getIndex(x,y,z)]/((double)newmax))*254));
+                    debug2.setPixel(x,y,src[ind.getIndex(x,y,z)]*254);
+                    
+                    //                if (src[ind.getIndex(x,y,z)]>0)
+                    if ((int)((out[ind.getIndex(x,y,z)]/((double)newmax))*254) >75)
+                    {
+                        anglePoints[x+width*y+width*height*z].x=(float)x;
+                        anglePoints[x+width*y+width*height*z].y=(float)y;
+                        anglePoints[x+width*y+width*height*z].z=(float)z;
+                        //                    printf("Write color %f\n",src[ind.getIndex(x,y,z)]*254);
+                    }
+                    
+                    
+                    color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[0]=(int)((out[ind.getIndex(x,y,z)]/((double)newmax))*254);
+                    color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[1]=(int)((out[ind.getIndex(x,y,z)]/((double)newmax))*254);
+                    color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[2]=(int)((out[ind.getIndex(x,y,z)]/((double)newmax))*254);
                 }
-                
-
-                color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[0]=(int)((out[ind.getIndex(x,y,z)]/((double)newmax))*254);
-                color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[1]=(int)((out[ind.getIndex(x,y,z)]/((double)newmax))*254);
-                color_cloud.at<cv::Vec3b>(0,x+width*y+width*height*z)[2]=(int)((out[ind.getIndex(x,y,z)]/((double)newmax))*254);
             }
             
         }
@@ -1481,8 +1484,13 @@ void DistanceTransform::compute3DInverseDistanceMapNew(const double* src, long* 
 //        debug2.save(debugfile2);
     }
     cv::viz::Viz3d window("distMap");
+    
+    cv::viz::WCoordinateSystem axis(20.0);
+    window.showWidget("axis",axis);
     cv::viz::WCloud cloudImage(cloud,color_cloud);
-    window.showWidget("angleImage",cloudImage);
+    window.showWidget("cloud",cloudImage);
+    
+    
     
     window.spin();
 #endif

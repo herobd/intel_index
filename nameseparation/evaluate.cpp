@@ -113,6 +113,8 @@ void Evaluate::matchedScoreFirstLetter(bool left, const BPartition &part, const 
 
 double Evaluate::verticleSegmentationTest(QString imgPath, QString gtDirPath, bool dumb)
 {
+    if (gtDirPath[gtDirPath.size()-1]!='/')
+        gtDirPath+='/';
     QString outPath;
     if (dumb)
         outPath= "/home/brian/intel_index/testing/results/newDumbVertSegResults.dat"; 

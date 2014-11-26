@@ -2742,7 +2742,7 @@ QVector<BPartition*> WordSeparator::recut3D(const BPixelCollection &img, QVector
     long* distmap3d = new long[angleImage.width()*angleImage.height()*numOfBins];
 //    DistanceTransform::computeKDInverseDistanceMap(img3d,distmap,3,dim);old
 //    DistanceTransform::compute3DInverseDistanceMapTest(img3d,distmap,angleImage.width(),angleImage.height(),numOfBins);old
-    DistanceTransform::compute3DInverseDistanceMapNew(img3d,distmap3d,angleImage.width(),angleImage.height(),numOfBins);
+    DistanceTransform::compute3DInverseDistanceMapNew(img3d,distmap3d,angleImage.width(),angleImage.height(),numOfBins,img);
     
     
     GraphCut::pixelsOfSeparationRecut3D(distmap3d,img.width(),img.height(),numOfBins,angleImage,sourceSeeds,sinkSeeds,firstImgIndexes,secondImgIndexes, crossOverY, crossOverPoints, INT_POS_INFINITY/2);
