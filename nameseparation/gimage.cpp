@@ -5,11 +5,12 @@ GImage::GImage(QImage &other)
     image=other;
 }
 
-//GImage::GImage(int w, int h)
-//{
-//    QImage n(w,h);
-//    image=n;
-//}
+GImage::GImage(int w, int h)
+{
+    QImage n(w,h,QImage::Format_RGB32);
+    image=n;
+    image.fill(qRgb(0,0,0));
+}
 
 int GImage::pixel(int x, int y) const
 {

@@ -26,7 +26,7 @@ class BImage : public BPixelCollection
 {
 public:
     BImage();
-    BImage(const QImage &src);
+    BImage(const QImage &src, bool invert=false);
     BImage(int width, int height);
     BImage(const BImage &other);
     BImage(const BPixelCollection &other);
@@ -60,11 +60,13 @@ public:
     //use
     void setPixel(const QPoint &p, bool val);
     void setPixel(int x, int y, bool val);
+    void setPixelIgnoreOff(int x, int y, bool val);
     
     //extras
 //    void setPixelFull(const QPoint &p, const bPixel &strct);
 //    void setPixelFull(int x, int y, const bPixel &strct);
     void setPixelOwner(const QPoint &p, BPartition* owner, float portion);
+    void setPixelOwner(int x, int y, BImage* owner, float portion);
     void setPixelOwner(int x, int y, BPartition* owner, float portion);
     
 //    void setPixelCombineOwner(int x, int y, BPartition* to, BPartition* with);
@@ -74,6 +76,7 @@ public:
     void saveICDAR(QString name);
     
     void claimOwnership(BPartition* claimer, float amount);
+    void claimOwnership(BImage* claimer, float amount);
     void claimOwnershipVia(BPartition* intermediate, BPartition* claimer, float amount);
     
     BPartition* getFullPartition();

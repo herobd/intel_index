@@ -23,9 +23,19 @@ void BlobSkeleton::init(const BPixelCollection* src)
     
     QPoint startPoint = findStartPoint();
     blobFill(startPoint);
+//    while(1)
+//    {
+//        QPoint startPoint = findStartPoint();
+//        if (startPoint.x()==-1)
+//            break;
+//        blobFill(startPoint);
+        
+//    }
+   
     
-    //By default I'm saving an image
+#if SAVE_BLOBSKEL
     draw("test");
+#endif
 }
 
 void BlobSkeleton::initHand(const BPixelCollection* src, const QImage &handMarkedRegions)
@@ -41,8 +51,9 @@ void BlobSkeleton::initHand(const BPixelCollection* src, const QImage &handMarke
     
     evalHand(handMarkedRegions);
     
-    //By default I'm saving an image
+#if SAVE_BLOBSKEL
     draw("test_hand");
+#endif
 }
 
 BlobSkeleton::~BlobSkeleton()
@@ -59,19 +70,20 @@ BlobSkeleton::~BlobSkeleton()
 
 QPoint BlobSkeleton::findStartPoint()
 {
-    QPoint seed;
+//    printf("skel start called\n");
+    QPoint seed(-1,-1);
     for (int y=0; y<src->height(); y++)
     {
         for (int xDelta=0; xDelta<src->width()/2; xDelta++)
         {
-            if (src->pixel(xDelta+(src->width()/2),y))
+            if (src->pixel(xDelta+(src->width()/2),y) && assignments[xDelta+(src->width()/2)][y]==-1)
             {
                     seed.setX(xDelta+(src->width()/2));
                     seed.setY(y);
                     y=src->height();
                     break;
             }
-            else if (src->pixel((-xDelta)+(src->width()/2),y))
+            else if (src->pixel((-xDelta)+(src->width()/2),y) && assignments[-xDelta+(src->width()/2)][y]==-1)
             {
                     seed.setX((-xDelta)+(src->width()/2));
                     seed.setY(y);
@@ -81,6 +93,9 @@ QPoint BlobSkeleton::findStartPoint()
               
         }
     }
+    if (seed.x()==-1)
+        return seed;
+    
     BImage mark=src->makeImage();
     QVector<QPoint> border;
     border.append(seed);
@@ -314,10 +329,10 @@ void BlobSkeleton::blobFill(const QPoint &begin)
     //        printf("region %d found %d neighbors\n",myRegionId,neighborRegions.size());
             foreach (unsigned int regionId, neighborRegions)
             {
-                if (centerOfMass.connectedPoints().contains(regionId) || centersOfMass[regionId].connectedPoints().contains(myRegionId))
-                   {
-                    int i=0;
-                }
+//                if (centerOfMass.connectedPoints().contains(regionId) || centersOfMass[regionId].connectedPoints().contains(myRegionId))
+//                   {
+//                    int i=0;
+//                }
                 
                 double angle = atan2((centerOfMass.y-centersOfMass[regionId].y),(centerOfMass.x-centersOfMass[regionId].x));
                 if (angle < 0)

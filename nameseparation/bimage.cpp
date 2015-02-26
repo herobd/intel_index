@@ -10,7 +10,7 @@ BImage::BImage()
     ownership=NULL;
 }
 
-BImage::BImage(const QImage &src)
+BImage::BImage(const QImage &src, bool invert)
 {
     myWidth = src.width();
     myHeight = src.height();
@@ -20,7 +20,7 @@ BImage::BImage(const QImage &src)
 //        (*pixels)[x] = new bPixel[myHeight];
         for (int y=0; y<myHeight; y++)
         {
-            (*pixels)[x+y*myWidth]= qGray(src.pixel(x,y)) == BLACK;
+            (*pixels)[x+y*myWidth]= (qGray(src.pixel(x,y)) == BLACK) ^ (invert);
         }
     }
     ownership=NULL;
@@ -286,6 +286,12 @@ void BImage::setPixel(int x, int y, bool val)
     (*pixels)[x+y*myWidth]=val;
 }
 
+void BImage::setPixelIgnoreOff(int x, int y, bool val)
+{
+    if(x>=0 && x<myWidth && y>=0 && y<myHeight)
+        (*pixels)[x+y*myWidth]=val;
+}
+
 //void BImage::setPixelFull(const QPoint &p, const bPixel &strct)
 //{
 //    assert(p.x()<myWidth && p.y()<myHeight);
@@ -335,6 +341,39 @@ void BImage::setPixelOwner(int x, int y, BPartition* owner, float portion)
         }
     }
     ownership[x+y*myWidth][owner->id()]=portion;
+//    owner->changedPortion(x,y,portion,old);
+}
+
+void BImage::setPixelOwner(int x, int y, BImage* owner, float portion)
+{
+    if (ownership == NULL)
+        ownership = new QMap<int,float>[myWidth*myHeight];
+    assert(x>=0 && x<myWidth && y>=0 && y<myHeight);
+    
+    if (ownership[x+y*myWidth].size() > 0)
+    {
+        float old = 0;
+        if (ownership[x+y*myWidth].contains((unsigned int)(unsigned long int)owner))
+        {
+            old = ownership[x+y*myWidth][(unsigned int)(unsigned long int)owner];
+        }
+        float converter = (1-portion)/(1-old);
+        QMap<int,float>::iterator i = ownership[x+y*myWidth].begin();
+        while(i != ownership[x+y*myWidth].end())
+        {
+            if (i.key() != (unsigned int)(unsigned long int)owner)
+            {
+                float oldother = i.value();
+                if (oldother!=0)
+                {
+                    i.value()=oldother*converter;
+    //                (i.key())->changedPortion(x,y,i.value(),oldother);
+                }
+            }
+            ++i;
+        }
+    }
+    ownership[x+y*myWidth][(unsigned int)(unsigned long int)owner]=portion;
 //    owner->changedPortion(x,y,portion,old);
 }
 
@@ -517,6 +556,21 @@ void BImage::claimOwnership(BPartition* claimer, float amount)
          {
              if (claimer->pixelIsMine(x,y))
                 setPixelOwner(x+claimer->getXOffset(),y+claimer->getYOffset(),claimer,amount);
+         }
+    }
+}
+
+void BImage::claimOwnership(BImage* claimer, float amount)
+{
+    if (ownership == NULL)
+        ownership = new QMap<int,float>[myWidth*myHeight];
+    assert(claimer->width() == myWidth && claimer->height() == myHeight);
+    for (int x=0; x<claimer->width(); x++)
+    {
+         for (int y=0; y<claimer->height(); y++)
+         {
+             if (claimer->pixel(x,y))
+                setPixelOwner(x,y,claimer,amount);
          }
     }
 }

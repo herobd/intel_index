@@ -4,7 +4,7 @@
 
 int BPartition::idCounter=0;
 
-BPartition::BPartition(const BPixelCollection* ofImage)
+BPartition::BPartition(const BPixelCollection* ofImage, bool whole)
 {
     src=ofImage;
     rootSrc=NULL;
@@ -15,10 +15,10 @@ BPartition::BPartition(const BPixelCollection* ofImage)
 //    myPixels = new unsigned int[(int)ceil(src->width()*src->height() / ((8*sizeof(unsigned int))) * 1.0)];
 //    for (int i=0; i<(int)ceil(src->width()*src->height() / ((8*sizeof(unsigned int))) * 1.0); i++)
 //        myPixels[i]=0;
-    initMyPixels();
+    initMyPixels(whole);
     myId = idCounter++;
 }
-BPartition::BPartition(const BImage* ofImage)
+BPartition::BPartition(const BImage* ofImage, bool whole)
 {
     src=ofImage;
     rootSrc=ofImage;
@@ -29,10 +29,10 @@ BPartition::BPartition(const BImage* ofImage)
 //    myPixels = new unsigned int[(int)ceil(src->width()*src->height() / ((8*sizeof(unsigned int))) * 1.0)];
 //    for (int i=0; i<(int)ceil(src->width()*src->height() / ((8*sizeof(unsigned int))) * 1.0); i++)
 //        myPixels[i]=0;
-    initMyPixels();
+    initMyPixels(whole);
     myId = idCounter++;
 }
-BPartition::BPartition(const BPartition* ofImage)
+BPartition::BPartition(const BPartition* ofImage, bool whole)
 {
     src=ofImage;
     rootSrc=ofImage->rootSrc;
@@ -43,7 +43,7 @@ BPartition::BPartition(const BPartition* ofImage)
 //    myPixels = new unsigned int[(int)ceil(src->width()*src->height() / ((8*sizeof(unsigned int))) * 1.0)];
 //    for (int i=0; i<(int)ceil(src->width()*src->height() / ((8*sizeof(unsigned int))) * 1.0); i++)
 //        myPixels[i]=0;
-    initMyPixels();
+    initMyPixels(whole);
     myId = idCounter++;
 }
 
@@ -75,7 +75,7 @@ BPartition& BPartition::operator=( const BPartition& other )
 //    myPixels = new unsigned int[(int)ceil(src->width()*src->height() / ((8*sizeof(unsigned int))) * 1.0)];
 //    for (int i=0; i<(int)ceil(src->width()*src->height() / ((8*sizeof(unsigned int))) * 1.0); i++)
 //        myPixels[i]=0;
-    initMyPixels();
+    initMyPixels(false);
     for (int x=0; x<width(); x++)
     {
         for(int y=0; y<height(); y++)
@@ -90,7 +90,7 @@ BPartition& BPartition::operator=( const BPartition& other )
 }
 
 
-void BPartition::initMyPixels()
+void BPartition::initMyPixels(bool s)
 {
     myPixels = new bool*[src->width()];
     for (int i=0; i<src->width(); i++)
@@ -98,7 +98,7 @@ void BPartition::initMyPixels()
         myPixels[i] = new bool[src->height()];
         for (int j=0; j<src->height(); j++)
         {
-            myPixels[i][j] = false;
+            myPixels[i][j] = s;
         }
     }
 }
@@ -156,6 +156,20 @@ bool BPartition::pixelSrc(int src_x, int src_y) const
     }
     else
         return false;
+}
+
+bool BPartition::pixelSrcIgnoreOff(int src_x, int src_y) const
+{
+    if(src_x>=0 && src_x<src->width() && src_y>=0 && src_y<src->height())
+    {
+        if (myPixels[src_x][src_y])
+        {
+            return src->pixel(src_x,src_y);
+        }
+        else
+            return false;
+    }
+    return false;
 }
 
 bool BPartition::pixelIsMineSrc(int src_x, int src_y) const

@@ -1425,7 +1425,7 @@ void DistanceTransform::compute3DInverseDistanceMapNew(const double* src, long* 
     
     
     ///debug from hereon down
-    printf("3d newmin=%d  newmax=%d\n",newmin,newmax);
+//    printf("3d newmin=%d  newmax=%d\n",newmin,newmax);
 #if SHOW_VIZ_DIST
     //visulazation
     cv::Mat cloud(1,width*height*depth, CV_32FC3);
@@ -1456,7 +1456,7 @@ void DistanceTransform::compute3DInverseDistanceMapNew(const double* src, long* 
                     debug2.setPixel(x,y,src[ind.getIndex(x,y,z)]*254);
                     
                     //                if (src[ind.getIndex(x,y,z)]>0)
-                    if ((int)((out[ind.getIndex(x,y,z)]/((double)newmax))*254) >75)
+                    //if ((int)((out[ind.getIndex(x,y,z)]/((double)newmax))*254) >25)
                     {
                         anglePoints[x+width*y+width*height*z].x=(float)x;
                         anglePoints[x+width*y+width*height*z].y=(float)y;

@@ -1,7 +1,7 @@
 #include "wordseparator.h"
  
 #include <math.h>
-
+#include <opencv2/viz/vizcore.hpp>
 #include <stdlib.h>
 
 
@@ -2581,7 +2581,7 @@ QVector<BPartition*> WordSeparator::recut3D(const BPixelCollection &img, QVector
     int numOfBins = std::min((img.width()+img.height())/2, 80);//std::min(img.width(),img.height());
     
     AngleImage angleImage(&img,numOfBins,0.0,PI);
-    printf("%d x %d x %d\n",img.width(),img.height(),numOfBins);
+//    printf("%d x %d x %d\n",img.width(),img.height(),numOfBins);
     
     /////begin intensity
     
@@ -2722,6 +2722,10 @@ QVector<BPartition*> WordSeparator::recut3D(const BPixelCollection &img, QVector
 //        }
 //    }
     
+#if SHOW_VIZ_3DIMG
+    cv::viz::Viz3d window("3D img");
+#endif
+    
     double* img3d = new double[angleImage.width()*angleImage.height()*numOfBins];
     Indexer3D ind(angleImage.width(),angleImage.height());
     for (int x=0; x<angleImage.width(); x++)
@@ -2736,9 +2740,27 @@ QVector<BPartition*> WordSeparator::recut3D(const BPixelCollection &img, QVector
             {
 //                for ()
                 img3d[ind.getIndex(x,y,bin)]=bins[bin];
+                
+#if SHOW_VIZ_3DIMG
+                cv::Point3f start(x,y,bin);
+                cv::Point3f end(x+1,y+1,bin+1);
+                cv::viz::WCube voxel(start,end,false);
+                QString xs;
+                xs.setNum(x);
+                QString ys;
+                ys.setNum(y);
+                QString zs;
+                zs.setNum(bin);
+                QString name = xs+","+ys+","+zs;
+                window.showWidget(name.toStdString(),voxel);
+#endif
             }
         }
     }
+#if SHOW_VIZ_3DIMG
+    window.spin();
+#endif
+    
     long* distmap3d = new long[angleImage.width()*angleImage.height()*numOfBins];
 //    DistanceTransform::computeKDInverseDistanceMap(img3d,distmap,3,dim);old
 //    DistanceTransform::compute3DInverseDistanceMapTest(img3d,distmap,angleImage.width(),angleImage.height(),numOfBins);old

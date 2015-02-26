@@ -15,6 +15,7 @@ ImageAverager::ImageAverager(int width, int height)
     }
 }
 
+//Averages the images in dir, assumes the images are named with indexing numbers
 QImage ImageAverager::averageImages(QString dir, QVector<int> picIds)
 {
     QImage avg(final_width,final_height,QImage::Format_Indexed8);
@@ -63,6 +64,7 @@ QImage ImageAverager::averageImages(QString dir, QVector<int> picIds)
     return avg;
 }
 
+//Creates probabilty map based on an averaged image
 QVector<QVector<double> > ImageAverager::produceProbabilityMap(const QImage &src)
 {
     QVector<QVector<double> > ret(src.width());

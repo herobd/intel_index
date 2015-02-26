@@ -1,5 +1,6 @@
 #include "evaluate.h"
 #include <assert.h>
+#include "gimage.h"
 
 Evaluate::Evaluate()
 {
@@ -666,3 +667,526 @@ void Evaluate::writeScores(QString imgPath, QString correctPath, QString incorre
     incorrectResults.close();
 }
 
+void rewritePast(int start, int to, QMap<int,int > &mergeKey)
+{
+    if (mergeKey[start]==to)
+        return;
+    if (mergeKey[start]==start)
+        mergeKey[start]=to;
+    else
+    {
+        rewritePast(mergeKey[start],to,mergeKey);
+        mergeKey[start]=to;
+    }
+        
+    
+}
+int toEnd(int start, const QMap<int,int > &mergeKey)
+{
+    if (mergeKey.value(start)==start)
+        return start;
+    else
+        return toEnd(mergeKey.value(start),mergeKey);
+}
+
+void Evaluate::onLTP(QString LTP_path, int setNum)
+{
+    if (LTP_path.size()<2)
+    {
+        LTP_path="/home/brian/intel_index/LTP_dataset/";
+    }
+    else if (LTP_path[LTP_path.length()-1]!='/')
+        LTP_path.append("/");
+    int correct=0;
+    double sumScore=0;
+    
+    for (int i=1; i<=744; i++)
+    {
+        QString set;
+        set.setNum(setNum);
+        QString num;
+        num.setNum(i);
+        QString xPath = LTP_path+set+"/"+set+"-"+num+"-X.tif";
+        QString aPath = LTP_path+set+"/"+set+"-"+num+"-A.tif";
+        QString bPath = LTP_path+set+"/"+set+"-"+num+"-B.tif";
+        
+        QVector<BImage*> result = segmentLTPImage(xPath);
+        QImage imgGTTop(bPath);
+        BImage bimgGTTop(imgGTTop,true);
+        QImage imgGTBot(aPath);
+        BImage bimgGTBot(imgGTBot,true);
+        
+        double MSTop = matchedScore(*(result[0]),bimgGTTop);
+        double MSBot = matchedScore(*(result[1]),bimgGTBot);
+        double MatchScore = (2*MSTop*MSBot)/(MSTop+MSBot);
+        
+        sumScore+=MatchScore;
+        if (MatchScore >= .80)
+            correct++;
+        else
+        {
+            printf("Failure on %d (score of %f)\n",i,MatchScore);
+            bool test = result[0]->makeImage().save("./test0.ppm");
+            test &= result[1]->makeImage().save("./test1.ppm");
+            if (!test)
+                printf("Save image failure.\n");
+            QImage img(xPath);
+            BImage bimg(img,true);
+            bimg.claimOwnership(result[0],1);
+            bimg.claimOwnership(result[1],1);
+            bimg.saveOwners("./test.ppm");
+            char dump;
+            scanf("%c",&dump);
+        }
+    }
+    double scoreMean = sumScore/744.0;
+    double accuracy = correct/744.0;
+    printf("on LTP dataset %d, accuracy: %f   mean score:%f\n",setNum,accuracy,scoreMean);
+}
+
+QVector<BImage*> Evaluate::segmentLTPImage(const QString &img_path)
+{
+    QImage img(img_path);
+    BImage big_img(img,true);
+    
+    //find and seperate connected components
+    GImage numbered(big_img.width(),big_img.height());
+    BImage* top = new BImage(big_img.width(),big_img.height());
+    BImage* bottom = new BImage(big_img.width(),big_img.height());
+    
+    
+    int cur_marker=0;
+//    int num_comp=0;
+    QMap<int,int > mergeKey;
+    for (int y=0; y<big_img.height(); y++)
+        for (int x=0; x<big_img.width(); x++)
+        {
+            
+//            QList<int>::const_iterator iter = mergeKey.keys().constBegin();
+//            for (;iter!=mergeKey.keys().constEnd(); ++iter)
+//            {
+////                assert(0!=*iter);
+//                if (0==*iter)
+//                {
+//                    foreach (int m, mergeKey[0])
+//                        printf("0:%d\n",m);
+//                }
+//            }
+            if (y==0)
+            {
+                if (big_img.pixel(x,y))
+                {
+                    if (x!=0 && big_img.pixel(x-1,y))
+                        numbered.setPixel(x,y,cur_marker);
+                    else
+                    {
+                        numbered.setPixel(x,y,++cur_marker);
+                        mergeKey[cur_marker]=cur_marker;
+//                        num_comp++;
+//                        printf ("now %d at (%d,%d)\n",cur_marker,x,y);
+                    }
+                }
+            }
+            else
+            {
+                if (big_img.pixel(x,y))
+                {
+                    if (x!=0 && big_img.pixel(x-1,y))
+                    {
+                        int prev_marker=numbered.pixel(x-1,y);
+                        numbered.setPixel(x,y,prev_marker);
+                        if (big_img.pixel(x,y-1) && numbered.pixel(x,y-1) != prev_marker)
+                        {
+                            int base = toEnd(numbered.pixel(x,y-1),mergeKey);
+                            
+                            rewritePast(prev_marker,base,mergeKey);
+                            //merge;
+                        }
+                        else if (big_img.pixel(x-1,y-1) && numbered.pixel(x-1,y-1) != prev_marker)
+                        {
+                            int base = toEnd(numbered.pixel(x-1,y-1),mergeKey);
+                            rewritePast(prev_marker,base,mergeKey);
+                            //merge;
+                        }
+                    }
+                    else if (x!=0 && big_img.pixel(x-1,y-1))
+                    {
+                        int prev_marker=numbered.pixel(x-1,y-1);
+                        numbered.setPixel(x,y,prev_marker);
+                    }
+                    else if (big_img.pixel(x,y-1))
+                    {
+                        int prev_marker=numbered.pixel(x,y-1);
+                        numbered.setPixel(x,y,prev_marker);
+                    }
+                    else
+                    {
+                        numbered.setPixel(x,y,++cur_marker);
+                        mergeKey[cur_marker]=cur_marker;
+//                        num_comp++;
+//                        printf ("now %d at (%d,%d)\n",cur_marker,x,y);
+                    }
+                }
+            }
+        }
+//        printf ("cur marker=%d\n",cur_marker);
+    QSet<int> done;
+    
+    QMap<int,int> finalMergeKey;
+//    QList<int>::const_iterator iter = mergeKey.keys().constBegin();
+//    for (;iter!=mergeKey.keys().constEnd(); ++iter)
+//    {
+//        finalMergeKey[*iter]=toEnd(*iter,mergeKey);
+//        printf ("merge keys %d : %d\n",*iter,finalMergeKey[*iter]);
+//    }
+    foreach(int key, mergeKey.keys())
+    {
+        finalMergeKey[key]=toEnd(key,mergeKey);
+    }
+    //Done doing CC
+
+    while (done.size()<cur_marker)
+    {
+        int marker;
+        auto iter = finalMergeKey.keys().begin();
+        do{
+            marker=*iter;
+            ++iter;
+//            printf("marker=%d\n",marker);
+        } while (done.contains(marker) || marker==0);
+        
+        QSet<int> markers;
+        foreach (int key, finalMergeKey.keys())
+        {
+//            printf("examine %d ",key);
+            if (finalMergeKey[key]==finalMergeKey[marker])
+            {
+                done.insert(key);
+//                printf("added %d\n",key);
+                markers.insert(key);
+                
+            }
+        }
+        foreach (int key,markers)
+        {
+            finalMergeKey.remove(key);
+        }
+        
+        
+        
+        BImage bimg(big_img.width()/2,big_img.height()/2);
+        QVector<QPoint> lostPoints;
+        for (int x=0; x<bimg.width(); x++)
+            for (int y=0; y<bimg.height(); y++)
+            {
+                int sum=0;
+                sum += markers.contains(numbered.pixel(x*2,y*2))?1:0;
+                sum += markers.contains(numbered.pixel(x*2 + 1,y*2))?1:0;
+                sum += markers.contains(numbered.pixel(x*2,y*2 + 1))?1:0;
+                sum += markers.contains(numbered.pixel(x*2 + 1,y*2 + 1))?1:0;
+                
+                bimg.setPixel(x,y,sum > 2);
+                if (sum <=2 && sum >0)
+                {
+                    QPoint p(x,y);
+                    lostPoints.append(p);
+                }
+            }
+        
+        
+        QVector<QPoint> sourceSeeds;
+        QVector<QPoint> sinkSeeds;
+        
+        for (int x=0; x<bimg.width(); x++)
+        {
+            if (bimg.pixel(x,0))
+            {
+                QPoint p(x,0);
+                sourceSeeds.append(p);
+            }
+            if (bimg.pixel(x,bimg.height()-1))
+            {
+                QPoint p(x,bimg.height()-1);
+                sinkSeeds.append(p);
+            }
+        }
+        
+        if (sourceSeeds.size()==0)
+        {
+            for (int y=0; y<bimg.height()/2; y++)
+            {
+                if (bimg.pixel(0,y))
+                {
+                    QPoint p(0,y);
+                    sourceSeeds.append(p);
+                }
+                if (bimg.pixel(bimg.width()-1,y))
+                {
+                    QPoint p(bimg.height()-1,y);
+                    sourceSeeds.append(p);
+                }
+            }
+        }
+        if (sinkSeeds.size()==0)
+        {
+            for (int y=bimg.height()/2; y<bimg.height(); y++)
+            {
+                if (bimg.pixel(0,y))
+                {
+                    QPoint p(0,y);
+                    sinkSeeds.append(p);
+                }
+                if (bimg.pixel(bimg.width()-1,y))
+                {
+                    QPoint p(bimg.height()-1,y);
+                    sinkSeeds.append(p);
+                }
+            }
+        }
+        
+        QVector<BPartition*> result;
+        if (sourceSeeds.size()!=0 && sinkSeeds.size()!=0)
+            result = WordSeparator::recut3D(bimg, sourceSeeds, sinkSeeds,-1,QVector<QPoint>());
+        else if (sourceSeeds.size()!=0)
+        {
+            result.append(new BPartition(&bimg,true));
+            result.append(new BPartition(&bimg));
+        }
+        else if (sinkSeeds.size()!=0)
+        {
+            result.append(new BPartition(&bimg));
+            result.append(new BPartition(&bimg,true));
+        }
+        else
+        {
+            result.append(new BPartition(&bimg,true));
+            result.append(new BPartition(&bimg));
+            printf("ERROR (Evaluate:onLTP): floating CC (assumed top), saved to test.ppm\n");
+            bimg.save("./test.ppm");
+        }
+        
+        for (int x=0; x<bimg.width(); x++)
+            for (int y=0; y<bimg.height(); y++)
+            {
+                if (result[0]->pixelSrc(x,y))
+                {
+                    top->setPixel(x*2,y*2,big_img.pixel(x*2,y*2));
+                    top->setPixel(x*2 + 1,y*2,big_img.pixel(x*2 + 1,y*2));
+                    top->setPixel(x*2,y*2 + 1,big_img.pixel(x*2,y*2 + 1));
+                    top->setPixel(x*2 + 1,y*2 + 1,big_img.pixel(x*2 + 1,y*2 + 1));
+                }
+                
+                if (result[1]->pixelSrc(x,y))
+                {
+                    bottom->setPixel(x*2,y*2,big_img.pixel(x*2,y*2));
+                    bottom->setPixel(x*2 + 1,y*2,big_img.pixel(x*2 + 1,y*2));
+                    bottom->setPixel(x*2,y*2 + 1,big_img.pixel(x*2,y*2 + 1));
+                    bottom->setPixel(x*2 + 1,y*2 + 1,big_img.pixel(x*2 + 1,y*2 + 1));
+                }
+                
+            }
+        QVector<QPoint> missedPoints;
+        while(lostPoints.size()>0)
+        {
+            QPoint p=lostPoints.front();
+            lostPoints.pop_front();
+            int x=p.x();
+            int y=p.y();
+            
+            bool addedTop=false;
+            bool addedBottom=false;
+//            for (int xd=-1; xd<=2; xd++)
+//            {
+//                if (top->pixelIgnoreOff(x*2+xd,y*2-1) || top->pixelIgnoreOff(x*2+xd,y*2+2))
+//                {
+//                    addedTop=true;
+//                    top->setPixelIgnoreOff(x*2,y*2,big_img.pixelIgnoreOff(x*2,y*2));
+//                    top->setPixelIgnoreOff(x*2 + 1,y*2,big_img.pixelIgnoreOff(x*2 + 1,y*2));
+//                    top->setPixelIgnoreOff(x*2,y*2 + 1,big_img.pixelIgnoreOff(x*2,y*2 + 1));
+//                    top->setPixelIgnoreOff(x*2 + 1,y*2 + 1,big_img.pixelIgnoreOff(x*2 + 1,y*2 + 1));
+//                }
+                
+//                if (bottom->pixelIgnoreOff(x*2+xd,y*2-1) || bottom->pixelIgnoreOff(x*2+xd,y*2+2))
+//                {
+//                    addedBottom=true;
+//                    bottom->setPixelIgnoreOff(x*2,y*2,big_img.pixelIgnoreOff(x*2,y*2));
+//                    bottom->setPixelIgnoreOff(x*2 + 1,y*2,big_img.pixelIgnoreOff(x*2 + 1,y*2));
+//                    bottom->setPixelIgnoreOff(x*2,y*2 + 1,big_img.pixelIgnoreOff(x*2,y*2 + 1));
+//                    bottom->setPixelIgnoreOff(x*2 + 1,y*2 + 1,big_img.pixelIgnoreOff(x*2 + 1,y*2 + 1));
+//                }
+//            }
+//            if (!addedTop && (top->pixelIgnoreOff(x*2-1,y*2) || top->pixelIgnoreOff(x*2-1,y*2+1) ||
+//                              top->pixelIgnoreOff(x*2+1,y*2) || top->pixelIgnoreOff(x*2+1,y*2+1)))
+//            {
+//                addedTop=true;
+//                top->setPixelIgnoreOff(x*2,y*2,big_img.pixelIgnoreOff(x*2,y*2));
+//                top->setPixelIgnoreOff(x*2 + 1,y*2,big_img.pixelIgnoreOff(x*2 + 1,y*2));
+//                top->setPixelIgnoreOff(x*2,y*2 + 1,big_img.pixelIgnoreOff(x*2,y*2 + 1));
+//                top->setPixelIgnoreOff(x*2 + 1,y*2 + 1,big_img.pixelIgnoreOff(x*2 + 1,y*2 + 1));
+//            }
+//            if (!addedBottom && (bottom->pixelIgnoreOff(x*2-1,y*2) || bottom->pixelIgnoreOff(x*2-1,y*2+1) ||
+//                              bottom->pixelIgnoreOff(x*2+1,y*2) || bottom->pixelIgnoreOff(x*2+1,y*2+1)))
+//            {
+//                addedBottom=true;
+//                bottom->setPixelIgnoreOff(x*2,y*2,big_img.pixelIgnoreOff(x*2,y*2));
+//                bottom->setPixelIgnoreOff(x*2 + 1,y*2,big_img.pixelIgnoreOff(x*2 + 1,y*2));
+//                bottom->setPixelIgnoreOff(x*2,y*2 + 1,big_img.pixelIgnoreOff(x*2,y*2 + 1));
+//                bottom->setPixelIgnoreOff(x*2 + 1,y*2 + 1,big_img.pixelIgnoreOff(x*2 + 1,y*2 + 1));
+//            }
+            if (result[0]->pixelSrcIgnoreOff(x-1,y) || result[0]->pixelSrcIgnoreOff(x,y-1) || result[0]->pixelSrcIgnoreOff(x+1,y) || result[0]->pixelSrcIgnoreOff(x,y+1))
+            {
+                addedTop=true;
+                top->setPixelIgnoreOff(x*2,y*2,big_img.pixelIgnoreOff(x*2,y*2));
+                top->setPixelIgnoreOff(x*2 + 1,y*2,big_img.pixelIgnoreOff(x*2 + 1,y*2));
+                top->setPixelIgnoreOff(x*2,y*2 + 1,big_img.pixelIgnoreOff(x*2,y*2 + 1));
+                top->setPixelIgnoreOff(x*2 + 1,y*2 + 1,big_img.pixelIgnoreOff(x*2 + 1,y*2 + 1));
+            }
+            if (result[1]->pixelSrcIgnoreOff(x-1,y) || result[1]->pixelSrcIgnoreOff(x,y-1) || result[1]->pixelSrcIgnoreOff(x+1,y) || result[1]->pixelSrcIgnoreOff(x,y+1))
+            {
+                addedBottom=true;
+                bottom->setPixelIgnoreOff(x*2,y*2,big_img.pixelIgnoreOff(x*2,y*2));
+                bottom->setPixelIgnoreOff(x*2 + 1,y*2,big_img.pixelIgnoreOff(x*2 + 1,y*2));
+                bottom->setPixelIgnoreOff(x*2,y*2 + 1,big_img.pixelIgnoreOff(x*2,y*2 + 1));
+                bottom->setPixelIgnoreOff(x*2 + 1,y*2 + 1,big_img.pixelIgnoreOff(x*2 + 1,y*2 + 1));
+            }
+            
+            
+            
+            if (!addedTop && !addedBottom)
+            {
+                missedPoints.append(p);
+            }
+            
+        }
+        
+        while(missedPoints.size()>0)
+        {
+            QPoint p=missedPoints.front();
+            missedPoints.pop_front();
+            int x=p.x();
+            int y=p.y();
+            
+            bool addedTop=false;
+            bool addedBottom=false;
+            for (int xd=-1; xd<=2; xd++)
+            {
+                if (top->pixelIgnoreOff(x*2+xd,y*2-1) || top->pixelIgnoreOff(x*2+xd,y*2+2))
+                {
+                    addedTop=true;
+                    top->setPixelIgnoreOff(x*2,y*2,big_img.pixelIgnoreOff(x*2,y*2));
+                    top->setPixelIgnoreOff(x*2 + 1,y*2,big_img.pixelIgnoreOff(x*2 + 1,y*2));
+                    top->setPixelIgnoreOff(x*2,y*2 + 1,big_img.pixelIgnoreOff(x*2,y*2 + 1));
+                    top->setPixelIgnoreOff(x*2 + 1,y*2 + 1,big_img.pixelIgnoreOff(x*2 + 1,y*2 + 1));
+                }
+                
+                if (bottom->pixelIgnoreOff(x*2+xd,y*2-1) || bottom->pixelIgnoreOff(x*2+xd,y*2+2))
+                {
+                    addedBottom=true;
+                    bottom->setPixelIgnoreOff(x*2,y*2,big_img.pixelIgnoreOff(x*2,y*2));
+                    bottom->setPixelIgnoreOff(x*2 + 1,y*2,big_img.pixelIgnoreOff(x*2 + 1,y*2));
+                    bottom->setPixelIgnoreOff(x*2,y*2 + 1,big_img.pixelIgnoreOff(x*2,y*2 + 1));
+                    bottom->setPixelIgnoreOff(x*2 + 1,y*2 + 1,big_img.pixelIgnoreOff(x*2 + 1,y*2 + 1));
+                }
+            }
+            if (!addedTop && (top->pixelIgnoreOff(x*2-1,y*2) || top->pixelIgnoreOff(x*2-1,y*2+1) ||
+                              top->pixelIgnoreOff(x*2+1,y*2) || top->pixelIgnoreOff(x*2+1,y*2+1)))
+            {
+                addedTop=true;
+                top->setPixelIgnoreOff(x*2,y*2,big_img.pixelIgnoreOff(x*2,y*2));
+                top->setPixelIgnoreOff(x*2 + 1,y*2,big_img.pixelIgnoreOff(x*2 + 1,y*2));
+                top->setPixelIgnoreOff(x*2,y*2 + 1,big_img.pixelIgnoreOff(x*2,y*2 + 1));
+                top->setPixelIgnoreOff(x*2 + 1,y*2 + 1,big_img.pixelIgnoreOff(x*2 + 1,y*2 + 1));
+            }
+            if (!addedBottom && (bottom->pixelIgnoreOff(x*2-1,y*2) || bottom->pixelIgnoreOff(x*2-1,y*2+1) ||
+                              bottom->pixelIgnoreOff(x*2+1,y*2) || bottom->pixelIgnoreOff(x*2+1,y*2+1)))
+            {
+                addedBottom=true;
+                bottom->setPixelIgnoreOff(x*2,y*2,big_img.pixelIgnoreOff(x*2,y*2));
+                bottom->setPixelIgnoreOff(x*2 + 1,y*2,big_img.pixelIgnoreOff(x*2 + 1,y*2));
+                bottom->setPixelIgnoreOff(x*2,y*2 + 1,big_img.pixelIgnoreOff(x*2,y*2 + 1));
+                bottom->setPixelIgnoreOff(x*2 + 1,y*2 + 1,big_img.pixelIgnoreOff(x*2 + 1,y*2 + 1));
+            }
+            
+            
+            
+            if (!addedTop && !addedBottom)
+            {
+                if (y*2<top->height()/2)
+                {
+                    top->setPixelIgnoreOff(x*2,y*2,big_img.pixelIgnoreOff(x*2,y*2));
+                    top->setPixelIgnoreOff(x*2 + 1,y*2,big_img.pixelIgnoreOff(x*2 + 1,y*2));
+                    top->setPixelIgnoreOff(x*2,y*2 + 1,big_img.pixelIgnoreOff(x*2,y*2 + 1));
+                    top->setPixelIgnoreOff(x*2 + 1,y*2 + 1,big_img.pixelIgnoreOff(x*2 + 1,y*2 + 1));
+                }
+                else
+                {
+                    bottom->setPixelIgnoreOff(x*2,y*2,big_img.pixelIgnoreOff(x*2,y*2));
+                    bottom->setPixelIgnoreOff(x*2 + 1,y*2,big_img.pixelIgnoreOff(x*2 + 1,y*2));
+                    bottom->setPixelIgnoreOff(x*2,y*2 + 1,big_img.pixelIgnoreOff(x*2,y*2 + 1));
+                    bottom->setPixelIgnoreOff(x*2 + 1,y*2 + 1,big_img.pixelIgnoreOff(x*2 + 1,y*2 + 1));
+                }
+                printf("missed missed\n");
+            }
+            
+            
+        }
+        delete result[0];
+        delete result[1];
+//        bool test = result[0]->makeImage().save("./test0.ppm");
+//        test &= result[1]->makeImage().save("./test1.ppm");
+//        if (!test)
+//            printf("Save image failure.\n");
+//        bimg.claimOwnership(result[0],1);
+//        bimg.claimOwnership(result[1],1);
+//        bimg.saveOwners("./test.ppm");
+    }
+//    top->save("./test0.ppm");
+//    bottom->save("./test1.ppm");
+    
+    QVector<BImage*> ret;
+    ret.append(top);
+    ret.append(bottom);
+    return ret;
+}
+
+
+void Evaluate::onLTPSingle(QString LTP_path, int setNum, int i)
+{
+    if (LTP_path.size()<2)
+    {
+        LTP_path="/home/brian/intel_index/LTP_dataset/";
+    }
+    else if (LTP_path[LTP_path.length()-1]!='/')
+        LTP_path.append("/");
+    
+        QString set;
+        set.setNum(setNum);
+        QString num;
+        num.setNum(i);
+        QString xPath = LTP_path+set+"/"+set+"-"+num+"-X.tif";
+        QString aPath = LTP_path+set+"/"+set+"-"+num+"-A.tif";
+        QString bPath = LTP_path+set+"/"+set+"-"+num+"-B.tif";
+        
+        QVector<BImage*> result = segmentLTPImage(xPath);
+        QImage imgGTTop(bPath);
+        BImage bimgGTTop(imgGTTop,true);
+        QImage imgGTBot(aPath);
+        BImage bimgGTBot(imgGTBot,true);
+        
+        double MSTop = matchedScore(*(result[0]),bimgGTTop);
+        double MSBot = matchedScore(*(result[1]),bimgGTBot);
+        double MatchScore = (2*MSTop*MSBot)/(MSTop+MSBot);
+        
+        printf("(score of %f)\n",MatchScore);
+        bool test = result[0]->makeImage().save("./test0.ppm");
+        test &= result[1]->makeImage().save("./test1.ppm");
+        if (!test)
+            printf("Save image failure.\n");
+        QImage img(xPath);
+        BImage bimg(img,true);
+        bimg.claimOwnership(result[0],1);
+        bimg.claimOwnership(result[1],1);
+        bimg.saveOwners("./test.ppm");
+    
+   
+}

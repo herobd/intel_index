@@ -8,7 +8,7 @@ class GImage : public GPixelCollection
 {
 public:
     GImage(QImage &other);
-//    GImage(int w, int h);
+    GImage(int w, int h);
     int pixel(int x, int y) const;
     bool pixelIsMine(int x, int y) const;
     int width() const;

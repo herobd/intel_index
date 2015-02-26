@@ -210,10 +210,10 @@ int main(int argc, char** argv)
 //    QPoint cross(6,18);
     
     //27
-    QPoint p(39,14);
-    QPoint p2(0,52);
-    QPoint p2x(112,51);
-    QPoint cross(0,0);
+//    QPoint p(39,14);
+//    QPoint p2(0,52);
+//    QPoint p2x(112,51);
+//    QPoint cross(0,0);
     
     //28
 //    QPoint p(0,17);
@@ -238,11 +238,48 @@ int main(int argc, char** argv)
 //    QPoint p2(67,57);
 //    QPoint cross(56,25);
     
+    //fthw overlap2
+//    QPoint p(74,29);
+//    QPoint p2(28,77);
+//    QPoint cross(38,36);
+    
+    //fthw overlap3
+//    QPoint p(3,31);
+//    QPoint px(69,31);
+//    QPoint p2(7,62);
+//    QPoint p2x(68,66);
+//    QPoint cross(52,29);
+    
+    //cartoon_section
+//    QPoint p(26,0);
+//    QPoint px(42,0);
+//    QPoint pxx(50,6);
+//    QPoint p2(24,51);
+//    QPoint p2x(32,51);
+//    QPoint cross(52,29);
+    
+    //cartoon_section RIGGED
+    QPoint p(17,39);
+    QPoint px(42,0);
+    QPoint pxx(34,36);
+    QPoint p2(24,51);
+    QPoint p2x(27,24);
+    QPoint cross(52,29);
+    
+    //cartoon_works2
+//    QPoint p(27,0);
+//    QPoint px(43,0);
+//    QPoint pxx(49,3);
+//    QPoint p2(18,51);
+////    QPoint p2x(26,51);
+//    QPoint cross(52,29);
+    
     sourceSeeds.append(p);
-//    sourceSeeds.append(px);
+    sourceSeeds.append(px);
+    sourceSeeds.append(pxx);
     
     sinkSeeds.append(p2);
-    sinkSeeds.append(p2x);
+//    sinkSeeds.append(p2x);
     QVector<QPoint> crossing;
     crossing.append(cross);
     QVector<BPartition*> result = WordSeparator::recut3D(bimg, sourceSeeds, sinkSeeds,cross.y(),crossing);
@@ -279,7 +316,13 @@ int main(int argc, char** argv)
     
     
 //    QImage probMap("./average_desc.pgm");
-//    QVector<QVector<double> > descenderProbMap=ImageAverager::produceProbabilityMap(probMap);
+//    QVector<int> ids;
+//    for (int i=0; i<41; i++)
+//        ids.append(i);
+//    ImageAverager ia(120,65);
+//    QImage avg = ia.averageImages(argv[1],ids);
+//    avg.save("./average_desc2.pgm");
+//    QVector<QVector<double> > descenderProbMap=ImageAverager::produceProbabilityMap(avg);
     
 //    WordSeparator::adjustHorzCutCrossOverAreas(cuts[0],cuts[1],crossPoints,descenderProbMap);
     
@@ -500,6 +543,10 @@ int main(int argc, char** argv)
 //    Evaluate::newTwoNameHorizontalSegmentationTest(argv[1],argv[2]);
 //    Evaluate::newFirstLetterHorizontalSegmentationTest(argv[1],argv[2],argv[3]);
 //    Evaluate::newDumbTwoNameHorizontalSegmentationTest(argv[1],argv[2]);
+//    QString n(argv[1]);
+//    Evaluate::onLTP("",n.toInt());
+//    QString n2(argv[2]);
+//    Evaluate::onLTPSingle("",n.toInt(),n2.toInt());
     
 //    Trainer::trainTwoWordSeparation(argv[1]);
 //    Trainer::trainTwoWordSeparationDumb(argv[1]);

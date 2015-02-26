@@ -78,7 +78,7 @@ LIBS += -lm
 INCLUDEPATH += /home/brian/intel_index/hr/src /home/brian/intel_index/flann-1.8.4-src/src/cpp  /home/brian/boost_1_56_0 /home/brian/intel_index/kgraph-1.2-x86_64 /home/brian/intel_index/kgraph-1.2-x86_64/bin
 #INCLUDEPATH += /urs/local/include
 LIBS += -L/home/brian/intel_index/hr/lib/ -ldocumentproj_2013.08.30
-LIBS += -L/home/brian/intel_index/kgraph-1.1-x86_64/bin/ -lkgraph
+LIBS += -L/home/brian/intel_index/kgraph-1.2-x86_64/bin/ -l:libkgraph.so
 LIBS += -L/urs/local/include/opencv2 -lopencv_viz -l:libopencv_core.so.2.4
 QMAKE_CXXFLAGS+= -std=c++11
 

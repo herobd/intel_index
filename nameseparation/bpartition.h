@@ -11,9 +11,9 @@
 class BPartition : public BPixelCollection
 {
 public:
-    BPartition(const BImage* ofImage);
-    BPartition(const BPartition* ofImage);
-    BPartition(const BPixelCollection* ofImage);
+    BPartition(const BImage* ofImage, bool whole=false);
+    BPartition(const BPartition* ofImage, bool whole=false);
+    BPartition(const BPixelCollection* ofImage, bool whole=false);
     ~BPartition();
     BPartition& operator=( const BPartition& other );
     const BPixelCollection* getSrc() const;
@@ -25,6 +25,7 @@ public:
     bool pixel(const QPoint &p) const;
     bool pixel(int x, int y) const;
     bool pixelSrc(int src_x, int src_y) const;
+    bool pixelSrcIgnoreOff(int src_x, int src_y) const;
 //    bool pixelIsMine(const QPoint &p) const;
     bool pixelIsMineSrc(int src_x, int src_y) const;
     bool pixelIsMineSrc(const QPoint &src_p) const;
@@ -62,7 +63,7 @@ private:
     //unsigned int* myPixels; //flatten 2D array of bits for whole src img
     bool** myPixels;
     
-    void initMyPixels();
+    void initMyPixels(bool s);
     inline void setMyPixelTrue(int src_x, int src_y);
     inline void setMyPixelFalse(int src_x, int src_y);
     

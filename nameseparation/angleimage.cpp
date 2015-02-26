@@ -374,7 +374,7 @@ void AngleImage::init()
     }
 }
 
-void AngleImage::init2()//has smarter filling algorithm
+void AngleImage::init2()//has smarter filling algorithm (doesnt do mid points, but whole line)
 {
     QVector<QPoint> refPoints;
     QVector<QPoint> refPointsS;
@@ -387,6 +387,9 @@ void AngleImage::init2()//has smarter filling algorithm
 //    QImage hand("/home/brian/test/marked_overlappingletters21.ppm");
 //    skeleton.initHand(src,hand);
     skeleton.init(src);
+    
+    if (skeleton.numberOfVertices()==0)
+        return;
     
     QVector<bool> visited(skeleton.numberOfVertices());
     
@@ -454,7 +457,7 @@ void AngleImage::init2()//has smarter filling algorithm
     QVector<double> angleEdgeStack;
     QVector<double> distanceEdgeStack;
     
-    double HARD_FILL_RADIOUS_CONST = 2;
+    double HARD_FILL_RADIOUS_CONST = 1;
     for (int i=0; i<refPoints.size(); i++)
     {
         QVector<QPoint> workingStack;
@@ -517,7 +520,7 @@ void AngleImage::init2()//has smarter filling algorithm
             workingStack.pop_front();
             double curDist = distStack.front();
             distStack.pop_front();
-            
+//            printf("curDist=%f\n",curDist);
             if (curDist > fillRadious)
             {
                 edgeStack.append(cur);

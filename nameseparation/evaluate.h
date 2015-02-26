@@ -27,6 +27,9 @@ public:
     static double horizontalSegmentationTest(QString root);
     static void evaluateScoreInfo(QString correctPath, QString incorrectPath);
     static void writeScores(QString imgPath, QString correctPath, QString incorrectPath);
+    static void onLTP(QString LTP_path, int setNum);
+    static QVector<BImage*> segmentLTPImage(const QString &img_path);
+    static void onLTPSingle(QString LTP_path, int setNum, int i);
 };
 
 #endif // EVALUATE_H
