@@ -1,7 +1,7 @@
 #include "bagspotter.h"
 #include <dirent.h>
 
-#define SIFT_THRESH .12
+#define SIFT_THRESH .04
 #define MIN_FEATURE_SIZE 5
 
 //../../data/centriods.dat ../../data/bigram/ee/ ../../data/name_segs/
@@ -12,7 +12,7 @@ BagSpotter::BagSpotter(const Codebook *codebook)
     learned_tfidf.assign(codebook->size(),0);
     windowWidth=0;
     windowHeight=0;
-    stepSize=20;
+    stepSize=8;//20
     
     for (int c=0; c<codebook->size(); c++)
     {
@@ -32,15 +32,16 @@ void BagSpotter::detectKeypoints(Mat &img, vector<KeyPoint> &keypoints, Mat &des
     int r=0;
     while (kpI != keypoints.end() )
     {
-        if (kpI->size < MIN_FEATURE_SIZE)
-        {
-            kpI = keypoints.erase(kpI);
+//        if (kpI->size < MIN_FEATURE_SIZE)
+//        {
+//            kpI = keypoints.erase(kpI);
             
-        }
-        else
+//        }
+//        else
         {
-            kpI++; r++;
+            
             desc.push_back(temp.row(r));
+            kpI++; r++;
         }
     }
 }

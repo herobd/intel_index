@@ -38,4 +38,5 @@ HEADERS += \
     simplebinnedimage.h \
     customsift.h \
     bagspotter.h \
-    spatialaveragespotter.h
+    spatialaveragespotter.h \
+    MatchKeypoints.h

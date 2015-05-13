@@ -32,6 +32,7 @@ private:
     vector<Vec3b> colorTable;
     
     vector<Mat> featureAverages;
+    vector<Mat> adjustedTrainingImages;
     float penalty;
     
     map< int, map< int, vector<int> > >* buildFeatureMap(Mat img);
@@ -40,7 +41,7 @@ private:
     void putPointsOn(Mat &img, map< int, map< int, vector<int> > >* fm, Point2i corner);
     Point2f findCenterOfMass(Mat &img);
     void maximizeAlignment(vector<vector<tuple<int,Point2f> > > &features);
-    float getUsingOffset(Mat &featureAverage, int xOff, int yOff);
+    float getUsingOffset(Mat &featureAverage, double xOff, double yOff);
     void addUsingOffset(Mat &featureAverage, int xOff, int yOff, float add);
     void guassColorIn(const vector<tuple<int,Point2f> > &feature);
     void guassColorOut(const vector<tuple<int,Point2f> > &feature);

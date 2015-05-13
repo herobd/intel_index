@@ -10,7 +10,7 @@ SpatialAverageSpotter::SpatialAverageSpotter(const Codebook *codebook)
     learned_tfidf.assign(codebook->size(),0);
     windowWidth=0;
     windowHeight=0;
-    stepSize=20;//20
+    stepSize=10;//20 DD 8 TT
     
     
     vector<Vec3b> tempTable;
@@ -23,11 +23,12 @@ SpatialAverageSpotter::SpatialAverageSpotter(const Codebook *codebook)
     cvtColor(tempTable,colorTable,CV_HSV2RGB); 
     
     
-    detector = new SIFT(0,3,.04,5);
-    //detector = new SURF()
+//    detector = new SIFT(0,3,.04,5);
+    detector = new SURF(20000,2,4,true,true);//TT 20000
 }
 
 #define MIN_FEATURE_SIZE 4
+#define MAX_FEATURE_SIZE 10
 void SpatialAverageSpotter::detectKeypoints(Mat &img, vector<KeyPoint> &keypoints, Mat &desc)
 {
     Mat temp;
@@ -37,12 +38,13 @@ void SpatialAverageSpotter::detectKeypoints(Mat &img, vector<KeyPoint> &keypoint
     int r=0;
     while (kpI != keypoints.end() )
     {
-        if (kpI->size < MIN_FEATURE_SIZE)
-        {
-            kpI = keypoints.erase(kpI);
+//        if (kpI->size < MIN_FEATURE_SIZE) DD
+//        if (kpI->size > MAX_FEATURE_SIZE)
+//        {
+//            kpI = keypoints.erase(kpI);
             
-        }
-        else
+//        }
+//        else
         {
             
             desc.push_back(temp.row(r));
@@ -51,7 +53,22 @@ void SpatialAverageSpotter::detectKeypoints(Mat &img, vector<KeyPoint> &keypoint
     }
 }
 
-#define BASE_SIZE 100
+Mat translateImg(Mat &img, int offsetx, int offsety){
+    Mat trans_mat = (Mat_<double>(2,3) << 1, 0, offsetx, 0, 1, offsety);
+    warpAffine(img,img,trans_mat,img.size());
+    return trans_mat;
+}
+
+Mat strechImg(Mat &img, double scalex, double scaley){
+    Mat trans_mat = (Mat_<double>(2,3) << scalex, 0, 0, 0, scaley, 0);
+    warpAffine(img,img,trans_mat,img.size());
+    return trans_mat;
+}
+
+
+#define BORDER_SIZE 10
+#define PRE_BASE_SIZE 140//150 DD 70 TT
+#define BASE_SIZE PRE_BASE_SIZE+2*BORDER_SIZE 
 bool SpatialAverageSpotter::train(string dirPath)
 {
     
@@ -59,7 +76,7 @@ bool SpatialAverageSpotter::train(string dirPath)
     vector<vector<tuple<int,Point2f> > > features;
     featureAverages.resize(codebook->size());
     for (int i =0; i<codebook->size(); i++)
-        featureAverages[i]=Mat(Size(BASE_SIZE*2,BASE_SIZE),CV_32F,Scalar(0));
+        featureAverages[i]=Mat(BASE_SIZE,BASE_SIZE,CV_32F,Scalar(0));
     
     DIR *dir;
     struct dirent *ent;
@@ -69,26 +86,41 @@ bool SpatialAverageSpotter::train(string dirPath)
       while ((ent = readdir (dir)) != NULL) {
           
           string fileName(ent->d_name);
-          //cout << "examining " << fileName << endl;
+//          cout << "examining " << fileName << endl;
           if (fileName[0] == '.' || fileName[fileName.size()-1]!='G')
               continue;
           
-          Mat imgO = imread(dirPath+fileName, CV_LOAD_IMAGE_GRAYSCALE);
-          windowWidth += imgO.cols;
-          windowHeight += imgO.rows;
-          Mat img;
-          resize(imgO,img,Size(BASE_SIZE*((0.0+imgO.cols)/imgO.rows),BASE_SIZE));
+          Mat img = imread(dirPath+fileName, CV_LOAD_IMAGE_GRAYSCALE);
+          resize(img,img,Size(0,0),2,2);
+          threshold(img,img,120.0,255,THRESH_BINARY);
+          windowWidth += img.cols;
+          windowHeight += img.rows;
+//          int avg=0;
+//          for (int x=0; x<img.cols; x++)
+//              for (int  y=0; y<img.rows; y++)
+//                  avg += (int)img.at<unsigned char>(y,x);
+////          cout << "avg="<<avg<<"/"<<img.cols*img.rows<<" = "<<avg/(img.cols*img.rows)<<endl;
+//          avg /= img.cols*img.rows;
+          
+          resize(img,img,Size(PRE_BASE_SIZE,PRE_BASE_SIZE*((0.0+img.rows)/img.cols)));
+          
+          
+          copyMakeBorder( img, img, BORDER_SIZE, BORDER_SIZE, BORDER_SIZE, BORDER_SIZE, BORDER_CONSTANT, 255 );
           assert(img.cols > 1 && img.rows > 1);
+          adjustedTrainingImages.push_back(img.clone());
           
           Point2f centerOfMass = findCenterOfMass(img);
+          int offsetx=(img.cols/2)-centerOfMass.x;
+          int offsety=(img.rows/2)-centerOfMass.y;
+          translateImg(img,offsetx,offsety);
           
         
           vector<KeyPoint> keypoints;
           Mat desc;
           detectKeypoints( img,keypoints, desc);
-//          Mat out;
-//          cvtColor(img,out,CV_GRAY2RGB);
-//          circle(out,centerOfMass,1,Scalar(0,0,255));
+          Mat out;
+          cvtColor(img,out,CV_GRAY2RGB);
+          circle(out,centerOfMass,1,Scalar(0,0,255));
           
           features.resize(count+1);
           //double scaling = BASE_SIZE/img
@@ -100,16 +132,19 @@ bool SpatialAverageSpotter::train(string dirPath)
               
               
 //              circle(out,keypoints[r].pt,keypoints[r].size,Scalar(colorTable[f]));
+              Rect rec(keypoints[r].pt.x-(keypoints[r].size/2),keypoints[r].pt.y-(keypoints[r].size/2),keypoints[r].size,keypoints[r].size);
+              rectangle(out,rec,Scalar(colorTable[f]));
               
           }
           guassColorIn(features[count]);
           
           
-//          imshow("learning keypoints",out);
-//          waitKey();
+          imshow("learning keypoints",out);
+          cout << "image "<<count<<endl;
+          waitKey();
           
           count++;
-          img.release();
+//          img.release();
       }
       closedir (dir);
     } else {
@@ -178,7 +213,7 @@ Point2f SpatialAverageSpotter::findCenterOfMass(Mat &img)
     for (int x=0; x<img.cols; x++)
         for (int y=0; y<img.rows; y++)
         {
-            int val = img.at<char>(y,x);
+            int val = img.at<unsigned char>(y,x);
 //            val = max(0,val-avg);
             sum += val;
             xSum += val*x;
@@ -205,7 +240,7 @@ void SpatialAverageSpotter::showAverages()
                 if (val<min) min=val;
             }
     }
-    Mat out((BASE_SIZE+1)*(codebook->size()),BASE_SIZE*2,CV_8U);
+    Mat out((featureAverages[0].rows+1)*(codebook->size()),featureAverages[0].cols,CV_8U);
     for (int f=0; f<codebook->size(); f++)
     {
         
@@ -214,9 +249,9 @@ void SpatialAverageSpotter::showAverages()
             for (int y=0; y<featureAverages[f].rows; y++)
             {
                 float val = featureAverages[f].at<float>(y,x);
-                out.at<char>(y+f*BASE_SIZE,x) = 255*(val-min)/max;
+                out.at<char>(y+f*(featureAverages[0].rows+1),x) = 255*(val-min)/max;
             }
-            out.at<char>((f+1)*BASE_SIZE -1,x) = 255;
+            out.at<char>((f+1)*(featureAverages[0].rows+1) -1,x) = 255;
         }
         
         
@@ -228,7 +263,7 @@ void SpatialAverageSpotter::showAverages()
     {
         for (int i=0; i<5; i++)
             for (int j=0; j<5; j++)
-                out.at<Vec3b>(j+f*BASE_SIZE,i)=colorTable[f];
+                out.at<Vec3b>(j+f*(featureAverages[0].rows+1),i)=colorTable[f];
     }
     
     
@@ -258,18 +293,23 @@ void SpatialAverageSpotter::maximizeAlignment(vector<vector<tuple<int,Point2f> >
                 break;
             }
             imageNum = (imageNum+1)%features.size();
-            if ((imageNum)%features.size() == imageNumOld)
+            if ((imageNum) == imageNumOld)
             {
-                adjusted.assign(false,features.size());
+                adjusted.assign(features.size(),false);
                 adjusted[imageNum]=true;
-                stayCount /= 2;
+//                stayCount /= 2;
+                stayCount=0;
                 break;
             }
         }
-        double shiftStep = 3*(1.0-iters/(0.0+MAX_REF_ITER*features.size()));
-        if (shiftStep<1) shiftStep=1.0;
-        double scaleStep = .01*(1.0-iters/(0.0+MAX_REF_ITER*features.size()));
-        double scaleStep2 = .015*(1.0-iters/(0.0+MAX_REF_ITER*features.size()));
+        
+        
+        double shiftStep = 2*(1.0-iters/(0.0+MAX_REF_ITER*features.size()));//3* DD 2* TT
+        if (shiftStep<1) shiftStep=1.0; //1.0 DD
+        double scaleStep = .03*(1.0-iters/(0.0+MAX_REF_ITER*features.size()));//.01 DD
+        double scaleStep2 = .06*(1.0-iters/(0.0+MAX_REF_ITER*features.size()));// .015 DD
+        if (scaleStep<1) scaleStep=.003; //DD remove
+        if (scaleStep2<1) scaleStep2=.006; //DD remove
         //examine gradient at each f point (discluding self)
         //if gradients agrre, make scale step
         guassColorOut(features[imageNum]);
@@ -319,6 +359,9 @@ void SpatialAverageSpotter::maximizeAlignment(vector<vector<tuple<int,Point2f> >
 //            upBiggerScore += getUsingOffset(featureAverages[get<0>(f)], get<1>(f).x*(1+scaleStep), (get<1>(f).y-shiftStep)*(1+scaleStep));
 //            downBiggerScore += getUsingOffset(featureAverages[get<0>(f)], get<1>(f).x*(1+scaleStep), (get<1>(f).y+shiftStep)*(1+scaleStep));
         }
+        
+        double test=bestScore;
+        
         if (leftScore > bestScore)
         {
             bestScore=leftScore; bestMove = LEFT;
@@ -407,7 +450,7 @@ void SpatialAverageSpotter::maximizeAlignment(vector<vector<tuple<int,Point2f> >
                 break;
             case UP:
                 get<1>(*fI) = Point2f(get<1>(*fI).x, get<1>(*fI).y-shiftStep);
-                
+//                cout << "upscore:"<<upScore<<" stayscore:"<<test<<endl;
                 break;
             case DOWN:
                 get<1>(*fI) = Point2f(get<1>(*fI).x, get<1>(*fI).y+shiftStep);
@@ -473,25 +516,97 @@ void SpatialAverageSpotter::maximizeAlignment(vector<vector<tuple<int,Point2f> >
                 break;
             }
         }
+        if(bestMove == STAY)
+        {
+            stayCount+=1;
+        }
+        else if (stayCount>0)
+        {
+           stayCount--;
+        }
+        
+        
+        //////
         switch(bestMove)
         {
+        case LEFT:
+            translateImg(adjustedTrainingImages[imageNum],-shiftStep,0);
+            
+            break;
+        case RIGHT:
+            translateImg(adjustedTrainingImages[imageNum],shiftStep,0);
+            
+            break;
+        case UP:
+            translateImg(adjustedTrainingImages[imageNum],0,-shiftStep);
+            break;
+        case DOWN:
+            translateImg(adjustedTrainingImages[imageNum],0,shiftStep);
+            
+            break;
+        case SHRINK:
+            strechImg(adjustedTrainingImages[imageNum],(1-scaleStep),(1-scaleStep));
+            break;
+        case GROW:
+            strechImg(adjustedTrainingImages[imageNum],(1+scaleStep),(1+scaleStep));
+            
+            break;
+        case SHORTEN:
+            strechImg(adjustedTrainingImages[imageNum],1,(1-scaleStep2));
+            
+            break;
+        case HIGHTEN:
+            strechImg(adjustedTrainingImages[imageNum],1,(1+scaleStep2));
+            
+            break;
+        case SLIM:
+            strechImg(adjustedTrainingImages[imageNum],(1-scaleStep2),1);
+            
+            break;
+        case FATTEN:
+            strechImg(adjustedTrainingImages[imageNum],(1+scaleStep2),1);
+            
+            break;
         case STAY:
-            stayCount+=1;
             break;
-        default:
-            if (stayCount>0) stayCount--;
-            break;
-        
         }
+        
+        //////
         
         guassColorIn(features[imageNum]);
         
-//        cout <<"image "<<imageNum<<" move "<<bestMove<<", staycount="<<stayCount<<endl;
-//        showAverages();
+        cout <<"image "<<imageNum<<" move "<<bestMove<<", staycount="<<stayCount<<endl;
+        showAverages();
+//        imshow("adjusted",adjustedTrainingImages[imageNum]);
+//        waitKey();
     }
+    
+    Mat averageImage(adjustedTrainingImages[0].rows,adjustedTrainingImages[0].cols,CV_8U);
+    for (int x=0; x< averageImage.cols; x++)
+        for (int y=0; y<averageImage.rows; y++)
+        {
+            int sum=0;
+            for (Mat image : adjustedTrainingImages)
+            {
+                sum += image.at<unsigned char>(y,x);
+            }
+            sum /= adjustedTrainingImages.size();
+            assert(sum>=0 && sum<256);
+            averageImage.at<unsigned char>(y,x) = sum;
+        }
+    int i=0;
+    for (Mat image : adjustedTrainingImages)
+    {
+        imshow("adjusted",image);
+        cout << "image "<<i++<<endl;
+        waitKey();
+    }
+    
+    imshow("average",averageImage);
+    waitKey();
 }
 
-#define STD_DEV 8
+#define STD_DEV 10//8 DD 5 TT
 #define STD_DEV_RANGE 3
 void SpatialAverageSpotter::guassColorIn(const vector<tuple<int,Point2f> > &feature)
 {
@@ -503,7 +618,7 @@ void SpatialAverageSpotter::guassColorIn(const vector<tuple<int,Point2f> > &feat
             {
                 
                 addUsingOffset(featureAverages[get<0>(f)],floor(get<1>(f).x+xOff), floor(get<1>(f).y+yOff) ,
-                        codebook->getInverseDocFreq(get<0>(f))*
+                        codebook->getInverseDocFreq(get<0>(f))/feature.size()*
                         exp(-((pow(xOff,2)/(2*pow(STD_DEV,2))) + ((pow(yOff,2)/(2*pow(STD_DEV,2)))))));
 //                cout << "sum "<<  getUsingOffset(featureAverages[get<0>(f)],get<1>(f).x+xOff,get<1>(f).y+yOff) << endl;
 //                if ((int)(get<1>(f).x+xOff) == 0) cout <<"x="<<get<1>(f).x<<" off="<<xOff<<endl;
@@ -519,16 +634,16 @@ void SpatialAverageSpotter::guassColorOut(const vector<tuple<int,Point2f> > &fea
             for (int yOff=-STD_DEV_RANGE*STD_DEV; yOff<=STD_DEV_RANGE*STD_DEV; yOff++)
             {
                 addUsingOffset(featureAverages[get<0>(f)],floor(get<1>(f).x+xOff), floor(get<1>(f).y+yOff) , 
-                        -codebook->getInverseDocFreq(get<0>(f))*
+                        -codebook->getInverseDocFreq(get<0>(f))/feature.size()*
                         exp(-((pow(xOff,2)/(2*pow(STD_DEV,2))) + ((pow(yOff,2)/(2*pow(STD_DEV,2)))))));
             }
     }
 }
 
-float SpatialAverageSpotter::getUsingOffset(Mat &featureAverage, int xOff, int yOff)
+float SpatialAverageSpotter::getUsingOffset(Mat &featureAverage, double xOff, double yOff)
 {
-    int x = featureAverage.cols/2 +xOff;
-    int y = featureAverage.rows/2 +yOff;
+    double x = featureAverage.cols/2 +xOff;
+    double y = featureAverage.rows/2 +yOff;
     if (x >0 && y>0 && x<featureAverage.cols && y<featureAverage.rows)
         return featureAverage.at<float>(y,x);
     return 0;
@@ -579,6 +694,8 @@ bool SpatialAverageSpotter::testSpotting(string dirPath)
 void SpatialAverageSpotter::produceHeatMap(string fileName)
 {
     Mat img = imread(fileName, CV_LOAD_IMAGE_GRAYSCALE);
+    resize(img,img,Size(0,0),2,2);
+    threshold(img,img,120.0,255,THRESH_BINARY);
     //resize(img,img,Size(img.cols/2,img.rows/2));
     Mat heatMap;
     cvtColor(img,heatMap,CV_GRAY2RGB);
@@ -670,7 +787,7 @@ map< int, map< int, vector<int> > >* SpatialAverageSpotter::buildFeatureMap(Mat 
     }
     
     imshow("points",pnts);
-    waitKey();
+    waitKey(5);
     
     return fm;
 }

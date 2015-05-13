@@ -1,4 +1,5 @@
 #include "CollabKeypoints.h"
+#include "MatchKeypoints.h"
 #include "corpus.h"
 
 #include "opencv2/highgui/highgui.hpp"
@@ -37,6 +38,7 @@
 int main( int argc, char** argv )
 {
     initModule_nonfree();
+//    matchKeypoints(argc,argv);
 ////    dumbtest(argv[1],argv[2]);
 ////    return 0;
 //    //collabKeypoints(argc,argv);
@@ -72,6 +74,7 @@ int main( int argc, char** argv )
     Codebook c;
     c.readInCSV(argv[1]);
     SpatialAverageSpotter b(&c);
+//    BagSpotter b(&c);
     b.train(argv[2]);
     //b.testSpotting(argv[3]);
     b.produceHeatMap(argv[3]);

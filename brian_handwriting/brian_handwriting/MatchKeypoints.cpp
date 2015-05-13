@@ -1,14 +1,4 @@
-#include <stdio.h>
-#include <iostream>
-#include "opencv2/core/core.hpp"
-#include "opencv2/features2d/features2d.hpp"
-#include "opencv2/nonfree/features2d.hpp"
-#include "opencv2/highgui/highgui.hpp"
-#include "opencv2/nonfree/nonfree.hpp"
-#include <assert.h>
-#include "codebook.h"
-
-using namespace cv;
+#include "MatchKeypoints.h"
 
 
 
@@ -28,10 +18,10 @@ int matchKeypoints( int argc, char** argv )
   { std::cout<< " --(!) Error reading images " << std::endl; return -1; }
 
   //-- Step 1: Detect the keypoints using SURF Detector
-  int minHessian = 800;
+  int minHessian = 15000;
 
   //SurfFeatureDetector detector( minHessian);
-  SURF* detector = new SURF(minHessian,4,2,true,true);
+  SURF* detector = new SURF(minHessian,1,4,true,true);
 
   std::vector<KeyPoint> keypoints_1, keypoints_2;
 
@@ -41,8 +31,25 @@ int matchKeypoints( int argc, char** argv )
   (*detector)( img_2, Mat(), keypoints_2 );
   
   Mat img_keypoints_1; Mat img_keypoints_2;
-  drawKeypoints( img_1, keypoints_1, img_keypoints_1, Scalar::all(-1), DrawMatchesFlags::DEFAULT );
-  drawKeypoints( img_2, keypoints_2, img_keypoints_2, Scalar::all(-1), DrawMatchesFlags::DEFAULT );
+//  drawKeypoints( img_1, keypoints_1, img_keypoints_1, Scalar::all(-1), DrawMatchesFlags::DEFAULT );
+//  drawKeypoints( img_2, keypoints_2, img_keypoints_2, Scalar::all(-1), DrawMatchesFlags::DEFAULT );
+  cvtColor(img_1,img_keypoints_1,CV_GRAY2RGB);
+  for (KeyPoint k :keypoints_1)
+  {
+//      circle(img_keypoints_1,k.pt,k.size,Scalar(rand()%256,rand()%256,rand()%256));
+//      cout<<k.size<<endl;
+      Rect rec(k.pt.x-(k.size/2),k.pt.y-(k.size/2),k.size,k.size);
+      rectangle(img_keypoints_1,rec,Scalar(rand()%256,rand()%256,rand()%256));
+  }
+  
+  cvtColor(img_2,img_keypoints_2,CV_GRAY2RGB);
+  for (KeyPoint k :keypoints_2)
+  {
+//      circle(img_keypoints_2,k.pt,k.size,Scalar(rand()%256,rand()%256,rand()%256));
+      Rect rec(k.pt.x-(k.size/2),k.pt.y-(k.size/2),k.size,k.size);
+      rectangle(img_keypoints_2,rec,Scalar(rand()%256,rand()%256,rand()%256));
+  }
+  
   
     //-- Show detected (drawn) keypoints
     imshow("Keypoints 1", img_keypoints_1 );
