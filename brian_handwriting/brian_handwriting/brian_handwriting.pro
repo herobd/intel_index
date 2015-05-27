@@ -16,9 +16,11 @@ SOURCES += main.cpp \
     simplebinnedimage.cpp \
     customsift.cpp \
     bagspotter.cpp \
-    spatialaveragespotter.cpp
+    spatialaveragespotter.cpp \
+    gatosbinarize.cpp \
+    enhancedbovw.cpp
 
-LIBS += -L/urs/local/include/opencv2 -l:libopencv_features2d.so.2.4 -l:libopencv_core.so.2.4 -l:libopencv_highgui.so.2.4 -lopencv_nonfree -l:libopencv_flann.so.2.4 -l:libopencv_imgproc.so.2.4
+LIBS += -L/urs/local/include/opencv2 -l:libopencv_features2d.so.2.4 -l:libopencv_core.so.2.4 -l:libopencv_highgui.so.2.4 -lopencv_nonfree -l:libopencv_flann.so.2.4 -l:libopencv_imgproc.so.2.4 -l:libopencv_objdetect.so.2.4
 LIBS += -L/home/brian/intel_index/brian_handwriting/StochHMM/src/ -lstochhmm
 
 
@@ -39,4 +41,6 @@ HEADERS += \
     customsift.h \
     bagspotter.h \
     spatialaveragespotter.h \
-    MatchKeypoints.h
+    MatchKeypoints.h \
+    gatosbinarize.h \
+    enhancedbovw.h

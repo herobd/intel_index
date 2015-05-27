@@ -26,7 +26,7 @@ public:
     Corpus(string savedPath);
     ~Corpus();
     void addImage(Mat img);
-    void generateCodebook();
+    void generateCodebook(int codebook_size=1024);
     
     void saveQuantizedImage(string filePath, int pageNum);
     

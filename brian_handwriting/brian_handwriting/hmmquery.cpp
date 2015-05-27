@@ -33,7 +33,7 @@ HMMQuery::HMMQuery(Mat &img, const Codebook* codebook, /**/vector<Vec3b> &colorT
 //            associatedTermVectors[state].push_back(termVectors[i]);
             Ni+=1;
             
-            if (NUM_MIXTURES == CODEBOOK_SIZE)
+            if (NUM_MIXTURES == codebook->size())
             for (int feature : termVectors[i])
             {
                 c[state][feature]++;
@@ -51,7 +51,7 @@ HMMQuery::HMMQuery(Mat &img, const Codebook* codebook, /**/vector<Vec3b> &colorT
         //Mat example(NUM_MIXTURES,NUM_MIXTURES, CV_32F);
         for (int feature=0; feature<NUM_MIXTURES; feature++)
         {
-            if (NUM_MIXTURES == CODEBOOK_SIZE)
+            if (NUM_MIXTURES == codebook->size())
                 c[state][feature]/=Ni;
             else
                 c[state][feature]=distribution(generator);
@@ -400,7 +400,7 @@ double HMMQuery::prob(const vector<int> &obs, int state)
 //    return sum/obs.size();
     
     double sum=0;
-    for (int m=0; m<CODEBOOK_SIZE; m++)
+    for (int m=0; m<codebook->size(); m++)
     {
         sum+=c[state][m] * gauss(obs,mu[state][m],U[state][m]);
     }

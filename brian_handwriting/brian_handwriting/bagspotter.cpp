@@ -19,8 +19,8 @@ BagSpotter::BagSpotter(const Codebook *codebook)
         Vec3b color(rand()%256,rand()%256,rand()%256);
         colorTable.push_back(color);
     }
-    detector = new SIFT(0,3,SIFT_THRESH,5);
-    //detector = new SURF()
+//    detector = new SIFT(0,3,SIFT_THRESH,5);
+    detector = new SURF(10000,2,4,true,true);//TT 20000, 3000 for grayscale hw, 10000 for binary hw
 }
 
 void BagSpotter::detectKeypoints(Mat &img, vector<KeyPoint> &keypoints, Mat &desc)
@@ -32,7 +32,8 @@ void BagSpotter::detectKeypoints(Mat &img, vector<KeyPoint> &keypoints, Mat &des
     int r=0;
     while (kpI != keypoints.end() )
     {
-//        if (kpI->size < MIN_FEATURE_SIZE)
+//        if (kpI->size < MIN_FEATURE_SIZE) DD
+//        if (kpI->size > MAX_FEATURE_SIZE)
 //        {
 //            kpI = keypoints.erase(kpI);
             
@@ -63,6 +64,8 @@ bool BagSpotter::train(string dirPath)
           count++;
           Mat img = imread(dirPath+fileName, CV_LOAD_IMAGE_GRAYSCALE);
           //resize(img,img,Size(img.cols/2,img.rows/2));
+          threshold(img,img,120.0,255,THRESH_BINARY);
+          
           assert(img.cols > 1 && img.rows > 1);
           windowWidth += img.cols;
           windowHeight += img.rows;
@@ -158,6 +161,8 @@ void BagSpotter::produceHeatMap(string fileName)
 {
     Mat img = imread(fileName, CV_LOAD_IMAGE_GRAYSCALE);
     //resize(img,img,Size(img.cols/2,img.rows/2));
+    threshold(img,img,120.0,255,THRESH_BINARY);
+    
     Mat heatMap;
     cvtColor(img,heatMap,CV_GRAY2RGB);
     vector< vector< double > > scores(img.cols-windowWidth);
@@ -205,27 +210,27 @@ void BagSpotter::produceHeatMap(string fileName)
     delete fm;
 }
 
-double BagSpotter::detect(Mat img)
-{
-    vector<int> here(codebook->size());
+//double BagSpotter::detect(Mat img)
+//{
+//    vector<int> here(codebook->size());
     
     
-    vector<KeyPoint> keypoints;
-    Mat desc;
-    detectKeypoints(img, keypoints, desc);
-    for (int r=0; r<desc.rows; r++)
-    {
-        int f = codebook->quantize(desc.row(r));
-        here[f] += 1;     
-    }
+//    vector<KeyPoint> keypoints;
+//    Mat desc;
+//    detectKeypoints(img, keypoints, desc);
+//    for (int r=0; r<desc.rows; r++)
+//    {
+//        int f = codebook->quantize(desc.row(r));
+//        here[f] += 1;     
+//    }
     
-    double score=0;
-    for (int i=0; i<learned.size(); i++)
-    {
-        score += pow(learned[i]-here[i],2);
-    }
-    return score;
-}
+//    double score=0;
+//    for (int i=0; i<learned.size(); i++)
+//    {
+//        score += pow(learned[i]-here[i],2);
+//    }
+//    return score;
+//}
 
 map< int, map< int, vector<int> > >* BagSpotter::buildFeatureMap(Mat img)
 {
@@ -253,44 +258,46 @@ map< int, map< int, vector<int> > >* BagSpotter::buildFeatureMap(Mat img)
     return fm;
 }
 
+void BagSpotter::forAllFeaturesInWindow(int windowWidth, int windowHeight, map< int, map< int, vector<int> > >* fm, Point2i corner, function<void(int,int,int)> doThis)
+{
+    auto it=fm->lower_bound(corner.x);
+    auto itEnd=fm->end();
+    
+    for (; it != itEnd; ++it)
+    {
+        int x = (*it).first;
+        if (x>corner.x+windowWidth)
+            break;
+        auto it2=(*it).second.lower_bound(corner.y);
+        auto it2End=(*it).second.end();
+        for (; it2 != it2End; ++it2)
+        {
+            int y = (*it2).first;
+            if (y>corner.y+windowHeight)
+                break;
+            
+            
+            for (int f : (*it2).second)
+            { 
+                doThis(f,x,y);
+            }
+        }
+           
+    }
+}
+
 double BagSpotter::detect(map< int, map< int, vector<int> > >* fm, Point2i corner)
 {
     vector<int> here(codebook->size());
     vector<double> tfidf(codebook->size());
     
-    auto it=fm->begin();
-    for (int x=corner.x; x<corner.x+windowWidth; x++)
-    {
-        it=fm->find(x);
-        if (it != fm->end())
-            break;
-    }
     int sum=0;
-    for (; it != fm->end(); ++it)
-    {
-        int x = (*it).first;
-        if (x>corner.x+windowWidth)
-            break;
-        auto it2 = (*it).second.begin();
-        for (int y=corner.y; y<corner.y+windowHeight; y++)
-        {
-            it2=(*it).second.find(y);
-            if (it2 != (*it).second.end())
-                break;
-        }
-        for (; it2 != (*it).second.end(); ++it2)
-        {
-            int y = (*it2).first;
-            if (y>corner.y+windowHeight)
-                break;
-            for (int f : (*it2).second)
-            {
-                here[f] += 1;  
-                sum+=1;
-            }
-        }
-           
-    }
+    auto doSum = [&sum, &here](int f, int x, int y){ 
+        here[f] += 1;  
+        sum+=1;
+    };
+    forAllFeaturesInWindow(windowWidth,windowHeight,fm,corner, doSum);
+    
     
     if (sum>0)
     {
@@ -341,37 +348,6 @@ double BagSpotter::detect(map< int, map< int, vector<int> > >* fm, Point2i corne
 
 void BagSpotter::putPointsOn(Mat &img, map< int, map< int, vector<int> > >* fm, Point2i corner)
 {
-    auto it=fm->begin();
-    for (int x=corner.x; x<corner.x+windowWidth; x++)
-    {
-        it=fm->find(x);
-        if (it != fm->end())
-            break;
-    }
-    
-    for (; it != fm->end(); ++it)
-    {
-        int x = (*it).first;
-        if (x>corner.x+windowWidth)
-            break;
-        auto it2 = (*it).second.begin();
-        for (int y=corner.y; y<corner.y+windowHeight; y++)
-        {
-            it2=(*it).second.find(y);
-            if (it2 != (*it).second.end())
-                break;
-        }
-        for (; it2 != (*it).second.end(); ++it2)
-        {
-            int y = (*it2).first;
-            if (y>corner.y+windowHeight)
-                break;
-            for (int f : (*it2).second)
-            {
-                circle(img,Point2i(x,y),(int)learned[f],Scalar(colorTable[f]));
-                
-            } 
-        }
-           
-    }
+    auto doDraw = [&img, this](int f, int x, int y){circle(img,Point2i(x,y),(int)learned[f],Scalar(colorTable[f]));};
+forAllFeaturesInWindow(windowWidth,windowHeight,fm,corner,doDraw);
 }

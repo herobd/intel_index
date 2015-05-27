@@ -114,7 +114,7 @@ point lloyd(point pts, int len, int n_cluster, int S)
 
 Corpus::Corpus()
 {
-    for (int c=0; c<CODEBOOK_SIZE; c++)
+    for (int c=0; c<codebook.size(); c++)
     {
         Vec3b color(rand()%256,rand()%256,rand()%256);
         colorTable.push_back(color);
@@ -124,7 +124,7 @@ Corpus::Corpus()
 Corpus::Corpus(string savedPath)
 {
     
-    for (int c=0; c<CODEBOOK_SIZE; c++)
+    for (int c=0; c<codebook.size(); c++)
     {
         Vec3b color(rand()%256,rand()%256,rand()%256);
         colorTable.push_back(color);
@@ -178,7 +178,7 @@ void Corpus::addPrevImage(Mat img, int i)
     codedPages[i]->setImg(img);
 }
 
-void Corpus::generateCodebook()
+void Corpus::generateCodebook(int codebook_size)
 {
     int totalFeatures=0;
     for (int i=0; i < pages.size(); i++)
@@ -217,10 +217,10 @@ void Corpus::generateCodebook()
 //    Mat exemplars(/*4096*/20, sampledFVectors[0].size(), CV_32F);
 //    TermCriteria crit(0,10,.99);
 //    kmeans(sampledFVMat,/*4096*/20,Mat(),crit,3,KMEANS_RANDOM_CENTERS,exemplars);
-    point centers= lloyd(sampledFVectors,sampleCount,CODEBOOK_SIZE,pages[0]->featureLength());
+    point centers= lloyd(sampledFVectors,sampleCount,codebook_size,pages[0]->featureLength());
     
     
-    for (int i=0; i <CODEBOOK_SIZE; i++)
+    for (int i=0; i <codebook_size; i++)
     {
         codebook.push_back(centers[i].v);
 //        cout << "center " << i << ": " << centers[i].v[0] << endl;

@@ -7,6 +7,7 @@
 #include "opencv2/nonfree/features2d.hpp"
 #include "bagspotter.h"
 #include "spatialaveragespotter.h"
+#include "enhancedbovw.h"
 
 #define LOAD 0
 
@@ -70,14 +71,23 @@ int main( int argc, char** argv )
 //    c.saveQuantizedImage("./test.png",23);
 //    c.makeHeatMap(q,23);
 ////    c.makeHeatMap(q2,23);
-    
+
     Codebook c;
-    c.readInCSV(argv[1]);
-    SpatialAverageSpotter b(&c);
+    c.test();
+    
+//    Mat img=imread(argv[1],CV_LOAD_IMAGE_GRAYSCALE);
+//    resize(img,img,Size(400,100));
+//    EnhancedBoVW bovw;
+//    bovw.getDescriptors(img);
+    
+    
+//    Codebook c;
+//    c.readInCSV(argv[1]);
+////    SpatialAverageSpotter b(&c);
 //    BagSpotter b(&c);
-    b.train(argv[2]);
-    //b.testSpotting(argv[3]);
-    b.produceHeatMap(argv[3]);
+//    b.train(argv[2]);
+//    //b.testSpotting(argv[3]);
+//    b.produceHeatMap(argv[3]);
     
     
 }
