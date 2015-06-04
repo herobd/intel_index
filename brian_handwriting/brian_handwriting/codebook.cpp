@@ -176,9 +176,9 @@ vector< tuple<int,float> > Codebook::quantizeSoft(const vector<float> &term, int
             delta_i.at<float>(i,j) = term[i]-codebook[get<0>(q[j])][i];
         }
     
-    float reg = 0;
+    float reg = 0.1;
     cv::Mat inter = (delta_i.t()*delta_i + reg*cv::Mat::eye(t,t,CV_32F)).inv();
-    cout << "sqr:\n "<<delta_i.t()*delta_i<<"\ninter:\n "<<inter<<endl;
+//    cout << "sqr:\n "<<delta_i.t()*delta_i<<"\ninter:\n "<<inter<<endl;
     cv::Mat a = inter * delta_i.t()* cv::Mat::ones(term.size(),1,CV_32F);
     float norm = cv::norm(cv::Mat::ones(1,t,CV_32F)*a);
     for (int j=0; j<t; j++)

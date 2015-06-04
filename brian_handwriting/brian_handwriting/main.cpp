@@ -72,14 +72,19 @@ int main( int argc, char** argv )
 //    c.makeHeatMap(q,23);
 ////    c.makeHeatMap(q2,23);
 
-    Codebook c;
-    c.test();
+  
     
-//    Mat img=imread(argv[1],CV_LOAD_IMAGE_GRAYSCALE);
+    Mat img=imread(argv[3],CV_LOAD_IMAGE_GRAYSCALE);
+    Mat find=imread(argv[2],CV_LOAD_IMAGE_GRAYSCALE);
+    assert(img.cols>0 && find.cols>0);
 //    resize(img,img,Size(400,100));
-//    EnhancedBoVW bovw;
+    EnhancedBoVW bovw;
 //    bovw.getDescriptors(img);
-    
+//    bovw.makeCodebook(argv[1]);
+//    bovw.codebook->save(string(argv[2]));
+    bovw.codebook = new Codebook();
+    bovw.codebook->readIn(argv[1]);
+    bovw.scanImage(img,find);
     
 //    Codebook c;
 //    c.readInCSV(argv[1]);

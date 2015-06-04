@@ -7,6 +7,108 @@ EnhancedBoVW::EnhancedBoVW()
     LLC_numOfNN=3;
     codebook=NULL;
 }
+void EnhancedBoVW::scanImage(const Mat &img, const Mat &exemplar)
+{
+    auto samplesUncoded = getDescriptors(exemplar);
+    auto samplesCoded = codeDescriptors(samplesUncoded);
+    vector<float>* exe = getPooledDesc(samplesCoded, Rect(0,0,exemplar.cols,exemplar.rows));
+    normalizeDesc(exe);
+    scanImage(img,*exe);
+    delete exe;
+}
+
+
+void EnhancedBoVW::scanImage(const Mat &img, const vector<float> &exemplar)
+{
+    int hStride = 5;
+    int vStride=5;
+    int windowWidth=120;
+    int windowHeight=120;
+    int windowWidth2=100;
+    int windowHeight2=100;
+    int windowWidth3=80;
+    int windowHeight3=80;
+    
+    Mat scores(img.rows/vStride, img.cols/hStride, CV_32FC3);
+    float maxScore=0;
+    float minScore=9999;
+    
+    auto samplesUncoded = getDescriptors(img);
+//    auto samplesCoded = codeDescriptors(samplesUncoded);
+    auto samplesCodedII = codeDescriptorsIntegralImage(samplesUncoded,img.size);
+    
+    
+    for (int x=windowWidth/2; x<img.cols-windowWidth/2; x+=hStride)
+        for (int y=windowHeight/2; y<img.rows-windowHeight/2; y+=vStride)
+        {
+            Rect r1(x-windowWidth/2, y-windowHeight/2, windowWidth, windowHeight);
+            Rect r2(x-windowWidth2/2, y-windowHeight2/2, windowWidth2, windowHeight2);
+            Rect r3(x-windowWidth3/2, y-windowHeight3/2, windowWidth3, windowHeight3);
+            
+            vector<float>* desc1 = getPooledDescFast(samplesCodedII, r1);
+            normalizeDesc(desc1);
+            vector<float>* desc2 = getPooledDescFast(samplesCodedII, r2);
+            normalizeDesc(desc2);
+            vector<float>* desc3 = getPooledDescFast(samplesCodedII, r3);
+            normalizeDesc(desc3);
+            
+            float score1=0;
+            float score2=0;
+            float score3=0;
+            
+            for (int i=0; i<exemplar.size(); i++)
+            {
+                score1 += pow(exemplar[i]-desc1->at(i),2);
+                score2 += pow(exemplar[i]-desc2->at(i),2);
+                score3 += pow(exemplar[i]-desc3->at(i),2);
+            }
+            scores.at<Vec3f>(y/vStride, x/hStride) = Vec3f(score1,score2,score3);
+            
+            if (score1<minScore) minScore=score1;
+            if (score2<minScore) minScore=score2;
+            if (score3<minScore) minScore=score3;
+            
+            if (score1>maxScore) maxScore=score1;
+            if (score2>maxScore) maxScore=score2;
+            if (score3>maxScore) maxScore=score3;
+            
+            delete desc1;
+            delete desc2;
+            delete desc3;
+        }
+    
+    Mat heatmap;
+    cvtColor(img,heatmap,CV_GRAY2RGB);
+    for (int x=windowWidth/2; x<img.cols-windowWidth/2; x+=hStride)
+        for (int y=windowHeight/2; y<img.rows-windowHeight/2; y+=vStride)
+        {
+            if (scores.at<Vec3f>(y/vStride, x/hStride)[0] > max(scores.at<Vec3f>(y/vStride, x/hStride)[1],scores.at<Vec3f>(y/vStride, x/hStride)[2]))
+            {
+                for (int xoff=-2; xoff<=2; xoff++)
+                    for (int yoff=-2; yoff<=2; yoff++)
+                    {
+                        color(heatmap, (scores.at<Vec3f>(y/vStride,x/hStride))[0], maxScore,  x+xoff, y+yoff);
+                    }
+            }
+            else if (scores.at<Vec3f>(y/vStride, x/hStride)[1] > scores.at<Vec3f>(y/vStride, x/hStride)[2])
+            {
+                for (int xoff=-1; xoff<=1; xoff++)
+                    for (int yoff=-1; yoff<=1; yoff++)
+                    {
+                        color(heatmap,scores.at<Vec3f>(y/vStride, x/hStride)[1],maxScore,x+xoff,y+yoff);
+                    }
+            }
+            else
+            {
+                color(heatmap,scores.at<Vec3f>(y/vStride, x/hStride)[2],maxScore,x,y);
+                color(heatmap,scores.at<Vec3f>(y/vStride, x/hStride)[2],maxScore,x+1,y);
+                color(heatmap,scores.at<Vec3f>(y/vStride, x/hStride)[2],maxScore,x-1,y);
+                color(heatmap,scores.at<Vec3f>(y/vStride, x/hStride)[2],maxScore,x,y+1);
+                color(heatmap,scores.at<Vec3f>(y/vStride, x/hStride)[2],maxScore,x,y-1);
+            }
+        }
+    delete samplesCodedII;
+}
 
 vector< tuple< vector< tuple<int,float> >, Point2i > >* EnhancedBoVW::codeDescriptors(vector< tuple< vector<float>, Point2i > >* desc)
 {
@@ -18,7 +120,77 @@ vector< tuple< vector< tuple<int,float> >, Point2i > >* EnhancedBoVW::codeDescri
     delete desc;
     return ret;
 }
-vector< tuple< vector<float>, Point2i > >* EnhancedBoVW::getDescriptors(Mat &img)
+
+vector< vector< Mat/*< float >*/ > >* EnhancedBoVW::codeDescriptorsIntegralImage(vector< tuple< vector<float>, Point2i > >* desc, Mat::MSize imgsize)
+{
+    auto lam = [](const tuple< vector<float>, Point2i >& a, const tuple< vector<float>, Point2i > &b) -> bool
+    {
+         if (get<1>(a).x != get<1>(b).x) 
+         return get<1>(a).x < get<1>(b).x;
+         else
+            return get<1>(a).y < get<1>(b).y;
+    };
+
+
+
+
+    sort(desc->begin(),desc->end(),lam);
+    
+    auto ret = new vector< vector< Mat/*< float >*/ > >(imgsize[1]);
+    auto iter = desc->begin();
+    //first col
+    (*ret)[0].resize(imgsize[0]);
+    for (int y=0; y<imgsize[0]; y++)
+    {
+        
+        if (y==0)
+            (*ret)[0][y] = Mat::zeros(codebook->size(),1,CV_32F);
+        else
+            (*ret)[0][y] = (*ret)[0][y-1].clone();
+        while (iter!=desc->end() && get<1>(*iter).y==y && get<1>(*iter).x==0)
+        {
+            vector< tuple<int,float> > quan = codebook->quantizeSoft(get<0>(*iter),LLC_numOfNN);
+            for (const auto &v : quan)
+                (*ret)[0][y].at<float>(get<0>(v),0) += get<1>(v);
+            
+            if (++iter==desc->end())
+                break;
+        }
+    }
+    for (int x=1; x<imgsize[1]; x++)
+    {
+        (*ret)[x].resize(imgsize[0]);
+        for (int y=0; y<imgsize[0]; y++)
+        {
+            
+            if (y==0)
+                (*ret)[x][y] = (*ret)[x-1][y].clone();
+            else
+                (*ret)[x][y] = (*ret)[x][y-1]+(*ret)[x-1][y]-(*ret)[x-1][y-1];
+            while (iter!=desc->end() && get<1>(*iter).y==y && get<1>(*iter).x==x)
+            {
+                vector< tuple<int,float> > quan = codebook->quantizeSoft(get<0>(*iter),LLC_numOfNN);
+                for (const auto &v : quan)
+                    (*ret)[x][y].at<float>(get<0>(v),0) += get<1>(v);
+                if (++iter==desc->end())
+                    break;
+            }
+        }
+    }
+    
+    
+    delete desc;
+    return ret;
+}
+
+void EnhancedBoVW::color(Mat &heatMap, float score, float max, int midI, int midJ)
+{
+    heatMap.at<Vec3b>(midJ,midI)[0] = heatMap.at<Vec3b>(midJ,midI)[0] * (score/max);
+    heatMap.at<Vec3b>(midJ,midI)[1] = 0;
+    heatMap.at<Vec3b>(midJ,midI)[2] = heatMap.at<Vec3b>(midJ,midI)[2] * (1 - score/max);
+}
+
+vector< tuple< vector<float>, Point2i > >* EnhancedBoVW::getDescriptors(const Mat &img)
 {
 //    gpu::GpuMat gimg(img);
 //    gpu::GpuMat desc1,
@@ -82,12 +254,12 @@ vector< tuple< vector<float>, Point2i > >* EnhancedBoVW::getDescriptors(Mat &img
     }
     for (int i=0; i< descriptors2.size(); i++)
     {
-        if (descriptors1[i].size() > 0)
+        if (descriptors2[i].size() > 0)
             descAndLoc->push_back(make_tuple(descriptors2[i],locations2[i]));
     }
     for (int i=0; i< descriptors3.size(); i++)
     {
-        if (descriptors1[i].size() > 0)
+        if (descriptors3[i].size() > 0)
             descAndLoc->push_back(make_tuple(descriptors3[i],locations3[i]));
     }
     return descAndLoc;
@@ -174,38 +346,63 @@ Codebook* EnhancedBoVW::makeCodebook(string directory, int codebook_size)
 {
     vector< vector<float> > accum;
     
+    
     int count=0;
     DIR *dir;
     struct dirent *ent;
     if ((dir = opendir (directory.c_str())) != NULL) {
       
       while ((ent = readdir (dir)) != NULL) {
+          if (count++>200) break;
           
           string fileName(ent->d_name);
           //cout << "examining " << fileName << endl;
-          if (count>2000 || fileName[0] == '.' || (fileName[fileName.size()-1]!='G' && fileName[fileName.size()-1]!='g'))
+          if (fileName[0] == '.' || (fileName[fileName.size()-1]!='G' && fileName[fileName.size()-1]!='g'))
               continue;
-          count++;
+          
+          
           Mat img = imread(directory+fileName, CV_LOAD_IMAGE_GRAYSCALE);
           vector< tuple<vector<float>, Point2i > >* desc = getDescriptors(img);
           for (auto t : *desc)
           {
+//              assert(get<0>(t).size() > 0);
               accum.push_back(get<0>(t));
           }
           delete desc;
       }
       Mat centriods;
-      TermCriteria crit(0,1200,.9);
-      kmeans(accum,codebook_size,Mat(),crit,20,KMEANS_RANDOM_CENTERS,centriods);
-      Codebook* cb = new Codebook();
+      TermCriteria crit(0,500,.9);
+//      Mat data(accum.size(),accum[0].size(),CV_32F);
+//      for (int r=0; r< accum.size(); r++)
+//          for (int c=0; c<accum[0].size(); c++)
+//              data.at<float>(r,c) = accum[r][c];
+      Mat data(codebook_size*100,accum[0].size(),CV_32F);
+      for (int count=0; count< codebook_size*100; count++)
+      {
+          int r;
+          do
+          {
+              r=rand()%accum.size();
+          } while (accum[r].size()==0);
+          
+          
+          for (int c=0; c<accum[0].size(); c++)
+              data.at<float>(count,c) = accum[r][c];
+          accum[r].resize(0);
+      }
+      Mat temp;
+      kmeans(data,codebook_size,temp,crit,20,KMEANS_RANDOM_CENTERS,centriods);
+      
+      codebook = new Codebook();
       for (int r=0; r<centriods.rows; r++)
       {
           vector<double> toAdd;
           for (int c=0; c<centriods.cols; c++)
               toAdd.push_back(centriods.at<float>(r,c));
-          cb->push_back(toAdd);
+          codebook->push_back(toAdd);
       }
-      return cb;
+      
+      return codebook;
     }
     else
         cout << "Error, could not load files for codebook." << endl;
@@ -238,13 +435,60 @@ vector<float>* EnhancedBoVW::getPooledDesc(vector< tuple< vector< tuple<int,floa
             }
             ret->insert(ret->end(),bins.begin(),bins.end());
             
-            if (spatialPyramids.size()>1)
-            {
-                vector<float>* sub = getPooledDesc(samples,Rect(recTL.x,recTL.y,recBR.x-recTL.x,recBR.y-recTL.y),vector<Vec2i>(spatialPyramids.begin()+1,spatialPyramids.end()));
-                ret->insert(ret->end(),sub->begin(),sub->end());
-                delete sub;
-            }
+//            if (spatialPyramids.size()>1)
+//            {
+//                vector<float>* sub = getPooledDesc(samples,Rect(recTL.x,recTL.y,recBR.x-recTL.x,recBR.y-recTL.y),vector<Vec2i>(spatialPyramids.begin()+1,spatialPyramids.end()));
+//                ret->insert(ret->end(),sub->begin(),sub->end());
+//                delete sub;
+//            }
         }
+    if (spatialPyramids.size()>1)
+    {
+        vector<float>* sub = getPooledDesc(samples,window,vector<Vec2i>(spatialPyramids.begin()+1,spatialPyramids.end()));
+        ret->insert(ret->end(),sub->begin(),sub->end());
+        delete sub;
+    }
+    
+    return ret;
+}
+
+vector<float>* EnhancedBoVW::getPooledDescFast(vector< vector< Mat/*< float >*/ > >* samplesIntegralImage, Rect window, vector<Vec2i> spatialPyramids)
+{
+    vector<float>* ret = new vector<float>();
+    int binWidth = window.width/spatialPyramids.front()[0];
+    int binHeight= window.height/spatialPyramids.front()[1];
+    for (int binH=0; binH<spatialPyramids.front()[0]; binH++)
+        for (int binV=0; binV<spatialPyramids.front()[1]; binV++)
+        {
+            Point2i recTL(window.x + binH*binWidth, window.y + binV*binHeight);
+            Point2i recBR(window.x + (binH+1)*binWidth, window.y + (binV+1)*binHeight);
+            
+//            vector<float> bins(codebook->size(),0);
+//            for (int f=0; f<codebook->size(); f++)
+//            {
+//                bins[f] = samplesIntegralImage[recBR.x][recBR.y][f]
+//            }
+            Mat bins = (*samplesIntegralImage)[recBR.x][recBR.y] + (*samplesIntegralImage)[recTL.x][recTL.y] -
+                    (*samplesIntegralImage)[recBR.x][recTL.y] - (*samplesIntegralImage)[recTL.x][recBR.y];
+            
+            for (int i=0; i<bins.size[0]; i++)
+                ret->push_back(bins.at<float>(i,0));
+//            ret->insert(ret->end(),bins.begin(),bins.end());
+            
+//            if (spatialPyramids.size()>1)
+//            {
+//                vector<float>* sub = getPooledDesc(samples,Rect(recTL.x,recTL.y,recBR.x-recTL.x,recBR.y-recTL.y),vector<Vec2i>(spatialPyramids.begin()+1,spatialPyramids.end()));
+//                ret->insert(ret->end(),sub->begin(),sub->end());
+//                delete sub;
+//            }
+        }
+    if (spatialPyramids.size()>1)
+    {
+        vector<float>* sub = getPooledDescFast(samplesIntegralImage,window,vector<Vec2i>(spatialPyramids.begin()+1,spatialPyramids.end()));
+        ret->insert(ret->end(),sub->begin(),sub->end());
+        delete sub;
+    }
+    
     return ret;
 }
 
