@@ -3,31 +3,34 @@
 
 EnhancedBoVW::EnhancedBoVW()
 {
-    desc_thresh=.99667;
+    desc_thresh=1;//.996;//.99667;
     LLC_numOfNN=3;
     codebook=NULL;
+    spatialPyramids = {Vec2i(1,1),Vec2i(2,2)};
 }
 void EnhancedBoVW::scanImage(const Mat &img, const Mat &exemplar)
 {
     auto samplesUncoded = getDescriptors(exemplar);
-    auto samplesCoded = codeDescriptors(samplesUncoded);
-    vector<float>* exe = getPooledDesc(samplesCoded, Rect(0,0,exemplar.cols,exemplar.rows));
+    auto samplesCoded = codeDescriptorsIntegralImage(samplesUncoded,exemplar.size);
+    
+    vector<float>* exe = getPooledDescFast(samplesCoded, Rect(0,0,exemplar.cols,exemplar.rows),spatialPyramids);
     normalizeDesc(exe);
-    scanImage(img,*exe);
+    scanImage(img,*exe,exemplar.size());
     delete exe;
+    
 }
 
 
-void EnhancedBoVW::scanImage(const Mat &img, const vector<float> &exemplar)
+void EnhancedBoVW::scanImage(const Mat &img, const vector<float> &exemplar, Size exemplarSize)
 {
-    int hStride = 5;
-    int vStride=5;
-    int windowWidth=120;
-    int windowHeight=120;
-    int windowWidth2=100;
-    int windowHeight2=100;
-    int windowWidth3=80;
-    int windowHeight3=80;
+    int hStride = 8;
+    int vStride=8;
+    int windowWidth=exemplarSize.width*1.05;
+    int windowHeight=exemplarSize.height*1.05;
+    int windowWidth2=exemplarSize.width;
+    int windowHeight2=exemplarSize.height;
+    int windowWidth3=exemplarSize.width*.95;
+    int windowHeight3=exemplarSize.height*.95;
     
     Mat scores(img.rows/vStride, img.cols/hStride, CV_32FC3);
     float maxScore=0;
@@ -38,18 +41,20 @@ void EnhancedBoVW::scanImage(const Mat &img, const vector<float> &exemplar)
     auto samplesCodedII = codeDescriptorsIntegralImage(samplesUncoded,img.size);
     
     
-    for (int x=windowWidth/2; x<img.cols-windowWidth/2; x+=hStride)
-        for (int y=windowHeight/2; y<img.rows-windowHeight/2; y+=vStride)
+    for (int x=windowWidth3/3; x<img.cols-windowWidth3/3; x+=hStride)
+        for (int y=windowHeight3/3; y<img.rows-windowHeight3/3; y+=vStride)
         {
+            
             Rect r1(x-windowWidth/2, y-windowHeight/2, windowWidth, windowHeight);
             Rect r2(x-windowWidth2/2, y-windowHeight2/2, windowWidth2, windowHeight2);
             Rect r3(x-windowWidth3/2, y-windowHeight3/2, windowWidth3, windowHeight3);
             
-            vector<float>* desc1 = getPooledDescFast(samplesCodedII, r1);
+            
+            vector<float>* desc1 = getPooledDescFast(samplesCodedII, r1, spatialPyramids);
             normalizeDesc(desc1);
-            vector<float>* desc2 = getPooledDescFast(samplesCodedII, r2);
+            vector<float>* desc2 = getPooledDescFast(samplesCodedII, r2, spatialPyramids);
             normalizeDesc(desc2);
-            vector<float>* desc3 = getPooledDescFast(samplesCodedII, r3);
+            vector<float>* desc3 = getPooledDescFast(samplesCodedII, r3, spatialPyramids);
             normalizeDesc(desc3);
             
             float score1=0;
@@ -79,34 +84,43 @@ void EnhancedBoVW::scanImage(const Mat &img, const vector<float> &exemplar)
     
     Mat heatmap;
     cvtColor(img,heatmap,CV_GRAY2RGB);
-    for (int x=windowWidth/2; x<img.cols-windowWidth/2; x+=hStride)
-        for (int y=windowHeight/2; y<img.rows-windowHeight/2; y+=vStride)
+    for (int x=windowWidth3/3; x<img.cols-windowWidth3/3; x+=hStride)
+        for (int y=windowHeight3/3; y<img.rows-windowHeight3/3; y+=vStride)
         {
             if (scores.at<Vec3f>(y/vStride, x/hStride)[0] > max(scores.at<Vec3f>(y/vStride, x/hStride)[1],scores.at<Vec3f>(y/vStride, x/hStride)[2]))
             {
-                for (int xoff=-2; xoff<=2; xoff++)
-                    for (int yoff=-2; yoff<=2; yoff++)
+                for (int xoff=-3; xoff<=4; xoff++)
+                    for (int yoff=-3; yoff<=4; yoff++)
                     {
-                        color(heatmap, (scores.at<Vec3f>(y/vStride,x/hStride))[0], maxScore,  x+xoff, y+yoff);
+                        color(heatmap, (scores.at<Vec3f>(y/vStride,x/hStride))[0], maxScore, minScore,  x+xoff, y+yoff);
                     }
             }
             else if (scores.at<Vec3f>(y/vStride, x/hStride)[1] > scores.at<Vec3f>(y/vStride, x/hStride)[2])
             {
-                for (int xoff=-1; xoff<=1; xoff++)
-                    for (int yoff=-1; yoff<=1; yoff++)
+                for (int xoff=-2; xoff<=3; xoff++)
+                    for (int yoff=-2; yoff<=3; yoff++)
                     {
-                        color(heatmap,scores.at<Vec3f>(y/vStride, x/hStride)[1],maxScore,x+xoff,y+yoff);
+                        color(heatmap,scores.at<Vec3f>(y/vStride, x/hStride)[1],maxScore, minScore,x+xoff,y+yoff);
                     }
             }
             else
             {
-                color(heatmap,scores.at<Vec3f>(y/vStride, x/hStride)[2],maxScore,x,y);
-                color(heatmap,scores.at<Vec3f>(y/vStride, x/hStride)[2],maxScore,x+1,y);
-                color(heatmap,scores.at<Vec3f>(y/vStride, x/hStride)[2],maxScore,x-1,y);
-                color(heatmap,scores.at<Vec3f>(y/vStride, x/hStride)[2],maxScore,x,y+1);
-                color(heatmap,scores.at<Vec3f>(y/vStride, x/hStride)[2],maxScore,x,y-1);
+//                color(heatmap,scores.at<Vec3f>(y/vStride, x/hStride)[2],maxScore,x,y);
+//                color(heatmap,scores.at<Vec3f>(y/vStride, x/hStride)[2],maxScore,x+1,y);
+//                color(heatmap,scores.at<Vec3f>(y/vStride, x/hStride)[2],maxScore,x-1,y);
+//                color(heatmap,scores.at<Vec3f>(y/vStride, x/hStride)[2],maxScore,x,y+1);
+//                color(heatmap,scores.at<Vec3f>(y/vStride, x/hStride)[2],maxScore,x,y-1);
+                for (int xoff=-1; xoff<=2; xoff++)
+                    for (int yoff=-1; yoff<=2; yoff++)
+                    {
+                        color(heatmap,scores.at<Vec3f>(y/vStride, x/hStride)[1],maxScore, minScore,x+xoff,y+yoff);
+                    }
             }
         }
+    imwrite("./heatmap.jpg",heatmap);
+    imshow("heatmap",heatmap);
+    waitKey();
+    
     delete samplesCodedII;
 }
 
@@ -139,7 +153,7 @@ vector< vector< Mat/*< float >*/ > >* EnhancedBoVW::codeDescriptorsIntegralImage
     auto ret = new vector< vector< Mat/*< float >*/ > >(imgsize[1]);
     auto iter = desc->begin();
     //first col
-    (*ret)[0].resize(imgsize[0]);
+    (*ret)[0].resize(imgsize[0]);                                                                                                                                                                                                                                                                                                                                                       
     for (int y=0; y<imgsize[0]; y++)
     {
         
@@ -152,6 +166,10 @@ vector< vector< Mat/*< float >*/ > >* EnhancedBoVW::codeDescriptorsIntegralImage
             vector< tuple<int,float> > quan = codebook->quantizeSoft(get<0>(*iter),LLC_numOfNN);
             for (const auto &v : quan)
                 (*ret)[0][y].at<float>(get<0>(v),0) += get<1>(v);
+//            int it = codebook->quantize(get<0>(*iter));
+//            (*ret)[0][y].at<float>(it,0) += 1;
+            
+//            cout << "feature at (0,"<<y<<")"<<endl;
             
             if (++iter==desc->end())
                 break;
@@ -172,6 +190,11 @@ vector< vector< Mat/*< float >*/ > >* EnhancedBoVW::codeDescriptorsIntegralImage
                 vector< tuple<int,float> > quan = codebook->quantizeSoft(get<0>(*iter),LLC_numOfNN);
                 for (const auto &v : quan)
                     (*ret)[x][y].at<float>(get<0>(v),0) += get<1>(v);
+//                int it = codebook->quantize(get<0>(*iter));
+//                (*ret)[x][y].at<float>(it,0) += 1;
+                
+//                cout << "feature at ("<<x<<","<<y<<")"<<endl;
+                
                 if (++iter==desc->end())
                     break;
             }
@@ -183,11 +206,11 @@ vector< vector< Mat/*< float >*/ > >* EnhancedBoVW::codeDescriptorsIntegralImage
     return ret;
 }
 
-void EnhancedBoVW::color(Mat &heatMap, float score, float max, int midI, int midJ)
+void EnhancedBoVW::color(Mat &heatMap, float score, float max, float min, int midI, int midJ)
 {
-    heatMap.at<Vec3b>(midJ,midI)[0] = heatMap.at<Vec3b>(midJ,midI)[0] * (score/max);
-    heatMap.at<Vec3b>(midJ,midI)[1] = 0;
-    heatMap.at<Vec3b>(midJ,midI)[2] = heatMap.at<Vec3b>(midJ,midI)[2] * (1 - score/max);
+    heatMap.at<Vec3b>(midJ,midI)[0] = heatMap.at<Vec3b>(midJ,midI)[0] * ((score-min)/(max-min));
+    heatMap.at<Vec3b>(midJ,midI)[1] = heatMap.at<Vec3b>(midJ,midI)[2] * (1 - (score-min)/(max-min));
+    heatMap.at<Vec3b>(midJ,midI)[2] = heatMap.at<Vec3b>(midJ,midI)[2] * (1 - (score-min)/(max-min));
 }
 
 vector< tuple< vector<float>, Point2i > >* EnhancedBoVW::getDescriptors(const Mat &img)
@@ -262,45 +285,62 @@ vector< tuple< vector<float>, Point2i > >* EnhancedBoVW::getDescriptors(const Ma
         if (descriptors3[i].size() > 0)
             descAndLoc->push_back(make_tuple(descriptors3[i],locations3[i]));
     }
-    return descAndLoc;
-//    Mat heat;
-//    cvtColor(img,heat,CV_GRAY2RGB);
-//    int i=0;
-//    for (vector<float> d : descriptors1)
-//    {
-//        double norm=0;
-//        for (float n : d)
-//        {
-//            norm += n*n;
-//        }
-////        cout << norm << endl;
-//        int x= (i%((img.cols-(blockSize1.width-blockStride.width))/blockStride.width))*blockStride.width + blockSize1.width/2-blockStride.width/2;
-//        int y= (i/((img.cols-(blockSize1.width-blockStride.width))/blockStride.width))*blockStride.height + blockSize1.height/2-blockStride.height/2;
-////        cout << x <<", "<<y<<endl;
-//        assert(x+blockStride.width<img.cols && y+blockStride.height<img.rows);
+    
+
+    Mat heat;
+    cvtColor(img,heat,CV_GRAY2RGB);
+    int i=0;
+    double minNorm=999999;
+    double maxNorm=0;
+    for (vector<float> d : descriptors1)
+    {
+        double norm=0;
+        for (float n : d)
+        {
+            norm += n*n;
+        }
+        norm = sqrt(norm);
+        if (norm > maxNorm) maxNorm=norm;
+        if (norm < minNorm) minNorm=norm;
+    }
+    for (vector<float> d : descriptors1)
+    {
+        double norm=0;
+        for (float n : d)
+        {
+            norm += n*n;
+        }
+        norm = sqrt(norm);
+//        cout << norm << endl;
+        int x= (i%((img.cols-(blockSize1.width-blockStride.width))/blockStride.width))*blockStride.width + blockSize1.width/2-blockStride.width/2;
+        int y= (i/((img.cols-(blockSize1.width-blockStride.width))/blockStride.width))*blockStride.height + blockSize1.height/2-blockStride.height/2;
+//        cout << x <<", "<<y<<endl;
+        assert(x+blockStride.width<img.cols && y+blockStride.height<img.rows);
         
-//        for (int xoff=0; xoff<blockStride.width; xoff++)
-//            for (int yoff=0; yoff<blockStride.height; yoff++)
-//            {
-////                heat.at<Vec3b>(y+yoff,x+xoff) = Vec3b(
-////                        img.at<unsigned char>(y+yoff,x+xoff)*(((maxNorm-minNorm)-max(norm-minNorm,0.0))/(maxNorm-minNorm)),
-////                        img.at<unsigned char>(y+yoff,x+xoff)*(((maxNorm-minNorm)-max(norm-minNorm,0.0))/(maxNorm-minNorm)),
-////                        img.at<unsigned char>(y+yoff,x+xoff)*((max(norm-minNorm,0.0))/(maxNorm-minNorm)));
-////                heat.at<Vec3b>(y+yoff,x+xoff) = Vec3b(
-////                        img.at<unsigned char>(y+yoff,x+xoff)*(((maxNorm-minNorm)-max(norm-minNorm,0.0))/(maxNorm-minNorm)),
-////                        img.at<unsigned char>(y+yoff,x+xoff)*(((maxNorm-minNorm)-max(norm-minNorm,0.0))/(maxNorm-minNorm)),
-////                        img.at<unsigned char>(y+yoff,x+xoff));
+        for (int xoff=0; xoff<blockStride.width; xoff++)
+            for (int yoff=0; yoff<blockStride.height; yoff++)
+            {
+//                heat.at<Vec3b>(y+yoff,x+xoff) = Vec3b(
+//                        img.at<unsigned char>(y+yoff,x+xoff)*(((maxNorm-minNorm)-max(norm-minNorm,0.0))/(maxNorm-minNorm)),
+//                        img.at<unsigned char>(y+yoff,x+xoff)*(((maxNorm-minNorm)-max(norm-minNorm,0.0))/(maxNorm-minNorm)),
+//                        img.at<unsigned char>(y+yoff,x+xoff)*((max(norm-minNorm,0.0))/(maxNorm-minNorm)));
+                heat.at<Vec3b>(y+yoff,x+xoff) = Vec3b(
+                        img.at<unsigned char>(y+yoff,x+xoff)*(((maxNorm-minNorm)-max(norm-minNorm,0.0))/(maxNorm-minNorm)),
+                        img.at<unsigned char>(y+yoff,x+xoff)*(((maxNorm-minNorm)-max(norm-minNorm,0.0))/(maxNorm-minNorm)),
+                        img.at<unsigned char>(y+yoff,x+xoff));
 //                if (norm!=0)
 //                    heat.at<Vec3b>(y+yoff,x+xoff) = Vec3b(
 //                                0,
 //                                0,
 //                                img.at<unsigned char>(y+yoff,x+xoff));
-//            }
+            }
                 
-//        i++;
-//    }
-//    imshow("heat",heat);
-//    waitKey();
+        i++;
+    }
+    imshow("heatfeatures",heat);
+    waitKey();
+    
+    return descAndLoc;
 }
 
 void EnhancedBoVW::filterDesc(vector<float> &unparsedDescriptors, vector<vector<float> > &descriptors1, vector< Point2i > &locations, int descSize, Size blockSize1, Size blockStride, Size imgSize)
@@ -319,8 +359,16 @@ void EnhancedBoVW::filterDesc(vector<float> &unparsedDescriptors, vector<vector<
             location++;
             descriptors1.resize(location+1);
             
-            int x= (location%((imgSize.width-(blockSize1.width-blockStride.width))/blockStride.width))*blockStride.width + blockSize1.width/2-blockStride.width/2;
-            int y= (location/((imgSize.height-(blockSize1.width-blockStride.width))/blockStride.width))*blockStride.height + blockSize1.height/2-blockStride.height/2;
+//            int x= (location/((imgSize.width-(blockSize1.width-blockStride.width))/blockStride.width))*blockStride.width + blockSize1.width/2-blockStride.width/2;
+//            int y= (location%((imgSize.height-(blockSize1.width-blockStride.width))/blockStride.width))*blockStride.height + blockSize1.height/2-blockStride.height/2;
+            
+            int x= (location/(1+(imgSize.height-blockSize1.height)/blockStride.height)) * blockStride.width+blockSize1.width/2;
+            int y= (location%(1+(imgSize.height-blockSize1.height)/blockStride.height)) * blockStride.height+blockSize1.height/2;
+            
+//            int x= (location%(1+(imgSize.width-blockSize1.width)/blockStride.width)) * blockStride.width+blockSize1.width/2;
+//            int y= (location/(1+(imgSize.width-blockSize1.width)/blockStride.width)) * blockStride.height+blockSize1.height/2;
+            
+            assert(x<imgSize.width && y<imgSize.height);
             locations.push_back(Point2i(x,y));
             
             if (location!=0)
@@ -357,7 +405,7 @@ Codebook* EnhancedBoVW::makeCodebook(string directory, int codebook_size)
           
           string fileName(ent->d_name);
           //cout << "examining " << fileName << endl;
-          if (fileName[0] == '.' || (fileName[fileName.size()-1]!='G' && fileName[fileName.size()-1]!='g'))
+          if (fileName[0] == '.' || (fileName[fileName.size()-1]!='G' && fileName[fileName.size()-1]!='g' &&  fileName[fileName.size()-1]!='f'))
               continue;
           
           
@@ -460,16 +508,20 @@ vector<float>* EnhancedBoVW::getPooledDescFast(vector< vector< Mat/*< float >*/ 
     for (int binH=0; binH<spatialPyramids.front()[0]; binH++)
         for (int binV=0; binV<spatialPyramids.front()[1]; binV++)
         {
-            Point2i recTL(window.x + binH*binWidth, window.y + binV*binHeight);
-            Point2i recBR(window.x + (binH+1)*binWidth, window.y + (binV+1)*binHeight);
+            Point2i recTL(max(0,window.x + binH*binWidth),
+                          max(0,window.y + binV*binHeight));
+            Point2i recBR(min((int)samplesIntegralImage->size()-1,window.x + (binH+1)*binWidth -1), 
+                          min((int)samplesIntegralImage->at(0).size()-1,window.y + (binV+1)*binHeight -1));
             
 //            vector<float> bins(codebook->size(),0);
 //            for (int f=0; f<codebook->size(); f++)
 //            {
 //                bins[f] = samplesIntegralImage[recBR.x][recBR.y][f]
 //            }
-            Mat bins = (*samplesIntegralImage)[recBR.x][recBR.y] + (*samplesIntegralImage)[recTL.x][recTL.y] -
-                    (*samplesIntegralImage)[recBR.x][recTL.y] - (*samplesIntegralImage)[recTL.x][recBR.y];
+            Mat bins = (*samplesIntegralImage)[recBR.x][recBR.y] + 
+                    (*samplesIntegralImage)[recTL.x][recTL.y] -
+                    (*samplesIntegralImage)[recBR.x][recTL.y] - 
+                    (*samplesIntegralImage)[recTL.x][recBR.y];
             
             for (int i=0; i<bins.size[0]; i++)
                 ret->push_back(bins.at<float>(i,0));
