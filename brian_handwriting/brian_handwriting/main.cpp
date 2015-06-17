@@ -73,19 +73,20 @@ int main( int argc, char** argv )
 ////    c.makeHeatMap(q2,23);
 
   
+    //~/intel_index/data/enhancedBoVW/gw_20_cb.csv ~/intel_index/data/gw_20p_wannot/bigrams/an/002.png ~/intel_index/data/gw_20p_wannot/words/wordimg_4.tif
     
-    Mat img=imread(argv[3],CV_LOAD_IMAGE_GRAYSCALE);
-    Mat find=imread(argv[2],CV_LOAD_IMAGE_GRAYSCALE);
-    assert(img.cols>0 && find.cols>0);
+//    Mat img=imread(argv[3],CV_LOAD_IMAGE_GRAYSCALE);
+//    Mat find=imread(argv[2],CV_LOAD_IMAGE_GRAYSCALE);
+//    assert(img.cols>0 && find.cols>0);
     
     EnhancedBoVW bovw;
     
-//    bovw.makeCodebook(argv[1]);
-//    bovw.codebook->save(string(argv[2]));
+    bovw.makeCodebook(argv[1]);
+    bovw.codebook->save(string(argv[2]));
     
-    bovw.codebook = new Codebook();
-    bovw.codebook->readIn(argv[1]);
-    bovw.scanImage(img,find);
+//    bovw.codebook = new Codebook();
+//    bovw.codebook->readIn(argv[1]);
+//    bovw.scanImage(img,find);
     
 //    Codebook c;
 //    c.readInCSV(argv[1]);

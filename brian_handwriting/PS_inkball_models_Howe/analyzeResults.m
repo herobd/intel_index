@@ -1,4 +1,4 @@
-fullResults = load('fullResults.mat','fullResults');
+load('results_bothways.mat','fullResults');
 
 locationCSVPath='~/intel_index/data/gw_20p_wannot/bigramLocations.csv';
 imageNameNumExtract='(?<=wordimg_)\d+';

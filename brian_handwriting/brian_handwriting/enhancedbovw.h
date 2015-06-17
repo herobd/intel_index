@@ -9,6 +9,7 @@
 #include "opencv2/opencv.hpp"
 #include <iostream>
 #include <dirent.h>
+#include "hog.h"
 
 using namespace std;
 using namespace cv;

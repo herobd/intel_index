@@ -18,7 +18,8 @@ SOURCES += main.cpp \
     bagspotter.cpp \
     spatialaveragespotter.cpp \
     gatosbinarize.cpp \
-    enhancedbovw.cpp
+    enhancedbovw.cpp \
+    hog.cpp
 
 LIBS += -L/urs/local/include/opencv2 -l:libopencv_features2d.so.2.4 -l:libopencv_core.so.2.4 -l:libopencv_highgui.so.2.4 -lopencv_nonfree -l:libopencv_flann.so.2.4 -l:libopencv_imgproc.so.2.4 -l:libopencv_objdetect.so.2.4
 LIBS += -L/home/brian/intel_index/brian_handwriting/StochHMM/src/ -lstochhmm
@@ -43,4 +44,5 @@ HEADERS += \
     spatialaveragespotter.h \
     MatchKeypoints.h \
     gatosbinarize.h \
-    enhancedbovw.h
+    enhancedbovw.h \
+    hog.h
