@@ -1,6 +1,10 @@
 #include "hog.h"
 
+#include <omp.h>
+
 #define BIN_SIZE (180/num_bins)
+#define HOG_PAR 0
+#define INTERPOLATE_LOC 1
 
 HOG::HOG(float thresh, int cellSize, int stepSize, int num_bins)
 {
@@ -27,81 +31,96 @@ void HOG::compute(const Mat &img, vector<vector<float> > &descriptors, vector< P
 //    Mat binned = bin(grad);
     
     //init bins
-    int binsH=(img.cols-stepSize)/stepSize;
-    int binsV=(img.rows-stepSize)/stepSize;
+    int binsHorz=(img.cols-stepSize)/stepSize;
+    int binsVert=(img.rows-stepSize)/stepSize;
     
-    vector< vector< vector<float> > > bins;
-    bins.resize(binsH);
-    for (int i=0; i<binsH; i++)
-    {
-//        int tlX = i*stepSize;
+//    vector< vector< vector<float> > > bins;
+//    bins.resize(binsH);
+//    for (int i=0; i<binsH; i++)
+//    {
+////        int tlX = i*stepSize;
         
-        bins.at(i).resize(binsV);
-        for (int j=0; j<binsV; j++)
+//        bins.at(i).resize(binsV);
+//        for (int j=0; j<binsV; j++)
+//        {
+////            int tlY = j*stepSize;
+//            bins.at(i).at(j).resize(num_bins);
+//        }
+//    }
+    vector<float>** bins = new vector<float>*[binsHorz];
+    for (int i=0; i<binsHorz; i++)
+    {
+        bins[i] = new vector<float>[binsVert];
+        for (int j=0; j<binsVert; j++)
         {
-//            int tlY = j*stepSize;
-            bins.at(i).at(j).resize(num_bins);
+            bins[i][j].resize(num_bins);
         }
     }
     
-    //compute the bins
-    for (int i=0; i<binsH; i++)
+    //compute the bins  ,tlX,tlY,x,y,hGrad,vGrad,angle,bin,other_bin,my_binW,other_binW,mag
+    int stepSize_par=stepSize;
+    int cellSize_par=cellSize;
+    //private(binsHorz,binsVert,cellSize_par,stepSize_par)
+//#pragma omp parallel for if (HOG_PAR)
+    for (int i=0; i<binsHorz; i++)
     {
-        int tlX = i*stepSize - (cellSize-stepSize)/2;
-        for (int j=0; j<binsV; j++)
+        int tlX = i*stepSize_par - (cellSize_par-stepSize_par)/2;
+        for (int j=0; j<binsVert; j++)
         {
-            int tlY = j*stepSize - (cellSize-stepSize)/2;
+            int tlY = j*stepSize_par - (cellSize_par-stepSize_par)/2;
             //each cell
             
-            for (int x=tlX; x<tlX+cellSize; x++)
-                for (int y=tlY; y<tlY+cellSize; y++)
+            for (int x=tlX; x<tlX+cellSize_par; x++)
+                for (int y=tlY; y<tlY+cellSize_par; y++)
                 {
                     //trilinear interpolation?
-//                    float horzDist = (x-tlX)-(.5+stepSize/2.0);
-//                    int other_i;
-//                    float other_iW;
-//                    float my_iW;
-//                    if (horzDist <0 && i>0)
-//                    {
-//                        other_i=i-1;
-//                        my_iW=(horzDist*-1.0)/stepSize;
-//                        other_iW=(stepSize+horzDist+0.0)/stepSize;
-//                    }
-//                    else if (horzDist >0 && i<(binsH)-1)
-//                    {
-//                        other_i=i+1;
-//                        my_iW=(horzDist*1.0)/stepSize;
-//                        other_iW=(stepSize-horzDist+0.0)/stepSize;
-//                    }
-//                    else
-//                    {
-//                        other_i=i;
-//                        my_iW=1;
-//                        other_iW=0;
-//                    }
+#if INTERPOLATE_LOC
+                    float horzDist = (x-tlX)-(-.5+cellSize_par/2.0);
+                    int other_i;
+                    float other_iW;
+                    float my_iW;
+                    if (horzDist <0 && i>0)
+                    {
+                        other_i=i-1;
+                        other_iW=(horzDist*-1.0)/(cellSize_par/2.0);
+                        my_iW=((cellSize_par/2.0)+horzDist+0.0)/(cellSize_par/2.0);
+                    }
+                    else if (horzDist >0 && i<(binsHorz)-1)
+                    {
+                        other_i=i+1;
+                        other_iW=(horzDist*1.0)/(cellSize_par/2.0);
+                        my_iW=((cellSize_par/2.0)-horzDist+0.0)/(cellSize_par/2.0);
+                    }
+                    else
+                    {
+                        other_i=i;
+                        my_iW=1;
+                        other_iW=0;
+                    }
                     
-//                    float vertDist = (y-tlY)-(.5+stepSize/2.0);
-//                    int other_j;
-//                    float other_jW;
-//                    float my_jW;
-//                    if (vertDist <0 && j>0)
-//                    {
-//                        other_j=j-1;
-//                        my_jW=(vertDist*-1.0)/stepSize;
-//                        other_jW=(stepSize+vertDist+0.0)/stepSize;
-//                    }
-//                    else if (vertDist >0 && j<(binsV)-1)
-//                    {
-//                        other_j=j+1;
-//                        my_jW=(vertDist*1.0)/stepSize;
-//                        other_jW=(stepSize-vertDist+0.0)/stepSize;
-//                    }
-//                    else
-//                    {
-//                        other_j=j;
-//                        my_jW=1;
-//                        other_jW=0;
-//                    }
+                    float vertDist = (y-tlY)-(-.5+cellSize_par/2.0);
+                    int other_j;
+                    float other_jW;
+                    float my_jW;
+                    if (vertDist <0 && j>0)
+                    {
+                        other_j=j-1;
+                        other_jW=(vertDist*-1.0)/(cellSize_par/2.0);
+                        my_jW=((cellSize_par/2.0)+vertDist+0.0)/(cellSize_par/2.0);
+                    }
+                    else if (vertDist >0 && j<(binsVert)-1)
+                    {
+                        other_j=j+1;
+                        other_jW=(vertDist*1.0)/(cellSize_par/2.0);
+                        my_jW=((cellSize_par/2.0)-vertDist+0.0)/(cellSize_par/2.0);
+                    }
+                    else
+                    {
+                        other_j=j;
+                        my_jW=1;
+                        other_jW=0;
+                    }
+#endif
                     
                     float hGrad=0;
                     float vGrad=0;
@@ -140,36 +159,38 @@ void HOG::compute(const Mat &img, vector<vector<float> > &descriptors, vector< P
                         other_binW=0;
                     }
                     
-                    float mag = sqrt(pow(grad.at<Vec2f>(y,x)[0],2) + pow(grad.at<Vec2f>(y,x)[1],2));
+                    float mag = sqrt(pow(hGrad,2) + pow(vGrad,2));
                     
 //                    //add pixel to bins[i][j]
-//                    bins[i][j][bin] += mag*my_iW*my_jW*my_binW;
-//                    bins[other_i][j][bin] += mag*other_iW*my_jW*my_binW;
-//                    bins[i][other_j][bin] += mag*my_iW*other_jW*my_binW;
-//                    bins.at(other_i).at(other_j).at(bin) += mag*other_iW*other_jW*my_binW;
+#if INTERPOLATE_LOC
+                    bins[i][j][bin] += mag*my_iW*my_jW*my_binW;
+                    bins[other_i][j][bin] += mag*other_iW*my_jW*my_binW;
+                    bins[i][other_j][bin] += mag*my_iW*other_jW*my_binW;
+                    bins[other_i][other_j].at(bin) += mag*other_iW*other_jW*my_binW;
                     
-//                    bins[i][j][other_bin] += mag*my_iW*my_jW*other_binW;
-//                    bins[other_i][j][other_bin] += mag*other_iW*my_jW*other_binW;
-//                    bins[i][other_j][other_bin] += mag*my_iW*other_jW*other_binW;
-//                    bins.at(other_i).at(other_j).at(other_bin) += mag*other_iW*other_jW*other_binW;
-                    
+                    bins[i][j][other_bin] += mag*my_iW*my_jW*other_binW;
+                    bins[other_i][j][other_bin] += mag*other_iW*my_jW*other_binW;
+                    bins[i][other_j][other_bin] += mag*my_iW*other_jW*other_binW;
+                    bins[other_i][other_j].at(other_bin) += mag*other_iW*other_jW*other_binW;
+#else
                     bins[i][j][bin] += mag*my_binW;
                     bins[i][j][other_bin] += mag*other_binW;
+#endif
                 }
         }
     }
     
     //filter and feature points to return objects
-    for (int i=0; i<binsH; i++)
+    for (int i=0; i<binsHorz; i++)
     {
         int tlX = i*stepSize - (cellSize-stepSize)/2;
-        for (int j=0; j<binsV; j++)
+        for (int j=0; j<binsVert; j++)
         {
             int tlY = j*stepSize - (cellSize-stepSize)/2;
             
             float mag=0;
-            for (int f=0; f<num_bins; f++)
-                mag += pow(bins[i][j][f],2);
+            for (int b=0; b<num_bins; b++)
+                mag += pow(bins[i][j][b],2);
             mag = sqrt(mag);
             if (mag>thresh)
             {
@@ -178,7 +199,14 @@ void HOG::compute(const Mat &img, vector<vector<float> > &descriptors, vector< P
             }
         }
     }
-            
+    
+    
+    for (int i=0; i<binsHorz; i++)
+    {
+        
+        delete[] bins[i];
+    }
+    delete[] bins;
 }
 
 

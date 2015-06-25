@@ -2,7 +2,7 @@ function attModels = learn_attributes_subword(opts,data)
 % Learns the attribute models and projects the dataset to the new attribute
 % space
 
-if ~exist(opts.fileAttModels,'file')
+if ~exist(opts.fileAttModels,'file') || ~exist(opts.fileAttRepresQu_subword,'file')
     
     if opts.bagging
         if opts.cluster

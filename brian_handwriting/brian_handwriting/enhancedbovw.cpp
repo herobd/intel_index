@@ -1,4 +1,6 @@
 #include "enhancedbovw.h"
+
+#include <omp.h>
 //#include "opencv2/gpu/gpu.hpp"
 
 EnhancedBoVW::EnhancedBoVW()
@@ -8,29 +10,41 @@ EnhancedBoVW::EnhancedBoVW()
     codebook=NULL;
     spatialPyramids = {Vec2i(1,1),Vec2i(2,2)};
 }
-void EnhancedBoVW::scanImage(const Mat &img, const Mat &exemplar)
+
+vector<float>* EnhancedBoVW::featurizeImage(const Mat &img)
+{
+    auto samplesUncoded = getDescriptors(img);
+    auto samplesCoded = codeDescriptorsIntegralImage(samplesUncoded,img.size);
+    
+    vector<float>* exe = getPooledDescFast(samplesCoded, Rect(0,0,img.cols,img.rows),spatialPyramids);
+    normalizeDesc(exe);
+    return exe;
+    
+}
+
+float EnhancedBoVW::scanImage(const Mat &img, const Mat &exemplar)
 {
     auto samplesUncoded = getDescriptors(exemplar);
     auto samplesCoded = codeDescriptorsIntegralImage(samplesUncoded,exemplar.size);
     
     vector<float>* exe = getPooledDescFast(samplesCoded, Rect(0,0,exemplar.cols,exemplar.rows),spatialPyramids);
     normalizeDesc(exe);
-    scanImage(img,*exe,exemplar.size());
+    float ret=scanImage(img,*exe,exemplar.size());
     delete exe;
-    
+    return ret;
 }
 
 
-void EnhancedBoVW::scanImage(const Mat &img, const vector<float> &exemplar, Size exemplarSize)
+float EnhancedBoVW::scanImage(const Mat &img, const vector<float> &exemplar, Size exemplarSize)
 {
     int hStride = 8;
     int vStride=8;
-    int windowWidth=exemplarSize.width*1.05;
-    int windowHeight=exemplarSize.height*1.05;
+    int windowWidth=exemplarSize.width*1.2;
+    int windowHeight=exemplarSize.height*1.2;
     int windowWidth2=exemplarSize.width;
     int windowHeight2=exemplarSize.height;
-    int windowWidth3=exemplarSize.width*.95;
-    int windowHeight3=exemplarSize.height*.95;
+    int windowWidth3=exemplarSize.width*.8;
+    int windowHeight3=exemplarSize.height*.8;
     
     Mat scores(img.rows/vStride, img.cols/hStride, CV_32FC3);
     float maxScore=0;
@@ -39,6 +53,13 @@ void EnhancedBoVW::scanImage(const Mat &img, const vector<float> &exemplar, Size
     auto samplesUncoded = getDescriptors(img);
 //    auto samplesCoded = codeDescriptors(samplesUncoded);
     auto samplesCodedII = codeDescriptorsIntegralImage(samplesUncoded,img.size);
+    
+    cout << "exemplar:";
+    for (int i=0; i<50; i++)
+    {
+        if (exemplar[i]>.25) cout << i<< ", ";
+    }
+    cout << endl;
     
     
     for (int x=windowWidth3/3; x<img.cols-windowWidth3/3; x+=hStride)
@@ -57,6 +78,8 @@ void EnhancedBoVW::scanImage(const Mat &img, const vector<float> &exemplar, Size
             vector<float>* desc3 = getPooledDescFast(samplesCodedII, r3, spatialPyramids);
             normalizeDesc(desc3);
             
+            
+            
             float score1=0;
             float score2=0;
             float score3=0;
@@ -66,8 +89,17 @@ void EnhancedBoVW::scanImage(const Mat &img, const vector<float> &exemplar, Size
                 score1 += pow(exemplar[i]-desc1->at(i),2);
                 score2 += pow(exemplar[i]-desc2->at(i),2);
                 score3 += pow(exemplar[i]-desc3->at(i),2);
+                
+                
             }
             scores.at<Vec3f>(y/vStride, x/hStride) = Vec3f(score1,score2,score3);
+            
+            cout << "examining:";
+            for (int ii=0; ii<50; ii++)
+            {
+                if (desc2->at(ii)>.25) cout << ii<< ", ";
+            }
+            cout << ":: score: " << score2<< endl;
             
             if (score1<minScore) minScore=score1;
             if (score2<minScore) minScore=score2;
@@ -80,48 +112,61 @@ void EnhancedBoVW::scanImage(const Mat &img, const vector<float> &exemplar, Size
             delete desc1;
             delete desc2;
             delete desc3;
+            
+            cout << "scores: " << score1 << ", " << score2 << ", " << score3 << endl;
+            Mat tmp;
+            cvtColor(img,tmp,CV_GRAY2RGB);
+            rectangle(tmp,r2,Scalar(0,0,255));
+            rectangle(tmp,r1,Scalar(255,0,0));
+            rectangle(tmp,r3,Scalar(0,255,0));
+            imshow("sliding window",tmp);
+            waitKey(60);
         }
     
-//    Mat heatmap;
-//    cvtColor(img,heatmap,CV_GRAY2RGB);
-//    for (int x=windowWidth3/3; x<img.cols-windowWidth3/3; x+=hStride)
-//        for (int y=windowHeight3/3; y<img.rows-windowHeight3/3; y+=vStride)
-//        {
-//            if (scores.at<Vec3f>(y/vStride, x/hStride)[0] > max(scores.at<Vec3f>(y/vStride, x/hStride)[1],scores.at<Vec3f>(y/vStride, x/hStride)[2]))
-//            {
-//                for (int xoff=-3; xoff<=4; xoff++)
-//                    for (int yoff=-3; yoff<=4; yoff++)
-//                    {
-//                        color(heatmap, (scores.at<Vec3f>(y/vStride,x/hStride))[0], maxScore, minScore,  x+xoff, y+yoff);
-//                    }
-//            }
-//            else if (scores.at<Vec3f>(y/vStride, x/hStride)[1] > scores.at<Vec3f>(y/vStride, x/hStride)[2])
-//            {
-//                for (int xoff=-2; xoff<=3; xoff++)
-//                    for (int yoff=-2; yoff<=3; yoff++)
-//                    {
-//                        color(heatmap,scores.at<Vec3f>(y/vStride, x/hStride)[1],maxScore, minScore,x+xoff,y+yoff);
-//                    }
-//            }
-//            else
-//            {
-////                color(heatmap,scores.at<Vec3f>(y/vStride, x/hStride)[2],maxScore,x,y);
-////                color(heatmap,scores.at<Vec3f>(y/vStride, x/hStride)[2],maxScore,x+1,y);
-////                color(heatmap,scores.at<Vec3f>(y/vStride, x/hStride)[2],maxScore,x-1,y);
-////                color(heatmap,scores.at<Vec3f>(y/vStride, x/hStride)[2],maxScore,x,y+1);
-////                color(heatmap,scores.at<Vec3f>(y/vStride, x/hStride)[2],maxScore,x,y-1);
-//                for (int xoff=-1; xoff<=2; xoff++)
-//                    for (int yoff=-1; yoff<=2; yoff++)
-//                    {
-//                        color(heatmap,scores.at<Vec3f>(y/vStride, x/hStride)[1],maxScore, minScore,x+xoff,y+yoff);
-//                    }
-//            }
-//        }
-//    imwrite("./heatmap.jpg",heatmap);
-//    imshow("heatmap",heatmap);
-//    waitKey();
+    Mat heatmap;
+    cvtColor(img,heatmap,CV_GRAY2RGB);
+    for (int x=windowWidth3/3; x<img.cols-windowWidth3/3; x+=hStride)
+        for (int y=windowHeight3/3; y<img.rows-windowHeight3/3; y+=vStride)
+        {
+            if (scores.at<Vec3f>(y/vStride, x/hStride)[0] < 
+                    min(scores.at<Vec3f>(y/vStride, x/hStride)[1],scores.at<Vec3f>(y/vStride, x/hStride)[2]))
+            {
+                for (int xoff=-3; xoff<=4; xoff++)
+                    for (int yoff=-3; yoff<=4; yoff++)
+                    {
+                        color(heatmap, (scores.at<Vec3f>(y/vStride,x/hStride))[0], maxScore, minScore,  x+xoff, y+yoff);
+                    }
+            }
+            else if (scores.at<Vec3f>(y/vStride, x/hStride)[1] < scores.at<Vec3f>(y/vStride, x/hStride)[2])
+            {
+                for (int xoff=-2; xoff<=3; xoff++)
+                    for (int yoff=-2; yoff<=3; yoff++)
+                    {
+                        color(heatmap,scores.at<Vec3f>(y/vStride, x/hStride)[1],maxScore, minScore,x+xoff,y+yoff);
+                    }
+            }
+            else
+            {
+//                color(heatmap,scores.at<Vec3f>(y/vStride, x/hStride)[2],maxScore,x,y);
+//                color(heatmap,scores.at<Vec3f>(y/vStride, x/hStride)[2],maxScore,x+1,y);
+//                color(heatmap,scores.at<Vec3f>(y/vStride, x/hStride)[2],maxScore,x-1,y);
+//                color(heatmap,scores.at<Vec3f>(y/vStride, x/hStride)[2],maxScore,x,y+1);
+//                color(heatmap,scores.at<Vec3f>(y/vStride, x/hStride)[2],maxScore,x,y-1);
+                for (int xoff=-1; xoff<=2; xoff++)
+                    for (int yoff=-1; yoff<=2; yoff++)
+                    {
+                        color(heatmap,scores.at<Vec3f>(y/vStride, x/hStride)[1],maxScore, minScore,x+xoff,y+yoff);
+                    }
+            }
+        }
+    cout << "min score " << minScore << endl;
+    imwrite("./heatmap.jpg",heatmap);
+    imshow("heatmap",heatmap);
+    
+    waitKey();
     
     delete samplesCodedII;
+    return minScore;
 }
 
 vector< tuple< vector< tuple<int,float> >, Point2i > >* EnhancedBoVW::codeDescriptors(vector< tuple< vector<float>, Point2i > >* desc)
@@ -208,8 +253,8 @@ vector< vector< Mat/*< float >*/ > >* EnhancedBoVW::codeDescriptorsIntegralImage
 
 void EnhancedBoVW::color(Mat &heatMap, float score, float max, float min, int midI, int midJ)
 {
-    heatMap.at<Vec3b>(midJ,midI)[0] = heatMap.at<Vec3b>(midJ,midI)[0] * ((score-min)/(max-min));
-    heatMap.at<Vec3b>(midJ,midI)[1] = heatMap.at<Vec3b>(midJ,midI)[2] * (1 - (score-min)/(max-min));
+    heatMap.at<Vec3b>(midJ,midI)[0] = heatMap.at<Vec3b>(midJ,midI)[0] * (1 - (score-min)/(max-min));
+    heatMap.at<Vec3b>(midJ,midI)[1] = heatMap.at<Vec3b>(midJ,midI)[1] * ((score-min)/(max-min));
     heatMap.at<Vec3b>(midJ,midI)[2] = heatMap.at<Vec3b>(midJ,midI)[2] * (1 - (score-min)/(max-min));
 }
 
@@ -287,7 +332,18 @@ vector< tuple< vector<float>, Point2i > >* EnhancedBoVW::getDescriptors(const Ma
     hog2.compute(img,descriptors2,locations2);
     hog3.compute(img,descriptors3,locations3);
     
-    vector< tuple< vector< float >, Point2i > > *descAndLoc = new vector< tuple< vector< float >, Point2i > >();
+//    //this assumes the locations are the same for all three
+//    assert(locations1.size() == locations2.size() && locations1.size()==locations3.size());
+//    vector< tuple< vector< float >, Point2i > > *descAndLoc = new vector< tuple< vector< float >, Point2i > >();
+//    for (int i=0; i< descriptors1.size(); i++)
+//    {
+//        vector<float> appendedDesc;
+//        appendedDesc.insert(appendedDesc.end(), descriptors1[i].begin(), descriptors1[i].end());
+//        appendedDesc.insert(appendedDesc.end(), descriptors2[i].begin(), descriptors2[i].end());
+//        appendedDesc.insert(appendedDesc.end(), descriptors3[i].begin(), descriptors3[i].end());
+//        descAndLoc->push_back(make_tuple(appendedDesc,locations1[i]));
+//    }
+    
     for (int i=0; i< descriptors1.size(); i++)
     {
         descAndLoc->push_back(make_tuple(descriptors1[i],locations1[i]));
@@ -301,144 +357,144 @@ vector< tuple< vector<float>, Point2i > >* EnhancedBoVW::getDescriptors(const Ma
         descAndLoc->push_back(make_tuple(descriptors3[i],locations3[i]));
     }
 
-//    Mat heat;
-//    cvtColor(img,heat,CV_GRAY2RGB);
-//    int i=0;
-//    double minNorm=999999;
-//    double maxNorm=0;
-//    for (vector<float> d : descriptors1)
-//    {
-//        double norm=0;
-//        for (float n : d)
-//        {
-//            norm += n*n;
-//        }
-//        norm = sqrt(norm);
-//        if (norm > maxNorm) maxNorm=norm;
-//        if (norm < minNorm) minNorm=norm;
-//    }
-//    for (int idx=0; idx<descriptors1.size(); idx++)
-//    {
-//        vector<float> d = descriptors1[idx];
-//        double norm=0;
-//        for (float n : d)
-//        {
-//            norm += n*n;
-//        }
-//        norm = sqrt(norm);
-////        cout << norm << endl;
-////        int x= (i%((img.cols-(blockSize1-blockStride))/blockStride))*blockStride + blockSize1/2-blockStride/2;
-////        int y= (i/((img.cols-(blockSize1-blockStride))/blockStride))*blockStride + blockSize1/2-blockStride/2;
-////        cout << x <<", "<<y<<endl;
-//        int x = locations1[idx].x;
-//        int y = locations1[idx].y;
+    Mat heat;
+    cvtColor(img,heat,CV_GRAY2RGB);
+    int i=0;
+    double minNorm=999999;
+    double maxNorm=0;
+    for (vector<float> d : descriptors1)
+    {
+        double norm=0;
+        for (float n : d)
+        {
+            norm += n*n;
+        }
+        norm = sqrt(norm);
+        if (norm > maxNorm) maxNorm=norm;
+        if (norm < minNorm) minNorm=norm;
+    }
+    for (int idx=0; idx<descriptors1.size(); idx++)
+    {
+        vector<float> d = descriptors1[idx];
+        double norm=0;
+        for (float n : d)
+        {
+            norm += n*n;
+        }
+        norm = sqrt(norm);
+//        cout << norm << endl;
+//        int x= (i%((img.cols-(blockSize1-blockStride))/blockStride))*blockStride + blockSize1/2-blockStride/2;
+//        int y= (i/((img.cols-(blockSize1-blockStride))/blockStride))*blockStride + blockSize1/2-blockStride/2;
+//        cout << x <<", "<<y<<endl;
+        int x = locations1[idx].x;
+        int y = locations1[idx].y;
         
         
         
-//        for (int xoff=-blockStride/2; xoff<blockStride/2; xoff++)
-//            for (int yoff=-blockStride/2; yoff<blockStride/2; yoff++)
-//            {
-////                heat.at<Vec3b>(y+yoff,x+xoff) = Vec3b(
-////                        img.at<unsigned char>(y+yoff,x+xoff)*(((maxNorm-minNorm)-max(norm-minNorm,0.0))/(maxNorm-minNorm)),
-////                        img.at<unsigned char>(y+yoff,x+xoff)*(((maxNorm-minNorm)-max(norm-minNorm,0.0))/(maxNorm-minNorm)),
-////                        img.at<unsigned char>(y+yoff,x+xoff)*((max(norm-minNorm,0.0))/(maxNorm-minNorm)));
+        for (int xoff=-blockStride/2; xoff<blockStride/2; xoff++)
+            for (int yoff=-blockStride/2; yoff<blockStride/2; yoff++)
+            {
 //                heat.at<Vec3b>(y+yoff,x+xoff) = Vec3b(
 //                        img.at<unsigned char>(y+yoff,x+xoff)*(((maxNorm-minNorm)-max(norm-minNorm,0.0))/(maxNorm-minNorm)),
 //                        img.at<unsigned char>(y+yoff,x+xoff)*(((maxNorm-minNorm)-max(norm-minNorm,0.0))/(maxNorm-minNorm)),
-//                        img.at<unsigned char>(y+yoff,x+xoff));
-////                if (norm!=0)
-////                    heat.at<Vec3b>(y+yoff,x+xoff) = Vec3b(
-////                                0,
-////                                0,
-////                                img.at<unsigned char>(y+yoff,x+xoff));
-//            }
+//                        img.at<unsigned char>(y+yoff,x+xoff)*((max(norm-minNorm,0.0))/(maxNorm-minNorm)));
+                heat.at<Vec3b>(y+yoff,x+xoff) = Vec3b(
+                        img.at<unsigned char>(y+yoff,x+xoff)*(((maxNorm-minNorm)-max(norm-minNorm,0.0))/(maxNorm-minNorm)),
+                        img.at<unsigned char>(y+yoff,x+xoff)*(((maxNorm-minNorm)-max(norm-minNorm,0.0))/(maxNorm-minNorm)),
+                        img.at<unsigned char>(y+yoff,x+xoff));
+//                if (norm!=0)
+//                    heat.at<Vec3b>(y+yoff,x+xoff) = Vec3b(
+//                                0,
+//                                0,
+//                                img.at<unsigned char>(y+yoff,x+xoff));
+            }
                 
-//        i++;
-//    }
-//    imshow("heatfeatures1",heat);
-//    waitKey();
+        i++;
+    }
+    imshow("heatfeatures1",heat);
+    waitKey();
     
-//    cvtColor(img,heat,CV_GRAY2RGB);
-//    i=0;
-//    minNorm=999999;
-//    maxNorm=0;
-//    for (vector<float> d : descriptors2)
-//    {
-//        double norm=0;
-//        for (float n : d)
-//        {
-//            norm += n*n;
-//        }
-//        norm = sqrt(norm);
-//        if (norm > maxNorm) maxNorm=norm;
-//        if (norm < minNorm) minNorm=norm;
-//    }
-//    for (int idx=0; idx<descriptors2.size(); idx++)
-//    {
-//        vector<float> d = descriptors2[idx];
-//        double norm=0;
-//        for (float n : d)
-//        {
-//            norm += n*n;
-//        }
-//        norm = sqrt(norm);
-//        int x = locations2[idx].x;
-//        int y = locations2[idx].y;
+    cvtColor(img,heat,CV_GRAY2RGB);
+    i=0;
+    minNorm=999999;
+    maxNorm=0;
+    for (vector<float> d : descriptors2)
+    {
+        double norm=0;
+        for (float n : d)
+        {
+            norm += n*n;
+        }
+        norm = sqrt(norm);
+        if (norm > maxNorm) maxNorm=norm;
+        if (norm < minNorm) minNorm=norm;
+    }
+    for (int idx=0; idx<descriptors2.size(); idx++)
+    {
+        vector<float> d = descriptors2[idx];
+        double norm=0;
+        for (float n : d)
+        {
+            norm += n*n;
+        }
+        norm = sqrt(norm);
+        int x = locations2[idx].x;
+        int y = locations2[idx].y;
         
-//        for (int xoff=-blockStride/2; xoff<blockStride/2; xoff++)
-//            for (int yoff=-blockStride/2; yoff<blockStride/2; yoff++)
-//            {
-//                heat.at<Vec3b>(y+yoff,x+xoff) = Vec3b(
-//                        img.at<unsigned char>(y+yoff,x+xoff)*(((maxNorm-minNorm)-max(norm-minNorm,0.0))/(maxNorm-minNorm)),
-//                        img.at<unsigned char>(y+yoff,x+xoff)*(((maxNorm-minNorm)-max(norm-minNorm,0.0))/(maxNorm-minNorm)),
-//                        img.at<unsigned char>(y+yoff,x+xoff));
-//            }
+        for (int xoff=-blockStride/2; xoff<blockStride/2; xoff++)
+            for (int yoff=-blockStride/2; yoff<blockStride/2; yoff++)
+            {
+                heat.at<Vec3b>(y+yoff,x+xoff) = Vec3b(
+                        img.at<unsigned char>(y+yoff,x+xoff)*(((maxNorm-minNorm)-max(norm-minNorm,0.0))/(maxNorm-minNorm)),
+                        img.at<unsigned char>(y+yoff,x+xoff)*(((maxNorm-minNorm)-max(norm-minNorm,0.0))/(maxNorm-minNorm)),
+                        img.at<unsigned char>(y+yoff,x+xoff));
+            }
                 
-//        i++;
-//    }
-//    imshow("heatfeatures2",heat);
-//    waitKey();
+        i++;
+    }
+    imshow("heatfeatures2",heat);
+    waitKey();
     
-//    cvtColor(img,heat,CV_GRAY2RGB);
-//    i=0;
-//    minNorm=999999;
-//    maxNorm=0;
-//    for (vector<float> d : descriptors3)
-//    {
-//        double norm=0;
-//        for (float n : d)
-//        {
-//            norm += n*n;
-//        }
-//        norm = sqrt(norm);
-//        if (norm > maxNorm) maxNorm=norm;
-//        if (norm < minNorm) minNorm=norm;
-//    }
-//    for (int idx=0; idx<descriptors3.size(); idx++)
-//    {
-//        vector<float> d = descriptors3[idx];
-//        double norm=0;
-//        for (float n : d)
-//        {
-//            norm += n*n;
-//        }
-//        norm = sqrt(norm);
-//        int x = locations3[idx].x;
-//        int y = locations3[idx].y;
+    cvtColor(img,heat,CV_GRAY2RGB);
+    i=0;
+    minNorm=999999;
+    maxNorm=0;
+    for (vector<float> d : descriptors3)
+    {
+        double norm=0;
+        for (float n : d)
+        {
+            norm += n*n;
+        }
+        norm = sqrt(norm);
+        if (norm > maxNorm) maxNorm=norm;
+        if (norm < minNorm) minNorm=norm;
+    }
+    for (int idx=0; idx<descriptors3.size(); idx++)
+    {
+        vector<float> d = descriptors3[idx];
+        double norm=0;
+        for (float n : d)
+        {
+            norm += n*n;
+        }
+        norm = sqrt(norm);
+        int x = locations3[idx].x;
+        int y = locations3[idx].y;
         
-//        for (int xoff=-blockStride/2; xoff<blockStride/2; xoff++)
-//            for (int yoff=-blockStride/2; yoff<blockStride/2; yoff++)
-//            {
-//                heat.at<Vec3b>(y+yoff,x+xoff) = Vec3b(
-//                        img.at<unsigned char>(y+yoff,x+xoff)*(((maxNorm-minNorm)-max(norm-minNorm,0.0))/(maxNorm-minNorm)),
-//                        img.at<unsigned char>(y+yoff,x+xoff)*(((maxNorm-minNorm)-max(norm-minNorm,0.0))/(maxNorm-minNorm)),
-//                        img.at<unsigned char>(y+yoff,x+xoff));
-//            }
+        for (int xoff=-blockStride/2; xoff<blockStride/2; xoff++)
+            for (int yoff=-blockStride/2; yoff<blockStride/2; yoff++)
+            {
+                heat.at<Vec3b>(y+yoff,x+xoff) = Vec3b(
+                        img.at<unsigned char>(y+yoff,x+xoff)*(((maxNorm-minNorm)-max(norm-minNorm,0.0))/(maxNorm-minNorm)),
+                        img.at<unsigned char>(y+yoff,x+xoff)*(((maxNorm-minNorm)-max(norm-minNorm,0.0))/(maxNorm-minNorm)),
+                        img.at<unsigned char>(y+yoff,x+xoff));
+            }
                 
-//        i++;
-//    }
-//    imshow("heatfeatures3",heat);
-//    waitKey();
+        i++;
+    }
+    imshow("heatfeatures3",heat);
+    waitKey();
     
     return descAndLoc;
 }
@@ -497,29 +553,51 @@ Codebook* EnhancedBoVW::makeCodebook(string directory, int codebook_size)
     vector< vector<float> > accum;
     
     
-    int count=0;
+    
     DIR *dir;
     struct dirent *ent;
     if ((dir = opendir (directory.c_str())) != NULL) {
+      cout << "reading images and obtaining descriptors" << endl;
       
+      vector<string> fileNames;
       while ((ent = readdir (dir)) != NULL) {
-          if (count++>200) break;
-          
           string fileName(ent->d_name);
-          //cout << "examining " << fileName << endl;
           if (fileName[0] == '.' || (fileName[fileName.size()-1]!='G' && fileName[fileName.size()-1]!='g' &&  fileName[fileName.size()-1]!='f'))
               continue;
+          fileNames.push_back(fileName);
+      }
+      //private(fileName,img,desc,t)
+      int loopCrit = min((int)5000,(int)fileNames.size());
+#pragma omp parallel for 
+      for (int nameIdx=0; nameIdx<loopCrit; nameIdx++)
+      {
+          
+          
+          string fileName=fileNames[nameIdx];
+          //cout << "examining " << fileName << endl;
+          
           
           
           Mat img = imread(directory+fileName, CV_LOAD_IMAGE_GRAYSCALE);
           vector< tuple<vector<float>, Point2i > >* desc = getDescriptors(img);
-          for (auto t : *desc)
+          
+#pragma omp critical
           {
-//              assert(get<0>(t).size() > 0);
-              accum.push_back(get<0>(t));
+              for (auto t : *desc)
+              {
+                  //              assert(get<0>(t).size() > 0);
+                  accum.push_back(get<0>(t));
+              }
           }
+          
           delete desc;
       }
+      
+      
+      
+      cout << "selecting random set" << endl;
+      cout << "really. accum is " << accum.size() << endl;
+      
       Mat centriods;
       TermCriteria crit(0,500,.9);
 //      Mat data(accum.size(),accum[0].size(),CV_32F);
@@ -527,21 +605,33 @@ Codebook* EnhancedBoVW::makeCodebook(string directory, int codebook_size)
 //          for (int c=0; c<accum[0].size(); c++)
 //              data.at<float>(r,c) = accum[r][c];
       Mat data(codebook_size*100,accum[0].size(),CV_32F);
+      
+      
       for (int count=0; count< codebook_size*100; count++)
       {
-          int r;
-          do
+          int r=rand()%accum.size();
+          int orig=r;
+          while (accum[r].size()==0)
           {
-              r=rand()%accum.size();
-          } while (accum[r].size()==0);
+              r = (1+r)%accum.size();
+              if (r==orig)
+              {
+                  cout << "ERROR: not enough descriptors" << endl;
+                  return NULL;
+              }
+          }
           
           
           for (int c=0; c<accum[0].size(); c++)
               data.at<float>(count,c) = accum[r][c];
           accum[r].resize(0);
       }
+      cout << "computing kmeans" << endl;
+      
       Mat temp;
-      kmeans(data,codebook_size,temp,crit,20,KMEANS_RANDOM_CENTERS,centriods);
+      kmeans(data,codebook_size,temp,crit,10,KMEANS_RANDOM_CENTERS,centriods);
+      
+       cout << "compiling codebook" << endl;
       
       codebook = new Codebook();
       for (int r=0; r<centriods.rows; r++)
@@ -627,6 +717,7 @@ vector<float>* EnhancedBoVW::getPooledDescFast(vector< vector< Mat/*< float >*/ 
             
             for (int i=0; i<bins.size[0]; i++)
                 ret->push_back(bins.at<float>(i,0));
+            
 //            ret->insert(ret->end(),bins.begin(),bins.end());
             
 //            if (spatialPyramids.size()>1)

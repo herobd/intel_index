@@ -13,10 +13,10 @@ nBatches = int32(ceil(nWords/imagesPerBatch));
 featsBatch = {};
 
 % Write output header
-fid = fopen(opts.fileFeatures_slidingwindow, 'w');
-fwrite(fid, nWords, 'int32');
-fwrite(fid, opts.FVdim, 'int32');
-fclose(fid);
+% fid = fopen(opts.fileFeatures_slidingwindow, 'w');
+% fwrite(fid, nWords, 'int32');
+% fwrite(fid, opts.FVdim, 'int32');
+% fclose(fid);
 tic;
 for cb=1:nBatches    
     sp = (cb-1)*imagesPerBatch + 1;

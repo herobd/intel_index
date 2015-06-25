@@ -30,18 +30,20 @@ end
 fclose(file);
 
 
-scores = [dataSize,2];
+
 fullResults = containers.Map;
 
 map=0;
 mapCount=0;
-
-for ngramCell = locations.keys()
+keys = locations.keys();
+for par_i = 1:size(keys,2)
+    ngramCell = keys(par_i);
+    scores = [dataSize,2];
     ngram = ngramCell{1};
     dirPath = strcat(exemplarDirPath,ngram,'/');
     ngram_locations = locations(ngram);
     
-    for exemplarIdx = 1:10
+    parfor exemplarIdx = 1:10
         imagePath = sprintf(exemplarNameFormat, dirPath, exemplarIdx);
         exemplar = (imread(imagePath))<128;
         exemplar_m = autoPsm(exemplar);
@@ -59,6 +61,16 @@ for ngramCell = locations.keys()
             
             imagePath = sprintf(imageNameFormat, dataDirPath, imageIdx);
             word = (imread(imagePath))<128;
+            if (size(word,1) < size(exemplar,1))
+                dif = size(exemplar,1) - size(word,1);
+                word = [zeros(floor(dif/2),size(word,2)); word; zeros(ceil(dif/2),size(word,2));];
+            end
+            
+            if (size(word,2) < size(exemplar,2))
+                dif = size(exemplar,2) - size(word,2);
+                word = [zeros(size(word,1),floor(dif/2)) word zeros(size(word,1),ceil(dif/2))];
+            end
+            
             sktext = bwmorph(word,'thin',inf);
             
             % Fit model forwards (exemplar to word)
@@ -151,13 +163,14 @@ for ngramCell = locations.keys()
         
         
         scores = sortrows(scores,2);
-        fullResults(strcat(ngram,num2str(exemplarIdx)))=scores;
+        %fullResults(strcat(ngram,num2str(exemplarIdx)))=scores;
         %compute average precision
         foundRelevent = 0;
         avgPrecision = 0.0;
 %         pastRecall=0;
         totalRelevent=size(ngram_locations,2);
-        for top = 1:size(scores,1)
+        for i = 1:size(scores,1)
+            top = scores(i,1);
             if (ismember([num2str(top)],ngram_locations))
                 foundRelevent = foundRelevent+1;
                 precision  = foundRelevent/top;
@@ -173,9 +186,9 @@ for ngramCell = locations.keys()
         map = map+avgPrecision;
         mapCount=mapCount+1;
         
-            break;%!!!
+            %break;%!!!
     end
-            break;%!!!
+            %break;%!!!
 end
 map = map/mapCount
-% save('results.mat','fullResults','map');
+%save('results.mat','fullResults','map');

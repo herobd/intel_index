@@ -26,8 +26,9 @@ public:
     vector< tuple< vector< tuple<int,float> >, Point2i > >* codeDescriptors(vector< tuple< vector<float>, Point2i > >* desc);
     vector< vector< Mat/*< float >*/ > >* codeDescriptorsIntegralImage(vector< tuple< vector<float>, Point2i > >* desc, Mat::MSize imgsize);
     Codebook* makeCodebook(string dir, int codebook_size=4096);
-    void scanImage(const Mat &img, const Mat &exemplar);
-    void scanImage(const Mat &img, const vector<float> &exemplar, Size exemplarSize);
+    float scanImage(const Mat &img, const Mat &exemplar);
+    float scanImage(const Mat &img, const vector<float> &exemplar, Size exemplarSize);
+    vector<float>* featurizeImage(const Mat &img);
     
 private:
     double desc_thresh;

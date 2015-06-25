@@ -70,10 +70,10 @@ opts.pathQueries = sprintf('%s/%s/queries/',opts.path_datasets,opts.dataset);
 opts.pathNgrams = sprintf('%s/%s/%s/',opts.path_datasets,opts.dataset,typegrams);
 
 if strcmp(typegrams,'bigrams')
-    opts.pathNgramLocationsTop10 = sprintf('%s/%s/bigramLocationsTop10.csv',opts.path_datasets,opts.dataset);
+    opts.pathNgramLocationsTop = sprintf('%s/%s/bigramLocationsTop10.csv',opts.path_datasets,opts.dataset);
     
 else
-    opts.pathNgramLocationsTop10 = sprintf('%s/%s/trigramsLocationsTop10.csv',opts.path_datasets,opts.dataset);
+    opts.pathNgramLocationsTop = sprintf('%s/%s/trigramLocationsTop5.csv',opts.path_datasets,opts.dataset);
 end
 
 % Options FV features
@@ -148,11 +148,11 @@ if strcmp(opts.dataset,'GW')
     opts.maxH = 80;
     opts.windowStride=15;
     if strcmp(typegrams, 'bigrams')
-        opts.ngrams = {'th' 'he', 'er', 'an', 're', 'on', 'at', 'or', 'es', 'en', 'te', 'nd', 'ed', 'ar', 'to', 'ti', 'st', 'ng', 'nt', 'it'};%TODO
+        opts.ngrams = {'th' 'he', 'er', 'an', 're', 'on', 'at', 'or', 'es', 'en', 'te', 'nd', 'ed', 'ar', 'to', 'ti', 'st', 'ng', 'nt', 'it'};
         opts.ngramCountPer=10;
         opts.windowWidth=135;%should be wide
     else
-        opts.ngrams = {'the', 'and', 'ing', 'ion', 'ent', 'her', 'for', 'hat', 'his', 'tha'};%TODO
+        opts.ngrams = {'the', 'and', 'ing', 'ion', 'ent', 'her', 'for', 'hat', 'his', 'tha'};
         opts.ngramCountPer=5;
         opts.windowWidth=187;
     end
@@ -163,13 +163,13 @@ elseif strcmp(opts.dataset,'IAM')
     opts.minH = 80;
     opts.maxH = 80;
     if strcmp(typegrams, 'bigrams')
-        opts.ngrams = {'TH', 'HE', 'ER', 'AN', 'RE', 'ON', 'AT', 'OR', 'ES', 'EN', 'TE', 'ND', 'ED', 'AR', 'TO', 'TI', 'ST', 'NG', 'NT', 'IT'};%TODO
+        opts.ngrams = {'TH', 'HE', 'ER', 'AN', 'RE', 'ON', 'AT', 'OR', 'ES', 'EN', 'TE', 'ND', 'ED', 'AR', 'TO', 'TI', 'ST', 'NG', 'NT', 'IT'};
         opts.ngramCountPer=10;
-        opts.windowWidth=-1;
+        opts.windowWidth=150;
     else
-        opts.ngrams = {'THE', 'AND', 'ING', 'ION', 'ENT', 'HER', 'FOR', 'HAT', 'HIS', 'THA'};%TODO
+        opts.ngrams = {'THE', 'AND', 'ING', 'ION', 'ENT', 'HER', 'FOR', 'HAT', 'HIS', 'THA'};
         opts.ngramCountPer=5;
-        opts.windowWidth=-1;
+        opts.windowWidth=210;
     end
 elseif strcmp(opts.dataset,'IIIT5K')
     opts.minH = 80;
