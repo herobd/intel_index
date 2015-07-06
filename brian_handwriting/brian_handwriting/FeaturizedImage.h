@@ -3,6 +3,7 @@
 
 #include <vector>
 #include "opencv2/core/core.hpp"
+#include <functional>
 using namespace std;
 
 class FeaturizedImage

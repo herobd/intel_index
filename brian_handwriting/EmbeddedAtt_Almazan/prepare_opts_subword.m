@@ -162,6 +162,7 @@ elseif strcmp(opts.dataset,'IAM')
     opts.swFile = 'data/swIAM.txt';
     opts.minH = 80;
     opts.maxH = 80;
+    opts.windowStride=15;
     if strcmp(typegrams, 'bigrams')
         opts.ngrams = {'TH', 'HE', 'ER', 'AN', 'RE', 'ON', 'AT', 'OR', 'ES', 'EN', 'TE', 'ND', 'ED', 'AR', 'TO', 'TI', 'ST', 'NG', 'NT', 'IT'};
         opts.ngramCountPer=10;

@@ -1,6 +1,7 @@
 #include "hog.h"
 
 #include <omp.h>
+#include <iostream>
 
 #define BIN_SIZE (180/num_bins)
 #define HOG_PAR 0
@@ -61,7 +62,7 @@ void HOG::compute(const Mat &img, vector<vector<float> > &descriptors, vector< P
     int stepSize_par=stepSize;
     int cellSize_par=cellSize;
     //private(binsHorz,binsVert,cellSize_par,stepSize_par)
-//#pragma omp parallel for if (HOG_PAR)
+#pragma omp parallel for if (HOG_PAR)
     for (int i=0; i<binsHorz; i++)
     {
         int tlX = i*stepSize_par - (cellSize_par-stepSize_par)/2;
@@ -79,13 +80,13 @@ void HOG::compute(const Mat &img, vector<vector<float> > &descriptors, vector< P
                     int other_i;
                     float other_iW;
                     float my_iW;
-                    if (horzDist <0 && i>0)
+                    if (horzDist <0)
                     {
                         other_i=i-1;
                         other_iW=(horzDist*-1.0)/(cellSize_par/2.0);
                         my_iW=((cellSize_par/2.0)+horzDist+0.0)/(cellSize_par/2.0);
                     }
-                    else if (horzDist >0 && i<(binsHorz)-1)
+                    else if (horzDist >0)
                     {
                         other_i=i+1;
                         other_iW=(horzDist*1.0)/(cellSize_par/2.0);
@@ -98,26 +99,40 @@ void HOG::compute(const Mat &img, vector<vector<float> > &descriptors, vector< P
                         other_iW=0;
                     }
                     
+                    if (i<=0 || i>=(binsHorz)-1)
+                    {
+                        other_i=i;
+                        other_iW=0;
+                    }
+                    
                     float vertDist = (y-tlY)-(-.5+cellSize_par/2.0);
                     int other_j;
                     float other_jW;
                     float my_jW;
-                    if (vertDist <0 && j>0)
+                    if (vertDist <0)
                     {
                         other_j=j-1;
                         other_jW=(vertDist*-1.0)/(cellSize_par/2.0);
                         my_jW=((cellSize_par/2.0)+vertDist+0.0)/(cellSize_par/2.0);
                     }
-                    else if (vertDist >0 && j<(binsVert)-1)
+                    else if (vertDist >0)
                     {
+                        
                         other_j=j+1;
                         other_jW=(vertDist*1.0)/(cellSize_par/2.0);
+                        
                         my_jW=((cellSize_par/2.0)-vertDist+0.0)/(cellSize_par/2.0);
                     }
                     else
                     {
                         other_j=j;
                         my_jW=1;
+                        other_jW=0;
+                    }
+                    
+                    if(j<=0 || j>=(binsVert)-1)
+                    {
+                        other_j=j;
                         other_jW=0;
                     }
 #endif
@@ -136,6 +151,8 @@ void HOG::compute(const Mat &img, vector<vector<float> > &descriptors, vector< P
                     if (angle>=180) angle-=180;
                     if (angle<0) angle += 180;
                     int bin = angle/BIN_SIZE;
+//                    cout << "angle: "<<angle<<", bin: "<<bin<<endl;
+                    
                     int other_bin;
                     float my_binW;
                     float other_binW;
@@ -163,15 +180,42 @@ void HOG::compute(const Mat &img, vector<vector<float> > &descriptors, vector< P
                     
 //                    //add pixel to bins[i][j]
 #if INTERPOLATE_LOC
+                    
+#if HOG_PAR
+                    float a= mag*my_iW*my_jW*my_binW;
+                    float b= mag*other_iW*my_jW*my_binW;
+                    float c= mag*my_iW*other_jW*my_binW;
+                    float d= mag*other_iW*other_jW*my_binW;
+                    
+                    float e= mag*my_iW*my_jW*other_binW;
+                    float f= mag*other_iW*my_jW*other_binW;
+                    float g= mag*my_iW*other_jW*other_binW;
+                    float h= mag*other_iW*other_jW*other_binW;
+                    
+#pragma omp critical
+                    {
+                    bins[i][j][bin] += a;
+                    bins[other_i][j][bin] += b;
+                    bins[i][other_j][bin] += c;
+                    bins[other_i][other_j][bin] += d;
+                    
+                    bins[i][j][other_bin] += e;
+                    bins[other_i][j][other_bin] += f;
+                    bins[i][other_j][other_bin] += g;
+                    bins[other_i][other_j][other_bin] += h;
+                    }
+#else
                     bins[i][j][bin] += mag*my_iW*my_jW*my_binW;
                     bins[other_i][j][bin] += mag*other_iW*my_jW*my_binW;
                     bins[i][other_j][bin] += mag*my_iW*other_jW*my_binW;
-                    bins[other_i][other_j].at(bin) += mag*other_iW*other_jW*my_binW;
+                    bins[other_i][other_j][bin] += mag*other_iW*other_jW*my_binW;
                     
                     bins[i][j][other_bin] += mag*my_iW*my_jW*other_binW;
                     bins[other_i][j][other_bin] += mag*other_iW*my_jW*other_binW;
                     bins[i][other_j][other_bin] += mag*my_iW*other_jW*other_binW;
-                    bins[other_i][other_j].at(other_bin) += mag*other_iW*other_jW*other_binW;
+                    bins[other_i][other_j][other_bin] += mag*other_iW*other_jW*other_binW;
+#endif
+                    
 #else
                     bins[i][j][bin] += mag*my_binW;
                     bins[i][j][other_bin] += mag*other_binW;
@@ -179,6 +223,8 @@ void HOG::compute(const Mat &img, vector<vector<float> > &descriptors, vector< P
                 }
         }
     }
+    
+    vector<float> blank;
     
     //filter and feature points to return objects
     for (int i=0; i<binsHorz; i++)
@@ -195,6 +241,11 @@ void HOG::compute(const Mat &img, vector<vector<float> > &descriptors, vector< P
             if (mag>thresh)
             {
                 descriptors.push_back(bins[i][j]);
+                locations.push_back(Point2i(tlX+cellSize/2,tlY+cellSize/2));
+            }
+            else
+            {
+                descriptors.push_back(blank);
                 locations.push_back(Point2i(tlX+cellSize/2,tlY+cellSize/2));
             }
         }
@@ -220,8 +271,8 @@ Mat HOG::computeGradient(const Mat &img)
     
     Mat v_grad;
     filter2D(img,v_grad,CV_32F,v);
-    h_grad=cv::abs(h_grad);
-    v_grad=cv::abs(v_grad);
+//    h_grad=cv::abs(h_grad);
+//    v_grad=cv::abs(v_grad);
     
     Mat chan[2] = {h_grad, v_grad};
     Mat ret;

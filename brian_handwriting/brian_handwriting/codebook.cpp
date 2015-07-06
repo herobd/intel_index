@@ -95,16 +95,34 @@ vector< tuple<int,float> > Codebook::quantizeSoft(const vector<double> &term, in
 
 vector< tuple<int,float> > Codebook::quantizeSoft(const vector<float> &term, int t) const
 {
+    
+    vector< tuple<int,float> > ret; 
+//    assert(term.size() == depth());
+    if (term.size()==0)
+        return ret;
     assert(term.size() == depth());
-//    int best[t];
-//    double min[t];
+    
+//    bool empty=true;
+//    for (int f=0; f<term.size(); f++)
+//    {
+//        if (term[f] >0)
+//        {
+//            empty=false;
+//            break;
+//        }
+//    }
+//    if (empty) return ret;
+    
     vector< tuple<int,float> > q;
-    for (int i=0; i<codebook.size(); i++)
+    int sizeC = codebook.size();
+    int sizeT = term.size();
+    for (int i=0; i<sizeC; i++)
     {
         double dist=0;
-        for (int f=0; f<term.size(); f++)
+        for (int f=0; f<sizeT; f++)
         {
-            dist += pow(term[f]-codebook[i][f],2);
+            int val =term[f]-codebook[i][f];
+            dist += val*val;
         }
 //        cout << i<<": "<<dist<<endl;
         auto it = q.rbegin();
@@ -145,7 +163,12 @@ vector< tuple<int,float> > Codebook::quantizeSoft(const vector<float> &term, int
 //        cout << "dist " << dist << endl;
     }
     
-    vector< tuple<int,float> > ret; 
+    if (t==1)
+    {
+        ret.push_back(make_tuple(get<0>(q.front()),1));
+        return ret;
+    }
+    
     //Set up and perform a least squares solve
 //    cv::Mat X(term.size(),t,CV_32F);
 //    for (int i=0; i<term.size(); i++)
@@ -168,23 +191,35 @@ vector< tuple<int,float> > Codebook::quantizeSoft(const vector<float> &term, int
 //        ret.push_back(make_tuple(get<0>(q[j]),B.at<float>(j,0)));
 //    }
     
-    //From "The Devil is in the Details"
-    cv::Mat delta_i(term.size(),t,CV_32F);
-    for (int i=0; i<term.size(); i++)
-        for (int j=0; j<t; j++)
-        {
-            delta_i.at<float>(i,j) = term[i]-codebook[get<0>(q[j])][i];
-        }
+//    //From "The Devil is in the Details"
+//    cv::Mat delta_i(term.size(),t,CV_32F);
+//    for (int i=0; i<term.size(); i++)
+//        for (int j=0; j<t; j++)
+//        {
+//            delta_i.at<float>(i,j) = term[i]-codebook[get<0>(q[j])][i];
+//        }
     
-    float reg = 0.1;
-    cv::Mat inter = (delta_i.t()*delta_i + reg*cv::Mat::eye(t,t,CV_32F)).inv();
-//    cout << "sqr:\n "<<delta_i.t()*delta_i<<"\ninter:\n "<<inter<<endl;
-    cv::Mat a = inter * delta_i.t()* cv::Mat::ones(term.size(),1,CV_32F);
-    float norm = cv::norm(cv::Mat::ones(1,t,CV_32F)*a);
+//    float reg = 0.1;
+//    cv::Mat inter = (delta_i.t()*delta_i + reg*cv::Mat::eye(t,t,CV_32F)).inv();
+////    cout << "sqr:\n "<<delta_i.t()*delta_i<<"\ninter:\n "<<inter<<endl;
+//    cv::Mat a = inter * delta_i.t()* cv::Mat::ones(term.size(),1,CV_32F);
+//    float norm = cv::norm(cv::Mat::ones(1,t,CV_32F)*a);
+//    for (int j=0; j<t; j++)
+//    {
+//        ret.push_back(make_tuple(get<0>(q[j]),a.at<float>(j,0)/norm));
+//    }
+    
+    //Hack workaround. I don't want to bother with this least sqrs stuff
+    float total=0;
     for (int j=0; j<t; j++)
     {
-        ret.push_back(make_tuple(get<0>(q[j]),a.at<float>(j,0)/norm));
+        total += get<1>(q[j]);
     }
+    for (int j=0; j<t; j++)
+    {
+        ret.push_back(make_tuple(get<0>(q[j]),total/get<1>(q[j])));
+    }
+    
     
 //    cout << "best " << best << ", min " << min << endl;
     return ret;

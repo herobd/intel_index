@@ -67,9 +67,10 @@ for cb=1:nBatches
 %     fid = fopen(opts.fileFeatures_slidingwindow, 'r+');    
 %     fseek(fid, 2*4  + (int64(cb)-1)*imagesPerBatch*opts.FVdim * 4, 'bof');
 %     fwrite(fid, featsBatch(:,1:nInBatch,:), 'single');        
-    save(opts.fileFeatures_slidingwindow,'featsBatch');
+    save(opts.fileFeatures_slidingwindow,'featsBatch','-v7.3');
 end
 disp(toc);
+
 end
 
 % -------------------------------------------------------------------------
