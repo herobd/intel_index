@@ -1,6 +1,6 @@
-load('results_tri_forwards.mat','fullResults');
+load('results_bothways.mat','fullResults');
 
-locationCSVPath='~/intel_index/data/gw_20p_wannot/trigramLocations.csv';
+locationCSVPath='~/intel_index/data/gw_20p_wannot/bigramLocations.csv';
 imageNameNumExtract='(?<=wordimg_)\d+';
 file = fopen(locationCSVPath);
 ngram = fgetl(file);

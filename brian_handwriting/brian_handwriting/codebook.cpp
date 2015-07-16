@@ -217,7 +217,7 @@ vector< tuple<int,float> > Codebook::quantizeSoft(const vector<float> &term, int
     }
     for (int j=0; j<t; j++)
     {
-        ret.push_back(make_tuple(get<0>(q[j]),total/get<1>(q[j])));
+        ret.push_back(make_tuple(get<0>(q[j]),get<1>(q[j])/total));
     }
     
     

@@ -29,25 +29,11 @@ int mod(int n, int m)
 void HOG::compute(const Mat &img, vector<vector<float> > &descriptors, vector< Point2i > &locations)
 {
     Mat grad = computeGradient(img);
-//    Mat binned = bin(grad);
     
     //init bins
     int binsHorz=(img.cols-stepSize)/stepSize;
     int binsVert=(img.rows-stepSize)/stepSize;
     
-//    vector< vector< vector<float> > > bins;
-//    bins.resize(binsH);
-//    for (int i=0; i<binsH; i++)
-//    {
-////        int tlX = i*stepSize;
-        
-//        bins.at(i).resize(binsV);
-//        for (int j=0; j<binsV; j++)
-//        {
-////            int tlY = j*stepSize;
-//            bins.at(i).at(j).resize(num_bins);
-//        }
-//    }
     vector<float>** bins = new vector<float>*[binsHorz];
     for (int i=0; i<binsHorz; i++)
     {
@@ -160,14 +146,14 @@ void HOG::compute(const Mat &img, vector<vector<float> > &descriptors, vector< P
                     if (angleDist <0)
                     {
                         other_bin=mod(bin-1,num_bins);
-                        my_binW=(angleDist*-1.0)/BIN_SIZE;
-                        other_binW=(BIN_SIZE+angleDist+0.0)/BIN_SIZE;
+                        other_binW=(angleDist*-1.0)/BIN_SIZE;
+                        my_binW=(BIN_SIZE+angleDist+0.0)/BIN_SIZE;
                     }
                     else if (angleDist >0)
                     {
                         other_bin=(bin+1)%num_bins;
-                        my_binW=(angleDist*1.0)/BIN_SIZE;
-                        other_binW=(BIN_SIZE-angleDist+0.0)/BIN_SIZE;
+                        other_binW=(angleDist*1.0)/BIN_SIZE;
+                        my_binW=(BIN_SIZE-angleDist+0.0)/BIN_SIZE;
                     }
                     else
                     {
@@ -176,7 +162,7 @@ void HOG::compute(const Mat &img, vector<vector<float> > &descriptors, vector< P
                         other_binW=0;
                     }
                     
-                    float mag = sqrt(pow(hGrad,2) + pow(vGrad,2));
+                    float mag = sqrt(hGrad*hGrad + vGrad*vGrad);
                     
 //                    //add pixel to bins[i][j]
 #if INTERPOLATE_LOC

@@ -4,11 +4,26 @@ import sys
 import random
 import re
 
+#path to dictionary file, expectsd word on each newline
 pathDic=sys.argv[1]
+
+#path to ngram list, expects ngram in each newline
 pathNgram=sys.argv[2]
+
+#recall rate [0.0 - 1.0]
 recallRate=float(sys.argv[3])
-pathCorpus=sys.argv[4]
-pathOut=sys.argv[5]
+
+#pad is the confidence range, 0 being perfect knowledge
+#2 for both sides or 1 for either side (odd values cannot be even on both sides)
+pad=int(sys.argv[4]) 
+
+#path to the corpus we are "transcribing", expects word on each newline
+pathCorpus=sys.argv[5]
+
+#path to output file
+pathOut=sys.argv[6]
+
+
 
 class Word:
 	def __init__(self,text):
@@ -23,7 +38,7 @@ class Word:
 		if i>=len(self.spotted) or self.spotted[i][1] != loc:
 			self.spotted.insert(i,(ngram,loc))
 		
-pad=2 # or 1 for either side (not both)
+
 
 
 fDic = open(pathDic, 'r')
@@ -88,17 +103,30 @@ for line in fN.xreadlines():
    ngrams.append(line.strip().lower())
 fN.close()
 
+OoV=0 #out of vocabulary
+
 fC = open(pathCorpus, 'r')
 words = []
 for line in fC.xreadlines():
-   words.append(Word(re.sub(r'\W','',line.strip()).lower()))
+   wordfixed=re.sub(r'\W','',line.strip()).lower()
+   words.append(Word(wordfixed))
+   found=False
+   for d in dictionary:
+	if d == wordfixed:
+		found=True
+		break
+   if not found:
+  	OoV+=1
 fC.close()
 
 fO = open(pathOut, 'w')
 
 startNum = len(words)
 print 'startNum='+str(startNum)
+print 'out of vocabulary = ' + str(OoV)
 count=0
+
+fO.write('iterations,completion,completion(no OoV)\n')
 while (len(words)/float(startNum) > .1):
 	for ngram in ngrams:
 		#effectedWords = []
@@ -115,8 +143,10 @@ while (len(words)/float(startNum) > .1):
 		for w in words:
 			w.effected=False
 		done = (float(startNum)-len(words))/float(startNum)
-		print 'spot ' +str(count)+ ': ' +str(done*100)+'% transcribed'
-		fO.write(str(count)+','+str(done*100)+'\n')
+		doneNoOoV = (float(startNum-OoV)-(len(words)-OoV))/float(startNum-OoV)
+		if count%25==0:
+			print 'spot ' +str(count)+ ': ' +str(done*100)+'% transcribed ('+str(doneNoOoV*100)+ '% w/o OoV)'
+		fO.write(str(count)+','+str(done*100)+','+str(doneNoOoV*100)+'\n')
 		
 		count += 1
 			

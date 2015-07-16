@@ -36,9 +36,11 @@ fullResults = containers.Map;
 map=0;
 mapCount=0;
 keys = locations.keys();
-parfor par_i = 1:size(keys,2)
+parpool('local',3);
+
+for par_i = 1:size(keys,2)
     ngramCell = keys(par_i);
-    scores = [dataSize,2];
+    
     ngram = ngramCell{1};
     dirPath = strcat(exemplarDirPath,ngram,'/');
     ngram_locations = locations(ngram);
@@ -48,12 +50,15 @@ parfor par_i = 1:size(keys,2)
         exemplar = (imread(imagePath))<128;
         exemplar_m = autoPsm(exemplar);
         
+        scores1 = [];
+        scores2 = [];
+        temp4=ngram_locations(exemplarIdx);
         
         root = find([exemplar_m.parent]==0);
-        for imageIdx = 1:dataSize
+        parfor imageIdx = 1:dataSize
             %ignore exemplar image
             temp3=num2str(imageIdx);
-            temp4=ngram_locations(exemplarIdx);
+            
             if (strcmp(temp3,temp4{1}))
                 
                 continue;
@@ -154,33 +159,34 @@ parfor par_i = 1:size(keys,2)
 % 
 %                 [bestMin,bestI] = min(newMins); %find smallest score combo
 % 
-%                 scores(imageIdx,1)=imageIdx;
-%                 scores(imageIdx,2)=bestMin;
+%                 scores1(imageIdx)=imageIdx;
+%                 scores2(imageIdx)=min;
 %             end
 %             if ii==100 break; end;
             
 %FORWARD ONLY%%%
-            scores(imageIdx,1)=imageIdx;
-            scores(imageIdx,2)=min;
+            scores1(imageIdx)=imageIdx;
+            scores2(imageIdx)=min;
             %%%%
 
         end
         
         
-        scores = sortrows(scores,2);
-        %fullResults(strcat(ngram,num2str(exemplarIdx)))=scores;
+        scores = sortrows([scores1 scores2],2);
+        fullResults(strcat(ngram,num2str(exemplarIdx)))=scores;
         %compute average precision
         foundRelevent = 0;
         avgPrecision = 0.0;
 %         pastRecall=0;
         totalRelevent=size(ngram_locations,2);
-        for i = 1:size(scores,1)
-            top = scores(i,1);
-            if (ismember([num2str(top)],ngram_locations))
+        for top = 1:size(scores,1)
+            ii = scores(top,1);
+            if (ismember([num2str(ii)],ngram_locations))
                 foundRelevent = foundRelevent+1;
                 precision  = foundRelevent/top;
                 avgPrecision = avgPrecision+ precision;
             end
+
 %             precision  = foundRelevent/top;
 %             recall = foundRelevent/totalRelevent;
 %             avgPrecision = avgPrecision+precision*(recall-pastRecall);
@@ -196,4 +202,4 @@ parfor par_i = 1:size(keys,2)
             %break;%!!!
 end
 map = map/mapCount
-%save('results.mat','fullResults','map');
+save('results.mat','fullResults','map');

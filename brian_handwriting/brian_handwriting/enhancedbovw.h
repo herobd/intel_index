@@ -28,10 +28,10 @@ public:
     ~EnhancedBoVW(){if(codebook!=NULL) delete codebook;}
     
 #if CONCAT
-    vector< tuple< vector<float>, Point2i, int > >* getDescriptors(const Mat &img);
+    vector< tuple< vector<float>, Point2i, int > >* getDescriptors(const Mat &img) const;
 //    vector< tuple< vector< tuple<int,float> >, Point2i > >* codeDescriptors(vector< tuple< vector<float>, Point2i, int > >* desc);
-    vector< vector< Mat/*< float >*/ > >* codeDescriptorsIntegralImage(vector< tuple< vector<float>, Point2i, int > >* desc, Mat::MSize imgsize);
-    vector< vector< Mat/*< float >*/ > >* codeDescriptorsIntegralImageSkip(vector< tuple< vector<float>, Point2i, int > >* desc, Mat::MSize imgsize, int skip=1);
+    vector< vector< Mat/*< float >*/ > >* codeDescriptorsIntegralImage(vector< tuple< vector<float>, Point2i, int > >* desc, Mat::MSize imgsize) const;
+    vector< vector< Mat/*< float >*/ > >* codeDescriptorsIntegralImageSkip(vector< tuple< vector<float>, Point2i, int > >* desc, Mat::MSize imgsize, int skip=1) const;
 #else
     vector< tuple< vector<float>, Point2i > >* getDescriptors(const Mat &img);
 //    vector< tuple< vector< tuple<int,float> >, Point2i > >* codeDescriptors(vector< tuple< vector<float>, Point2i > >* desc);
@@ -39,9 +39,12 @@ public:
 #endif
     
     Codebook* makeCodebook(string dir, int codebook_size=4096);
-    float scanImage(const Mat &img, const Mat &exemplar);
-    float scanImage(const Mat &img, const vector<float> &exemplar, Size exemplarSize);
-    vector<float>* featurizeImage(const Mat &img);
+    float scanImage(const Mat &img, const Mat &exemplar) const;
+    float scanImage(const Mat &img, const vector<float> &exemplar, Size exemplarSize) const;
+    float scanImageHorz(const Mat &img, const Mat &exemplar) const;
+    float scanImageHorz(const Mat &img, const vector<float> &exemplar, Size exemplarSize) const;
+    float compareImage(const Mat &img, const vector<float> &exemplar) const;
+    vector<float>* featurizeImage(const Mat &img) const;
     
 private:
     double desc_thresh;
@@ -53,13 +56,13 @@ private:
     int vStride;
     int skip;
     
-    void color(Mat &heatMap, float score, float max, float min, int midI, int midJ);
+    void color(Mat &heatMap, float score, float max, float min, int midI, int midJ) const;
     
-    void filterDesc(vector<float> &desc1, vector<vector<float> > &descriptors1, vector< Point2i > &locations, int descSize, Size blockSize1, Size blockStride, Size imgSize);
-    vector<float>* getPooledDesc(vector< tuple< vector< tuple<int,float> >, Point2i > >* samples, Rect window, vector<Vec2i> spatialPyramids = {Vec2i(3,2),Vec2i(9,2)});
-vector<float>* getPooledDescFast(vector< vector< Mat/*< float >*/ > >* samplesIntegralImage, Rect window, vector<Vec2i> spatialPyramids = {Vec2i(3,2),Vec2i(9,2)});
-vector<float>* getPooledDescFastSkip(vector< vector< Mat/*< float >*/ > >* samplesIntegralImage, Rect window, vector<Vec2i> spatialPyramids = {Vec2i(3,2),Vec2i(9,2)}, int skip=1);
-    void normalizeDesc(vector<float> *desc, float a=.35);
+    void filterDesc(vector<float> &desc1, vector<vector<float> > &descriptors1, vector< Point2i > &locations, int descSize, Size blockSize1, Size blockStride, Size imgSize) const;
+    vector<float>* getPooledDesc(vector< tuple< vector< tuple<int,float> >, Point2i > >* samples, Rect window, vector<Vec2i> spatialPyramids = {Vec2i(3,2),Vec2i(9,2)}) const;
+vector<float>* getPooledDescFast(vector< vector< Mat/*< float >*/ > >* samplesIntegralImage, Rect window, vector<Vec2i> spatialPyramids = {Vec2i(3,2),Vec2i(9,2)}) const;
+vector<float>* getPooledDescFastSkip(vector< vector< Mat/*< float >*/ > >* samplesIntegralImage, Rect window, vector<Vec2i> spatialPyramids = {Vec2i(3,2),Vec2i(9,2)}, int skip=1) const;
+    void normalizeDesc(vector<float> *desc, float a=.35) const;
 };
 
 #endif // ENHANCEDBOVW_H
