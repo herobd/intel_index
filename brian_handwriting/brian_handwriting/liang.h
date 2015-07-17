@@ -2,6 +2,7 @@
 #define LIANG_H
 
 #include <vector>
+#include <list>
 #include <map>
 #include <fstream>
 #include "opencv2/core/core.hpp"

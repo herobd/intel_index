@@ -5,24 +5,42 @@ Liang::Liang()
     trained=false;
 }
 
-
+//We assume img is a binary image
 double Liang::score(string query, const Mat &img)
 {
-    SynModel queryModel = getModel(query);
-    if (img.cols < queryModel.minWidth() || img.cols > queryModel.maxWidth())
+    float minWidth=0;
+    float maxWidth =0;
+    for (char c : query)
+    {
+        minWidth+=charWidthAvgs[c] - 2*charWidthStdDevs[2];
+        maxWidth+=charWidthAvgs[c] + 2*charWidthStdDevs[2];
+    }
+    if (img.cols < minWidth || img.cols > maxWidth)
         return BAD_SCORE;
     
-    vector<Grapheme> graphemes = extractGraphemes(img);
-    vector<int> winningNodes(graphemes.size());
-    for (int i=0; i<graphemes.size(); i++)
+    vector<Grapheme*> graphemes = extractGraphemes(img);
+    map<const Grapheme*,int> winningNodes(graphemes.size());
+    for (const Grapheme* g: graphemes)
     {
-        winningNodes[i] = MOG.getWinningNode(graphemes[i]);
+        winningNodes[g] = MOG.getWinningNode(g);
     }
-}
-
-SynModel Liang::getModel(string query)
-{
+    vector<list<const Grapheme*> > segmentation = learnCharacterSegmentation(query,img,graphemes);
     
+    double ret=0;
+    for (int k=0; k<query.size(); k++)
+    {
+        for (const Grapheme* g : segmentation[k])
+        {
+            double maxsubscore=0;
+            for (int i=0; i<MOG.getNumClasses(); i++)
+            {
+                double subscore = graphemeSpectrums[query[k]][i]/MOG.boxdist(i,winningNodes[g]);
+                if (subscore>maxsubscore) maxsubscore=subscore;
+            }
+            ret+=maxsubscore;
+        }
+    }
+    return ret;
 }
 
 void Liang::trainCharacterModels(string imgDirPath, string imgNamePattern, string imgExt, string annotationsPath)
@@ -58,10 +76,11 @@ void Liang::trainCharacterModels(string imgDirPath, string imgNamePattern, strin
             continue;
         }
         
+        graphemeSpectrums[c].resize(getNumClasses());
         for (const Grapheme* g : charGraphemes[c])
         {
             
-            graphemeSpectrums[c][g->getMOG_class()]+=1;
+            graphemeSpectrums[c][MOG.getWinningNode(g)]+=1;
             delete g;
         }
         
@@ -86,16 +105,24 @@ void Liang::trainCharacterModels(string imgDirPath, string imgNamePattern, strin
 }
 
 
-vector<Grapheme> Liang::extractGraphemes(const Mat &img)
+vector<Grapheme*> Liang::extractGraphemes(const Mat &img)
 {
-    Mat skel = extractSkeleton(img);
+    
+    Mat skel;
+    thinning(img,skel);
     Mat graphemes = breakSegments(skel);
     int count = repairLoops(graphemes);
-    vector<Grapheme> ret = makeGraphemes(graphemes,count);
+    vector<Grapheme*> ret; //= makeGraphemes(graphemes,count);
+    for (int tag=1; tag<=count; tag++)
+    {
+        ret.push_back(new Grapheme(graphemes,tag));
+    }
     return ret;
 }
 
-void Liang::learnCharacterSegmentation(string query, vector<Grapheme*> graphemes, const Mat &img, map<char, list<Grapheme*> >* charGraphemes, map<char, list<int> >* accumWidths, map<char, int>* charCounts)
+
+
+vector<list<const Grapheme*> > Liang::learnCharacterSegmentation(string query, vector<Grapheme*> graphemes, const Mat &img, map<char, list<Grapheme*> >* charGraphemes, map<char, list<int> >* accumWidths, map<char, int>* charCounts)
 {
     vector<int> charWidths(graphemes.size());
     double inc = img.cols/(double)query.size();
@@ -111,7 +138,7 @@ void Liang::learnCharacterSegmentation(string query, vector<Grapheme*> graphemes
     upperBaseline = findUpperBaseline(img,hasAscender(query));
     lowerBaseline = findLowerBaseline(img,hasDescender(query));
     bool change=true;
-    vector<list<Grapheme*> > characters(query.size()); 
+    vector<list<const Grapheme*> > characters(query.size()); 
     
     
     auto findAndAddToNearest = [&] (bool ascender){
@@ -206,12 +233,12 @@ void Liang::learnCharacterSegmentation(string query, vector<Grapheme*> graphemes
     
     for (int c=0; c<query.size(); c++)
     {
-        (*accumWidths)[query[c]].push_back(charWidth[c]);
-        (*charGraphemes)[query[c]].somethin
-        (*charCounts)[query[c]]++;
+        if (accumWidths!=NULL) (*accumWidths)[query[c]].push_back(charWidth[c]);
+        if (charGraphemes!=NULL) (*charGraphemes)[query[c]].insert((*charGraphemes)[query[c]].end(),characters[c].begin(),characters[c].end());
+        if (charCounts!=NULL) (*charCounts)[query[c]]++;
     }
     
-    
+    return characters;
 }
 
 void Liang::saveCharacterModels(string filePath)
@@ -280,15 +307,172 @@ void Liang::loadCharacterModels(string filePath)
     trained=true;
 }
 
-
-
-
-int SynModel::minWidth()
+//////////ZHANG SKELTONIZATION///////////////////////////////////////
+///////////from https://github.com/bsdnoobz/zhang-suen-thinning//////
+void thinningIteration(cv::Mat& img, int iter)
 {
-    return avgWidth-2*stdDevWidth;
+    CV_Assert(img.channels() == 1);
+    CV_Assert(img.depth() != sizeof(uchar));
+    CV_Assert(img.rows > 3 && img.cols > 3);
+
+    cv::Mat marker = cv::Mat::zeros(img.size(), CV_8UC1);
+
+    int nRows = img.rows;
+    int nCols = img.cols;
+
+    if (img.isContinuous()) {
+        nCols *= nRows;
+        nRows = 1;
+    }
+
+    int x, y;
+    uchar *pAbove;
+    uchar *pCurr;
+    uchar *pBelow;
+    uchar *nw, *no, *ne;    // north (pAbove)
+    uchar *we, *me, *ea;
+    uchar *sw, *so, *se;    // south (pBelow)
+
+    uchar *pDst;
+
+    // initialize row pointers
+    pAbove = NULL;
+    pCurr  = img.ptr<uchar>(0);
+    pBelow = img.ptr<uchar>(1);
+
+    for (y = 1; y < img.rows-1; ++y) {
+        // shift the rows up by one
+        pAbove = pCurr;
+        pCurr  = pBelow;
+        pBelow = img.ptr<uchar>(y+1);
+
+        pDst = marker.ptr<uchar>(y);
+
+        // initialize col pointers
+        no = &(pAbove[0]);
+        ne = &(pAbove[1]);
+        me = &(pCurr[0]);
+        ea = &(pCurr[1]);
+        so = &(pBelow[0]);
+        se = &(pBelow[1]);
+
+        for (x = 1; x < img.cols-1; ++x) {
+            // shift col pointers left by one (scan left to right)
+            nw = no;
+            no = ne;
+            ne = &(pAbove[x+1]);
+            we = me;
+            me = ea;
+            ea = &(pCurr[x+1]);
+            sw = so;
+            so = se;
+            se = &(pBelow[x+1]);
+
+            int A  = (*no == 0 && *ne == 1) + (*ne == 0 && *ea == 1) + 
+                     (*ea == 0 && *se == 1) + (*se == 0 && *so == 1) + 
+                     (*so == 0 && *sw == 1) + (*sw == 0 && *we == 1) +
+                     (*we == 0 && *nw == 1) + (*nw == 0 && *no == 1);
+            int B  = *no + *ne + *ea + *se + *so + *sw + *we + *nw;
+            int m1 = iter == 0 ? (*no * *ea * *so) : (*no * *ea * *we);
+            int m2 = iter == 0 ? (*ea * *so * *we) : (*no * *so * *we);
+
+            if (A == 1 && (B >= 2 && B <= 6) && m1 == 0 && m2 == 0)
+                pDst[x] = 1;
+        }
+    }
+
+    img &= ~marker;
 }
 
-int SynModel::maxWidth()
+/**
+ * Function for thinning the given binary image
+ *
+ * Parameters:
+ * 		src  The source image, binary with range = [0,255]
+ * 		dst  The destination image
+ */
+void Liang::thinning(const cv::Mat& src, cv::Mat& dst)
 {
-    return avgWidth+2*stdDevWidth;
+    dst = src.clone();
+    dst /= 255;         // convert to binary image
+
+    cv::Mat prev = cv::Mat::zeros(dst.size(), CV_8UC1);
+    cv::Mat diff;
+
+    do {
+        thinningIteration(dst, 0);
+        thinningIteration(dst, 1);
+        cv::absdiff(dst, prev, diff);
+        dst.copyTo(prev);
+    } 
+    while (cv::countNonZero(diff) > 0);
+
+    dst *= 255;
+}
+/////////////////////////////////////////////////////////
+
+
+Mat Liang::breakSegments(const Mat& skel)
+{
+    Mat ret = skel.clone();
+    
+    list<Point> startingPointQueue;
+    startingPointQueue.push_back(??);
+    int curLabel=1;
+    
+    while(!startingPointQueue.empty())
+    {
+        Point cur=startingPointQueue.front();
+        startingPointQueue.pop_front();
+        int curRunLen=0;
+        if (ret.at<unsigned char>(cur)==254)
+        while(1)
+        {
+            Point next(-1,-1);
+            char count =0;
+            ret.at<unsigned char>(cur)=curLabel;
+            curRunLen++;
+            for (int direction=0; direction<8; direction++)
+            {
+                
+                
+                int xDelta=1;
+                if (direction>2 && direction<6) xDelta=-1;
+                else if (direction==2 || direction==6) xDelta=0;
+                int yDelta=0;
+                if (direction>0 && direction<4) yDelta=-1;
+                else if (direction>4 && direction<8) xDelta=1;
+                
+                int x = cur.x+xDelta;
+                int y = cur.y+yDelta;
+                
+                if (ret.at<unsigned char>(y,x)==255)
+                {
+                    count++;
+                    if (next.x==-1)
+                    {
+                        next.x=x;
+                        next.y=y;
+                    }
+                    else
+                        startingPointQueue.push_back(Point(x,y));
+                    ret.at<unsigned char>(y,x)=254;
+                }
+                else if (ret.at<unsigned char>(y,x)>0)
+                {
+                    count++;
+                }
+            }
+            if (count>1 && curRunLen>1)//runLen prevents single pixel graphemes in diabolic cases
+            {
+                startingPointQueue.push_back(next);
+                ret.at<unsigned char>(y,x)=254;
+                break;
+            }
+            else if (count==0)
+                break;
+            
+            cur=next;
+        }
+    }
 }
