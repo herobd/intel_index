@@ -21,43 +21,49 @@ Grapheme::Grapheme(Mat graphemes, int id)
                 if (y>bottomY) bottomY=y;
             }
         }
-    upperBaseline=-1;
 }
 
-int Grapheme::minXBetween(int minY, int maxY)
+int Grapheme::maxXBetween(int minY, int maxY)const
 {
-    if (upperBaseline!=minY || lowerBaseline!=maxY)
-    {
-        findMinMaxBetweenBaselines(minY,maxY);
-    }
-    return minXBetweenBaselines;
     
-}
-
-int Grapheme::maxXBetween(int minY, int maxY)
-{
-    if (upperBaseline!=minY || lowerBaseline!=maxY)
-    {
-        findMinMaxBetweenBaselines(minY,maxY);
-    }
-    return maxXBetweenBaselines;
-    
-}
-
-void Grapheme::findMinMaxBetweenBaselines(int minY, int maxY)
-{
-    upperBaseline=minY;
-    lowerBaseline=maxY;
-    for (int x=leftX; x<=rightX; x++)
-        for (int y=upperBaseline; y<=lowerBaseline; y++)
-        {
-            if (graphemes.at<unsigned char>(y,x)==id)
-                minXBetweenBaselines=x;
-        }
     for (int x=rightX; x<=leftX; x--)
-        for (int y=upperBaseline; y<=lowerBaseline; y++)
+        for (int y=minY; y<=maxY; y++)
         {
             if (graphemes.at<unsigned char>(y,x)==id)
-                maxXBetweenBaselines=x;
+            {
+                return x;
+            }
         }
+    return -1;
+}
+int Grapheme::minXBetween(int minY, int maxY)const
+{
+    for (int x=leftX; x<=rightX; x++)
+        for (int y=minY; y<=maxY; y++)
+        {
+            if (graphemes.at<unsigned char>(y,x)==id)
+            {
+                return x;
+            }
+        }
+    return -1;
+}
+
+
+Point2f Grapheme::centriod()
+{
+    int xS=0;
+    int yS=0;
+    int count;
+    for (int x=leftX; x<=rightX; x++)
+        for (int y=topY; y<=bottomY; y++)
+        {
+            if (graphemes.at<unsigned char>(y,x)==id)
+            {
+                xS+=x;
+                yS+=y;
+                count++;
+            }
+        }
+    return Point2f(xS/(double)count,yS/(double)count);
 }

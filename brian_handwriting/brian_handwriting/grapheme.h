@@ -9,24 +9,21 @@ class Grapheme
 {
 public:
     Grapheme(Mat graphemes, int id);
-    const Mat* img(){return &graphemes;}
-    int imgId(){return id;}
-    int maxX(){return rightX;}
-    int minX(){return leftX;}
-    int maxY(){return bottomY;}
-    int minY(){return topY;}
-    int maxXBetween(int minY, int maxY);
-    int minXBetween(int minY, int maxY);
+    const Mat* img()const {return &graphemes;}
+    int imgId()const {return id;}
+    int maxX()const {return rightX;}
+    int minX()const {return leftX;}
+    int maxY()const {return bottomY;}
+    int minY()const {return topY;}
+    int maxXBetween(int minY, int maxY)const;
+    int minXBetween(int minY, int maxY)const;
+    Point2f centriod();
     
 private:
     int id;
-    const Mat graphemes;//same referece as all graphemes
+    Mat graphemes;//same referece as all graphemes
     int MOG_class;
     int rightX, leftX, topY, bottomY;
-    int upperBaseline, lowerBaseline;
-    int minXBetweenBaselines, maxXBetweenBaselines;
-    
-    void findMinMaxBetweenBaselines(int minY, int maxY);
 };
 
 #endif // GRAPHEME_H

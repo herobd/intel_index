@@ -15,16 +15,7 @@ HOG::HOG(float thresh, int cellSize, int stepSize, int num_bins)
     this->num_bins=num_bins;
 }
 
-int mod(int n, int m)
-{
-    while(1)
-    {
-        if (n>=0)
-            return n%m;
-        n+=m;
-    }
-    
-}
+
 
 void HOG::compute(const Mat &img, vector<vector<float> > &descriptors, vector< Point2i > &locations)
 {

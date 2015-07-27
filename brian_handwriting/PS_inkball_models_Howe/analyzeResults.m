@@ -1,7 +1,7 @@
-load('results_bothways.mat','fullResults');
+load('/home/brian/intel_index/brian_handwriting/PS_inkball_models_Howe/results_howe_ver.mat35','fullResults');
 
-locationCSVPath='~/intel_index/data/gw_20p_wannot/bigramLocations.csv';
-imageNameNumExtract='(?<=wordimg_)\d+';
+locationCSVPath='~/intel_index/data/gw_20p_wannot/wordLocations.csv';
+imageNameNumExtract='\d+';
 file = fopen(locationCSVPath);
 ngram = fgetl(file);
 fileList = fgetl(file);

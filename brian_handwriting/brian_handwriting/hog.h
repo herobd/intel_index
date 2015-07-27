@@ -20,6 +20,16 @@ private:
     int num_bins;
     
     Mat computeGradient(const Mat &img);
+    int mod(int n, int m)
+    {
+        while(1)
+        {
+            if (n>=0)
+                return n%m;
+            n+=m;
+        }
+        
+    }
 };
 
 #endif // HOG_H

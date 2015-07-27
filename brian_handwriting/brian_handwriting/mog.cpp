@@ -8,17 +8,18 @@ MOG::MOG()
 void MOG::save(string filePath)
 {
     assert(trained);
-    som->save(wstring(filePath.begin(),filePath.end()).c_str());
+    som->save(filePath.c_str());
 }
 
 void MOG::load(string filePath)
 {
-    som = new SOM(wstring(filePath.begin(),filePath.end()).c_str());
+    som = new SOM(filePath.c_str());
     trained=true;
 }
 
 int MOG::getWinningNode(const Grapheme* g)
 {
+    assert(trained);
     float* features;
     extractFeatures(g,features);
     const Node* bmu = som->classify(features);
@@ -32,7 +33,7 @@ double MOG::boxdist(int node1, int node2)
             fabs(som->get_node(node1)->get_coords()[1]-som->get_node(node2)->get_coords()[1]));
 }
 
-void MOG::train(const map<char, list<Grapheme*> >& graphemes, int epochs, int demX, int demY)
+void MOG::train(const map<char, list<const Grapheme*> >& graphemes, int epochs, int demX, int demY)
 {
     int dimensions[2]={demX,demY};
     som = new SOM(2, dimensions, SPECTURM_SIZE, Node::EUCL); 
@@ -75,6 +76,8 @@ void MOG::train(const map<char, list<Grapheme*> >& graphemes, int epochs, int de
     trained=true;
 }
 
+
+
 void MOG::extractFeatures( const Grapheme* g, float* features)
 {
     features=new float(SPECTURM_SIZE);
@@ -91,7 +94,7 @@ void MOG::extractFeatures( const Grapheme* g, float* features)
     bool loop=false;
     vector<int> dcc;
     
-    Mat graphemeMap = *(g->img())(Range(g->minY(),g->maxY()+1), Range(g->minX(),g->maxX()+1)).clone();
+    Mat graphemeMap = (*(g->img()))(Range(g->minY(),g->maxY()+1), Range(g->minX(),g->maxX()+1)).clone();
     
     Point current(0,g->maxY());
     for(int x=0; x<graphemeMap.cols; x++)
@@ -139,7 +142,7 @@ void MOG::extractFeatures( const Grapheme* g, float* features)
                         if (curRun > maxRun) 
                         {
                             maxRun=curRun;
-                            maxRunDir=PrevDirection;
+                            maxRunDir=prevDirection;
                         }
                         curRun=1;
                     }
@@ -184,7 +187,7 @@ void MOG::extractFeatures( const Grapheme* g, float* features)
     features[15]=directionChanges;
     //Main angles
     vector<int> angleRank={0,1,2,3,4,5,6,7};
-    sort(angleRank.begin(),angleRank.end(),[&directionHist](const int& l, const int& r){return angleHist[l]>angleHist[r];});
+    sort(angleRank.begin(),angleRank.end(),[&angleHist](const int& l, const int& r){return angleHist[l]>angleHist[r];});
     for (int i=0; i<4; i++)
         features[16+i]=angleRank[i];
     //Angle counts

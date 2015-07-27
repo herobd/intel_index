@@ -179,6 +179,8 @@ float EnhancedBoVW::scanImage(const Mat &img, const vector<float> &exemplar, Siz
     return minScore;
 }
 
+
+
 float EnhancedBoVW::scanImageHorz(const Mat &img, const Mat &exemplar) const
 {
     auto samplesUncoded = getDescriptors(exemplar);
