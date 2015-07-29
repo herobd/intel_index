@@ -3,6 +3,7 @@
 
 #include "opencv2/core/core.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
+#include "defines.h"
 
 using namespace cv;
 using namespace std;
@@ -20,16 +21,7 @@ private:
     int num_bins;
     
     Mat computeGradient(const Mat &img);
-    int mod(int n, int m)
-    {
-        while(1)
-        {
-            if (n>=0)
-                return n%m;
-            n+=m;
-        }
-        
-    }
+    
 };
 
 #endif // HOG_H

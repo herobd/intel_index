@@ -26,7 +26,7 @@ Grapheme::Grapheme(Mat graphemes, int id)
 int Grapheme::maxXBetween(int minY, int maxY)const
 {
     
-    for (int x=rightX; x<=leftX; x--)
+    for (int x=rightX; x>=leftX; x--)
         for (int y=minY; y<=maxY; y++)
         {
             if (graphemes.at<unsigned char>(y,x)==id)
@@ -46,7 +46,7 @@ int Grapheme::minXBetween(int minY, int maxY)const
                 return x;
             }
         }
-    return -1;
+    return 9999;
 }
 
 

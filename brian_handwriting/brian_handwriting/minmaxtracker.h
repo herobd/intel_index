@@ -3,6 +3,7 @@
 
 #include <list>
 #include "opencv2/core/core.hpp"
+#include "defines.h"
 
 #define BREAK_NEIGHBORHOOD_SIZE 4
 
@@ -12,11 +13,12 @@ using namespace cv;
 class MinMaxTracker
 {
 public:
-    MinMaxTracker(list<Point>* minima, list<Point>* maxima, int& curLabel, Mat& graphemes):
-        minima(minima), maxima(maxima), curLabel(curLabel), graphemes(graphemes), inQuestion(Point(-1,-1))
+    MinMaxTracker(list<Point>* minima, list<Point>* maxima, int& curLabel, Mat& graphemes, int neighborhood):
+        minima(minima), maxima(maxima), curLabel(curLabel), graphemes(graphemes), neighborhood(neighborhood), inQuestion(Point(-1,-1))
     {}
     void track(Point cur, int& thisLabel);
-    void onLocals(const Point& toAdd, int neighborhoodSize);
+    void onLocals(const Point& toAdd);
+    int neighborhoodSize()const {return neighborhood;}
     
 private:
     list<Point> after;
@@ -26,6 +28,8 @@ private:
     list<Point> *minima, *maxima;
     int& curLabel;
     Mat& graphemes;
+    
+    int neighborhood;
 };
 
 #endif // MINMAXTRACKER_H

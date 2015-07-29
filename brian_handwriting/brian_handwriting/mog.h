@@ -8,6 +8,7 @@
 #include "grapheme.h"
 #include "som/src/stdafx.h"
 #include "som/src/LibSOM/som.h"
+#include "defines.h"
 
 #define SPECTURM_SIZE 41
 
@@ -18,7 +19,7 @@ class MOG
 {
 public:
     MOG();
-    ~MOG(){delete som;}
+    ~MOG(){if (trained) delete som;}
     void save(string filePath);
     void load(string filePath);
     void train(const map<char, list<const Grapheme*> >& graphemes, int epochs=500, int demX=9, int demY=9);
@@ -30,11 +31,7 @@ public:
 private:
     SOM* som;//http://www.codeproject.com/Articles/21385/Kohonen-s-Self-Organizing-Maps-in-C-with-Applicati#Using_the_code
     bool trained;
-    int mod(int a, int b)
-    {
-        while (a<0) a+=b;
-        return a%b;
-    }
+    
 };
 
 #endif // MOG_H

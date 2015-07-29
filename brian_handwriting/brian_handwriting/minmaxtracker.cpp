@@ -5,20 +5,33 @@
 void MinMaxTracker::track(Point cur, int& thisLabel)
 {
     int totSize = minima->size()+maxima->size();
-    onLocals(cur,BREAK_NEIGHBORHOOD_SIZE);
+    onLocals(cur);
     if (minima->size()+maxima->size()>totSize)
     {
 //                            cout << "min/max breaking at point ["<<inQuestion.x<<","<<inQuestion.y<<"]"<<endl;
+        int prevLabel=thisLabel;
         thisLabel=++curLabel;
         //rewrite all passed points
         for (const Point& p : before)//relabel from inQuestion up to current point
+        {
             graphemes.at<unsigned char>(p)=thisLabel;
+            for (int direction=0; direction<8; direction+=2)
+            {
+                int x = p.x+xDelta(direction);
+                int y = p.y+yDelta(direction);
+                if (x<0 || y<0 || x>=graphemes.cols || y>=graphemes.rows)
+                    continue;
+                if (graphemes.at<unsigned char>(y,x)==prevLabel)
+                    graphemes.at<unsigned char>(y,x)=thisLabel;
+            }
+                
+        }
     }
 }
 
-void MinMaxTracker::onLocals(const Point& toAdd, int neighborhoodSize)
+void MinMaxTracker::onLocals(const Point& toAdd)
 {
-    if (after.size()==neighborhoodSize)
+    if (after.size()==neighborhood)
     {
         after.pop_front();
     }
@@ -26,14 +39,14 @@ void MinMaxTracker::onLocals(const Point& toAdd, int neighborhoodSize)
     {
         after.push_back(inQuestion);
     }
-    if (before.size()==neighborhoodSize)
+    if (before.size()==neighborhood)
     {
         inQuestion=before.front();
         before.pop_front();
     }
     before.push_back(toAdd);
     
-    if (after.size()==neighborhoodSize)
+    if (after.size()==neighborhood)
     {
         bool candidateMax=true;
         bool candidateMin=true;
@@ -62,27 +75,32 @@ void MinMaxTracker::onLocals(const Point& toAdd, int neighborhoodSize)
         
 
         auto check = after.rbegin();
-        while (candidateMin && (*check).y==inQuestion.y && check!=after.rend())
+        while ((candidateMin||candidateMax) && (*check).y==inQuestion.y && check!=after.rend())
         {
-            candidateMin = find(minima->rbegin(),minima->rend(),(*check)) == minima->rend();
-            check++;
-        }
-        check = after.rbegin();
-        while (candidateMax && (*check).y==inQuestion.y && check!=after.rend())
-        {
-            candidateMax = find(maxima->rbegin(),maxima->rend(),(*check)) == maxima->rend();
+            candidateMin = candidateMin&&find(minima->rbegin(),minima->rend(),(*check)) == minima->rend();
+            candidateMax = candidateMax&&find(maxima->rbegin(),maxima->rend(),(*check)) == maxima->rend();
             check++;
         }
         
+        auto checkBefore = before.begin();
+        while ((candidateMin||candidateMax) && (*checkBefore).y==inQuestion.y && checkBefore!=before.end())
+        {
+            candidateMin = candidateMin&&find(minima->rbegin(),minima->rend(),(*checkBefore)) == minima->rend();
+            candidateMax = candidateMax&&find(maxima->rbegin(),maxima->rend(),(*checkBefore)) == maxima->rend();
+            checkBefore++;
+        }
+        
         if (candidateMin && 
-                (std::max(inQuestion.y-after.front().y,inQuestion.y-before.back().y)>neighborhoodSize/4.0) && 
+                find(minima->rbegin(),minima->rend(),inQuestion) == minima->rend() &&
+                (std::max(inQuestion.y-after.front().y,inQuestion.y-before.back().y)>neighborhood/4.0) && 
                 (std::min(inQuestion.y-after.front().y,inQuestion.y-before.back().y)>0))
         {
             minima->push_back(inQuestion);
         }
         
         if (candidateMax && 
-                (std::max(after.front().y-inQuestion.y,before.back().y-inQuestion.y)>neighborhoodSize/4.0) && 
+                find(maxima->rbegin(),maxima->rend(),inQuestion) == maxima->rend() &&
+                (std::max(after.front().y-inQuestion.y,before.back().y-inQuestion.y)>neighborhood/4.0) && 
                 (std::min(after.front().y-inQuestion.y,before.back().y-inQuestion.y)>0))
         {
             maxima->push_back(inQuestion);

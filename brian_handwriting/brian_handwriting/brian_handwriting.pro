@@ -72,7 +72,8 @@ HEADERS += \
     som/src/LibSOM/node.h \
     som/src/LibSOM/som.h \
     som/src/stdafx.h \
-    minmaxtracker.h
+    minmaxtracker.h \
+    defines.h
 
 
 QMAKE_CXXFLAGS_RELEASE -= -O
