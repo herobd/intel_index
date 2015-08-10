@@ -19,17 +19,19 @@ public:
     void track(Point cur, int& thisLabel);
     void onLocals(const Point& toAdd);
     int neighborhoodSize()const {return neighborhood;}
+    void checkEnd();
     
 private:
-    list<Point> after;
-    list<Point> before;
-    Point inQuestion;
+    
     
     list<Point> *minima, *maxima;
     int& curLabel;
     Mat& graphemes;
     
     int neighborhood;
+    list<Point> after;
+    list<Point> before;
+    Point inQuestion;
 };
 
 #endif // MINMAXTRACKER_H

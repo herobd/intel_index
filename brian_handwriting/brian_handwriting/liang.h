@@ -36,8 +36,19 @@
 
 #define SCRUB_THRESH 30
 
+#define IMAGE_THRESH 150
+
 using namespace std;
 using namespace cv;
+
+struct PointComp {
+  bool operator() (const Point& lhs, const Point& rhs) const
+  {
+      if (lhs.x<rhs.x) return true;
+      else if (lhs.x > rhs.x) return false;
+      else return lhs.y<rhs.y;
+  }
+};
 
 class Liang
 {
@@ -45,6 +56,7 @@ public:
     Liang();
     
     double score(string query, const Mat &img);
+    void trainCharacterModels(string imgDirPath, string imgNamePattern, string imgExt, const vector<pair<int, string> > &examples);
     void trainCharacterModels(string imgDirPath, string imgNamePattern, string imgExt, string annotationsPath);
     void saveCharacterModels(string filePath);
     void loadCharacterModels(string filePath);
@@ -59,14 +71,15 @@ private:
     
     bool trained;
    
-    vector<Grapheme*> extractGraphemes(const Mat &skel, list<Point>* localMaxs, list<Point>* localMins); 
-    vector<list<const Grapheme*> > learnCharacterSegmentation(string query, vector<Grapheme*> graphemes, const list<Point>& localMaxs, const list<Point>& localMins, map<char, list<const Grapheme*> >* charGraphemes=NULL, map<char, list<int> >* accumWidths=NULL, map<char, int>* charCounts=NULL );
+    vector<Grapheme*> extractGraphemes(const Mat &skel, list<Point>* localMaxs, list<Point>* localMins, int *centerLine); 
+    vector<list<const Grapheme*> > learnCharacterSegmentation(string query, vector<Grapheme*> graphemes, const list<Point>& localMaxs, const list<Point>& localMins, int centerLine, map<char, list<const Grapheme*> >* charGraphemes=NULL, map<char, list<int> >* accumWidths=NULL, map<char, int>* charCounts=NULL );
     void thinning(const cv::Mat& src, cv::Mat& dst);
     void scrubCC(Mat& skel, int xStart, int yStart);
     void cleanNoiseFromEdges(Mat &skel);
-    Mat breakSegments(const Mat& skel, list<Point>* maxima=NULL, list<Point>* minima=NULL);
+    Mat breakSegments(const Mat& skel, list<Point>* maxima=NULL, list<Point>* minima=NULL, int *centerLine=NULL);
+    void prune(list<Point>* points, bool checkBelow, const Mat& skel);
     list<int> repairLoops(Mat& graphemes);
-    void exploreChain(Point cur, int curLabel, list<int> chain, Mat &graphemes, Mat& visited, map<int, int> &mergeTable, int prevDir=-1);
+    void exploreChain(Point cur, int curLabel, list<int> chain, Mat &graphemes, Mat& visited, map<int, int> &mergeTable, int &juncLabel, map<Point, int,PointComp> &juncMap, int prevDir=-1);
     void relabel(int from, int to, list<int>& chain, map<int, int> &mergeTable);
     int endMerge(int start, const map<int, int> &mergeTable);
     
@@ -75,15 +88,17 @@ private:
     bool hasDescender(const string& word);
     bool isAscender(char c);
     bool isDescender(char c);
-    void findBaselines(bool hasAscender, bool hasDescender, int* upperBaseline, int* lowerBaseline, const list<Point>& localMins, const list<Point>& localMaxs);
+    void findBaselines(bool hasAscender, bool hasDescender, int* upperBaseline, int* lowerBaseline, const list<Point>& localMins, const list<Point>& localMaxs, int centerLine);
+    void findMinMaxInBaselines(const list<const Grapheme*>& graphemes, int upperBaseline, int lowerBaseline, int& min, int& max);
     bool directionForbidden(int direction, int prevDir);
     void lookAheadJunctions(int x, int y, int prevDirection, Point cur, const list<int>& chain, const Mat& graphemes, int &doRelabel, int &bestLoc);
     void countJunction(int fromX, int fromY, int prevDir, bool first, bool last, int& firstLabel, const Mat& graphemes, const map<int, int>& mergeTable, map<int,int>& counts, int& prevLabel);
-    void relabelStrech(int label, Point from, Mat& ret, MinMaxTracker& tracker, MinMaxTracker &tracker2, MinMaxTracker &tracker3);
+    bool relabelStrech(int label, Point from, Mat& ret, MinMaxTracker& tracker, MinMaxTracker &tracker2, MinMaxTracker &tracker3);
 //    void findAllMaxMin(const Mat& skel, list<Point>& localMins, list<Point>& localMaxs);
     bool checkCorner(int fromX, int fromY, int prevDir, const Mat& skel);
     bool branchPoint(int cur_x, int cur_y, Mat& ret, list<Point>& startingPointQueue, int& curLabel);
     void writeGraphemes(const Mat& img);
+    void writeSegmentation(const vector<list<const Grapheme*> >& segmentation);
     
 };
 

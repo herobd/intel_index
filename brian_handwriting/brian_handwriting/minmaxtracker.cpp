@@ -107,3 +107,44 @@ void MinMaxTracker::onLocals(const Point& toAdd)
         }
     }
 }
+
+void MinMaxTracker::checkEnd()
+{
+    int i=0;
+    int deltaY=0;
+    int prevY=-1;
+    Point endPoint;
+    for (auto iter=before.rbegin(); iter!=before.rend() && i<neighborhood;  iter++, i++)
+    {
+        if (prevY!=-1)
+            deltaY+=prevY-iter->y;
+        else
+            endPoint=*iter;
+        prevY=iter->y;
+    }
+    if (inQuestion.x!=-1)
+    {
+        if (prevY!=-1)
+            deltaY+=prevY-inQuestion.y;
+        else
+            endPoint=inQuestion;
+        prevY=inQuestion.y;
+    }
+    for (auto iter=after.rbegin(); iter!=after.rend() && i<neighborhood;  iter++, i++)
+    {
+        if (prevY!=-1)
+            deltaY+=prevY-iter->y;
+        else
+            endPoint=*iter;
+        prevY=iter->y;
+    }
+    
+    if (deltaY>neighborhood/4.0 && find(minima->rbegin(),minima->rend(),endPoint) == minima->rend())
+    {
+        minima->push_back(endPoint);
+    }
+    if (-deltaY>neighborhood/4.0 && find(maxima->rbegin(),maxima->rend(),endPoint) == maxima->rend())
+    {
+        maxima->push_back(endPoint);
+    }
+}

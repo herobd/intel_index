@@ -24,6 +24,7 @@
 
 #include "enhancedbovwtests.h"
 #include "liang.h"
+#include "mog.h"
 
 
 
@@ -55,10 +56,38 @@ void deslant(Mat &img);
 
 int main( int argc, char** argv )
 {
-    if (argc<2)
+    if (argc==4)
     {
         Liang l;
         l.unittest();
+        MOG mog;
+        mog.unittest();
+        //../../data/gw_20p_wannot/liangTrained.dat ../../data/gw_20p_wannot/deslant/wordimg_3.png Orders
+        string save = argv[1];
+        string imgPath = argv[2];
+        
+        l.loadCharacterModels(save);
+        
+        Mat testImg= imread(imgPath,0);
+        threshold(testImg,testImg,IMAGE_THRESH,255,1);
+        double score = l.score(argv[3],testImg);
+        cout << score << endl;
+    }
+    else if (argc==6)
+    {
+        Liang l;
+        l.unittest();
+        MOG mog;
+        mog.unittest();
+        //../../data/gw_20p_wannot/deslant/ wordimg_ .png ../../data/gw_20p_wannot/annotations.txt ../../data/gw_20p_wannot/liangTrained.dat
+        string imgDir=argv[1];
+        string namePattern=argv[2];
+        string ext=argv[3];
+        string ann=argv[4];
+        string save=argv[5];
+        
+        l.trainCharacterModels(imgDir,namePattern,ext,ann);
+        l.saveCharacterModels(save);
     }
     else
     {

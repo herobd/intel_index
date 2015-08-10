@@ -344,6 +344,7 @@ float EnhancedBoVW::compareImage(const Mat &img, const vector<float> &exemplar) 
     }
     
     delete samplesCodedII;
+    delete desc1;
     return score1;
 }
 

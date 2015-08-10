@@ -131,7 +131,7 @@ void EnhancedBoVWTests::experiment_dist(EnhancedBoVW &bovw, string locationCSVPa
                 #pragma omp critical
                 scores.insert(scores.end(),myScores.begin(),myScores.end());
             }
-            
+            delete exmeplar_b;
             if (scores.size() != dataSize-1 && scores.size() != dataSize)
             {
                 cout << "Error, scores size:" << scores.size() << ", dataSize:" << dataSize << endl;
@@ -343,7 +343,7 @@ void EnhancedBoVWTests::experiment_Aldavert_dist(EnhancedBoVW &bovw, string loca
                 #pragma omp critical
                 scores.insert(scores.end(),myScores.begin(),myScores.end());
             }
-            
+            delete exemplar_b;
 //            if (scores.size() != dataSize-1 && scores.size() != dataSize)
 //            {
 //                cout << "Error, scores size:" << scores.size() << ", dataSize:" << dataSize << endl;
@@ -552,7 +552,7 @@ void EnhancedBoVWTests::experiment(EnhancedBoVW &bovw, string locationCSVPath, s
                 #pragma omp critical
                 scores.insert(scores.end(),myScores.begin(),myScores.end());
             }
-            
+            delete exemplar_b;
             if (scores.size() != dataSize-1 && scores.size() != dataSize)
             {
                 cout << "Error, scores size:" << scores.size() << ", dataSize:" << dataSize << endl;
@@ -767,6 +767,7 @@ void EnhancedBoVWTests::experiment_Aldavert(EnhancedBoVW &bovw, string locationC
                 #pragma omp critical
                 scores.insert(scores.end(),myScores.begin(),myScores.end());
             }
+            delete exemplar_b;
             
 //            if (scores.size() != dataSize-1 && scores.size() != dataSize)
 //            {
