@@ -478,7 +478,7 @@ float SOM::R0() const
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
-
+//#include <omp.h>
 //////////////////////////////////training///////////////////////////////////////////////////////////////
 void SOM::train(const vector<float *> *vectors, float R, float learning_rule)   
 {
@@ -493,6 +493,7 @@ void SOM::train(const vector<float *> *vectors, float R, float learning_rule)
                 if (R <= 1.0f)  //adjust BMU node only
                         bmu_node->train(pdata, learning_rule);
                 else {
+//#pragma omp parallel for
                         for (int i = 0; i < get_nodes_number(); i++) { //adjust weights within R
                                 const float *p2 = m_nodes[i]->get_coords();
                                 float dist = 0.0f;

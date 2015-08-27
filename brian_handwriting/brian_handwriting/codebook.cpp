@@ -10,28 +10,6 @@ Codebook::Codebook()
 {
 }
 
-void Codebook::test()
-{
-    codebook.clear();
-    for (double y=0.1; y<6; y+=2+.05*(int)y)
-        for (double x=0.1; x<5; x+=2+1.33*(int)y)
-            for (double z=0.1; z<5; z+=2)
-        {
-            vector<double> v= {x,y,z};
-            push_back(v);
-        }
-    vector<double> t1= {0.1,.4,.2};
-    int t1q=quantize(t1);
-//    assert(t1q==0);
-    
-    vector<double> t2= {1,2,1};
-    vector< tuple<int,float> > t2q = quantizeSoft(t2,2);  
-//    assert(fabs(get<1>(t2q[0])-.5)<.001 && fabs(get<1>(t2q[1])-.5)<.001);
-    
-    vector<double> t3= {1,3,4};
-    vector< tuple<int,float> > t3q = quantizeSoft(t3,4);  
-//    assert(fabs(get<1>(t3q[0])-.333)<.001 && fabs(get<1>(t3q[1])-.333)<.001 && fabs(get<1>(t3q[2])-.333)<.001);
-}
 
 void Codebook::push_back(vector<double> & exe)
 {
@@ -113,6 +91,8 @@ vector< tuple<int,float> > Codebook::quantizeSoft(const vector<float> &term, int
 //    }
 //    if (empty) return ret;
     
+    double minDist=numeric_limits<double>::max();
+    
     vector< tuple<int,float> > q;
     int sizeC = codebook.size();
     int sizeT = term.size();
@@ -121,9 +101,11 @@ vector< tuple<int,float> > Codebook::quantizeSoft(const vector<float> &term, int
         double dist=0;
         for (int f=0; f<sizeT; f++)
         {
-            int val =term[f]-codebook[i][f];
+            double val =term[f]-codebook[i][f];
             dist += val*val;
         }
+        if (dist<minDist)
+            minDist=dist;
 //        cout << i<<": "<<dist<<endl;
         auto it = q.rbegin();
         while(1)
@@ -142,7 +124,7 @@ vector< tuple<int,float> > Codebook::quantizeSoft(const vector<float> &term, int
             }
             else if (dist>=get<1>(*it))
             {
-                if (it == q.rbegin() || q.size()<t)
+                if (it == q.rbegin() && q.size()<=t)
                 {
 //                    cout << "add end, 'cause "<<dist<<">="<<get<1>(*it)<<endl;
                     q.push_back(make_tuple(i,(float)dist));
@@ -191,34 +173,34 @@ vector< tuple<int,float> > Codebook::quantizeSoft(const vector<float> &term, int
 //        ret.push_back(make_tuple(get<0>(q[j]),B.at<float>(j,0)));
 //    }
     
-//    //From "The Devil is in the Details"
-//    cv::Mat delta_i(term.size(),t,CV_32F);
-//    for (int i=0; i<term.size(); i++)
-//        for (int j=0; j<t; j++)
-//        {
-//            delta_i.at<float>(i,j) = term[i]-codebook[get<0>(q[j])][i];
-//        }
+    //From "The Devil is in the Details"
+    cv::Mat delta_i(term.size(),t,CV_64F);
+    for (int i=0; i<term.size(); i++)
+        for (int j=0; j<t; j++)
+        {
+            delta_i.at<double>(i,j) = (double) (term[i]-codebook[get<0>(q[j])][i])/sqrt(minDist/2);
+        }
     
-//    float reg = 0.1;
-//    cv::Mat inter = (delta_i.t()*delta_i + reg*cv::Mat::eye(t,t,CV_32F)).inv();
-////    cout << "sqr:\n "<<delta_i.t()*delta_i<<"\ninter:\n "<<inter<<endl;
-//    cv::Mat a = inter * delta_i.t()* cv::Mat::ones(term.size(),1,CV_32F);
-//    float norm = cv::norm(cv::Mat::ones(1,t,CV_32F)*a);
+    double reg = 0.1;
+    cv::Mat inter = (delta_i.t()*delta_i + reg*cv::Mat::eye(t,t,CV_64F)).inv();
+//    cout << "sqr:\n "<<delta_i.t()*delta_i<<"\ninter:\n "<<inter<<endl;
+    cv::Mat a = inter * delta_i.t()* cv::Mat::ones(term.size(),1,CV_64F);
+    double norm = cv::norm(cv::Mat::ones(1,t,CV_64F)*a);
+    for (int j=0; j<t; j++)
+    {
+        ret.push_back(make_tuple(get<0>(q[j]),abs(a.at<double>(j,0)/norm)));
+    }
+    
+//    //Hack workaround. I don't want to bother with this least sqrs stuff
+//    float total=0;
 //    for (int j=0; j<t; j++)
 //    {
-//        ret.push_back(make_tuple(get<0>(q[j]),a.at<float>(j,0)/norm));
+//        total += get<1>(q[j]);
 //    }
-    
-    //Hack workaround. I don't want to bother with this least sqrs stuff
-    float total=0;
-    for (int j=0; j<t; j++)
-    {
-        total += get<1>(q[j]);
-    }
-    for (int j=0; j<t; j++)
-    {
-        ret.push_back(make_tuple(get<0>(q[j]),get<1>(q[j])/total));
-    }
+//    for (int j=0; j<t; j++)
+//    {
+//        ret.push_back(make_tuple(get<0>(q[j]),get<1>(q[j])/total));
+//    }
     
     
 //    cout << "best " << best << ", min " << min << endl;
@@ -333,4 +315,213 @@ void Codebook::readInCSV(string filePath)
     
     
     file.close();
+}
+
+void Codebook::unittest()
+{
+    ofstream file;
+    file.open ("tmp.dat435", ios::out);
+    
+    file << 3 << endl;
+    file << 3 << endl;
+    
+    file << 1 << endl;
+    file << 0 << endl;
+    file << 0 << endl;
+    
+    file << 0 << endl;
+    file << 1 << endl;
+    file << 0 << endl;
+    
+    file << 0 << endl;
+    file << 0 << endl;
+    file << 1 << endl;
+    
+    file.close();
+    readIn("tmp.dat435");
+    save("tmp.dat435");
+    codebook.clear();
+    inverseDocFreq.clear();
+    readIn("tmp.dat435");
+    
+    vector<float> term = {.5,0,.1};
+    vector< tuple<int,float> > quan = quantizeSoft(term,1);
+    assert(get<0>(quan[0])==0 && get<1>(quan[0])==1);
+    
+    vector<float> term2 = {.3,0,.3};
+    quan = quantizeSoft(term2,2);
+    assert(get<1>(quan[0])==.5 && get<1>(quan[1])==.5);
+    
+    file.open ("tmp.dat435", ios::out);
+    
+    file << 4 << endl;
+    file << 4 << endl;
+    
+    file << 1 << endl;
+    file << 0 << endl;
+    file << 0 << endl;
+    file << 0 << endl;
+    
+    file << 0 << endl;
+    file << 1 << endl;
+    file << 0 << endl;
+    file << 0 << endl;
+    
+    file << 0 << endl;
+    file << 0 << endl;
+    file << 1 << endl;
+    file << 0 << endl;
+    
+    file << 0 << endl;
+    file << 0 << endl;
+    file << 0 << endl;
+    file << 1 << endl;
+    
+    file.close();
+    codebook.clear();
+    inverseDocFreq.clear();
+    readIn("tmp.dat435");
+    
+    vector<float> term3 = {.3,0,.2,.1};
+    quan = quantizeSoft(term3,3);
+    double score0=0;
+    double score1=0;
+    double score2=0;
+    double score3=0;
+    for (auto p : quan)
+    {
+        if (get<0>(p) == 0)
+            score0 = get<1>(p);
+        else if (get<0>(p) == 1)
+            score1 = get<1>(p);
+        else if (get<0>(p) == 2)
+            score2 = get<1>(p);
+        else if (get<0>(p) == 3)
+            score3 = get<1>(p);
+    }
+    assert(score0>score2);
+    assert(score2>score3);
+    assert(score3>score1);
+    assert(score0+score1+score2+score3>=.9999 && score0+score1+score2+score3<=1.0001);
+    
+    vector<float> term4 = {.1,.05,.3,.2};
+    quan = quantizeSoft(term4,4);
+    score0=0;
+    score1=0;
+    score2=0;
+    score3=0;
+    for (auto p : quan)
+    {
+        if (get<0>(p) == 0)
+            score0 = get<1>(p);
+        else if (get<0>(p) == 1)
+            score1 = get<1>(p);
+        else if (get<0>(p) == 2)
+            score2 = get<1>(p);
+        else if (get<0>(p) == 3)
+            score3 = get<1>(p);
+    }
+    assert(score2>score3);
+    assert(score3>score0);
+    assert(score0>score1);
+    assert(score0+score1+score2+score3>=.9999 && score0+score1+score2+score3<=1.0001);
+    
+    vector<float> term5 = {.1,.05,.3,.1};
+    quan = quantizeSoft(term5,3);
+    score0=0;
+    score1=0;
+    score2=0;
+    score3=0;
+    for (auto p : quan)
+    {
+        if (get<0>(p) == 0)
+            score0 = get<1>(p);
+        else if (get<0>(p) == 1)
+            score1 = get<1>(p);
+        else if (get<0>(p) == 2)
+            score2 = get<1>(p);
+        else if (get<0>(p) == 3)
+            score3 = get<1>(p);
+    }
+    assert(score2>score3);
+    assert(score3==score0);
+    assert(score0>score1);
+    assert(score0+score1+score2+score3>=.9999 && score0+score1+score2+score3<=1.0001);
+    
+    vector<float> term6 = {.05,.1,.2,.3};
+    quan = quantizeSoft(term6,4);
+    score0=0;
+    score1=0;
+    score2=0;
+    score3=0;
+    for (auto p : quan)
+    {
+        if (get<0>(p) == 0)
+            score0 = get<1>(p);
+        else if (get<0>(p) == 1)
+            score1 = get<1>(p);
+        else if (get<0>(p) == 2)
+            score2 = get<1>(p);
+        else if (get<0>(p) == 3)
+            score3 = get<1>(p);
+    }
+    assert(score3>score2);
+    assert(score2>score1);
+    assert(score1>score0);
+    assert(score0+score1+score2+score3>=.9999 && score0+score1+score2+score3<=1.0001);
+    
+    vector<float> term7 = {.05,1,100,5000};
+    quan = quantizeSoft(term7,4);
+    score0=0;
+    score1=0;
+    score2=0;
+    score3=0;
+    for (auto p : quan)
+    {
+        if (get<0>(p) == 0)
+            score0 = get<1>(p);
+        else if (get<0>(p) == 1)
+            score1 = get<1>(p);
+        else if (get<0>(p) == 2)
+            score2 = get<1>(p);
+        else if (get<0>(p) == 3)
+            score3 = get<1>(p);
+    }
+    assert(score3>score2);
+    assert(score2>score1);
+    assert(score1>score0);
+    assert(score0+score1+score2+score3>=.9999 && score0+score1+score2+score3<=1.0001);
+    
+    
+//    codebook.clear();
+//    for (double y=0.1; y<6; y+=2+.05*(int)y)
+//        for (double x=0.1; x<5; x+=2+1.33*(int)y)
+//            for (double z=0.1; z<5; z+=2)
+//        {
+//            vector<double> v= {x,y,z};
+//            push_back(v);
+//        }
+//    vector<double> t1= {0.1,.4,.2};
+//    int t1q=quantize(t1);
+////    assert(t1q==0);
+    
+//    vector<double> t2= {1,2,1};
+//    vector< tuple<int,float> > t2q = quantizeSoft(t2,2);  
+////    assert(fabs(get<1>(t2q[0])-.5)<.001 && fabs(get<1>(t2q[1])-.5)<.001);
+    
+//    vector<double> t3= {1,3,4};
+//    vector< tuple<int,float> > t3q = quantizeSoft(t3,4);  
+////    assert(fabs(get<1>(t3q[0])-.333)<.001 && fabs(get<1>(t3q[1])-.333)<.001 && fabs(get<1>(t3q[2])-.333)<.001);
+    cout << "Codebook passed its tests!" << endl;
+}
+
+void Codebook::print()
+{
+    for (int i=0; i<codebook.size(); i++)
+    {
+        cout << i << "::\t";
+        for (float f : codebook[i])
+            cout << f << ",\t";
+        cout << endl;
+    }
 }

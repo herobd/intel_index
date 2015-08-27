@@ -7,6 +7,7 @@
 #include <math.h>
 #include "opencv2/core/core.hpp"
 #include <assert.h>
+#include <limits>
 using namespace std;
 
 #define CODEBOOK_SIZE /*4096*/100
@@ -28,8 +29,8 @@ public:
     void readIn(string filePath);
     void readInCSV(string filePath);
     
-    void test();
-    
+    void unittest();
+    void print();
     static bool twentythree;
     
 private:

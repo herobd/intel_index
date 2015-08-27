@@ -480,12 +480,12 @@ double Kmeans( const cv::Mat& data, int K, cv::Mat& best_labels,
  
 	for( a = 0; a < attempts; a++ )
 	{
-		std::cerr << "Starting " << a << " attempt\n";
+//		std::cerr << "Starting " << a << " attempt\n";
 		// each attempt to perform kmeans cluster
 		double max_center_shift = DBL_MAX;
 		for( iter = 0; iter < criteria.maxCount && max_center_shift > criteria.epsilon; iter++ )
 		{
-			std::cerr << "\tStarting " << iter << " iter: " << max_center_shift << std::endl;
+//			std::cerr << "\tStarting " << iter << " iter: " << max_center_shift << std::endl;
 			swap(centers, old_centers);
  
 			// if it's first iteration, will generate initial labels.
@@ -564,7 +564,7 @@ double Kmeans( const cv::Mat& data, int K, cv::Mat& best_labels,
 				counters = calcenter.counters;
 #endif
 				int64 ETicks = cv::getTickCount();
-				std::cerr << "LOGINFO : " << (ETicks - BTicks) / cv::getTickFrequency() << std::endl;
+//				std::cerr << "LOGINFO : " << (ETicks - BTicks) / cv::getTickFrequency() << std::endl;
  
 				if( iter > 0 )
 					max_center_shift = 0;
@@ -634,9 +634,9 @@ double Kmeans( const cv::Mat& data, int K, cv::Mat& best_labels,
 #endif
 			int64 endlabelstick = cv::getTickCount();
  
-			std::cerr << "\tLOGINFO: Label Assign Time " 
-				<< (endlabelstick - startlabelstick2) / cv::getTickFrequency() << "\t" 
-				<< (startlabelstick2 - startlabelstick) / cv::getTickFrequency() << std::endl;
+//			std::cerr << "\tLOGINFO: Label Assign Time " 
+//				<< (endlabelstick - startlabelstick2) / cv::getTickFrequency() << "\t" 
+//				<< (startlabelstick2 - startlabelstick) / cv::getTickFrequency() << std::endl;
 		}
  
 		if( compactness < best_compactness )

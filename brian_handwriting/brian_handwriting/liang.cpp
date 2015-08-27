@@ -5,24 +5,55 @@ Liang::Liang()
     trained=false;
 }
 
-//We assume img is a binary image
+//We assume img is a binary image (values of 0=background or 255=foreground)
 double Liang::score(string query, const Mat &img)
 {
     assert(trained);
+    
+    int wordWidth=-1;
+    int firstPixel=-1;
+    for (int x=0; x<img.cols && firstPixel==-1; x++)
+    {
+        for (int y=0; y<img.rows; y++)
+        {
+            if (img.at<unsigned char>(y,x)>0)
+            {
+                firstPixel=x;
+                break;
+            }
+        }
+    }
+    for (int x=img.cols-1; x>=0 && wordWidth==-1; x--)
+    {
+        for (int y=0; y<img.rows; y++)
+        {
+            if (img.at<unsigned char>(y,x)>0)
+            {
+                wordWidth=x-firstPixel;
+                break;
+            }
+        }
+    }
     float minWidth=0;
     float maxWidth =0;
+    double unitWidth = wordWidth/(0.0+query.size());
     for (char c : query)
     {
-        minWidth+=charWidthAvgs[c] - 2*charWidthStdDevs[c];
-        maxWidth+=charWidthAvgs[c] + 2*charWidthStdDevs[c];
+        minWidth+=charWidthAvgs[c] - 2*unitWidth*unitCharWidthStdDevs[c];
+        maxWidth+=charWidthAvgs[c] + 2*unitWidth*unitCharWidthStdDevs[c];
         if (graphemeSpectrums[c].size()==0)
         {
             cout << "No model for letter: " << c << endl;
-            return 9999;
+            return BAD_SCORE;
         }
     }
-    if (img.cols < minWidth || img.cols > maxWidth)
+    
+    
+    if (wordWidth < minWidth || wordWidth > maxWidth)
+    {
+        //cout << "img length [" << wordWidth << "] ouside of range [" << minWidth << " - " << maxWidth << "]"<<endl;
         return BAD_SCORE;
+    }
     
     list<Point> localMaxs, localMins;
     int centerLine;
@@ -34,7 +65,7 @@ double Liang::score(string query, const Mat &img)
     {
         winningNodes[g] = mog.getWinningNode(g);
     }
-    vector<list<const Grapheme*> > segmentation = learnCharacterSegmentation(query,graphemes,localMaxs,localMins,centerLine);
+    vector<list<const Grapheme*> > segmentation = learnCharacterSegmentation(query,graphemes,localMaxs,localMins,centerLine, img);
     
     double ret=0;
     for (int k=0; k<query.size(); k++)
@@ -44,11 +75,15 @@ double Liang::score(string query, const Mat &img)
             double maxsubscore=0;
             for (int i=0; i<mog.getNumClasses(); i++)
             {
-                double subscore = graphemeSpectrums[query[k]][i]/(mog.boxdist(i,winningNodes[g]+1));
+                double rxp = graphemeSpectrums[query[k]][i];
+                assert(rxp<1000);
+                double subscore = rxp/(mog.boxdist(i,winningNodes[g])+1);
                 if (subscore>maxsubscore) maxsubscore=subscore;
             }
             ret+=maxsubscore;
-        }
+            delete g;
+        }//seems to bias towards longer images
+//        ret/=segmentation[k].size();
     }
     return ret;
 }
@@ -80,23 +115,36 @@ void Liang::trainCharacterModels(string imgDirPath, string imgNamePattern, strin
     
     
     map<char, list<int> > charWidths;
+    map<char, list<double> > unitCharWidths;
     map<char, list<const Grapheme*> > charGraphemes;
     map<char, int> charCounts;
     
+    omp_lock_t writelock;
+    omp_init_lock(&writelock);
+    
+#pragma omp parallel
+    #pragma omp single
     for (pair<int,string> ex : examples)
     {
-        string imgPath=imgDirPath + imgNamePattern + to_string(ex.first) + imgExt;
-        Mat img= imread(imgPath,0);
-        threshold(img,img,IMAGE_THRESH,255,1);
-        Mat skel;
-        thinning(img,skel);
-        list<Point> localMaxs, localMins;
-        int centerLine;
-        vector<Grapheme*> graphemes = extractGraphemes(skel, &localMaxs, &localMins, &centerLine);
-        learnCharacterSegmentation(ex.second,graphemes,localMaxs,localMins,centerLine,&charGraphemes,&charWidths, &charCounts);
+        #pragma omp task firstprivate(ex)
+        {
+            string imgPath=imgDirPath + imgNamePattern + to_string(ex.first) + imgExt;
+            Mat img= imread(imgPath,0);
+            threshold(img,img,IMAGE_THRESH,255,1);
+            Mat skel;
+            thinning(img,skel);
+            list<Point> localMaxs, localMins;
+            int centerLine;
+            vector<Grapheme*> graphemes = extractGraphemes(skel, &localMaxs, &localMins, &centerLine);
+            
+            
+            learnCharacterSegmentation(ex.second,graphemes,localMaxs,localMins,centerLine,img,&charGraphemes,&charWidths, &unitCharWidths, &charCounts, &writelock);
+        }
     }
+    cout << "Beginning MOG training" << endl;
+    mog.train(charGraphemes,400);//500
+    showMOG(charGraphemes);
     
-    mog.train(charGraphemes,500);
     
     for (char c='0'; c<='z'; c++)
     {
@@ -105,7 +153,7 @@ void Liang::trainCharacterModels(string imgDirPath, string imgNamePattern, strin
         
         if (charGraphemes[c].size()==0)
         {
-            cout << "No example found for" << c <<endl;
+            cout << "No example found for " << c <<endl;
             continue;
         }
         
@@ -125,18 +173,134 @@ void Liang::trainCharacterModels(string imgDirPath, string imgNamePattern, strin
         {
             sum+=width;
         }
-        charWidthAvgs[c] = sum/(float)charWidths[c].size();
-        int variance=0;
-        for (int width : charWidths[c])
+        double sumUnit=0;
+        for (int width : unitCharWidths[c])
         {
-            variance+=(charWidthAvgs[c]-width)*(charWidthAvgs[c]-width);
+            sumUnit+=width;
         }
-        variance /= charWidths[c].size();
-        charWidthStdDevs[c] = sqrt(variance);
+        charWidthAvgs[c] = sum/(float)charWidths[c].size();
+        double unitCharWidthAvg = sumUnit/unitCharWidths[c].size();
+        double variance=0;
+        for (int width : unitCharWidths[c])
+        {
+            variance+=(unitCharWidthAvg-width)*(unitCharWidthAvg-width);
+        }
+        variance /= unitCharWidths[c].size();
+        unitCharWidthStdDevs[c] = sqrt(variance);
     }
     trained=true;
 }
 
+void Liang::showCharacterModels(string imgDirPath, string imgNamePattern, string imgExt, const vector< pair<int,string> >& examples, string modelMOG)
+{
+    cout << "show mog" << endl;
+    
+    if (imgDirPath[imgDirPath.size()-1] != '/') imgDirPath += "/";
+    if (imgExt[0] != '.') imgExt = "."+imgExt;
+    
+    
+    map<char, list<int> > charWidths;
+    map<char, list<double> > unitCharWidths;
+    map<char, list<const Grapheme*> > charGraphemes;
+    map<char, int> charCounts;
+    
+    omp_lock_t writelock;
+    omp_init_lock(&writelock);
+    
+#pragma omp parallel
+    #pragma omp single
+    for (pair<int,string> ex : examples)
+    {
+        #pragma omp task firstprivate(ex)
+        {
+            string imgPath=imgDirPath + imgNamePattern + to_string(ex.first) + imgExt;
+            Mat img= imread(imgPath,0);
+            threshold(img,img,IMAGE_THRESH,255,1);
+            Mat skel;
+            thinning(img,skel);
+            list<Point> localMaxs, localMins;
+            int centerLine;
+            vector<Grapheme*> graphemes = extractGraphemes(skel, &localMaxs, &localMins, &centerLine);
+            
+            
+            learnCharacterSegmentation(ex.second,graphemes,localMaxs,localMins,centerLine,img,&charGraphemes,&charWidths, &unitCharWidths, &charCounts, &writelock);
+        }
+    }
+    
+    mog.load(modelMOG);
+    showMOG(charGraphemes);
+}
+
+void Liang::showMOG(const map<char, list<const Grapheme*> >& charGraphemes)
+{
+    
+    //take samples from graphemes and display where they end up in an image 
+    int boxSize=400;
+    int numEx=4;
+    Mat img(9*boxSize,9*boxSize,CV_8UC3);
+    for (int i=boxSize-1; i<9*boxSize; i+=boxSize)
+    {
+        line(img,Point(0,i),Point(9*boxSize-1,i),Scalar(255));
+        line(img,Point(i,0),Point(i,9*boxSize-1),Scalar(255));
+    }
+    
+    vector<int> counts(9*9);
+    bool cont=true;
+    map<char, map<int,int> > countUse;
+    for(int ii=0; ii<81*300 && cont; ii++)
+    {
+        char c = 'a' + rand()%26;
+        int g = rand()%charGraphemes.at(c).size();
+        if (countUse[c][g]>0)
+            continue;
+        countUse[c][g]++;
+        
+        auto iter = charGraphemes.at(c).begin();
+        for (int i=0; i<g; i++)
+            iter++;
+        int node = mog.getWinningNode(*iter);
+        if (counts[node]<numEx*numEx)
+        {
+            int col = mog.nodeCol(node);
+            int row = mog.nodeRow(node);
+            int xOff = (counts[node]/numEx)*(boxSize/numEx) + col*boxSize;
+            int yOff = (counts[node]%numEx)*(boxSize/numEx) + row*boxSize;
+            
+            Vec3b color(rand()%256,rand()%256,rand()%256);
+            
+            const Mat* graphemes  = (*iter)->img();
+            for (int i=(*iter)->minX(); i<=(*iter)->maxX(); i++)
+                for (int j=(*iter)->minY(); j<=(*iter)->maxY(); j++)
+                {
+                    if (graphemes->at<unsigned char>(j,i)==(*iter)->imgId())
+                    {
+                        int x = xOff + i-(*iter)->minX();
+                        int y = yOff + j-(*iter)->minY();
+                        if (x<img.cols && y<img.rows)
+                            img.at<Vec3b>(y, x) = color;
+                    }
+                }
+            
+            counts[node]++;
+        }
+        
+        cont = false;
+        for (int count : counts)
+        {
+            if (count<numEx*numEx)
+            {
+                cont=true;
+                break;
+            }
+        }
+        
+    }
+    
+    
+    imshow("MOG",img);
+    waitKey();
+    imwrite("MOG.png",img);
+}
 
 vector<Grapheme*> Liang::extractGraphemes(const Mat &skel, list<Point>* localMaxs, list<Point>* localMins, int* centerLine)
 {
@@ -154,12 +318,12 @@ vector<Grapheme*> Liang::extractGraphemes(const Mat &skel, list<Point>* localMax
 
 
 
-vector<list<const Grapheme*> > Liang::learnCharacterSegmentation(string query, vector<Grapheme*> graphemes, const list<Point>& localMaxs, const list<Point>& localMins, int centerLine, map<char, list<const Grapheme*> >* charGraphemes, map<char, list<int> >* accumWidths, map<char, int>* charCounts )
+vector<list<const Grapheme*> > Liang::learnCharacterSegmentation(string query, const vector<Grapheme*>& graphemes, const list<Point>& localMaxs, const list<Point>& localMins, int centerLine, const Mat& img, map<char, list<const Grapheme*> >* charGraphemes, map<char, list<int> >* accumWidths, map<char, list<double> >* unitCharWidths, map<char, int>* charCounts, omp_lock_t *writelock)
 {
     
         
     int upperBaseline, lowerBaseline;
-    findBaselines(hasAscender(query),hasDescender(query),&upperBaseline,&lowerBaseline,localMins,localMaxs,centerLine);
+    findBaselines(hasAscender(query),hasDescender(query),&upperBaseline,&lowerBaseline,localMins,localMaxs,centerLine,img);
     
     int leftX=9999;
     int rightX=0;
@@ -174,6 +338,7 @@ vector<list<const Grapheme*> > Liang::learnCharacterSegmentation(string query, v
     }
     assert(leftX!=9999 && rightX!=0);
     int width = 1+rightX-leftX;
+    double unitWidth = width/(0.0+query.size());
     
     vector<int> charWidths(query.size());
     double inc = width/(double)query.size();
@@ -190,7 +355,7 @@ vector<list<const Grapheme*> > Liang::learnCharacterSegmentation(string query, v
     vector<list<const Grapheme*> > characters(query.size()); 
     
     int g;
-    Point2f centriod;
+    Point2f centriod;//&leftX,&query,&charWidths,&centriod,&characters,&graphemes,&change,&g
     auto findAndAddToNearest = [&] (bool ascender){
         int currentX=leftX;
         int bestC=-1;
@@ -274,60 +439,20 @@ vector<list<const Grapheme*> > Liang::learnCharacterSegmentation(string query, v
         
         
         
-        int minX;
-        int maxX;
-        if (characters[0].size()!=0)
-            findMinMaxInBaselines(characters[0],upperBaseline,lowerBaseline,minX,maxX);
-        else
-        {
-            minX=leftX;
-            maxX=-1;
-        }
-        int prevMinX=-1;
-        int prevMaxX=minX;
-        
-        int nextMinX;
-        int nextMaxX;   
-        
-        
-        for (int c=1; c<query.size(); c++)
-        {
-            if (characters[c].size()!=0)
-                findMinMaxInBaselines(characters[c],upperBaseline,lowerBaseline,nextMinX,nextMaxX);
-            else
-            {
-                if(maxX==-1)//&&(charWidths[c]>0|| query.compare("28th")==0));
-                    maxX=minX;
-                
-                nextMinX=maxX;
-                nextMaxX=-1;
-                
-            }
-            if (maxX==-1)
-            {
-                maxX=nextMinX;
-            }
-            
-            charWidths[c-1]=max(((maxX+nextMinX)/2)-((minX+prevMaxX)/2),0);
-//            assert(charWidths[c-1]<100 || query.size()==1);
-//            assert(charWidths[c-1]>0 || query.compare("28th")==0);
-            
-            prevMaxX=maxX;
-            prevMinX=minX;
-            maxX=nextMaxX;
-            minX=nextMinX;
-        }
-        charWidths[query.size()-1]=max((maxX)-((minX+prevMaxX)/2),0);
-//        assert(charWidths[query.size()-1]<100 || query.size()==1);
-//        assert(charWidths[query.size()-1]>0 || query.compare("28th")==0);
+        adjustCharWidths(characters, query, upperBaseline, lowerBaseline, leftX, charWidths);
     }
     
+    if (writelock!=NULL)
+        omp_set_lock(writelock);
     for (int c=0; c<query.size(); c++)
     {
         if (accumWidths!=NULL) (*accumWidths)[query[c]].push_back(charWidths[c]);
+        if (unitCharWidths!=NULL) (*unitCharWidths)[query[c]].push_back(charWidths[c]/unitWidth);
         if (charGraphemes!=NULL) (*charGraphemes)[query[c]].insert((*charGraphemes)[query[c]].end(),characters[c].begin(),characters[c].end());
         if (charCounts!=NULL) (*charCounts)[query[c]]++;
     }
+    if (writelock!=NULL)
+        omp_unset_lock(writelock);
     
     return characters;
 }
@@ -364,6 +489,56 @@ void Liang::findMinMaxInBaselines(const list<const Grapheme*>& graphemes, int up
     }
 }
 
+void Liang::adjustCharWidths(const vector<list<const Grapheme*> >& characters, const string& query, int upperBaseline, int lowerBaseline, int leftX, vector<int>& charWidths)
+{
+    int minX;
+    int maxX;
+    if (characters[0].size()!=0)
+        findMinMaxInBaselines(characters[0],upperBaseline,lowerBaseline,minX,maxX);
+    else
+    {
+        minX=leftX;
+        maxX=-1;
+    }
+    int prevMinX=-1;
+    int prevMaxX=minX;
+    
+    int nextMinX;
+    int nextMaxX;   
+    
+    
+    for (int c=1; c<query.size(); c++)
+    {
+        if (characters[c].size()!=0)
+            findMinMaxInBaselines(characters[c],upperBaseline,lowerBaseline,nextMinX,nextMaxX);
+        else
+        {
+            if(maxX==-1)//&&(charWidths[c]>0|| query.compare("28th")==0));
+                maxX=minX;
+            
+            nextMinX=maxX;
+            nextMaxX=-1;
+            
+        }
+        if (maxX==-1)
+        {
+            maxX=nextMinX;
+        }
+        
+        charWidths[c-1]=max(((maxX+nextMinX)/2)-((minX+prevMaxX)/2),0);
+//            assert(charWidths[c-1]<100 || query.size()==1);
+//            assert(charWidths[c-1]>0 || query.compare("28th")==0);
+        
+        prevMaxX=maxX;
+        prevMinX=minX;
+        maxX=nextMaxX;
+        minX=nextMinX;
+    }
+    charWidths[query.size()-1]=max((maxX)-((minX+prevMaxX)/2),0);
+//        assert(charWidths[query.size()-1]<100 || query.size()==1);
+//        assert(charWidths[query.size()-1]>0 || query.compare("28th")==0);
+}
+
 void Liang::saveCharacterModels(string filePath)
 {
     assert(trained);
@@ -375,7 +550,7 @@ void Liang::saveCharacterModels(string filePath)
         if (c > '9' && c < 'A') c = 'A';
         if (c > 'Z' && c < 'a') c = 'a';
         
-        file << c << "," << charWidthAvgs[c] << "," << charWidthStdDevs[c];
+        file << c << "," << charWidthAvgs[c] << "," << unitCharWidthStdDevs[c];
         
         for (float v : graphemeSpectrums[c])
             file << "," << v;
@@ -415,7 +590,7 @@ void Liang::loadCharacterModels(string filePath)
         line = sm.suffix().str();
         
         regex_search(line,sm,numberRGX);   
-        charWidthStdDevs[c] = stof(sm[0]);
+        unitCharWidthStdDevs[c] = stof(sm[0]);
         line = sm.suffix().str();
         
         
@@ -1248,11 +1423,12 @@ list<int> Liang::repairLoops(Mat& graphemes)
                     int prevLabel=-1;
                     int label = endMerge(juncMap.at(Point(scanX,scanY)),mergeTable);
                     bool done=false;
+                    Mat mark = graphemes.clone();
                     for (int direction=0; direction<8; direction++)
                     {
                         int x = scanX+xDelta(direction);
                         int y = scanY+yDelta(direction);
-                        if (x<0 || y<0 || x>=graphemes.cols || y>=graphemes.rows)
+                        if (x<0 || y<0 || x>=graphemes.cols || y>=graphemes.rows || mark.at<unsigned char>(y,x)==0)
                             continue;
                         int thisLabel=endMerge(graphemes.at<unsigned char>(y,x),mergeTable);
                         
@@ -1270,6 +1446,7 @@ list<int> Liang::repairLoops(Mat& graphemes)
                                 counts[thisLabel]++;
                             
                             prevLabel=thisLabel;
+                            mark.at<unsigned char>(y,x)=0;
                         }
                         else if (label == endMerge(juncMap.at(Point(x,y)),mergeTable))
                         {
@@ -1278,9 +1455,13 @@ list<int> Liang::repairLoops(Mat& graphemes)
                         }
                         else
                         {
-                            countJunction(x,y,direction,direction==0,direction==7,firstLabel,graphemes,mergeTable, counts, prevLabel);
+                            
+                            countJunction(x,y,direction,direction==0,direction==7,firstLabel,graphemes,mergeTable, counts, prevLabel, mark);
+                            mark.at<unsigned char>(y,x)=0;
                         }
                     }
+                    mark.release();
+                    
                     if (done)
                     {
                         graphemes.at<unsigned char>(scanY,scanX)=label;
@@ -1331,7 +1512,7 @@ list<int> Liang::repairLoops(Mat& graphemes)
     return finalLabels;
 }
 
-void Liang::countJunction(int fromX, int fromY, int prevDir, bool first, bool last, int& firstLabel, const Mat& graphemes, const map<int, int>& mergeTable, map<int,int>& counts, int& prevLabel)
+void Liang::countJunction(int fromX, int fromY, int prevDir, bool first, bool last, int& firstLabel, const Mat& graphemes, const map<int, int>& mergeTable, map<int,int>& counts, int& prevLabel, Mat& mark)
 {
     int dirStart, dirEnd;
     switch(prevDir)
@@ -1378,7 +1559,7 @@ void Liang::countJunction(int fromX, int fromY, int prevDir, bool first, bool la
             continue;
         int thisLabel=endMerge(graphemes.at<unsigned char>(y,x),mergeTable);
         
-        if (thisLabel!=JUNCTION_POINT)
+        if (thisLabel!=JUNCTION_POINT && mark.at<unsigned char>(y,x)!=0)
         {
             if (first&&direction==dirStart) firstLabel=thisLabel;
             
@@ -1389,11 +1570,13 @@ void Liang::countJunction(int fromX, int fromY, int prevDir, bool first, bool la
                 counts[thisLabel]++;
             
             prevLabel=thisLabel;
+            
         }
-        else
+        else if (mark.at<unsigned char>(y,x)!=0)
         {
-            countJunction(x,y,direction,first&&direction==dirStart,last&&direction==dirEnd,firstLabel,graphemes,mergeTable, counts, prevLabel);
+            countJunction(x,y,direction,first&&direction==dirStart,last&&direction==dirEnd,firstLabel,graphemes,mergeTable, counts, prevLabel, mark);
         }
+        mark.at<unsigned char>(y,x)=0;
     }
 }
 
@@ -1761,23 +1944,83 @@ int Liang::endMerge(int start, const map<int, int>& mergeTable)
 }
 
 
-
-
-void Liang::findBaselines(bool hasAscender, bool hasDescender, int* upperBaseline, int* lowerBaseline, const list<Point>& localMins, const list<Point>& localMaxs, int centerLine)
+void Liang::findBaselines(bool hasAscender, bool hasDescender, int* upperBaseline, int* lowerBaseline, const list<Point>& localMins, const list<Point>& localMaxs, int centerLine, const Mat& img)
 {
     //list<Point> localMins, localMaxs;
     
     //findAllMaxMin(skel,localMins, localMaxs);
-    
+    int threshold;
+    vector<int> counts;
+    if (hasAscender||hasDescender)
+    {
+        //Use Otsu threshold to find where to start baselines.
+        //Ignores all lines with zero pixels as those aren't text
+        //code copied from http://www.dandiggins.co.uk/arlib-9.html
+        counts.resize(img.rows);
+        vector<double> hist(img.cols);
+        int rows=0;
+        for (int y=0; y<img.rows; y++)
+        {
+            int count=0;
+            for (int x=0; x<img.cols; x++)
+                if (img.at<unsigned char>(y,x)>0)
+                    count++;
+            hist[count]++;
+            counts[y]=count;
+            if (count>0)
+                rows++;
+        }
+        double mean=0;
+        
+        for (int i=1; i<img.cols; i++)
+        {
+            
+            hist[i]/=rows;
+            mean += i*hist[i];
+        }
+        
+        double w=0;
+        double u=0;
+        double work3=0;
+        for (int i=1; i<img.cols-1; i++) {
+            w+=hist[i];
+            u+=(i*hist[i]);
+            double work1 = (mean * w - u);
+            double work2 = (work1 * work1) / ( w * (1.0f-w) );
+            if (work2>work3) work3=work2;
+        }
+        threshold = (int)sqrt(work3);
+    }
     
     
     *upperBaseline = 9999;
     if (hasAscender)
     {
+        int candidate1=-1;
+        if (counts[centerLine]>=threshold)
+        {
+            for (int y=centerLine-1; y>=0; y--)
+            {
+                if (counts[y]<threshold)
+                {
+                    candidate1=y;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            for (int y=0; y<img.rows; y++)
+            {
+                if (counts[y]>=threshold)
+                {
+                    candidate1=y-1;
+                    break;
+                }
+            }
+        }
         
-        //We will filter out outlier maxs and mins as our baseline finding method is sensitive to them
-        
-        
+        int candidate2=9999;
         int lowMaxima=0;
         int highMaxima=9999;
         list<Point> newMaxs;
@@ -1795,10 +2038,16 @@ void Liang::findBaselines(bool hasAscender, bool hasDescender, int* upperBaselin
         {
             if (p.y-highMaxima >= lowMaxima-p.y)
             {
-                if (p.y < *upperBaseline) *upperBaseline = p.y;
+                if (p.y < candidate2) candidate2 = p.y;
             }
         }
-        assert(*upperBaseline != 9999);
+        assert(candidate2!=9999);
+        
+        if (candidate1!=-1)
+            *upperBaseline = (candidate1+candidate2)/2;
+        else
+            *upperBaseline = candidate2;
+        assert(*upperBaseline>=0);
     }
     else
     {
@@ -1835,7 +2084,31 @@ void Liang::findBaselines(bool hasAscender, bool hasDescender, int* upperBaselin
     *lowerBaseline = 0;
     if (hasDescender)
     {
-        //We will filter out outlier maxs and mins as our baseline finding method is sensitive to them
+        int candidate1=-1;
+        if (counts[centerLine]>threshold)
+        {
+            for (int y=centerLine+1; y<img.rows; y++)
+            {
+                if (counts[y]<threshold)
+                {
+                    candidate1=y;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            for (int y=img.rows-1; y>=0; y--)
+            {
+                if (counts[y]>=threshold)
+                {
+                    candidate1=y+1;
+                    break;
+                }
+            }
+        }
+        
+        int candidate2=-1;
         int lowMinima=0;
         int highMinima=9999;
         list<Point> newMins;
@@ -1853,10 +2126,15 @@ void Liang::findBaselines(bool hasAscender, bool hasDescender, int* upperBaselin
         {
             if (p.y-highMinima <= lowMinima-p.y)
             {
-                if (p.y > *lowerBaseline) *lowerBaseline = p.y;
+                if (p.y > candidate2) candidate2 = p.y;
             }
         }
-        assert(*lowerBaseline != 9999);
+        assert(candidate2!=-1);
+        if (candidate1!=-1)
+            *lowerBaseline = (candidate1+candidate2)/2;
+        else
+            *lowerBaseline = candidate2;
+        assert(*lowerBaseline < img.rows);
     }
     else
     {
@@ -1952,6 +2230,196 @@ void Liang::findBaselines(bool hasAscender, bool hasDescender, int* upperBaselin
         *lowerBaseline = averageMinima + 2*ceil(dev2);
     }
 }
+
+//void Liang::findBaselines(bool hasAscender, bool hasDescender, int* upperBaseline, int* lowerBaseline, const list<Point>& localMins, const list<Point>& localMaxs, int centerLine)
+//{
+//    //list<Point> localMins, localMaxs;
+    
+//    //findAllMaxMin(skel,localMins, localMaxs);
+    
+    
+    
+//    *upperBaseline = 9999;
+//    if (hasAscender)
+//    {
+        
+//        //We will filter out outlier maxs and mins as our baseline finding method is sensitive to them
+        
+        
+//        int lowMaxima=0;
+//        int highMaxima=9999;
+//        list<Point> newMaxs;
+//        for (Point p : localMaxs)
+//        {
+//            if (p.y <= centerLine+15)
+//            {
+//                newMaxs.push_back(p);
+//                if (p.y > lowMaxima) lowMaxima=p.y;
+//                if (p.y < highMaxima) highMaxima=p.y;
+//            }
+//        }
+        
+//        for (Point p : newMaxs)
+//        {
+//            if (p.y-highMaxima >= lowMaxima-p.y)
+//            {
+//                if (p.y < *upperBaseline) *upperBaseline = p.y;
+//            }
+//        }
+//        assert(*upperBaseline != 9999);
+//    }
+//    else
+//    {
+//        double averageMaxima=0;
+//        for (Point p : localMaxs)
+//        {
+            
+//            averageMaxima += p.y;
+//        }
+//        averageMaxima/=localMaxs.size();
+        
+//        double dev=0;
+//        for (Point p : localMaxs)
+//        {
+//            dev+=(p.y-averageMaxima)*(p.y-averageMaxima);
+//        }
+//        dev=sqrt(dev/localMaxs.size());
+        
+//        double dev2=0;
+//        int count=0;
+//        for (Point p : localMaxs)
+//        {
+//            if (abs(p.y-averageMaxima)<5 || abs(p.y-averageMaxima)<=dev)
+//            {
+//                dev2+=(p.y-averageMaxima)*(p.y-averageMaxima);
+//                count++;
+//            }
+//        }//not real std dev as using old avg
+//        dev2=sqrt(dev2/count);
+        
+//        *upperBaseline = averageMaxima - 2*ceil(dev2);
+//    }
+    
+//    *lowerBaseline = 0;
+//    if (hasDescender)
+//    {
+//        //We will filter out outlier maxs and mins as our baseline finding method is sensitive to them
+//        int lowMinima=0;
+//        int highMinima=9999;
+//        list<Point> newMins;
+//        for (Point p : localMins)
+//        {
+//            if (p.y >= centerLine-15)
+//            {
+//                newMins.push_back(p);
+//                if (p.y > lowMinima) lowMinima=p.y;
+//                if (p.y < highMinima) highMinima=p.y;
+//            }
+//        }
+        
+//        for (Point p : newMins)
+//        {
+//            if (p.y-highMinima <= lowMinima-p.y)
+//            {
+//                if (p.y > *lowerBaseline) *lowerBaseline = p.y;
+//            }
+//        }
+//        assert(*lowerBaseline != 9999);
+//    }
+//    else
+//    {
+//        double averageMinima=0;
+//        for (Point p : localMins)
+//        {
+            
+//            averageMinima+=p.y;
+//        }
+//        averageMinima/=localMins.size();
+        
+//        double dev=0;
+        
+//        for (Point p : localMins)
+//        {
+//            dev+=(p.y-averageMinima)*(p.y-averageMinima);
+//        }
+//        dev=sqrt(dev/localMins.size());
+        
+//        double dev2=0;
+//        int count=0;
+//        for (Point p : localMins)
+//        {
+//            if (abs(p.y-averageMinima)<5 || abs(p.y-averageMinima)<=dev)
+//            {
+//                dev2+=(p.y-averageMinima)*(p.y-averageMinima);
+//                count++;
+//            }
+//        }
+//        dev2=sqrt(dev2/count);
+        
+//        *lowerBaseline = averageMinima + 2*ceil(dev2);
+//    }
+    
+//    if(*upperBaseline >= *lowerBaseline)//something strange is going on
+//    {
+//        double averageMaxima=0;
+//        for (Point p : localMaxs)
+//        {
+            
+//            averageMaxima += p.y;
+//        }
+//        averageMaxima/=localMaxs.size();
+        
+//        double dev=0;
+//        for (Point p : localMaxs)
+//        {
+//            dev+=(p.y-averageMaxima)*(p.y-averageMaxima);
+//        }
+//        dev=sqrt(dev/localMaxs.size());
+        
+//        double dev2=0;
+//        int count=0;
+//        for (Point p : localMaxs)
+//        {
+//            if (abs(p.y-averageMaxima)<5 || abs(p.y-averageMaxima)<=dev)
+//            {
+//                dev2+=(p.y-averageMaxima)*(p.y-averageMaxima);
+//                count++;
+//            }
+//        }//not real std dev as using old avg
+//        dev2=sqrt(dev2/count);
+        
+//        *upperBaseline = averageMaxima - 2*ceil(dev2);
+        
+//        double averageMinima=0;
+//        for (Point p : localMins)
+//        {
+            
+//            averageMinima+=p.y;
+//        }
+//        averageMinima/=localMins.size();
+        
+//        dev=0;
+//        for (Point p : localMins)
+//        {
+//            dev+=(p.y-averageMinima)*(p.y-averageMinima);
+//        }
+//        dev=sqrt(dev/localMins.size());
+        
+//        dev2=0;
+//        count=0;
+//        for (Point p : localMins)
+//        {
+//            if (abs(p.y-averageMinima)<5 || abs(p.y-averageMinima)<=dev)
+//            {
+//                dev2+=(p.y-averageMinima)*(p.y-averageMinima);
+//                count++;
+//            }
+//        }
+//        dev2=sqrt(dev2/count);
+        
+//        *lowerBaseline = averageMinima + 2*ceil(dev2);
+//    }
+//}
 
 //void Liang::findAllMaxMin(const Mat& skel, list<Point>& localMins, list<Point>& localMaxs)
 //{
@@ -2694,7 +3162,7 @@ bool Liang::unittest()
     list<Point> localMins, localMaxs;
     int centerLine;
     Mat graphemes = breakSegments(skel1,&localMaxs,&localMins, &centerLine);
-    findBaselines(false,false,&top,&bot,localMins,localMaxs,centerLine);
+    findBaselines(false,false,&top,&bot,localMins,localMaxs,centerLine,testWord);
     Mat out; cvtColor(skel1,out,CV_GRAY2RGB);
     for (Point p : localMins)
         out.at<Vec3b>(p) = Vec3b(0,255,0);
@@ -2720,7 +3188,7 @@ bool Liang::unittest()
     thinning(testWord,skel1);
     
     graphemes = breakSegments(skel1,&localMaxs,&localMins ,&centerLine);
-    findBaselines(hasAscender("the"),hasDescender("the"),&top,&bot,localMins,localMaxs,centerLine);
+    findBaselines(hasAscender("the"),hasDescender("the"),&top,&bot,localMins,localMaxs,centerLine,testWord);
     cvtColor(skel1,out,CV_GRAY2RGB);
     for (Point p : localMins)
         out.at<Vec3b>(p) = Vec3b(0,255,0);
@@ -2742,7 +3210,7 @@ bool Liang::unittest()
     thinning(testWord,skel1);
     
     graphemes = breakSegments(skel1,&localMaxs,&localMins,&centerLine);
-    findBaselines(hasAscender("immediately"),hasDescender("immediately"),&top,&bot,localMins,localMaxs,centerLine);
+    findBaselines(hasAscender("immediately"),hasDescender("immediately"),&top,&bot,localMins,localMaxs,centerLine,testWord);
     cvtColor(skel1,out,CV_GRAY2RGB);
     for (Point p : localMins)
         out.at<Vec3b>(p) = Vec3b(0,255,0);
@@ -2764,8 +3232,10 @@ bool Liang::unittest()
     threshold(testWord,testWord,thresh,255,1);
     thinning(testWord,skel1);
     
+    //imwrite("threshed.png",testWord);
+    
     graphemes = breakSegments(skel1,&localMaxs,&localMins,&centerLine);
-    findBaselines(true,true,&top,&bot,localMins,localMaxs,centerLine);
+    findBaselines(true,true,&top,&bot,localMins,localMaxs,centerLine,testWord);
     cvtColor(skel1,out,CV_GRAY2RGB);
     for (Point p : localMins)
         out.at<Vec3b>(p) = Vec3b(0,255,0);
@@ -2784,7 +3254,7 @@ bool Liang::unittest()
     
     
     vector<Grapheme*> gs = extractGraphemes(skel1,&localMaxs,&localMins,&centerLine);
-    vector<list<const Grapheme*> > segmentation = learnCharacterSegmentation("from",gs,localMaxs,localMins,centerLine);
+    vector<list<const Grapheme*> > segmentation = learnCharacterSegmentation("from",gs,localMaxs,localMins,centerLine,testWord);
     out = segmentation[0].front()->img()->clone();
     cvtColor(out,out,CV_GRAY2RGB);
     for (const list<const Grapheme*> &gs : segmentation)
@@ -2817,7 +3287,7 @@ bool Liang::unittest()
     thinning(testWord,skel1);
     
     graphemes = breakSegments(skel1,&localMaxs,&localMins,&centerLine);
-    findBaselines(true,false,&top,&bot,localMins,localMaxs,centerLine);
+    findBaselines(true,false,&top,&bot,localMins,localMaxs,centerLine,testWord);
     cvtColor(skel1,out,CV_GRAY2RGB);
     for (Point p : localMins)
         out.at<Vec3b>(p) = Vec3b(0,255,0);
@@ -2833,7 +3303,7 @@ bool Liang::unittest()
     localMins.clear();
     localMaxs.clear();
     gs = extractGraphemes(skel1,&localMaxs,&localMins,&centerLine);
-    segmentation = learnCharacterSegmentation("two",gs,localMaxs,localMins,centerLine);
+    segmentation = learnCharacterSegmentation("two",gs,localMaxs,localMins,centerLine,testWord);
     out = segmentation[0].front()->img()->clone();
     cvtColor(out,out,CV_GRAY2RGB);
     for (const list<const Grapheme*> &gs : segmentation)
@@ -2866,7 +3336,7 @@ bool Liang::unittest()
     thinning(testWord,skel1);
     
     graphemes = breakSegments(skel1,&localMaxs,&localMins,&centerLine);
-    findBaselines(hasAscender("you"),hasDescender("you"),&top,&bot,localMins,localMaxs,centerLine);
+    findBaselines(hasAscender("you"),hasDescender("you"),&top,&bot,localMins,localMaxs,centerLine,testWord);
     cvtColor(skel1,out,CV_GRAY2RGB);
     for (Point p : localMins)
         out.at<Vec3b>(p) = Vec3b(0,255,0);
@@ -2882,7 +3352,7 @@ bool Liang::unittest()
     localMins.clear();
     localMaxs.clear();
     gs = extractGraphemes(skel1,&localMaxs,&localMins,&centerLine);
-    segmentation = learnCharacterSegmentation("you",gs,localMaxs,localMins,centerLine);
+    segmentation = learnCharacterSegmentation("you",gs,localMaxs,localMins,centerLine,testWord);
     
     out = segmentation[0].front()->img()->clone();
     cvtColor(out,out,CV_GRAY2RGB);
@@ -2922,7 +3392,7 @@ bool Liang::unittest()
     for (Point p : localMaxs)
         out.at<Vec3b>(p) = Vec3b(0,0,255);
     imwrite("minmax.png",out);
-    findBaselines(hasAscender("of"),hasDescender("of"),&top,&bot,localMins,localMaxs,centerLine);
+    findBaselines(hasAscender("of"),hasDescender("of"),&top,&bot,localMins,localMaxs,centerLine,testWord);
     
     
     assert(localMins.size()>=2);
@@ -2946,13 +3416,13 @@ bool Liang::unittest()
     for (Point p : localMaxs)
         out.at<Vec3b>(p) = Vec3b(0,0,255);
     imwrite("minmax.png",out);
-    findBaselines(hasAscender("Officers"),hasDescender("Officers"),&top,&bot,localMins,localMaxs,centerLine);
+    findBaselines(hasAscender("Officers"),hasDescender("Officers"),&top,&bot,localMins,localMaxs,centerLine,testWord);
     
     
     assert(localMins.size()>=2);
     assert(localMaxs.size()>=2);
     
-    assert(25<=top&&top<=33);
+    assert(21<=top&&top<=33);
     assert(37<=bot&&bot<=47);
     
     localMins.clear();
@@ -2970,7 +3440,7 @@ bool Liang::unittest()
     for (Point p : localMaxs)
         out.at<Vec3b>(p) = Vec3b(0,0,255);
     imwrite("minmax.png",out);
-    findBaselines(hasAscender("if"),hasDescender("if"),&top,&bot,localMins,localMaxs,centerLine);
+    findBaselines(hasAscender("if"),hasDescender("if"),&top,&bot,localMins,localMaxs,centerLine,testWord);
     
     
     assert(localMins.size()>=2);
@@ -2994,7 +3464,7 @@ bool Liang::unittest()
     for (Point p : localMaxs)
         out.at<Vec3b>(p) = Vec3b(0,0,255);
     imwrite("minmax.png",out);
-    findBaselines(hasAscender("Letters"),hasDescender("Letters"),&top,&bot,localMins,localMaxs,centerLine);
+    findBaselines(hasAscender("Letters"),hasDescender("Letters"),&top,&bot,localMins,localMaxs,centerLine,testWord);
     
     
     assert(localMins.size()>=2);
@@ -3002,6 +3472,73 @@ bool Liang::unittest()
     
 //    assert(35<=top&&top<=55);
     assert(65<=bot&&bot<=85);
+
+    localMins.clear();
+    localMaxs.clear();
+    testWord = imread("/home/brian/intel_index/data/gw_20p_wannot/deslanted_threshed/wordimg_1542.png");
+    cvtColor( testWord, testWord, CV_RGB2GRAY );
+    threshold(testWord,testWord,thresh,255,1);
+    thinning(testWord,skel1);
+    graphemes = breakSegments(skel1,&localMaxs,&localMins,&centerLine);
+    cvtColor(skel1,out,CV_GRAY2RGB);
+    for (Point p : localMins)
+        out.at<Vec3b>(p) = Vec3b(0,255,0);
+    for (Point p : localMaxs)
+        out.at<Vec3b>(p) = Vec3b(0,0,255);
+    imwrite("minmax.png",out);
+    writeGraphemes(graphemes);
+    findBaselines(hasAscender("account"),hasDescender("account"),&top,&bot,localMins,localMaxs,centerLine,testWord);
+    cout << "account top: " << top << " bot: " << bot << ", center line: " << centerLine << endl;
+    localMins.clear();
+    localMaxs.clear();
+    gs = extractGraphemes(skel1,&localMaxs,&localMins,&centerLine);
+    segmentation = learnCharacterSegmentation("account",gs,localMaxs,localMins,centerLine,testWord);
+    writeSegmentation(segmentation);
+    
+//    localMins.clear();
+//    localMaxs.clear();
+//    testWord = imread("/home/brian/intel_index/brian_handwriting/Fryers.png");
+//    cvtColor( testWord, testWord, CV_RGB2GRAY );
+//    threshold(testWord,testWord,thresh,255,1);
+//    thinning(testWord,skel1);
+//    graphemes = breakSegments(skel1,&localMaxs,&localMins,&centerLine);
+//    cvtColor(skel1,out,CV_GRAY2RGB);
+//    for (Point p : localMins)
+//        out.at<Vec3b>(p) = Vec3b(0,255,0);
+//    for (Point p : localMaxs)
+//        out.at<Vec3b>(p) = Vec3b(0,0,255);
+//    imwrite("minmax.png",out);
+//    writeGraphemes(graphemes);
+//    findBaselines(hasAscender("Fryers"),hasDescender("Fryers"),&top,&bot,localMins,localMaxs,centerLine,testWord);
+//    cout << "Fryers top: " << top << " bot: " << bot << ", center line: " << centerLine << endl;
+//    localMins.clear();
+//    localMaxs.clear();
+//    gs = extractGraphemes(skel1,&localMaxs,&localMins,&centerLine);
+//    segmentation = learnCharacterSegmentation("Fryers",gs,localMaxs,localMins,centerLine,testWord);
+//    writeSegmentation(segmentation);
+    
+//    localMins.clear();
+//    localMaxs.clear();
+//    testWord = imread("/home/brian/intel_index/brian_handwriting/abroad.png");
+//    cvtColor( testWord, testWord, CV_RGB2GRAY );
+//    threshold(testWord,testWord,thresh,255,1);
+//    thinning(testWord,skel1);
+//    graphemes = breakSegments(skel1,&localMaxs,&localMins,&centerLine);
+//    cvtColor(skel1,out,CV_GRAY2RGB);
+//    for (Point p : localMins)
+//        out.at<Vec3b>(p) = Vec3b(0,255,0);
+//    for (Point p : localMaxs)
+//        out.at<Vec3b>(p) = Vec3b(0,0,255);
+//    imwrite("minmax.png",out);
+//    writeGraphemes(graphemes);
+//    findBaselines(hasAscender("abroad"),hasDescender("abroad"),&top,&bot,localMins,localMaxs,centerLine,testWord);
+//    cout << "Fryers top: " << top << " bot: " << bot << ", center line: " << centerLine << endl;
+//    localMins.clear();
+//    localMaxs.clear();
+//    gs = extractGraphemes(skel1,&localMaxs,&localMins,&centerLine);
+//    segmentation = learnCharacterSegmentation("abroad",gs,localMaxs,localMins,centerLine,testWord);
+//    writeSegmentation(segmentation);
+    
     
     cout << "Liang tests passed" << endl;
     return true;

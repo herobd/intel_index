@@ -7,6 +7,12 @@ void LiangTests::keyword_duplicationTest(int keywordNum, int testNum, string ann
     vector<string> keywords = {"account","Alexandria","allowance","arms","Bacon","Bell","Bread","Breeches","Captain","colonel","commissary","commission","companies","Company","Coopers","Cumberland","December","Dinwiddie","discipline","Fleming","Force","Fort","Hoggs","Instructions","Lieutenant","medicines","October","Officer","Orders","Pattersons","Rangers","Recruit","Regiment","Salt","Stephen","Stockades","Surgeon","Troops"};
     
     string keyword=keywords[keywordNum];
+    cout << "Testing keyword: " << keyword << endl;
+    
+    if (imgDirPath[imgDirPath.size()-1]!='/')
+        imgDirPath += '/';
+    if (imgExt[0]!='.')
+        imgExt = '.'+imgExt;
     
     ifstream file;
     file.open (annFilePath, ios::in);
@@ -54,6 +60,7 @@ void LiangTests::keyword_duplicationTest(int keywordNum, int testNum, string ann
     }
     trainingSet.insert(trainingSet.end(),waitingSet.begin(),waitingSet.end());
     
+    cout <<"training..." << endl;
     Liang spotter;
     spotter.trainCharacterModels(imgDirPath,imgNamePattern,imgExt,trainingSet);
     
@@ -74,30 +81,52 @@ void LiangTests::keyword_duplicationTest(int keywordNum, int testNum, string ann
             threshold(testImg,testImg,IMAGE_THRESH,255,1);
             double score = spotter.score(keyword,testImg);
             myScores.push_back(pair<int,double>(testingSet[i].first,score));
+            if (testingSet[i].second.compare(keyword)==0)
+            {
+                cout << "score on "<<testingSet[i].first<<" is " << score << endl;
+            }
         }
         
         #pragma omp critical
         scores.insert(scores.end(),myScores.begin(),myScores.end());
     }
     
+    sort(scores.begin(),scores.end(),[](const pair<int,double> &l, const pair<int,double> &r)->bool {return l.second > r.second;});
+    
     int foundRelevent = 0;
+    double avgPrecisionAt10 = 0.0;
     double avgPrecision = 0.0;
     int totalRelevent=keywordLocations.size();
-    
-    for (int top=0; top<10/*scores.size()*/; top++)
+    double precision;
+    double precisionAt10;
+    double avg=0;
+    int avgCount=0;
+    for (int top=0; top<scores.size(); top++)
     {
         int ii = scores[top].first;
-        
+        if (scores[top].second>=0)
+        {
+            avg += scores[top].second;
+            avgCount++;
+        }
         if (find(keywordLocations.begin(),keywordLocations.end(),ii)!=keywordLocations.end())
         {
             foundRelevent++;
-            double precision = foundRelevent/(double)(top+1);
+            precision = foundRelevent/(double)(top+1);
             avgPrecision += precision;
         }
+        if (top==9)
+        {
+            avgPrecisionAt10=avgPrecision/min(10,totalRelevent);
+            precisionAt10=precision;
+        }
     }
-    
+    avg/=avgCount;
     avgPrecision = avgPrecision/totalRelevent;
-    cout << "mAP at rank 10 = " << avgPrecision << endl;
+    cout << "mAP = " << avgPrecision << endl;
+    cout << "mAP at rank 10 = " << avgPrecisionAt10 << endl;
+    cout << "precision at rank 10 = " << precisionAt10 << endl;
+    cout << "average score is "<<avg<<endl;
 
     string fullResults = keyword+"_"+to_string(testNum) + "\n" + to_string(scores[0].first);
     for (int i=1; i<scores.size(); i++)

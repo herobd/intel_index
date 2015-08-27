@@ -22,12 +22,13 @@
 #include "mog.h"
 #include "minmaxtracker.h"
 #include "defines.h"
+#include "omp.h"
 
 #define MARKED_POINT 254
 #define UNMARKED_POINT 255
 #define JUNCTION_POINT 253
 
-#define BAD_SCORE 9999
+#define BAD_SCORE -9999
 #define MAX_ITER_CHAR_SEG 100
 
 #define SMALL_LOCAL_NEIGHBORHOOD 4
@@ -61,18 +62,19 @@ public:
     void saveCharacterModels(string filePath);
     void loadCharacterModels(string filePath);
     
+    void showCharacterModels(string imgDirPath, string imgNamePattern, string imgExt, const vector< pair<int,string> >& examples, string modelMOG);
     bool unittest();
     
 private:
     map<char, vector<float> > graphemeSpectrums;
     map<char, float> charWidthAvgs;
-    map<char, float> charWidthStdDevs;
+    map<char, float> unitCharWidthStdDevs;
     MOG mog;
     
     bool trained;
    
     vector<Grapheme*> extractGraphemes(const Mat &skel, list<Point>* localMaxs, list<Point>* localMins, int *centerLine); 
-    vector<list<const Grapheme*> > learnCharacterSegmentation(string query, vector<Grapheme*> graphemes, const list<Point>& localMaxs, const list<Point>& localMins, int centerLine, map<char, list<const Grapheme*> >* charGraphemes=NULL, map<char, list<int> >* accumWidths=NULL, map<char, int>* charCounts=NULL );
+    vector<list<const Grapheme*> > learnCharacterSegmentation(string query, const vector<Grapheme *> &graphemes, const list<Point>& localMaxs, const list<Point>& localMins, int centerLine, const Mat &img, map<char, list<const Grapheme*> >* charGraphemes=NULL, map<char, list<int> >* accumWidths=NULL, map<char, list<double> > *unitCharWidths=NULL, map<char, int>* charCounts=NULL, omp_lock_t *writelock=NULL);
     void thinning(const cv::Mat& src, cv::Mat& dst);
     void scrubCC(Mat& skel, int xStart, int yStart);
     void cleanNoiseFromEdges(Mat &skel);
@@ -88,17 +90,19 @@ private:
     bool hasDescender(const string& word);
     bool isAscender(char c);
     bool isDescender(char c);
-    void findBaselines(bool hasAscender, bool hasDescender, int* upperBaseline, int* lowerBaseline, const list<Point>& localMins, const list<Point>& localMaxs, int centerLine);
+    void findBaselines(bool hasAscender, bool hasDescender, int* upperBaseline, int* lowerBaseline, const list<Point>& localMins, const list<Point>& localMaxs, int centerLine, const Mat &img);
     void findMinMaxInBaselines(const list<const Grapheme*>& graphemes, int upperBaseline, int lowerBaseline, int& min, int& max);
+    void adjustCharWidths(const vector<list<const Grapheme*> >& characters, const string& query, int upperBaseline, int lowerBaseline, int leftX, vector<int>& charWidths);
     bool directionForbidden(int direction, int prevDir);
     void lookAheadJunctions(int x, int y, int prevDirection, Point cur, const list<int>& chain, const Mat& graphemes, int &doRelabel, int &bestLoc);
-    void countJunction(int fromX, int fromY, int prevDir, bool first, bool last, int& firstLabel, const Mat& graphemes, const map<int, int>& mergeTable, map<int,int>& counts, int& prevLabel);
+    void countJunction(int fromX, int fromY, int prevDir, bool first, bool last, int& firstLabel, const Mat& graphemes, const map<int, int>& mergeTable, map<int,int>& counts, int& prevLabel, Mat &mark);
     bool relabelStrech(int label, Point from, Mat& ret, MinMaxTracker& tracker, MinMaxTracker &tracker2, MinMaxTracker &tracker3);
 //    void findAllMaxMin(const Mat& skel, list<Point>& localMins, list<Point>& localMaxs);
     bool checkCorner(int fromX, int fromY, int prevDir, const Mat& skel);
     bool branchPoint(int cur_x, int cur_y, Mat& ret, list<Point>& startingPointQueue, int& curLabel);
     void writeGraphemes(const Mat& img);
     void writeSegmentation(const vector<list<const Grapheme*> >& segmentation);
+    void showMOG(const map<char, list<const Grapheme*> >& charGraphemes);
     
 };
 

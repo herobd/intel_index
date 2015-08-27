@@ -2,7 +2,7 @@
 
 MOG::MOG()
 {
-    trained==false;
+    trained=false;
 }
 
 void MOG::save(string filePath)
@@ -67,8 +67,9 @@ void MOG::train(const map<char, list<const Grapheme*> >& graphemes, int epochs, 
             x++;
 
             som->train(&train_vectors, R, nrule);
+            shuffle(train_vectors.begin(),train_vectors.end(),default_random_engine());
 
-            wprintf(L"  epoch: %d    R: %.2f nrule: %g \n", (epochs - 1), R, nrule);
+            //wprintf(L"  epoch: %d    R: %.2f nrule: %g \n", (epochs - 1), R, nrule);
             epochs--;
 //            if (kbhit() && _getwch() == 'q') //quit program ?
 //                    epochs = 0;
@@ -85,61 +86,155 @@ void MOG::extractFeatures( const Grapheme* g, float* features)
     
     features[WH_RATIO]=(1.0+g->maxX()-g->minX())/(1.0+g->maxY()-g->minY());
     
-    int runLength=1;
-    int directionHist[8]={0,0,0,0,0,0,0,0};
-    int directionChanges=0;
-    int angleHist[8]={0,0,0,0,0,0,0,0};
-    int maxRun=0;
-    int maxRunDir=0;
-    int curRun=1;
-    bool loop=false;
-    vector<int> dcc;
     
-    Mat graphemeMap = (*(g->img()))(Range(g->minY(),g->maxY()+1), Range(g->minX(),g->maxX()+1)).clone();
     
-    Point current(0,graphemeMap.rows-1);
-    for(int x=0; x<graphemeMap.cols; x++)
+    bool secondPass=false;
+    while(1)
     {
-        if (graphemeMap.at<unsigned char>(graphemeMap.rows-1,x)==g->imgId())
-        {
-            current.x=x;
-            graphemeMap.at<unsigned char>(current) += 100;
-            break;
-        }        
-    }
-    
-    int prevDirection=-1;
-    int firstDirection;
-    bool done = false;
-    while(!done)
-    {
-        done=true;
-        // 3 2 1 neighbor id table
-        // 4 x 0
-        // 5 6 7
+        int runLength=1;
+        int directionHist[8]={0,0,0,0,0,0,0,0};
+        int directionChanges=0;
+        int angleHist[8]={0,0,0,0,0,0,0,0};
+        int maxRun=0;
+        int maxRunDir=0;
+        int curRun=1;
+        bool loop=false;
+        bool dualLoop=false;
+        vector<int> dcc;
         
-        for (int direction=0; direction<8; direction = direction!=6?direction+2:1)
+        Mat graphemeMap = (*(g->img()))(Range(g->minY(),g->maxY()+1), Range(g->minX(),g->maxX()+1)).clone();
+        
+        Point current(0,0);
+        for(int x=0; x<graphemeMap.cols; x++)
         {
-            
-            
-//            int xDelta=1;
-//            if (direction>2 && direction<6) xDelta=-1;
-//            else if (direction==2 || direction==6) xDelta=0;
-//            int yDelta=0;
-//            if (direction>0 && direction<4) yDelta=-1;
-//            else if (direction>4 && direction<8) xDelta=1;
-            
-            int x = current.x+xDelta(direction);
-            int y = current.y+yDelta(direction);
-            if (x<0 || y<0 || x>=graphemeMap.cols || y>=graphemeMap.rows)
-                continue;
-            if (graphemeMap.at<unsigned char>(y,x)==g->imgId())
+            if (graphemeMap.at<unsigned char>(0,x)==g->imgId())
             {
-                done = false;
-                runLength++;
-                directionHist[direction]++;
-                if (prevDirection!=-1)
+                current.x=x;
+                //graphemeMap.at<unsigned char>(startPoint) += 100;
+                break;
+            }        
+        }
+        
+//        Point current=startPoint;
+        Mat startMap = graphemeMap.clone();
+        startMap.at<unsigned char>(current) = 0;
+        bool done = false;
+        while(!done)
+        {
+            done=true;
+            
+            
+            for (int direction=0; direction<8; direction = direction!=6?direction+2:1)
+            {
+                
+                int x = current.x+xDelta(direction);
+                int y = current.y+yDelta(direction);
+                if (x<0 || y<0 || x>=graphemeMap.cols || y>=graphemeMap.rows)
+                    continue;
+                if (startMap.at<unsigned char>(y,x)==g->imgId())
                 {
+                    done = false;
+                    
+                    startMap.at<unsigned char>(y,x) = 0;
+                    current.x=x;
+                    current.y=y;
+                    break;
+                }
+            }
+        }
+        startMap.release();
+        graphemeMap.at<unsigned char>(current) += 100;
+        
+        int prevDirection=-1;
+        int firstDirection;
+        done = false;
+        while(!done)
+        {
+            done=true;
+            // 3 2 1 neighbor id table
+            // 4 x 0
+            // 5 6 7
+            
+            bool prevDirHad=graphemeMap.at<unsigned char>(current.y+yDelta(7),current.x+xDelta(7))>0;
+            int count=0;
+            for (int direction=0; direction<8; direction++) 
+            {
+                int x = current.x+xDelta(direction);
+                int y = current.y+yDelta(direction);
+                if (x<0 || y<0 || x>=graphemeMap.cols || y>=graphemeMap.rows)
+                {
+                    prevDirHad=false;
+                    continue;
+                }
+                
+                if (!prevDirHad && graphemeMap.at<unsigned char>(y,x)>0)
+                    count++;
+                
+                prevDirHad=graphemeMap.at<unsigned char>(y,x)>0;
+            }
+            if (count>3)
+                dualLoop=true;
+            
+            //uggh, this is ugly
+            //If first pass, rotate counter-clockwise, if second, clockwise
+            //hitting even firstions first in both cases
+            for (int direction=(!secondPass)?0:6; 
+                 (!secondPass && direction<8) || (secondPass & direction>=0); 
+                 direction = (!secondPass)?(direction!=6?direction+2:1):(direction!=0?direction-2:7))
+            {
+                
+                
+                //            int xDelta=1;
+                //            if (direction>2 && direction<6) xDelta=-1;
+                //            else if (direction==2 || direction==6) xDelta=0;
+                //            int yDelta=0;
+                //            if (direction>0 && direction<4) yDelta=-1;
+                //            else if (direction>4 && direction<8) xDelta=1;
+                
+                int x = current.x+xDelta(direction);
+                int y = current.y+yDelta(direction);
+                if (x<0 || y<0 || x>=graphemeMap.cols || y>=graphemeMap.rows)
+                    continue;
+                if (graphemeMap.at<unsigned char>(y,x)==g->imgId())
+                {
+                    done = false;
+                    runLength++;
+                    directionHist[direction]++;
+                    if (prevDirection!=-1)
+                    {
+                        if (prevDirection!=direction)
+                        {
+                            directionChanges++;
+                            if (curRun > maxRun) 
+                            {
+                                maxRun=curRun;
+                                maxRunDir=prevDirection;
+                            }
+                            curRun=1;
+                        }
+                        else
+                            curRun++;
+                        
+                        angleHist[mod(direction-prevDirection,8)]++;
+                    }
+                    else
+                        firstDirection=direction;
+                    
+                    
+                    dcc.push_back(direction); // or? // dcc.push_back(mod(direction-prevDirection,8))
+                    graphemeMap.at<unsigned char>(y,x) += 100;
+                    prevDirection=direction;
+                    current.x=x;
+                    current.y=y;
+                    break;
+                }
+                else if (mod(abs(((prevDirection+4)%8)-direction),8)>1 && graphemeMap.at<unsigned char>(y,x)==g->imgId()+100)
+                {
+                    assert(!loop && done);
+                    loop=true;
+                    
+                    //Record the closing move
+                    directionHist[direction]++;
                     if (prevDirection!=direction)
                     {
                         directionChanges++;
@@ -148,99 +243,84 @@ void MOG::extractFeatures( const Grapheme* g, float* features)
                             maxRun=curRun;
                             maxRunDir=prevDirection;
                         }
-                        curRun=1;
                     }
-                    else
-                        curRun++;
-                    
                     angleHist[mod(direction-prevDirection,8)]++;
+                    angleHist[mod(firstDirection-direction,8)]++;
+                    dcc.push_back(direction);
+                    break;
                 }
-                else
-                    firstDirection=direction;
                 
                 
-                dcc.push_back(direction); // or? // dcc.push_back(mod(direction-prevDirection,8))
-                graphemeMap.at<unsigned char>(y,x) += 100;
-                prevDirection=direction;
-                current.x=x;
-                current.y=y;
-                break;
             }
-            else if (mod(abs(((prevDirection+4)%8)-direction),8)>1 && graphemeMap.at<unsigned char>(y,x)==g->imgId()+100)
-            {
-                assert(!loop && done);
-                loop=true;
-                
-                //Record the closing move
-                directionHist[direction]++;
-                if (prevDirection!=direction)
-                {
-                    directionChanges++;
-                    if (curRun > maxRun) 
-                    {
-                        maxRun=curRun;
-                        maxRunDir=prevDirection;
-                    }
-                }
-                angleHist[mod(direction-prevDirection,8)]++;
-                angleHist[mod(firstDirection-direction,8)]++;
-                dcc.push_back(direction);
-                break;
-            }
-            
-            
+            //        assert(!(loop&&!done));
         }
-//        assert(!(loop&&!done));
-    }
-    if (curRun > maxRun) 
-    {
-        maxRunDir=prevDirection;
+        if (curRun > maxRun) 
+        {
+            maxRunDir=prevDirection;
+        }
+        
+        if (!secondPass || runLength>features[RUN_LENGTH])
+        {
+            //Enclosed shape indicator
+            features[ENCLOSED]=loop?LOOP_CONST:0;//7:0q
+            //Run length
+            features[RUN_LENGTH]=runLength;
+            //Main directions
+            vector<int> directionRank={0,1,2,3,4,5,6,7};
+            sort(directionRank.begin(),directionRank.end(),[&directionHist](const int& l, const int& r){return directionHist[l]>directionHist[r];});
+            for (int i=0; i<NUM_MAIN_DIRECTIONS; i++)
+                features[MAIN_DIRECTIONS+i]=directionRank[i];
+            //Direction counts
+            for (int i=0; i<NUM_DIRECTIONS; i++)
+                features[DIRECTION_COUNTS+i]=directionHist[i];
+            //Change of directions
+            features[DIRECTION_CHANGES]=directionChanges;
+            //Main angles
+            vector<int> angleRank={0,1,2,3,4,5,6,7};
+            sort(angleRank.begin(),angleRank.end(),[&angleHist](const int& l, const int& r){return angleHist[l]>angleHist[r];});
+            for (int i=0; i<NUM_MAIN_ANGLES; i++)
+                features[MAIN_ANGLES+i]=angleRank[i];
+            //Angle counts
+            for (int i=0; i<NUM_ANGLES; i++)
+                features[ANGLE_COUNTS+i]=angleHist[i];
+            //Re-sampled DCC
+            if (dcc.size()>0)
+            {
+                for (int i=0; i<DCC_RESAMPLE_SIZE; i++)
+                {
+                    float in_orig = i*((dcc.size()-1.0)/(DCC_RESAMPLE_SIZE-1.0)); //Using a linear interpolation over the values (in folded space).
+                    if (!(dcc[floor(in_orig)]==0&&dcc[ceil(in_orig)]==7) && !(dcc[floor(in_orig)]==7&&dcc[ceil(in_orig)]==0))
+                        features[RESAMPLED_DCC+i]=(1.0-(in_orig-floor(in_orig)))*dcc[floor(in_orig)] + (in_orig-floor(in_orig))*dcc[ceil(in_orig)];
+                    else if (dcc[floor(in_orig)]==0)
+                        features[RESAMPLED_DCC+i]=(1.0-(in_orig-floor(in_orig)))*8.0 + (in_orig-floor(in_orig))*dcc[ceil(in_orig)];
+                    else
+                        features[RESAMPLED_DCC+i]=(1.0-(in_orig-floor(in_orig)))*dcc[floor(in_orig)] + (in_orig-floor(in_orig))*8.0;
+                }
+            }
+            else
+            {
+                for (int i=0; i<DCC_RESAMPLE_SIZE; i++)
+                    features[RESAMPLED_DCC+i]=0;
+                
+            }
+            //Max run direction
+            features[MAX_RUN_DIRECTION]=maxRunDir;
+            
+            if (!dualLoop)
+                break;
+            else
+            {
+                features[ENCLOSED]=DOUBLE_LOOP_CONST;
+                if (!secondPass)
+                    secondPass=true;
+                else
+                    break;
+            }
+        }
+        else
+            break;
     }
     
-    //Enclosed shape indicator
-    features[ENCLOSED]=loop?7:0;
-    //Run length
-    features[RUN_LENGTH]=runLength;
-    //Main directions
-    vector<int> directionRank={0,1,2,3,4,5,6,7};
-    sort(directionRank.begin(),directionRank.end(),[&directionHist](const int& l, const int& r){return directionHist[l]>directionHist[r];});
-    for (int i=0; i<NUM_MAIN_DIRECTIONS; i++)
-        features[MAIN_DIRECTIONS+i]=directionRank[i];
-    //Direction counts
-    for (int i=0; i<NUM_DIRECTIONS; i++)
-        features[DIRECTION_COUNTS+i]=directionHist[i];
-    //Change of directions
-    features[DIRECTION_CHANGES]=directionChanges;
-    //Main angles
-    vector<int> angleRank={0,1,2,3,4,5,6,7};
-    sort(angleRank.begin(),angleRank.end(),[&angleHist](const int& l, const int& r){return angleHist[l]>angleHist[r];});
-    for (int i=0; i<NUM_MAIN_ANGLES; i++)
-        features[MAIN_ANGLES+i]=angleRank[i];
-    //Angle counts
-    for (int i=0; i<NUM_ANGLES; i++)
-        features[ANGLE_COUNTS+i]=angleHist[i];
-    //Re-sampled DCC
-    if (dcc.size()>0)
-    {
-        for (int i=0; i<DCC_RESAMPLE_SIZE; i++)
-        {
-            float in_orig = i*((dcc.size()-1.0)/(DCC_RESAMPLE_SIZE-1.0)); //Using a linear interpolation over the values (in folded space).
-            if (!(dcc[floor(in_orig)]==0&&dcc[ceil(in_orig)]==7) && !(dcc[floor(in_orig)]==7&&dcc[ceil(in_orig)]==0))
-                features[RESAMPLED_DCC+i]=(1.0-(in_orig-floor(in_orig)))*dcc[floor(in_orig)] + (in_orig-floor(in_orig))*dcc[ceil(in_orig)];
-            else if (dcc[floor(in_orig)]==0)
-                features[RESAMPLED_DCC+i]=(1.0-(in_orig-floor(in_orig)))*8.0 + (in_orig-floor(in_orig))*dcc[ceil(in_orig)];
-            else
-                features[RESAMPLED_DCC+i]=(1.0-(in_orig-floor(in_orig)))*dcc[floor(in_orig)] + (in_orig-floor(in_orig))*8.0;
-        }
-    }
-    else
-    {
-        for (int i=0; i<DCC_RESAMPLE_SIZE; i++)
-            features[RESAMPLED_DCC+i]=0;
-        
-    }
-    //Max run direction
-    features[MAX_RUN_DIRECTION]=maxRunDir;
     
 }
 
@@ -291,41 +371,41 @@ void MOG::unittest()
     assert(features[MAX_RUN_DIRECTION]==1);
     
     Grapheme g1(graphemes,1);
-    features;
+    
     extractFeatures(&g1,features);
     assert(features[WH_RATIO]==1);
-    assert(features[ENCLOSED]==7);
+    assert(features[ENCLOSED]==LOOP_CONST);
     assert(features[RUN_LENGTH]==6);
     assert(features[DIRECTION_COUNTS+0]==1);
-    assert(features[DIRECTION_COUNTS+1]==0);
-    assert(features[DIRECTION_COUNTS+2]==2);
-    assert(features[DIRECTION_COUNTS+3]==0);
+    assert(features[DIRECTION_COUNTS+1]==1);
+    assert(features[DIRECTION_COUNTS+2]==0);
+    assert(features[DIRECTION_COUNTS+3]==1);
     assert(features[DIRECTION_COUNTS+4]==1);
-    assert(features[DIRECTION_COUNTS+5]==1);
-    assert(features[DIRECTION_COUNTS+6]==0);
-    assert(features[DIRECTION_COUNTS+7]==1);
+    assert(features[DIRECTION_COUNTS+5]==0);
+    assert(features[DIRECTION_COUNTS+6]==2);
+    assert(features[DIRECTION_COUNTS+7]==0);
     assert(features[DIRECTION_CHANGES]==4);
     assert(features[ANGLE_COUNTS+0]==1);
-    assert(features[ANGLE_COUNTS+1]==2);
-    assert(features[ANGLE_COUNTS+2]==3);
+    assert(features[ANGLE_COUNTS+1]==0);
+    assert(features[ANGLE_COUNTS+2]==0);
     assert(features[ANGLE_COUNTS+3]==0);
     assert(features[ANGLE_COUNTS+4]==0);
     assert(features[ANGLE_COUNTS+5]==0);
-    assert(features[ANGLE_COUNTS+6]==0);
-    assert(features[ANGLE_COUNTS+7]==0);
-    assert(0<=features[RESAMPLED_DCC+0] && features[RESAMPLED_DCC+0]<2);
-    assert(0<=features[RESAMPLED_DCC+1] && features[RESAMPLED_DCC+1]<2);
-    assert(0<features[RESAMPLED_DCC+2] && features[RESAMPLED_DCC+2]<=2);
-    assert(0<features[RESAMPLED_DCC+3] && features[RESAMPLED_DCC+3]<=2);
-    assert(2<=features[RESAMPLED_DCC+4] && features[RESAMPLED_DCC+4]<4);
-    assert(2<=features[RESAMPLED_DCC+5] && features[RESAMPLED_DCC+5]<4);
-    assert(2<features[RESAMPLED_DCC+6] && features[RESAMPLED_DCC+6]<5);
-    assert(2<features[RESAMPLED_DCC+7] && features[RESAMPLED_DCC+6]<5);
-    assert(4<features[RESAMPLED_DCC+8] && features[RESAMPLED_DCC+8]<7);
-    assert(4<features[RESAMPLED_DCC+9] && features[RESAMPLED_DCC+9]<7);
-    assert(5<features[RESAMPLED_DCC+10] && features[RESAMPLED_DCC+10]<=7);
-    assert(5<features[RESAMPLED_DCC+11] && features[RESAMPLED_DCC+11]<=7);
-    assert(features[MAX_RUN_DIRECTION]==2);
+    assert(features[ANGLE_COUNTS+6]==3);
+    assert(features[ANGLE_COUNTS+7]==2);
+//    assert(0<=features[RESAMPLED_DCC+0] && features[RESAMPLED_DCC+0]<2);
+//    assert(0<=features[RESAMPLED_DCC+1] && features[RESAMPLED_DCC+1]<2);
+//    assert(0<features[RESAMPLED_DCC+2] && features[RESAMPLED_DCC+2]<=2);
+//    assert(0<features[RESAMPLED_DCC+3] && features[RESAMPLED_DCC+3]<=2);
+//    assert(2<=features[RESAMPLED_DCC+4] && features[RESAMPLED_DCC+4]<4);
+//    assert(2<=features[RESAMPLED_DCC+5] && features[RESAMPLED_DCC+5]<4);
+//    assert(2<features[RESAMPLED_DCC+6] && features[RESAMPLED_DCC+6]<5);
+//    assert(2<features[RESAMPLED_DCC+7] && features[RESAMPLED_DCC+6]<5);
+//    assert(4<features[RESAMPLED_DCC+8] && features[RESAMPLED_DCC+8]<7);
+//    assert(4<features[RESAMPLED_DCC+9] && features[RESAMPLED_DCC+9]<7);
+//    assert(5<features[RESAMPLED_DCC+10] && features[RESAMPLED_DCC+10]<=7);
+//    assert(5<features[RESAMPLED_DCC+11] && features[RESAMPLED_DCC+11]<=7);
+    assert(features[MAX_RUN_DIRECTION]==6);
     
     Mat graphemes2 = (Mat_<unsigned char>(6,6) <<   0,  0,  0, 0, 5, 0,
                                                     0,  1,  1, 0, 0, 5,
@@ -345,12 +425,12 @@ void MOG::unittest()
     Grapheme g4(graphemes3,1);
     Grapheme g5(graphemes3,5);
     
-    Mat graphemes4 = (Mat_<unsigned char>(6,6) <<   1,  0,  0, 0, 0, 0,
-                                                    1,  0,  0, 5, 5, 0,
-                                                    1,  0,  5, 0, 0, 0,
-                                                    1,  0,  5, 0, 0, 0,
-                                                    1,  0,  0, 5, 5, 0,
-                                                    0,  0,  0, 0, 0, 0);
+    Mat graphemes4 = (Mat_<unsigned char>(6,6) <<   0,  1,  0, 0, 0, 0,
+                                                    0,  1,  0, 5, 5, 0,
+                                                    0,  1,  5, 0, 0, 0,
+                                                    0,  1,  5, 0, 0, 0,
+                                                    0,  1,  0, 5, 5, 0,
+                                                    1,  0,  0, 0, 0, 0);
     Grapheme g6(graphemes4,1);
     Grapheme g7(graphemes4,5);
     
@@ -359,12 +439,12 @@ void MOG::unittest()
                                                     1,  0,  5, 0, 0, 0,
                                                     0,  1,  5, 0, 0, 0,
                                                     0,  1,  0, 5, 0, 0,
-                                                    0,  0,  0, 0, 0, 0);
+                                                    0,  1,  0, 0, 0, 0);
     Grapheme g8(graphemes5,1);
     Grapheme g9(graphemes5,5);
     
     Mat graphemes6 = (Mat_<unsigned char>(6,6) <<   0,  1,  0, 0, 0, 0,
-                                                    0,  1,  5, 5, 0, 0,
+                                                    0,  1,  5, 5, 5, 0,
                                                     1,  0,  5, 0, 0, 0,
                                                     1,  0,  5, 0, 0, 0,
                                                     1,  0,  0, 5, 5, 5,

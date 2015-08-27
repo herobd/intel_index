@@ -24,7 +24,7 @@ class EnhancedBoVW
 public:
     Codebook* codebook;
     
-    EnhancedBoVW();
+    EnhancedBoVW(vector<Vec2i> spatialPyramids={Vec2i(3,2),Vec2i(9,2)}, int desc_thresh=3500, int LLC_numOfNN=3, int blockSize1=20, int blockSize2=30, int blockSize3=45, int blockStride=5, int hStride=8, int vStride=8, int skip=4);
     ~EnhancedBoVW(){if(codebook!=NULL) delete codebook;}
     
 #if CONCAT
@@ -46,6 +46,10 @@ public:
     float compareImage(const Mat &img, const vector<float> &exemplar) const;
     vector<float>* featurizeImage(const Mat &img) const;
     
+    void unittests();
+    
+    void showEncoding(const Mat &img) const;
+    
 private:
     double desc_thresh;
     
@@ -55,6 +59,11 @@ private:
     int hStride;
     int vStride;
     int skip;
+    
+    int blockSize1;
+    int blockSize2;
+    int blockSize3;
+    int blockStride;
     
     void color(Mat &heatMap, float score, float max, float min, int midI, int midJ) const;
     

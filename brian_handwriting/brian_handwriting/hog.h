@@ -13,6 +13,7 @@ class HOG
 public:
     HOG(float thresh, int cellSize, int stepSize=5, int num_bins=9);
     void compute(const Mat &img, vector<vector<float> > &descriptors, vector< Point2i > &locations);
+    void unittest();
     
 private:
     float thresh;

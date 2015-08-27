@@ -2,6 +2,7 @@
 
 #include <omp.h>
 #include <iostream>
+#include "opencv2/highgui/highgui.hpp"
 
 #define BIN_SIZE (180/num_bins)
 #define HOG_PAR 0
@@ -39,15 +40,20 @@ void HOG::compute(const Mat &img, vector<vector<float> > &descriptors, vector< P
     int stepSize_par=stepSize;
     int cellSize_par=cellSize;
     //private(binsHorz,binsVert,cellSize_par,stepSize_par)
+    
+    //we will iterate over each cell
 #pragma omp parallel for if (HOG_PAR)
     for (int i=0; i<binsHorz; i++)
     {
-        int tlX = i*stepSize_par - (cellSize_par-stepSize_par)/2;
+        //top-left X of the cell
+        int tlX = i*stepSize_par - (cellSize_par/*-stepSize_par*/)/2;// the minus part is just an arbitrary choosing of where we start cells from
         for (int j=0; j<binsVert; j++)
         {
-            int tlY = j*stepSize_par - (cellSize_par-stepSize_par)/2;
-            //each cell
+            //top-left Y of the cell
+            int tlY = j*stepSize_par - (cellSize_par/*-stepSize_par*/)/2;
             
+            
+            //iterate over each pixel in the cell
             for (int x=tlX; x<tlX+cellSize_par; x++)
                 for (int y=tlY; y<tlY+cellSize_par; y++)
                 {
@@ -133,7 +139,7 @@ void HOG::compute(const Mat &img, vector<vector<float> > &descriptors, vector< P
                     int other_bin;
                     float my_binW;
                     float other_binW;
-                    float angleDist = angle - (bin*BIN_SIZE+BIN_SIZE/ 2);
+                    float angleDist = angle - (bin*BIN_SIZE +(BIN_SIZE/2));// the +(BIN_SIZE/2) is to center
                     if (angleDist <0)
                     {
                         other_bin=mod(bin-1,num_bins);
@@ -206,10 +212,10 @@ void HOG::compute(const Mat &img, vector<vector<float> > &descriptors, vector< P
     //filter and feature points to return objects
     for (int i=0; i<binsHorz; i++)
     {
-        int tlX = i*stepSize - (cellSize-stepSize)/2;
+        int tlX = i*stepSize - (cellSize/*-stepSize*/)/2;
         for (int j=0; j<binsVert; j++)
         {
-            int tlY = j*stepSize - (cellSize-stepSize)/2;
+            int tlY = j*stepSize - (cellSize/*-stepSize*/)/2;
             
             float mag=0;
             for (int b=0; b<num_bins; b++)
@@ -257,3 +263,235 @@ Mat HOG::computeGradient(const Mat &img)
     return ret;
 }
 
+void HOG::unittest()
+{
+    Mat img1 = (Mat_<unsigned char>(5,5) << 0, 0, 0, 1, 1,
+                                            0, 0, 0, 1, 1,
+                                            0, 0, 0, 0, 0,
+                                            1, 1, 0, 0, 0,
+                                            1, 1, 0, 0, 0);
+    Mat grad = computeGradient(img1);
+    assert(grad.at<Vec2f>(0,1)[0]==0);
+    assert(grad.at<Vec2f>(0,2)[0]==1);
+    assert(grad.at<Vec2f>(0,3)[0]==1);
+    assert(grad.at<Vec2f>(1,1)[0]==0);
+    assert(grad.at<Vec2f>(1,2)[0]==1);
+    assert(grad.at<Vec2f>(1,3)[0]==1);
+    assert(grad.at<Vec2f>(2,1)[0]==0);
+    assert(grad.at<Vec2f>(2,2)[0]==0);
+    assert(grad.at<Vec2f>(2,3)[0]==0);
+    assert(grad.at<Vec2f>(3,1)[0]==-1);
+    assert(grad.at<Vec2f>(3,2)[0]==-1);
+    assert(grad.at<Vec2f>(3,3)[0]==0);
+    assert(grad.at<Vec2f>(4,1)[0]==-1);
+    assert(grad.at<Vec2f>(4,2)[0]==-1);
+    assert(grad.at<Vec2f>(4,3)[0]==0);
+    
+    assert(grad.at<Vec2f>(1,0)[1]==0);
+    assert(grad.at<Vec2f>(2,0)[1]==1);
+    assert(grad.at<Vec2f>(3,0)[1]==1);
+    assert(grad.at<Vec2f>(1,1)[1]==0);
+    assert(grad.at<Vec2f>(2,1)[1]==1);
+    assert(grad.at<Vec2f>(3,1)[1]==1);
+    assert(grad.at<Vec2f>(1,2)[1]==0);
+    assert(grad.at<Vec2f>(2,2)[1]==0);
+    assert(grad.at<Vec2f>(3,2)[1]==0);
+    assert(grad.at<Vec2f>(1,3)[1]==-1);
+    assert(grad.at<Vec2f>(2,3)[1]==-1);
+    assert(grad.at<Vec2f>(3,3)[1]==0);
+    assert(grad.at<Vec2f>(1,4)[1]==-1);
+    assert(grad.at<Vec2f>(2,4)[1]==-1);
+    assert(grad.at<Vec2f>(3,4)[1]==0);
+    
+    thresh=0;
+    cellSize=5;
+    stepSize=1;
+    num_bins=9;
+    
+    Mat img2 = (Mat_<unsigned char>(20,20)<< 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0,
+                                             0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0,
+                                             0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0,
+                                             0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                             0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                             1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
+                                             1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0,
+                                             1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0,
+                                             1, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0,
+                                             1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0,
+                                             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                             0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                             0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                             0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                             0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                             0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    
+    
+    for (int x=0; x<img2.cols; x++)
+        for (int y=0; y<img2.rows; y++)
+        {
+            if (img2.at<unsigned char>(y,x)==0)
+                img2.at<unsigned char>(y,x)=255;
+            else
+                img2.at<unsigned char>(y,x)=0;
+        }
+    
+    
+    vector<vector<float> > desc;
+    vector<Point2i> loc;
+    compute(img2,desc,loc);
+    for (int i=0; i<desc.size(); i++)
+    {
+        if ((loc[i].x == 2 && loc[i].y == 2) || (loc[i].x == 8 && loc[i].y == 8) || (loc[i].x == 2 && loc[i].y == 14))
+        {
+            assert(desc[i][0] > desc[i][1]);
+            assert(desc[i][0] > desc[i][2]);
+            assert(desc[i][0] > desc[i][3]);
+            assert(desc[i][0] > desc[i][4]);
+            assert(desc[i][0] > desc[i][5]);
+            assert(desc[i][0] > desc[i][6]);
+            assert(desc[i][0] > desc[i][7]);
+        }
+        else if ((loc[i].x == 8 && loc[i].y == 2) || (loc[i].x == 14 && loc[i].y == 8) || (loc[i].x == 8 && loc[i].y == 14))
+        {
+            assert(desc[i][6] > desc[i][0]);
+            assert(desc[i][6] > desc[i][1]);
+            assert(desc[i][6] > desc[i][2]);
+            assert(desc[i][6] > desc[i][3]);
+            assert(desc[i][6] > desc[i][4]);
+            assert(desc[i][6] > desc[i][5]);
+            assert(desc[i][6] > desc[i][7]);
+            assert(desc[i][6] > desc[i][8]);
+        }
+        else if (loc[i].x == 14 && loc[i].y == 2)
+        {
+            assert(desc[i][4] > desc[i][0]);
+            assert(desc[i][4] > desc[i][1]);
+            assert(desc[i][4] > desc[i][2]);
+            assert(desc[i][4] > desc[i][3]);
+            assert(desc[i][4] > desc[i][5]);
+            assert(desc[i][4] > desc[i][6]);
+            assert(desc[i][4] > desc[i][7]);
+            assert(desc[i][4] > desc[i][8]);
+        }
+        else if (loc[i].x == 2 && loc[i].y == 8)
+        {
+            assert(desc[i][2] > desc[i][0]);
+            assert(desc[i][2] > desc[i][1]);
+            assert(desc[i][2] > desc[i][3]);
+            assert(desc[i][2] > desc[i][4]);
+            assert(desc[i][2] > desc[i][5]);
+            assert(desc[i][2] > desc[i][6]);
+            assert(desc[i][2] > desc[i][7]);
+            assert(desc[i][2] > desc[i][8]);
+        }
+    }
+    
+    /////////////////////////////////////////////////
+    
+    thresh=0;
+    cellSize=5;
+    stepSize=2;
+    num_bins=9;
+    
+    desc.clear();
+    loc.clear();
+    compute(img2,desc,loc);
+    for (int i=0; i<desc.size(); i++)
+    {
+        if ((loc[i].x == 2 && loc[i].y == 2) || (loc[i].x == 8 && loc[i].y == 8))
+        {
+            assert(desc[i][0] > desc[i][1]);
+            assert(desc[i][0] > desc[i][2]);
+            assert(desc[i][0] > desc[i][3]);
+            assert(desc[i][0] > desc[i][4]);
+            assert(desc[i][0] > desc[i][5]);
+            assert(desc[i][0] > desc[i][6]);
+            assert(desc[i][0] > desc[i][7]);
+        }
+        else if ((loc[i].x == 8 && loc[i].y == 2) || (loc[i].x == 14 && loc[i].y == 8))
+        {
+            assert(desc[i][6] > desc[i][0]);
+            assert(desc[i][6] > desc[i][1]);
+            assert(desc[i][6] > desc[i][2]);
+            assert(desc[i][6] > desc[i][3]);
+            assert(desc[i][6] > desc[i][4]);
+            assert(desc[i][6] > desc[i][5]);
+            assert(desc[i][6] > desc[i][7]);
+            assert(desc[i][6] > desc[i][8]);
+        }
+        else if (loc[i].x == 14 && loc[i].y == 2)
+        {
+            assert(desc[i][4] > desc[i][0]);
+            assert(desc[i][4] > desc[i][1]);
+            assert(desc[i][4] > desc[i][2]);
+            assert(desc[i][4] > desc[i][3]);
+            assert(desc[i][4] > desc[i][5]);
+            assert(desc[i][4] > desc[i][6]);
+            assert(desc[i][4] > desc[i][7]);
+            assert(desc[i][4] > desc[i][8]);
+        }
+        else if (loc[i].x == 2 && loc[i].y == 8)
+        {
+            assert(desc[i][2] > desc[i][0]);
+            assert(desc[i][2] > desc[i][1]);
+            assert(desc[i][2] > desc[i][3]);
+            assert(desc[i][2] > desc[i][4]);
+            assert(desc[i][2] > desc[i][5]);
+            assert(desc[i][2] > desc[i][6]);
+            assert(desc[i][2] > desc[i][7]);
+            assert(desc[i][2] > desc[i][8]);
+        }
+    }
+    
+    
+    thresh=0;
+    cellSize=10;
+    stepSize=2;
+    num_bins=9;
+    
+    desc.clear();
+    loc.clear();
+    Mat el3 = imread("../../data/simple_corpus2/elements/3.png",CV_LOAD_IMAGE_GRAYSCALE);
+    
+//    Mat el3 = (Mat_<unsigned char>(10,10)<<  0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 
+//                                             0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 
+//                                             0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 
+//                                             0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 
+//                                             0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 
+//                                             0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 
+//                                             0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 
+//                                             0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 
+//                                             0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 
+//                                             0, 0, 0, 0, 1, 1, 0, 0, 0, 0);
+//    for (int x=0; x<el3.cols; x++)
+//        for (int y=0; y<el3.rows; y++)
+//        {
+//            if (el3.at<unsigned char>(y,x)==0)
+//                el3.at<unsigned char>(y,x)=255;
+//            else
+//                el3.at<unsigned char>(y,x)=0;
+//        }
+    imwrite("debug.png",el3);
+    compute(el3,desc,loc);
+    for (int i=0; i<desc.size(); i++)
+    {
+//        if ((loc[i].x == 2 && loc[i].y == 2) || (loc[i].x == 8 && loc[i].y == 8))
+        if (desc[i].size()>0 && (loc[i].x > 2 && loc[i].y > 2) && (loc[i].x < 8 && loc[i].y < 8))
+        {
+            assert(desc[i][0] > desc[i][1]);
+            assert(desc[i][0] > desc[i][2]);
+            assert(desc[i][0] > desc[i][3]);
+            assert(desc[i][0] > desc[i][4]);
+            assert(desc[i][0] > desc[i][5]);
+            assert(desc[i][0] > desc[i][6]);
+            assert(desc[i][0] > desc[i][7]);
+        }
+    }
+    
+    
+    cout << "HOG passed its tests!" << endl;
+}

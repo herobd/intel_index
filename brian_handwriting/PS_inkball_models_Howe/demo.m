@@ -4,23 +4,44 @@
 % N. Howe, Part-Structured Inkball Models for One-Shot Handwritten Word Spotting.
 % International Conference on Document Analysis and Recognition, August 2013.
 
-textimgname='../../data/gw_20p_wannot/words/wordimg_26.tif';
+textimgname='../../data/gw_20p_wannot/deslant/wordimg_3709.png';
 
 % Read in images
 % fox = rgb2gray(imread('gw_an.png'))<128;
 % text = rgb2gray(imread('gw_and.tif'))<128;
-exemplar = (imread('../../data/gw_20p_wannot/bigrams/to/001.png'))<128;
-word = (imread(textimgname))<128;
+exemplar = (imread('../../data/gw_20p_wannot/deslant/wordimg_9.png'))<150;%128
+word = (imread(textimgname))<150;%128
 
 
 % Build model & skeletonize text
 exemplar_m = autoPsm(exemplar);
 root = find([exemplar_m.parent]==0);
+
+%figure('Name','before');
+%imshow(word);
+%hold on;
+
+%dif = size(exemplar,1) - size(word,1);
+%if dif>0
+%disp('adjusting');
+%word = [zeros(floor(dif/2),size(word,2)); word; zeros(ceil(dif/2),size(word,2));];
+
+%figure('Name','after');
+%imshow(word)
+%hold on;
+
+%sktext = bwmorph(word,'thin',inf);
+%figure('Name','skel');
+%imshow(sktext);
+%hold on;
+%else
 sktext = bwmorph(word,'thin',inf);
+%end
+
 % figure
-% imshow(fox);
+% imshow(exemplar);
 % hold on;
-% plot([fox_m.absx]+fox_rp(1)-fox_m(root).x,[fox_m.absy]+fox_rp(2)-fox_m(root).y,'r*');
+% plot([exemplar_m.absx]+fox_rp(1)-fox_m(root).x,[fox_m.absy]+fox_rp(2)-fox_m(root).y,'r*');
 
 % Fit model
 % try
@@ -31,21 +52,21 @@ sktext = bwmorph(word,'thin',inf);
 %     [dtsq,loc] = psmFit(exemplar_m,sktext);
 % end;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-try
-    [dtsq,loc] = psmFit_gpu(exemplar_m,sktext,[8 8]);
-catch
-    'no gpu!!!!!!!!'
-    [dtsq,loc] = psmFit(exemplar_m,sktext);
-end
+%try
+%    [dtsq,loc] = psmFit_gpu(exemplar_m,sktext,[8 8]);
+%catch
+%    'no gpu!!!!!!!!'
+    [dtsq,loc] = safePsmFit(exemplar_m,sktext);
+%end
 
 %             end;
 
 % get best location
-% [minV,y,x] = min2d(dtsq);
-% figure
-% imshow(word);
-% hold on
-% plot(loc{y,x}(1,:),loc{y,x}(2,:),'r*')
+ [minV,y,x] = min2d(dtsq);
+ figure('Name','match');
+ imshow(word);
+ hold on
+ plot(loc{y,x}(1,:),loc{y,x}(2,:),'r*')
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 [mins,ys,xs] = localMins2d(dtsq);

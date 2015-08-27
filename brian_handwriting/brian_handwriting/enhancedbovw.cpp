@@ -6,20 +6,27 @@
 
 #define SHOW_HEATMAP 0
 
-EnhancedBoVW::EnhancedBoVW()
+EnhancedBoVW::EnhancedBoVW(vector<Vec2i> spatialPyramids, int desc_thresh, int LLC_numOfNN, int blockSize1, int blockSize2, int blockSize3, int blockStride, int hStride, int vStride, int skip)
 {
-    desc_thresh=3500;
-    LLC_numOfNN=3;
+    this->desc_thresh=desc_thresh;
+    this->LLC_numOfNN=LLC_numOfNN;
     codebook=NULL;
-//    spatialPyramids = {Vec2i(3,2),Vec2i(9,2)};
-    spatialPyramids = {Vec2i(2,2),Vec2i(4,2)};
+    this->spatialPyramids = spatialPyramids;
+//    spatialPyramids = {Vec2i(2,2),Vec2i(4,2)};
+
+
 //    cout << "testing pyramid (2,2) (4,2) bigrams horz" << endl;
 //    spatialPyramids = {Vec2i(1,1),Vec2i(2,2)};
 //    spatialPyramids = {Vec2i(1,1)};
     
-    hStride = 8;
-    vStride=8;
-    skip=4;
+    this->hStride = hStride;
+    this->vStride=vStride;
+    this->skip=skip;
+    
+    this->blockSize1=blockSize1;
+    this->blockSize2=blockSize2;
+    this->blockSize3=blockSize3;
+    this->blockStride=blockStride;
 }
 
 vector<float>* EnhancedBoVW::featurizeImage(const Mat &img) const
@@ -333,8 +340,11 @@ float EnhancedBoVW::compareImage(const Mat &img, const vector<float> &exemplar) 
 {
     auto samplesUncoded = getDescriptors(img);
     auto samplesCodedII = codeDescriptorsIntegralImageSkip(samplesUncoded,img.size,skip);
+    //auto samplesCodedII = codeDescriptorsIntegralImage(samplesUncoded,img.size);
     Rect r1(0, 0, img.cols, img.rows);
     vector<float>* desc1 = getPooledDescFastSkip(samplesCodedII, r1, spatialPyramids,skip);
+    //vector<float>* desc1 = getPooledDescFast(samplesCodedII, r1, spatialPyramids);
+    normalizeDesc(desc1);
     float score1=0;
     
     for (int i=0; i<exemplar.size(); i++)
@@ -348,6 +358,36 @@ float EnhancedBoVW::compareImage(const Mat &img, const vector<float> &exemplar) 
     return score1;
 }
 
+void EnhancedBoVW::showEncoding(const Mat &img) const
+{
+    auto samplesUncoded = getDescriptors(img);
+    for (auto desc : *samplesUncoded)
+    {
+        if (get<2>(desc)==0 && get<0>(desc).size()>0)
+        {
+            
+            vector< tuple<int,float> > quan = codebook->quantizeSoft(get<0>(desc),LLC_numOfNN);
+            cout << "at (" << get<1>(desc).x << "," << get<1>(desc).y << "): " << get<0>(quan.front()) << endl;
+//            for (int i=0; i<codebook->size(); i++)
+//            {
+//                bool f=false;
+//                for (auto q : quan)
+//                    if (get<0>(q)==i)
+//                    {
+//                        f=true;
+//                        cout << get<1>(q) << ",\t";
+//                    }
+//                if (!f)
+//                    cout << 0.0 << ",\t";
+//            }
+//            cout << endl;
+            for (float f : get<0>(desc))
+                cout << f << ",\t";
+            cout << endl;
+        }
+            
+    }
+}
 
 //#if CONCAT
 //vector< tuple< vector< tuple<int,float> >, Point2i, int > >* EnhancedBoVW::codeDescriptors(vector< tuple< vector<float>, Point2i > >* desc)
@@ -364,8 +404,9 @@ float EnhancedBoVW::compareImage(const Mat &img, const vector<float> &exemplar) 
 //    return ret;
 //}
 
+
 #if CONCAT
-vector< vector< Mat/*< float >*/ > >* EnhancedBoVW::codeDescriptorsIntegralImage(vector< tuple< vector<float>, Point2i, int > >* desc, Mat::MSize imgsize) const
+vector< vector< Mat > >* EnhancedBoVW::codeDescriptorsIntegralImage(vector< tuple< vector<float>, Point2i, int > >* desc, Mat::MSize imgsize) const
 {
     auto lam = [](const tuple< vector<float>, Point2i, int >& a, const tuple< vector<float>, Point2i, int > &b) -> bool
     {
@@ -375,7 +416,7 @@ vector< vector< Mat/*< float >*/ > >* EnhancedBoVW::codeDescriptorsIntegralImage
             return get<1>(a).y < get<1>(b).y;
     };
 #else
-vector< vector< Mat/*< float >*/ > >* EnhancedBoVW::codeDescriptorsIntegralImage(vector< tuple< vector<float>, Point2i > >* desc, Mat::MSize imgsize) const
+vector< vector< Mat > >* EnhancedBoVW::codeDescriptorsIntegralImage(vector< tuple< vector<float>, Point2i > >* desc, Mat::MSize imgsize) const
 {
     auto lam = [](const tuple< vector<float>, Point2i >& a, const tuple< vector<float>, Point2i > &b) -> bool
     {
@@ -390,7 +431,7 @@ vector< vector< Mat/*< float >*/ > >* EnhancedBoVW::codeDescriptorsIntegralImage
 
     sort(desc->begin(),desc->end(),lam);
     
-    auto ret = new vector< vector< Mat/*< float >*/ > >(imgsize[1]);
+    auto ret = new vector< vector< Mat > >(imgsize[1]);
     auto iter = desc->begin();
     //first col
     (*ret)[0].resize(imgsize[0]);                                                                                                                                                                                                                                                                                                                                                       
@@ -639,17 +680,7 @@ vector< tuple< vector<float>, Point2i > >* EnhancedBoVW::getDescriptors(const Ma
 //    int blockSize3=32;
 //    int blockStride=3;
     
-#if P_PARAMS
-    int blockSize1=20;
-    int blockSize2=30;
-    int blockSize3=45;
-    int blockStride=5;
-#else
-    int blockSize1=10;
-    int blockSize2=15;
-    int blockSize3=20;
-    int blockStride=2;
-#endif
+
     
     
     HOG hog1(desc_thresh,blockSize1,blockStride);
@@ -912,7 +943,8 @@ Codebook* EnhancedBoVW::makeCodebook(string directory, int codebook_size)
     
     DIR *dir;
     struct dirent *ent;
-    if ((dir = opendir (directory.c_str())) != NULL) {
+    if ((dir = opendir (directory.c_str())) != NULL)
+    {
       cout << "reading images and obtaining descriptors" << endl;
       
       vector<string> fileNames;
@@ -1068,10 +1100,28 @@ vector<float>* EnhancedBoVW::getPooledDescFast(vector< vector< Mat/*< float >*/ 
 //            {
 //                bins[f] = samplesIntegralImage[recBR.x][recBR.y][f]
 //            }
-            Mat bins = (*samplesIntegralImage)[recBR.x][recBR.y] + 
-                    (*samplesIntegralImage)[recTL.x][recTL.y] -
-                    (*samplesIntegralImage)[recBR.x][recTL.y] - 
-                    (*samplesIntegralImage)[recTL.x][recBR.y];
+            Mat bins;
+            if (recTL.x == 0 && recTL.y == 0)
+            {
+                bins = (*samplesIntegralImage)[recBR.x][recBR.y];
+            }
+            else if (recTL.x == 0)
+            {
+                bins = (*samplesIntegralImage)[recBR.x][recBR.y] -
+                        (*samplesIntegralImage)[recBR.x][recTL.y-1];
+            }
+            else if (recTL.y == 0)
+            {
+                bins = (*samplesIntegralImage)[recBR.x][recBR.y] - 
+                        (*samplesIntegralImage)[recTL.x-1][recBR.y];
+            }
+            else
+            {
+                bins = (*samplesIntegralImage)[recBR.x][recBR.y] + 
+                        (*samplesIntegralImage)[recTL.x-1][recTL.y-1] -
+                        (*samplesIntegralImage)[recBR.x][recTL.y-1] - 
+                        (*samplesIntegralImage)[recTL.x-1][recBR.y];
+            }
             
             int oldSize=ret->size();
             ret->resize(oldSize+bins.size[0]);
@@ -1124,10 +1174,27 @@ vector<float>* EnhancedBoVW::getPooledDescFastSkip(vector< vector< Mat/*< float 
             if (recTL.x<samplesIntegralImage->size() && recTL.y < samplesIntegralImage->front().size() &&
                     recBR.x>=0 && recBR.y>=0)
             {
-                bins = (*samplesIntegralImage)[recBR.x][recBR.y] + 
-                        (*samplesIntegralImage)[recTL.x][recTL.y] -
-                        (*samplesIntegralImage)[recBR.x][recTL.y] - 
-                        (*samplesIntegralImage)[recTL.x][recBR.y];
+                if (recTL.x == 0 && recTL.y == 0)
+                {
+                    bins = (*samplesIntegralImage)[recBR.x][recBR.y];
+                }
+                else if (recTL.x == 0)
+                {
+                    bins = (*samplesIntegralImage)[recBR.x][recBR.y] -
+                            (*samplesIntegralImage)[recBR.x][recTL.y-1];
+                }
+                else if (recTL.y == 0)
+                {
+                    bins = (*samplesIntegralImage)[recBR.x][recBR.y] - 
+                            (*samplesIntegralImage)[recTL.x-1][recBR.y];
+                }
+                else
+                {
+                    bins = (*samplesIntegralImage)[recBR.x][recBR.y] + 
+                            (*samplesIntegralImage)[recTL.x-1][recTL.y-1] -
+                            (*samplesIntegralImage)[recBR.x][recTL.y-1] - 
+                            (*samplesIntegralImage)[recTL.x-1][recBR.y];
+                }
             }
             else
             {
@@ -1177,4 +1244,211 @@ void EnhancedBoVW::normalizeDesc(vector<float> *desc, float a) const
         {
             (*desc)[i] /= norm;
         }
+}
+
+void EnhancedBoVW::unittests()
+{
+    HOG hog(0,0);
+    hog.unittest();
+    
+    Codebook cbTest;
+    cbTest.unittest();
+    
+    codebook = new Codebook();
+    ofstream file;
+    file.open ("tmp.dat435", ios::out);
+    
+    file << 3 << endl;
+    file << 3 << endl;
+    
+    file << 1 << endl;
+    file << 0 << endl;
+    file << 0 << endl;
+    
+    file << 0 << endl;
+    file << 1 << endl;
+    file << 0 << endl;
+    
+    file << 0 << endl;
+    file << 0 << endl;
+    file << 1 << endl;
+    
+    file.close();
+    codebook->readIn("tmp.dat435");
+    codebook->save("tmp.dat435");
+    delete codebook;
+    codebook = new Codebook();
+    codebook->readIn("tmp.dat435");
+    
+    vector<float> term = {.5,0,.1};
+    vector< tuple<int,float> > quan = codebook->quantizeSoft(term,1);
+    assert(get<0>(quan[0])==0 && get<1>(quan[0])==1);
+    
+    vector<float> term2 = {.3,0,.3};
+    quan = codebook->quantizeSoft(term2,2);
+    assert(get<1>(quan[0])==.5 && get<1>(quan[1])==.5);
+    
+    LLC_numOfNN=1;
+    /* 0 0 0
+     * 1 1 1
+     * 2 2 2
+     * 
+     * ans
+     * (1,0,0) (2,0,0) (3,0,0)
+     * (1,1,0) (2,2,0) (3,3,0)
+     * (1,1,1) (2,2,2) (3,3,3)
+    */
+    vector<float> class0 = {1,0,0};
+    vector<float> class1 = {0,1,0};
+    vector<float> class2 = {0,0,1};
+    Mat img(3,3,CV_8U);
+    
+    vector< tuple< vector<float>, Point2i, int > >* desc = new vector< tuple< vector<float>, Point2i, int > >();
+    desc->push_back(make_tuple(class0,Point2i(0,0),0));
+    desc->push_back(make_tuple(class0,Point2i(1,0),0));
+    desc->push_back(make_tuple(class0,Point2i(2,0),0));
+    desc->push_back(make_tuple(class1,Point2i(0,1),0));
+    desc->push_back(make_tuple(class1,Point2i(1,1),0));
+    desc->push_back(make_tuple(class1,Point2i(2,1),0));
+    desc->push_back(make_tuple(class2,Point2i(0,2),0));
+    desc->push_back(make_tuple(class2,Point2i(1,2),0));
+    desc->push_back(make_tuple(class2,Point2i(2,2),0));
+    
+    
+    vector< vector< Mat/*< float >*/ > >* descII = codeDescriptorsIntegralImageSkip( desc, img.size, 1);
+    assert((*descII)[0][0].at<float>(0,0)==1 && (*descII)[0][0].at<float>(1,0)==0 && (*descII)[0][0].at<float>(2,0)==0);
+    assert((*descII)[1][0].at<float>(0,0)==2 && (*descII)[1][0].at<float>(1,0)==0 && (*descII)[1][0].at<float>(2,0)==0);
+    assert((*descII)[2][0].at<float>(0,0)==3 && (*descII)[2][0].at<float>(1,0)==0 && (*descII)[2][0].at<float>(2,0)==0);
+    
+    assert((*descII)[0][1].at<float>(0,0)==1 && (*descII)[0][1].at<float>(1,0)==1 && (*descII)[0][1].at<float>(2,0)==0);
+    assert((*descII)[1][1].at<float>(0,0)==2 && (*descII)[1][1].at<float>(1,0)==2 && (*descII)[1][1].at<float>(2,0)==0);
+    assert((*descII)[2][1].at<float>(0,0)==3 && (*descII)[2][1].at<float>(1,0)==3 && (*descII)[2][1].at<float>(2,0)==0);
+    
+    assert((*descII)[0][2].at<float>(0,0)==1 && (*descII)[0][2].at<float>(1,0)==1 && (*descII)[0][2].at<float>(2,0)==1);
+    assert((*descII)[1][2].at<float>(0,0)==2 && (*descII)[1][2].at<float>(1,0)==2 && (*descII)[1][2].at<float>(2,0)==2);
+    assert((*descII)[2][2].at<float>(0,0)==3 && (*descII)[2][2].at<float>(1,0)==3 && (*descII)[2][2].at<float>(2,0)==3);
+    
+    vector<Vec2i> spatialPyramids={Vec2i(1,1)};
+    
+    vector<float>* pooled = getPooledDescFastSkip(descII, Rect(0,0,3,3), spatialPyramids, 1);
+    assert((*pooled)[0]==3 && (*pooled)[1]==3 && (*pooled)[2]==3);
+    pooled = getPooledDescFastSkip(descII, Rect(1,1,2,2), spatialPyramids, 1);
+    assert((*pooled)[0]==0 && (*pooled)[1]==2 && (*pooled)[2]==2);
+    pooled = getPooledDescFastSkip(descII, Rect(1,0,2,2), spatialPyramids, 1);
+    assert((*pooled)[0]==2 && (*pooled)[1]==2 && (*pooled)[2]==0);
+    pooled = getPooledDescFastSkip(descII, Rect(0,1,2,2), spatialPyramids, 1);
+    assert((*pooled)[0]==0 && (*pooled)[1]==2 && (*pooled)[2]==2);
+    
+    desc = new vector< tuple< vector<float>, Point2i, int > >();
+    desc->push_back(make_tuple(class0,Point2i(0,0),0));
+    desc->push_back(make_tuple(class0,Point2i(1,0),0));
+    desc->push_back(make_tuple(class0,Point2i(2,0),0));
+    desc->push_back(make_tuple(class1,Point2i(0,1),0));
+    desc->push_back(make_tuple(class1,Point2i(1,1),0));
+    desc->push_back(make_tuple(class1,Point2i(2,1),0));
+    desc->push_back(make_tuple(class2,Point2i(0,2),0));
+    desc->push_back(make_tuple(class2,Point2i(1,2),0));
+    desc->push_back(make_tuple(class2,Point2i(2,2),0));
+    
+    desc->push_back(make_tuple(class0,Point2i(0,0),1));
+    desc->push_back(make_tuple(class0,Point2i(1,0),1));
+    desc->push_back(make_tuple(class0,Point2i(2,0),1));
+    desc->push_back(make_tuple(class1,Point2i(0,1),1));
+    desc->push_back(make_tuple(class1,Point2i(1,1),1));
+    desc->push_back(make_tuple(class1,Point2i(2,1),1));
+    desc->push_back(make_tuple(class2,Point2i(0,2),1));
+    desc->push_back(make_tuple(class2,Point2i(1,2),1));
+    desc->push_back(make_tuple(class2,Point2i(2,2),1));
+    
+    
+    descII = codeDescriptorsIntegralImageSkip( desc, img.size, 1);
+    assert((*descII)[0][0].at<float>(0,0)==1 && (*descII)[0][0].at<float>(1,0)==0 && (*descII)[0][0].at<float>(2,0)==0);
+    assert((*descII)[1][0].at<float>(0,0)==2 && (*descII)[1][0].at<float>(1,0)==0 && (*descII)[1][0].at<float>(2,0)==0);
+    assert((*descII)[2][0].at<float>(0,0)==3 && (*descII)[2][0].at<float>(1,0)==0 && (*descII)[2][0].at<float>(2,0)==0);
+    
+    assert((*descII)[0][1].at<float>(0,0)==1 && (*descII)[0][1].at<float>(1,0)==1 && (*descII)[0][1].at<float>(2,0)==0);
+    assert((*descII)[1][1].at<float>(0,0)==2 && (*descII)[1][1].at<float>(1,0)==2 && (*descII)[1][1].at<float>(2,0)==0);
+    assert((*descII)[2][1].at<float>(0,0)==3 && (*descII)[2][1].at<float>(1,0)==3 && (*descII)[2][1].at<float>(2,0)==0);
+    
+    assert((*descII)[0][2].at<float>(0,0)==1 && (*descII)[0][2].at<float>(1,0)==1 && (*descII)[0][2].at<float>(2,0)==1);
+    assert((*descII)[1][2].at<float>(0,0)==2 && (*descII)[1][2].at<float>(1,0)==2 && (*descII)[1][2].at<float>(2,0)==2);
+    assert((*descII)[2][2].at<float>(0,0)==3 && (*descII)[2][2].at<float>(1,0)==3 && (*descII)[2][2].at<float>(2,0)==3);
+    
+    
+    assert((*descII)[0][0].at<float>(3,0)==1 && (*descII)[0][0].at<float>(4,0)==0 && (*descII)[0][0].at<float>(5,0)==0);
+    assert((*descII)[1][0].at<float>(3,0)==2 && (*descII)[1][0].at<float>(4,0)==0 && (*descII)[1][0].at<float>(5,0)==0);
+    assert((*descII)[2][0].at<float>(3,0)==3 && (*descII)[2][0].at<float>(4,0)==0 && (*descII)[2][0].at<float>(5,0)==0);
+   
+    assert((*descII)[0][1].at<float>(3,0)==1 && (*descII)[0][1].at<float>(4,0)==1 && (*descII)[0][1].at<float>(5,0)==0);
+    assert((*descII)[1][1].at<float>(3,0)==2 && (*descII)[1][1].at<float>(4,0)==2 && (*descII)[1][1].at<float>(5,0)==0);
+    assert((*descII)[2][1].at<float>(3,0)==3 && (*descII)[2][1].at<float>(4,0)==3 && (*descII)[2][1].at<float>(5,0)==0);
+    
+    assert((*descII)[0][2].at<float>(3,0)==1 && (*descII)[0][2].at<float>(4,0)==1 && (*descII)[0][2].at<float>(5,0)==1);
+    assert((*descII)[1][2].at<float>(3,0)==2 && (*descII)[1][2].at<float>(4,0)==2 && (*descII)[1][2].at<float>(5,0)==2);
+    assert((*descII)[2][2].at<float>(3,0)==3 && (*descII)[2][2].at<float>(4,0)==3 && (*descII)[2][2].at<float>(5,0)==3);
+    
+    
+    
+    /* 0 0 0 0
+     * 1 1 1 1
+     * 2 2 2 2
+     * 0 1 2 2
+     * 
+     * ans
+     * (1,0,0) (2,0,0) (3,0,0) (4,0,0)
+     * (1,1,0) (2,2,0) (3,3,0) (4,4,0)
+     * (1,1,1) (2,2,2) (3,3,3) (4,4,4)
+     * (2,1,1) (3,3,2) (4,4,4) (5,5,6)
+     * 
+     * ans (skipped)
+     *  (2,2,0)  (4,4,0)
+     *  (3,3,2)  (5,5,6)
+    */
+    Mat img2(4,4,CV_8U);
+    
+    desc = new vector< tuple< vector<float>, Point2i, int > >();
+    desc->push_back(make_tuple(class0,Point2i(0,0),0));
+    desc->push_back(make_tuple(class0,Point2i(1,0),0));
+    desc->push_back(make_tuple(class0,Point2i(2,0),0));
+    desc->push_back(make_tuple(class0,Point2i(3,0),0));
+    desc->push_back(make_tuple(class1,Point2i(0,1),0));
+    desc->push_back(make_tuple(class1,Point2i(1,1),0));
+    desc->push_back(make_tuple(class1,Point2i(2,1),0));
+    desc->push_back(make_tuple(class1,Point2i(3,1),0));
+    desc->push_back(make_tuple(class2,Point2i(0,2),0));
+    desc->push_back(make_tuple(class2,Point2i(1,2),0));
+    desc->push_back(make_tuple(class2,Point2i(2,2),0));
+    desc->push_back(make_tuple(class2,Point2i(3,2),0));
+    
+    desc->push_back(make_tuple(class0,Point2i(0,3),0));
+    desc->push_back(make_tuple(class1,Point2i(1,3),0));
+    desc->push_back(make_tuple(class2,Point2i(2,3),0));
+    desc->push_back(make_tuple(class2,Point2i(3,3),0));
+    descII = codeDescriptorsIntegralImageSkip( desc, img2.size, 2);
+    assert(descII->size()==2);
+    assert((*descII)[0][0].at<float>(0,0)==2 && (*descII)[0][0].at<float>(1,0)==2 && (*descII)[0][0].at<float>(2,0)==0);
+    assert((*descII)[1][0].at<float>(0,0)==4 && (*descII)[1][0].at<float>(1,0)==4 && (*descII)[1][0].at<float>(2,0)==0);
+    
+    assert((*descII)[0][1].at<float>(0,0)==3 && (*descII)[0][1].at<float>(1,0)==3 && (*descII)[0][1].at<float>(2,0)==2);
+    assert((*descII)[1][1].at<float>(0,0)==5 && (*descII)[1][1].at<float>(1,0)==5 && (*descII)[1][1].at<float>(2,0)==6);
+    
+    
+    pooled = getPooledDescFastSkip(descII, Rect(0,0,4,4), spatialPyramids, 2);
+    assert((*pooled)[0]==5 && (*pooled)[1]==5 && (*pooled)[2]==6);
+    pooled = getPooledDescFastSkip(descII, Rect(2,2,2,2), spatialPyramids, 2);
+    assert((*pooled)[0]==0 && (*pooled)[1]==0 && (*pooled)[2]==4);
+    pooled = getPooledDescFastSkip(descII, Rect(0,2,2,2), spatialPyramids, 2);
+    assert((*pooled)[0]==1 && (*pooled)[1]==1 && (*pooled)[2]==2);
+    
+    vector<Vec2i> spatialPyramids2={Vec2i(1,1),Vec2i(2,1)};
+    pooled = getPooledDescFastSkip(descII, Rect(0,0,4,4), spatialPyramids2, 2);
+    assert((*pooled)[0]==5 && (*pooled)[1]==5 && (*pooled)[2]==6);
+    assert((*pooled)[9]==3 && (*pooled)[10]==3 && (*pooled)[11]==2);
+    assert((*pooled)[18]==2 && (*pooled)[19]==2 && (*pooled)[20]==4);
+    
+    
+    
+    
+    
+    cout << "EnhancedBoVW passed its tests!" << endl;
 }

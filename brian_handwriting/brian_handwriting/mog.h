@@ -33,6 +33,9 @@
 
 #define SPECTURM_SIZE MAX_RUN_DIRECTION+1
 
+#define LOOP_CONST 14
+#define DOUBLE_LOOP_CONST 21
+
 using namespace cv;
 using namespace std;
 
@@ -49,7 +52,19 @@ public:
     double boxdist(int node1, int node2);
     int getNumClasses(){return som->get_nodes_number();}
     
+    int nodeCol(int i)
+    {
+        const Node* n =som->get_node(i);
+        return n->get_coords()[0];
+    }
+    int nodeRow(int i)
+    {
+        const Node* n =som->get_node(i);
+        return n->get_coords()[1];
+    }
+    
     void unittest();
+    
     
 private:
     SOM* som;//http://www.codeproject.com/Articles/21385/Kohonen-s-Self-Organizing-Maps-in-C-with-Applicati#Using_the_code
