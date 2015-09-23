@@ -4,6 +4,14 @@ import sys
 import random
 import re
 
+#test = [1,2,3,4,5]
+#for i in test[:-1]:
+#	print i
+
+if (len(sys.argv)==1 or len(sys.argv)>11):
+	print 'Usage: python pretendSystemTest [dictionaryfile] [ngramfile] [recall rate] [confidence range: 0-(2?)] [corpus file] [out file] (opt: stats out file) (opt: stop threshold) (opt: leftover words file)'
+	sys.exit()
+
 #path to dictionary file, expectsd word on each newline
 pathDic=sys.argv[1]
 
@@ -23,7 +31,15 @@ pathCorpus=sys.argv[5]
 #path to output file
 pathOut=sys.argv[6]
 
+pathStats=None
+if (len(sys.argv)>7):
+	pathStats=sys.argv[7]
 
+stopThresh=.9
+pathLeftoverWords=None
+if (len(sys.argv)>9):
+	stopThresh=float(sys.argv[8])
+	pathLeftoverWords=sys.argv[9]
 
 class Word:
 	def __init__(self,text):
@@ -119,6 +135,8 @@ for line in fC.xreadlines():
   	OoV+=1
 fC.close()
 
+stats=[]
+
 fO = open(pathOut, 'w')
 
 startNum = len(words)
@@ -127,9 +145,13 @@ print 'out of vocabulary = ' + str(OoV)
 count=0
 
 fO.write('iterations,completion,completion(no OoV)\n')
-while (len(words)/float(startNum) > .1):
+while (len(words)/float(startNum) > 1.0-stopThresh):
 	for ngram in ngrams:
+		if (len(words)/float(startNum) <= 1.0-stopThresh):
+			break
+
 		#effectedWords = []
+		thisStat = [0,0,0,0,0,0]
 		for w in words:
 			#print 'looking for '+ngram+' in '+w.text
 			for loc in [m.start() for m in re.finditer(ngram, w.text)]:
@@ -139,15 +161,59 @@ while (len(words)/float(startNum) > .1):
 					w.effected=True
 					#print ngram + ' found in ' + w.text
 		
+		#lookup effected words and remove if 10 or less possibilities
 		words = [w for w in words if ((not w.effected) or dicLookup(w)>10)]
+		
+		thisStat[5] = startNum - len(words)
 		for w in words:
 			w.effected=False
+			lettersSpotted=0
+			for spotting in w.spotted:
+				lettersSpotted += len(spotting[0])
+			ratioSpotted = float(lettersSpotted)/float(len(w.text))
+			if (ratioSpotted<.2):
+				thisStat[0]+=1
+			elif (ratioSpotted<.4):
+				thisStat[1]+=1
+			elif (ratioSpotted<.6):
+				thisStat[2]+=1
+			elif (ratioSpotted<.8):
+				thisStat[3]+=1
+			else:
+				thisStat[4]+=1
+		stats.append(thisStat)
+
 		done = (float(startNum)-len(words))/float(startNum)
 		doneNoOoV = (float(startNum-OoV)-(len(words)-OoV))/float(startNum-OoV)
 		if count%25==0:
 			print 'spot ' +str(count)+ ': ' +str(done*100)+'% transcribed ('+str(doneNoOoV*100)+ '% w/o OoV)'
+			
 		fO.write(str(count)+','+str(done*100)+','+str(doneNoOoV*100)+'\n')
 		
 		count += 1
-			
+		
+
 fO.close()
+
+if pathStats is not None:
+	fO = open(pathStats,'w')
+	for stat in stats:
+		#print stat
+		for num in stat[:-1]:
+			fO.write(str(num)+',')
+		fO.write(str(stat[-1])+'\n')
+	fO.close()
+
+if pathLeftoverWords is not None:
+	fO = open(pathLeftoverWords,'w')
+	for w in words:
+		fO.write(w.text + ': ')
+		for spotting in w.spotted[:-1]:
+			fO.write(spotting[0] + ', ')
+		if (len(w.spotted)>0):
+			fO.write(w.spotted[-1][0] + '\n')
+		else:
+			fO.write('\n')
+
+	fO.close()
+

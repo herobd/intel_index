@@ -1,3 +1,12 @@
+/*Program: deskewDeslant
+ *Author: Brian Davis (briandavis@byu.net)
+ *Purpose: To both deskew a docuement image and
+ *         deslant it's individual lines of 
+ *         handwriting.
+ *Usage: ./deskewDeslant <imageIn> <imageOut>
+ *
+ */
+
 
 #include "opencv2/core/core.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
@@ -29,19 +38,20 @@ int main (int argc, char** argv)
     cv::threshold( orig, src, 150, 255,0);
     
     fillBorder(src);
+//    cv::imwrite("intermediate.pgm",src);
     
     cv::bitwise_not(src, src);
     double skew = compute_skew(src);
-    std::cout << "skew:"<<skew<<std::endl;
+    //std::cout << "skew:"<<skew<<std::endl;
     cv::Mat deskewed = deskew(src,skew,orig);
-    cv::imwrite("intermediate.pgm",deskewed);
-    
-//    cv::bitwise_not(deskewed,deskewed);
+    //cv::imwrite("intermediate.pgm",deskewed);
     
     
     
     
-////    DImage img2("intermediate.pgm",DImage::DFileFormat_pgm);
+    
+////Deslant
+/// 
     DImage img1;
     img1.setLogicalSize(orig.cols,orig.rows);
     unsigned char* data1 = img1.dataPointer_u8();
@@ -63,24 +73,17 @@ int main (int argc, char** argv)
     int numTextLines;
     DRect* lines;
     DTextlineSeparator::getTextlineRects(img2,&numTextLines,&lines);
-//    int avgHeight = DTextlineSeparator::estimateAvgHeight(img2);
+    
+    DImage testline;
+    testline.setLogicalSize(lines[numTextLines/2].w,lines[numTextLines/2].h);
+    testline.pasteFromImage(0,0,img2,lines[numTextLines/2].x,lines[numTextLines/2].y,lines[numTextLines/2].w,lines[numTextLines/2].h);
     
     
-//    BImage bimg(deskewed.cols,deskewed.rows);
-//    for (int x=0; x<bimg.width(); x++)
-//    {
-//        for (int y=0; y<bimg.height(); y++)
-//        {
-//            bimg.setPixel(x,y,deskewed.at<unsigned char>(y,x)>0);
-//        }
-//    }
-//    BImage cleared = BoxCleaner::trimVerticleBoundaries(bimg);
-//    cleared = BoxCleaner::trimHorizontalBoundaries(cleared);
-//    cleared = BoxCleaner::removeVerticlePixelNoise(cleared);
+    double slant = DSlantAngle::getTextlineSlantAngleDeg(testline,5);
+    //std::cout << "slant: " << slant << std::endl;
+    testline = testline.shearedH(slant,0,true);
     
-//    QVector<BPartition*> lines= WordSeparator::segmentLinesOfWords(cleared,avgHeight,false);
-    
-    cv::Mat out(deskewed.rows+1*numTextLines,deskewed.cols+30,0);
+    cv::Mat out(deskewed.rows+1*numTextLines,std::max(testline.width(),deskewed.cols)+60,0);
     out.setTo(0);
     int cur_y=0;
     for (int i=0; i<numTextLines; i++)
@@ -93,26 +96,12 @@ int main (int argc, char** argv)
         rline.setLogicalSize(lines[i].w,lines[i].h);
         rline.pasteFromImage(0,0,img1,lines[i].x,lines[i].y,lines[i].w,lines[i].h);
         
-//        line.setLogicalSize(lines[i]->width(),lines[i]->height());
-//        unsigned char* lineData = line.dataPointer_u8();
-//        for (int x=0; x<lines[i]->width(); x++)
-//        {
-//            for (int y=0; y<lines[i]->height(); y++)
-//            {
-//                lineData[x+y*x] = lines[i]->pixel(x,y)?0:255;
-//            }
-//        }
         
-        double slant = DSlantAngle::getTextlineSlantAngleDeg(line,5);
-//        double slant = DSlantAngle::getTextlineSlantAngleDeg(img2,5,lines[i].x,lines[i].y,lines[i].w,lines[i].h);
-//        double slant = DGlobalSkew::getSkewAng_var(img2);
-        std::cout << "slant: " << slant << std::endl;
+        slant = DSlantAngle::getTextlineSlantAngleDeg(line,5);
+        //std::cout << "slant: " << slant << std::endl;
         rline = rline.shearedH(slant,0,true);
         unsigned char* data3 = rline.dataPointer_u8();
         
-        
-        //    img2.save(argv[2],DImage::DFileFormat_png,false,false);
-//        assert(lines[i].w == deskewed.cols);
         for (int ii=0; ii< rline.width(); ii++)
             for (int jj=0; jj< rline.height(); jj++)
                 out.data[ii+(jj+cur_y)*out.cols]=data3[ii+jj*rline.width()];
@@ -193,8 +182,18 @@ void fillBorder(cv::Mat &img)
 //http://felix.abecassis.me/2011/09/opencv-detect-skew-angle/
 double compute_skew(cv::Mat src)
 {
+    DImage img;
+    img.setLogicalSize(src.cols,src.rows);
+    unsigned char* data1 = img.dataPointer_u8();
+    unsigned char* dataO = src.data;
+    for (int i=0; i< src.cols * src.rows; i++)
+    {
+        data1[i]=dataO[i];
+    }
+    return DGlobalSkew::getSkewAng_fast(img,-30,30,.2);
     
-    
+    ////////////////////////////////////////////////
+    /*
     cv::Size size = src.size();
     
     std::vector<cv::Vec4i> lines;
@@ -217,6 +216,7 @@ double compute_skew(cv::Mat src)
 //    cv::waitKey(0);
 //    cv::destroyWindow("lines");
     return angle*180/CV_PI;
+    */
 }
 
 //http://felix.abecassis.me/2011/10/opencv-rotation-deskewing/
@@ -247,4 +247,5 @@ cv::Mat deskew(cv::Mat img, double angle, cv::Mat &orig)
 //    cv::waitKey(0);
     
     return cropped;
+    
 }

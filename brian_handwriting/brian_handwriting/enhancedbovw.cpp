@@ -350,8 +350,9 @@ float EnhancedBoVW::compareImage(const Mat &img, const vector<float> &exemplar) 
     for (int i=0; i<exemplar.size(); i++)
     {
         score1 += pow(exemplar[i]-(*desc1)[i],2);
-        
+        cout << exemplar[i]-(*desc1)[i] << " ";
     }
+    cout << endl;
     
     delete samplesCodedII;
     delete desc1;
@@ -1013,13 +1014,17 @@ Codebook* EnhancedBoVW::makeCodebook(string directory, int codebook_size)
           
           
           for (int c=0; c<accum[0].size(); c++)
+          {
+              assert(accum[r][c] >= 0);
               data.at<float>(count,c) = accum[r][c];
+          }
           accum[r].resize(0);
       }
       cout << "computing kmeans" << endl;
       
       Mat temp;
-      Kmeans(data,codebook_size,temp,crit,10,KMEANS_RANDOM_CENTERS,&centriods);
+//      Kmeans(data,codebook_size,temp,crit,10,KMEANS_RANDOM_CENTERS,&centriods);
+      kmeans(data,codebook_size,temp,crit,10,KMEANS_RANDOM_CENTERS,centriods);
       
        cout << "compiling codebook" << endl;
       
@@ -1028,7 +1033,10 @@ Codebook* EnhancedBoVW::makeCodebook(string directory, int codebook_size)
       {
           vector<double> toAdd;
           for (int c=0; c<centriods.cols; c++)
+          {
+              assert(centriods.at<float>(r,c) >= 0);
               toAdd.push_back(centriods.at<float>(r,c));
+          }
           codebook->push_back(toAdd);
       }
       

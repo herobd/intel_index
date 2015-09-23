@@ -200,16 +200,16 @@ int main( int argc, char** argv )
             
         string imgDir = simple_corpus + "words/";
         string codebookLoc = simple_corpus + "codebook.csv";
-        vector<Vec2i> spatialPyramids={Vec2i(1,1)};
-        EnhancedBoVW bovw(spatialPyramids,1,1,10,10,10,2,2,2,1);
+        vector<Vec2i> spatialPyramids={Vec2i(1,1), Vec2i(2,1)};
+        EnhancedBoVW bovw(spatialPyramids,3500,1,10,10,10,2,2,2,1);
         Codebook *cb = bovw.makeCodebook(imgDir,4);
         cb->save(codebookLoc);
         cb->print();
     }
     else if (option.compare("bovwscore_simple")==0)
     {
-        vector<Vec2i> spatialPyramids={Vec2i(1,1)};
-        EnhancedBoVW bovw(spatialPyramids,1,1,10,10,10,2,2,2,1);
+        vector<Vec2i> spatialPyramids={Vec2i(1,1), Vec2i(2,1)};
+        EnhancedBoVW bovw(spatialPyramids,3500,1,10,10,10,2,2,2,1);
             
         string codebookLoc = simple_corpus + "codebook.csv";
         bovw.codebook = new Codebook();
@@ -226,8 +226,8 @@ int main( int argc, char** argv )
     }
     else if (option.compare("show_simple")==0)
     {
-        vector<Vec2i> spatialPyramids={Vec2i(1,1)};
-        EnhancedBoVW bovw(spatialPyramids,1,1,10,10,10,2,2,2,1);
+        vector<Vec2i> spatialPyramids={Vec2i(1,1), Vec2i(2,1)};
+        EnhancedBoVW bovw(spatialPyramids,3500,1,10,10,10,2,2,2,1);
             
         string codebookLoc = simple_corpus + "codebook.csv";
         bovw.codebook = new Codebook();

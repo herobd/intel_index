@@ -219,10 +219,14 @@ void HOG::compute(const Mat &img, vector<vector<float> > &descriptors, vector< P
             
             float mag=0;
             for (int b=0; b<num_bins; b++)
+            {
+                assert(bins[i][j][b]>=0);
                 mag += pow(bins[i][j][b],2);
+            }
             mag = sqrt(mag);
             if (mag>thresh)
             {
+                
                 descriptors.push_back(bins[i][j]);
                 locations.push_back(Point2i(tlX+cellSize/2,tlY+cellSize/2));
             }
