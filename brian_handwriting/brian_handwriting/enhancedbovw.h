@@ -49,6 +49,7 @@ public:
     void unittests();
     
     void showEncoding(const Mat &img) const;
+    void printDescThreshContours(const Mat &img, int desc_thresh=3500) const;
     
 private:
     double desc_thresh;

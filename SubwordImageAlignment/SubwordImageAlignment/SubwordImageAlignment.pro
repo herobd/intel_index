@@ -12,4 +12,4 @@ SOURCES += main.cpp
 
 #includeing Doug's code
 INCLUDEPATH +=/home/brian/familysearch_documentproject_2013.08.30/src
-LIBS += -L/home/brian/familysearch_documentproject_2013.08.30/lib/ -ldocumentproj_2013.08.30 -ljpeg -ltiff -lpng
+LIBS += -L/home/brian/familysearch_documentproject_2013.08.30/lib/ -ldocumentproj_2013.08.30 -ljpeg -ltiff -lpng -lpthread

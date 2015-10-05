@@ -59,7 +59,7 @@ int main( int argc, char** argv )
     string simple_corpus = "/home/brian/intel_index/data/simple_corpus2/";
     
     string option = argv[1];
-    if (option.compare("score")==0)
+    if (option.compare("liangscore")==0)
     {
         Liang l;
         l.unittest();
@@ -76,7 +76,7 @@ int main( int argc, char** argv )
         double score = l.score(argv[4],testImg);
         cout << score << endl;
     }
-    else if (option.compare("train")==0)
+    else if (option.compare("liangtrain")==0)
     {
         Liang l;
         l.unittest();
@@ -92,14 +92,14 @@ int main( int argc, char** argv )
         l.trainCharacterModels(imgDir,namePattern,ext,ann);
         l.saveCharacterModels(save);
     }
-    else if (option.compare("unittest")==0)
+    else if (option.compare("liangunittest")==0)
     {
         Liang l;
         l.unittest();
         MOG mog;
         mog.unittest();
     }
-    else if (option.compare("test")==0)
+    else if (option.compare("liangtest")==0)
     {
         cout << "testing" << endl;
         int keyword = stoi(argv[2]);
@@ -111,7 +111,7 @@ int main( int argc, char** argv )
         LiangTests::keyword_duplicationTest(keyword,testNum,annFilePath,imgDirPath,imgNamePater,imgExt);
         //test 0 1 ../../data/gw_20p_wannot/annotations.txt ../../data/gw_20p_wannot/deslant/ wordimg_ .png
     }
-    else if(option.compare("mog")==0)
+    else if(option.compare("liangmog")==0)
     {
         
         string annPath = argv[2];
@@ -237,6 +237,36 @@ int main( int argc, char** argv )
         string f = argv[2];
         Mat find = imread(f, CV_LOAD_IMAGE_GRAYSCALE);
         bovw.showEncoding(find);
+    }
+    else if (option.compare("experiment_Aldavert_dist_batched_simple")==0)
+    {
+        vector<Vec2i> spatialPyramids={Vec2i(1,1), Vec2i(2,1)};
+        EnhancedBoVW bovw(spatialPyramids,3500,1,10,10,10,2,2,2,1);
+        
+        string codebookLoc = simple_corpus + "codebook.csv";
+        bovw.codebook = new Codebook();
+        bovw.codebook->readIn(codebookLoc);
+        
+        EnhancedBoVWTests::experiment_Aldavert_dist_batched(bovw,
+                                                            simple_corpus + "wordLocations.csv",
+                                                            simple_corpus + "words/",
+                                                            24,
+                                                            ".png",
+                                                            0,
+                                                            1,
+                                                            "simpleOut.out");
+    }
+    else if (option.compare("bovwdebug")==0)
+    {
+        EnhancedBoVW bovw;
+            
+        Mat convenient = imread("../convenient.png", CV_LOAD_IMAGE_GRAYSCALE);
+        int thresh = atoi(argv[2]);
+        bovw.printDescThreshContours(convenient,thresh);
+    }
+    else
+    {
+        cout << "Error, no option" << endl;
     }
     
     

@@ -340,19 +340,17 @@ float EnhancedBoVW::compareImage(const Mat &img, const vector<float> &exemplar) 
 {
     auto samplesUncoded = getDescriptors(img);
     auto samplesCodedII = codeDescriptorsIntegralImageSkip(samplesUncoded,img.size,skip);
-    //auto samplesCodedII = codeDescriptorsIntegralImage(samplesUncoded,img.size);
     Rect r1(0, 0, img.cols, img.rows);
     vector<float>* desc1 = getPooledDescFastSkip(samplesCodedII, r1, spatialPyramids,skip);
-    //vector<float>* desc1 = getPooledDescFast(samplesCodedII, r1, spatialPyramids);
     normalizeDesc(desc1);
     float score1=0;
     
-    for (int i=0; i<exemplar.size(); i++)
-    {
-        score1 += pow(exemplar[i]-(*desc1)[i],2);
-        cout << exemplar[i]-(*desc1)[i] << " ";
-    }
-    cout << endl;
+//    for (int i=0; i<exemplar.size(); i++)
+//    {
+//        score1 += pow(exemplar[i]-(*desc1)[i],2);
+//        cout << exemplar[i]-(*desc1)[i] << " ";
+//    }
+//    cout << endl;
     
     delete samplesCodedII;
     delete desc1;
@@ -703,17 +701,72 @@ vector< tuple< vector<float>, Point2i > >* EnhancedBoVW::getDescriptors(const Ma
     vector< tuple< vector< float >, Point2i > > *descAndLoc = new vector< tuple< vector< float >, Point2i > >();
 #endif
     
-//    //this assumes the locations are the same for all three
-//    assert(locations1.size() == locations2.size() && locations1.size()==locations3.size());
+
     
-//    for (int i=0; i< descriptors1.size(); i++)
-//    {
-//        vector<float> appendedDesc;
-//        appendedDesc.insert(appendedDesc.end(), descriptors1[i].begin(), descriptors1[i].end());
-//        appendedDesc.insert(appendedDesc.end(), descriptors2[i].begin(), descriptors2[i].end());
-//        appendedDesc.insert(appendedDesc.end(), descriptors3[i].begin(), descriptors3[i].end());
-//        descAndLoc->push_back(make_tuple(appendedDesc,locations1[i]));
-//    }
+#if CONCAT
+    for (int i=0; i< descriptors1.size(); i++)
+    {
+        descAndLoc->push_back(make_tuple(descriptors1[i],locations1[i],0));
+    }
+    for (int i=0; i< descriptors2.size(); i++)
+    {
+        descAndLoc->push_back(make_tuple(descriptors2[i],locations2[i],1));
+    }
+    for (int i=0; i< descriptors3.size(); i++)
+    {
+        descAndLoc->push_back(make_tuple(descriptors3[i],locations3[i],2));
+    }
+#else
+    for (int i=0; i< descriptors1.size(); i++)
+    {
+        descAndLoc->push_back(make_tuple(descriptors1[i],locations1[i]));
+    }
+    for (int i=0; i< descriptors2.size(); i++)
+    {
+        descAndLoc->push_back(make_tuple(descriptors2[i],locations2[i]));
+    }
+    for (int i=0; i< descriptors3.size(); i++)
+    {
+        descAndLoc->push_back(make_tuple(descriptors3[i],locations3[i]));
+    }
+#endif
+
+    
+    return descAndLoc;
+}
+
+void EnhancedBoVW::printDescThreshContours(const Mat &img, int desc_thresh) const
+{   
+    //based on Aldavert et al paper parameters
+    //I'm trying to recreate their figure 1
+    
+    int blockSize1=16;
+    int blockSize2=24;
+    int blockSize3=32;
+    int blockStride=1;
+    
+
+    
+    
+    HOG hog1(desc_thresh,blockSize1,blockStride);
+    HOG hog2(desc_thresh,blockSize2,blockStride);
+    HOG hog3(desc_thresh,blockSize3,blockStride);
+    vector<vector<float> > descriptors1;
+    vector<vector<float> > descriptors2;
+    vector<vector<float> > descriptors3;
+    vector< Point2i > locations1;
+    vector< Point2i > locations2;
+    vector< Point2i > locations3;
+    hog1.compute(img,descriptors1,locations1);
+    hog2.compute(img,descriptors2,locations2);
+    hog3.compute(img,descriptors3,locations3);
+    
+#if CONCAT
+    vector< tuple< vector< float >, Point2i, int > > *descAndLoc = new vector< tuple< vector< float >, Point2i, int > >();
+#else
+    vector< tuple< vector< float >, Point2i > > *descAndLoc = new vector< tuple< vector< float >, Point2i > >();
+#endif
+    
     
 
     
@@ -745,146 +798,153 @@ vector< tuple< vector<float>, Point2i > >* EnhancedBoVW::getDescriptors(const Ma
     }
 #endif
 
-//    Mat heat;
-//    cvtColor(img,heat,CV_GRAY2RGB);
-//    int i=0;
-//    double minNorm=999999;
-//    double maxNorm=0;
-//    for (vector<float> d : descriptors1)
-//    {
-//        double norm=0;
-//        for (float n : d)
-//        {
-//            norm += n*n;
-//        }
-//        norm = sqrt(norm);
-//        if (norm > maxNorm) maxNorm=norm;
-//        if (norm < minNorm) minNorm=norm;
-//    }
-//    for (int idx=0; idx<descriptors1.size(); idx++)
-//    {
-//        vector<float> d = descriptors1[idx];
-//        double norm=0;
-//        for (float n : d)
-//        {
-//            norm += n*n;
-//        }
-//        norm = sqrt(norm);
-////        cout << norm << endl;
-////        int x= (i%((img.cols-(blockSize1-blockStride))/blockStride))*blockStride + blockSize1/2-blockStride/2;
-////        int y= (i/((img.cols-(blockSize1-blockStride))/blockStride))*blockStride + blockSize1/2-blockStride/2;
-////        cout << x <<", "<<y<<endl;
-//        int x = locations1[idx].x;
-//        int y = locations1[idx].y;
+    Mat heat;
+    cvtColor(img,heat,CV_GRAY2RGB);
+    heat.setTo(Vec3b(0,0,0));
+    int i=0;
+    double minNorm=999999;
+    double maxNorm=0;
+    for (vector<float> d : descriptors1)
+    {
+        double norm=0;
+        for (float n : d)
+        {
+            norm += n*n;
+        }
+        norm = sqrt(norm);
+        if (norm > maxNorm) maxNorm=norm;
+        if (norm < minNorm) minNorm=norm;
+    }
+    for (int idx=0; idx<descriptors1.size(); idx++)
+    {
+        vector<float> d = descriptors1[idx];
+        double norm=0;
+        for (float n : d)
+        {
+            norm += n*n;
+        }
+        norm = sqrt(norm);
+//        cout << norm << endl;
+//        int x= (i%((img.cols-(blockSize1-blockStride))/blockStride))*blockStride + blockSize1/2-blockStride/2;
+//        int y= (i/((img.cols-(blockSize1-blockStride))/blockStride))*blockStride + blockSize1/2-blockStride/2;
+//        cout << x <<", "<<y<<endl;
+        int x = locations1[idx].x;
+        int y = locations1[idx].y;
         
         
         
-//        for (int xoff=-blockStride/2; xoff<blockStride/2; xoff++)
-//            for (int yoff=-blockStride/2; yoff<blockStride/2; yoff++)
-//            {
-////                heat.at<Vec3b>(y+yoff,x+xoff) = Vec3b(
-////                        img.at<unsigned char>(y+yoff,x+xoff)*(((maxNorm-minNorm)-max(norm-minNorm,0.0))/(maxNorm-minNorm)),
-////                        img.at<unsigned char>(y+yoff,x+xoff)*(((maxNorm-minNorm)-max(norm-minNorm,0.0))/(maxNorm-minNorm)),
-////                        img.at<unsigned char>(y+yoff,x+xoff)*((max(norm-minNorm,0.0))/(maxNorm-minNorm)));
+        for (int xoff=-blockStride/2; xoff<=blockStride/2; xoff++)
+            for (int yoff=-blockStride/2; yoff<=blockStride/2; yoff++)
+            {
 //                heat.at<Vec3b>(y+yoff,x+xoff) = Vec3b(
 //                        img.at<unsigned char>(y+yoff,x+xoff)*(((maxNorm-minNorm)-max(norm-minNorm,0.0))/(maxNorm-minNorm)),
 //                        img.at<unsigned char>(y+yoff,x+xoff)*(((maxNorm-minNorm)-max(norm-minNorm,0.0))/(maxNorm-minNorm)),
-//                        img.at<unsigned char>(y+yoff,x+xoff));
-////                if (norm!=0)
-////                    heat.at<Vec3b>(y+yoff,x+xoff) = Vec3b(
-////                                0,
-////                                0,
-////                                img.at<unsigned char>(y+yoff,x+xoff));
-//            }
+//                        img.at<unsigned char>(y+yoff,x+xoff)*((max(norm-minNorm,0.0))/(maxNorm-minNorm)));
+                heat.at<Vec3b>(y+yoff,x+xoff) = Vec3b(
+                        img.at<unsigned char>(y+yoff,x+xoff)*(((maxNorm-minNorm)-max(norm-minNorm,0.0))/(maxNorm-minNorm)),
+                        img.at<unsigned char>(y+yoff,x+xoff)*(((maxNorm-minNorm)-max(norm-minNorm,0.0))/(maxNorm-minNorm)),
+                        img.at<unsigned char>(y+yoff,x+xoff));
+//                if (norm!=0)
+//                    heat.at<Vec3b>(y+yoff,x+xoff) = Vec3b(
+//                                0,
+//                                0,
+//                                img.at<unsigned char>(y+yoff,x+xoff));
+            }
                 
-//        i++;
-//    }
-//    imshow("heatfeatures1",heat);
-//    waitKey();
+        i++;
+    }
+    cout << "there are " << descriptors1.size() << " small descriptors" << endl;
+    imshow("heatfeatures1",heat);
+    waitKey();
     
-//    cvtColor(img,heat,CV_GRAY2RGB);
-//    i=0;
-//    minNorm=999999;
-//    maxNorm=0;
-//    for (vector<float> d : descriptors2)
-//    {
-//        double norm=0;
-//        for (float n : d)
-//        {
-//            norm += n*n;
-//        }
-//        norm = sqrt(norm);
-//        if (norm > maxNorm) maxNorm=norm;
-//        if (norm < minNorm) minNorm=norm;
-//    }
-//    for (int idx=0; idx<descriptors2.size(); idx++)
-//    {
-//        vector<float> d = descriptors2[idx];
-//        double norm=0;
-//        for (float n : d)
-//        {
-//            norm += n*n;
-//        }
-//        norm = sqrt(norm);
-//        int x = locations2[idx].x;
-//        int y = locations2[idx].y;
+    cvtColor(img,heat,CV_GRAY2RGB);
+    heat.setTo(Vec3b(0,0,0));
+    
+    i=0;
+    minNorm=999999;
+    maxNorm=0;
+    for (vector<float> d : descriptors2)
+    {
+        double norm=0;
+        for (float n : d)
+        {
+            norm += n*n;
+        }
+        norm = sqrt(norm);
+        if (norm > maxNorm) maxNorm=norm;
+        if (norm < minNorm) minNorm=norm;
+    }
+    for (int idx=0; idx<descriptors2.size(); idx++)
+    {
+        vector<float> d = descriptors2[idx];
+        double norm=0;
+        for (float n : d)
+        {
+            norm += n*n;
+        }
+        norm = sqrt(norm);
+        int x = locations2[idx].x;
+        int y = locations2[idx].y;
         
-//        for (int xoff=-blockStride/2; xoff<blockStride/2; xoff++)
-//            for (int yoff=-blockStride/2; yoff<blockStride/2; yoff++)
-//            {
-//                heat.at<Vec3b>(y+yoff,x+xoff) = Vec3b(
-//                        img.at<unsigned char>(y+yoff,x+xoff)*(((maxNorm-minNorm)-max(norm-minNorm,0.0))/(maxNorm-minNorm)),
-//                        img.at<unsigned char>(y+yoff,x+xoff)*(((maxNorm-minNorm)-max(norm-minNorm,0.0))/(maxNorm-minNorm)),
-//                        img.at<unsigned char>(y+yoff,x+xoff));
-//            }
+        for (int xoff=-blockStride/2; xoff<=blockStride/2; xoff++)
+            for (int yoff=-blockStride/2; yoff<=blockStride/2; yoff++)
+            {
+                heat.at<Vec3b>(y+yoff,x+xoff) = Vec3b(
+                        img.at<unsigned char>(y+yoff,x+xoff)*(((maxNorm-minNorm)-max(norm-minNorm,0.0))/(maxNorm-minNorm)),
+                        img.at<unsigned char>(y+yoff,x+xoff)*(((maxNorm-minNorm)-max(norm-minNorm,0.0))/(maxNorm-minNorm)),
+                        img.at<unsigned char>(y+yoff,x+xoff));
+            }
                 
-//        i++;
-//    }
-//    imshow("heatfeatures2",heat);
-//    waitKey();
+        i++;
+    }
     
-//    cvtColor(img,heat,CV_GRAY2RGB);
-//    i=0;
-//    minNorm=999999;
-//    maxNorm=0;
-//    for (vector<float> d : descriptors3)
-//    {
-//        double norm=0;
-//        for (float n : d)
-//        {
-//            norm += n*n;
-//        }
-//        norm = sqrt(norm);
-//        if (norm > maxNorm) maxNorm=norm;
-//        if (norm < minNorm) minNorm=norm;
-//    }
-//    for (int idx=0; idx<descriptors3.size(); idx++)
-//    {
-//        vector<float> d = descriptors3[idx];
-//        double norm=0;
-//        for (float n : d)
-//        {
-//            norm += n*n;
-//        }
-//        norm = sqrt(norm);
-//        int x = locations3[idx].x;
-//        int y = locations3[idx].y;
+    cout << "there are " << descriptors2.size() << " med descriptors" << endl;
+    imshow("heatfeatures2",heat);
+    waitKey();
+    
+    cvtColor(img,heat,CV_GRAY2RGB);
+    heat.setTo(Vec3b(0,0,0));
+    i=0;
+    minNorm=999999;
+    maxNorm=0;
+    for (vector<float> d : descriptors3)
+    {
+        double norm=0;
+        for (float n : d)
+        {
+            norm += n*n;
+        }
+        norm = sqrt(norm);
+        if (norm > maxNorm) maxNorm=norm;
+        if (norm < minNorm) minNorm=norm;
+    }
+    for (int idx=0; idx<descriptors3.size(); idx++)
+    {
+        vector<float> d = descriptors3[idx];
+        double norm=0;
+        for (float n : d)
+        {
+            norm += n*n;
+        }
+        norm = sqrt(norm);
+        int x = locations3[idx].x;
+        int y = locations3[idx].y;
         
-//        for (int xoff=-blockStride/2; xoff<blockStride/2; xoff++)
-//            for (int yoff=-blockStride/2; yoff<blockStride/2; yoff++)
-//            {
-//                heat.at<Vec3b>(y+yoff,x+xoff) = Vec3b(
-//                        img.at<unsigned char>(y+yoff,x+xoff)*(((maxNorm-minNorm)-max(norm-minNorm,0.0))/(maxNorm-minNorm)),
-//                        img.at<unsigned char>(y+yoff,x+xoff)*(((maxNorm-minNorm)-max(norm-minNorm,0.0))/(maxNorm-minNorm)),
-//                        img.at<unsigned char>(y+yoff,x+xoff));
-//            }
+        for (int xoff=-blockStride/2; xoff<=blockStride/2; xoff++)
+            for (int yoff=-blockStride/2; yoff<=blockStride/2; yoff++)
+            {
+                heat.at<Vec3b>(y+yoff,x+xoff) = Vec3b(
+                        img.at<unsigned char>(y+yoff,x+xoff)*(((maxNorm-minNorm)-max(norm-minNorm,0.0))/(maxNorm-minNorm)),
+                        img.at<unsigned char>(y+yoff,x+xoff)*(((maxNorm-minNorm)-max(norm-minNorm,0.0))/(maxNorm-minNorm)),
+                        img.at<unsigned char>(y+yoff,x+xoff));
+            }
                 
-//        i++;
-//    }
-//    imshow("heatfeatures3",heat);
-//    waitKey();
+        i++;
+    }
     
-    return descAndLoc;
+    cout << "there are " << descriptors3.size() << " large descriptors" << endl;
+    imshow("heatfeatures3",heat);
+    waitKey();
 }
 
 void EnhancedBoVW::filterDesc(vector<float> &unparsedDescriptors, vector<vector<float> > &descriptors1, vector< Point2i > &locations, int descSize, Size blockSize1, Size blockStride, Size imgSize) const
@@ -1457,6 +1517,131 @@ void EnhancedBoVW::unittests()
     
     
     
+    Mat testimg = (Mat_<unsigned char>(20,20)<< 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0,
+                                             0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0,
+                                             0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0,
+                                             0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                             0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                             1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
+                                             1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0,
+                                             1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0,
+                                             1, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0,
+                                             1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0,
+                                             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0,
+                                             0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0,
+                                             0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1,
+                                             0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1,
+                                             0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0,
+                                             0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0,
+                                             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0,
+                                             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0,
+                                             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1);
+    
+    
+    for (int x=0; x<img2.cols; x++)
+        for (int y=0; y<img2.rows; y++)
+        {
+            if (img2.at<unsigned char>(y,x)==0)
+                img2.at<unsigned char>(y,x)=255;
+            else
+                img2.at<unsigned char>(y,x)=0;
+        }
+    
+    desc_thresh=0;
+    blockSize1=5;
+    blockSize2=11;
+    blockSize3=17;
+    skip=1;
+    blockStride=1;
+    auto samplesUncoded = getDescriptors(testimg);
+    
+    int testsDone=0;
+    for (int i=0; i<samplesUncoded->size(); i++)
+    {
+        if (get<2>(samplesUncoded->at(i))==0)
+        {
+            Point loc = get<1>(samplesUncoded->at(i));
+            vector<float> desc = get<0>(samplesUncoded->at(i));
+            if ((loc.x == 2 && loc.y == 2) || (loc.x == 8 && loc.y == 8) || (loc.x == 2 && loc.y == 14))
+            {
+                assert(desc[0] > desc[1]);
+                assert(desc[0] > desc[2]);
+                assert(desc[0] > desc[3]);
+                assert(desc[0] > desc[4]);
+                assert(desc[0] > desc[5]);
+                assert(desc[0] > desc[6]);
+                assert(desc[0] > desc[7]);
+                testsDone++;
+            }
+            else if ((loc.x == 8 && loc.y == 2) || (loc.x == 14 && loc.y == 8) || (loc.x == 8 && loc.y == 14))
+            {
+                assert(desc[6] > desc[0]);
+                assert(desc[6] > desc[1]);
+                assert(desc[6] > desc[2]);
+                assert(desc[6] > desc[3]);
+                assert(desc[6] > desc[4]);
+                assert(desc[6] > desc[5]);
+                assert(desc[6] > desc[7]);
+                assert(desc[6] > desc[8]);
+                testsDone++;
+            }
+            else if (loc.x == 14 && loc.y == 2)
+            {
+                assert(desc[4] > desc[0]);
+                assert(desc[4] > desc[1]);
+                assert(desc[4] > desc[2]);
+                assert(desc[4] > desc[3]);
+                assert(desc[4] > desc[5]);
+                assert(desc[4] > desc[6]);
+                assert(desc[4] > desc[7]);
+                assert(desc[4] > desc[8]);
+                testsDone++;
+            }
+            else if (loc.x == 2 && loc.y == 8)
+            {
+                assert(desc[2] > desc[0]);
+                assert(desc[2] > desc[1]);
+                assert(desc[2] > desc[3]);
+                assert(desc[2] > desc[4]);
+                assert(desc[2] > desc[5]);
+                assert(desc[2] > desc[6]);
+                assert(desc[2] > desc[7]);
+                assert(desc[2] > desc[8]);
+                testsDone++;
+            }
+        }
+        else if (get<2>(samplesUncoded->at(i))==1)
+        {
+            Point loc = get<1>(samplesUncoded->at(i));
+            vector<float> desc = get<0>(samplesUncoded->at(i));
+            if ((loc.x == 6 && loc.y == 6))
+            {
+                assert(desc[0] > desc[1]);
+                assert(desc[0] > desc[2]);
+                assert(desc[0] > desc[3]);
+                assert(desc[0] > desc[4]);
+                assert(desc[0] > desc[5]);
+                assert(desc[0] > desc[6]);
+                assert(desc[0] > desc[7]);
+                testsDone++;
+            }
+            else if ((loc.x == 17 && loc.y == 17))
+            {
+                assert(desc[6] > desc[0]);
+                assert(desc[6] > desc[1]);
+                assert(desc[6] > desc[2]);
+                assert(desc[6] > desc[3]);
+                assert(desc[6] > desc[4]);
+                assert(desc[6] > desc[5]);
+                assert(desc[6] > desc[7]);
+                assert(desc[6] > desc[8]);
+                testsDone++;
+            }
+            
+        }
+    }
+    assert(testsDone==10);
     
     cout << "EnhancedBoVW passed its tests!" << endl;
 }

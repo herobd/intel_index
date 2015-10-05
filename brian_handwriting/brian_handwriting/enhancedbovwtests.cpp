@@ -898,7 +898,9 @@ void EnhancedBoVWTests::experiment_Aldavert_dist_batched(EnhancedBoVW &bovw, str
     string fullResults="";
     
     double map=0;
+    double prevMap=0;
     int mapCount=0;
+    int prevCount=0;
     
     int taskSize = locations.size() / numNodes;
     int mybegin = iproc * taskSize;
@@ -1016,7 +1018,9 @@ void EnhancedBoVWTests::experiment_Aldavert_dist_batched(EnhancedBoVW &bovw, str
 //            cout << "[" << iproc << "] exemplar " << exemplarIdx << " took " << durEx << " seconds."<<endl;
         }
         
-        cout << "finished word " << i << endl; 
+        cout << "finished word " << i << " with " << (map-prevMap)/(mapCount-prevCount) << " mAP" << endl;
+        prevMap=map;
+        prevCount=mapCount;
         }
 //        break;
     }
@@ -1095,6 +1099,7 @@ void EnhancedBoVWTests::experiment_Aldavert_dist_batched_test(int scenario)
     string fullResults="";
     
     double map=0;
+    double prevMap=0;
     int mapCount=0;
     
     int taskSize = locations.size() / numNodes;
@@ -1288,7 +1293,8 @@ void EnhancedBoVWTests::experiment_Aldavert_dist_batched_test(int scenario)
 //            cout << "[" << iproc << "] exemplar " << exemplarIdx << " took " << durEx << " seconds."<<endl;
         }
         
-        cout << "finished word " << i << endl; 
+        cout << "finished word " << i << " with " << map-prevMap << " mAP" << endl;
+        prevMap=map;
         }
 //        break;
     }
