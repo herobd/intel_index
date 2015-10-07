@@ -1,8 +1,9 @@
 /*Brian Davis
  *Jitter
  *
- *This project is simply to add some noise to a directory of images.
- *We expect the images to be indexed by some sort of number.
+ *This project is simply to add some noise to a directory of images
+ *to synthetically extend a dataset.
+ *It expects the images to be indexed by some sort of number.
  */
 
 #include <iostream>
@@ -16,6 +17,11 @@ using namespace cv;
 
 int main(int argc, char** argv)
 {
+    if (argc<7)
+    {
+        cout << "Usage: " << argv[0] << " [directory of images to extend] [starting index of image numbers] [ending index] [number of times the data is to be replicated] [image name before number] [image name after number, including extension]" << endl;
+       return 1;
+    }
     string dir = argv[1];
     int startIndex = atoi(argv[2]);
     int endIndex = atoi(argv[3]);
@@ -57,6 +63,7 @@ int main(int argc, char** argv)
             imwrite(dir + imageNamePre + to_string(newIndex) + imageNamePost, newImg);
         }
     }
+    return 0;
 }
 
 

@@ -989,7 +989,10 @@ void EnhancedBoVWTests::experiment_Aldavert_dist_batched(EnhancedBoVW &bovw, str
             for (int top=0; top<scores.size(); top++)
             {
                 int ii = scores[top].first;
-                
+                if (top==0)
+                {
+                    cout << "top match is " << ii << endl;
+                }
                 if (find(word_locations.begin(),word_locations.end(),ii)!=word_locations.end())
                 {
                     foundRelevent++;
