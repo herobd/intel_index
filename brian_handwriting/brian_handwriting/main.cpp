@@ -177,6 +177,46 @@ int main( int argc, char** argv )
         //    MPI_Finalize();
         
     }
+    else if (option.compare("bovwscore_single")==0)
+    {
+        vector<Vec2i> spatialPyramids={Vec2i(1,1)};
+        EnhancedBoVW bovw(spatialPyramids);
+        
+        string codebookLoc = argv[2];
+        
+        bovw.codebook = new Codebook();
+        bovw.codebook->readIn(codebookLoc);
+        
+        Mat find = imread(argv[3], CV_LOAD_IMAGE_GRAYSCALE);
+        vector<float>* find_b = bovw.featurizeImage(find);
+        Mat img = imread(argv[4], CV_LOAD_IMAGE_GRAYSCALE);
+        double score = bovw.compareImage(img,*find_b);
+        
+        
+        auto desc = bovw.getDescriptors(find);
+        auto codedImg= bovw.codeDescriptorsIntegralImageSkip(desc,find.size,1);
+        vector<float>* featureVector = bovw.getPooledDescFastSkip(codedImg,Rect(0,0,find.cols,find.rows),spatialPyramids,1);
+        auto desc2 = bovw.getDescriptors(img);
+        auto codedImg2= bovw.codeDescriptorsIntegralImageSkip(desc2,img.size,1);
+        vector<float>* featureVector2 = bovw.getPooledDescFastSkip(codedImg2,Rect(0,0,img.cols,img.rows),spatialPyramids,1);
+        bovw.normalizeDesc(featureVector2);
+        bovw.normalizeDesc(featureVector);
+        double score2=0;
+        
+        for (int i=0; i<featureVector->size(); i++)
+        {
+            if (pow(featureVector->at(i)-featureVector2->at(i),2) > .001)
+            {
+                cout << "["<<i<<"] " << featureVector->at(i) <<  " != " << featureVector2->at(i) << endl;
+            }
+            score2 += pow(featureVector->at(i)-featureVector2->at(i),2);
+        }
+        cout << "score  " << score << endl;
+        cout << "score2 " << score2 << endl;
+        
+//        bovw.printDescThreshContours(find);
+//        bovw.printDescThreshContours(img);
+    }
     else if (option.compare("experiment_Aldavert_dist_batched")==0)
     {
         EnhancedBoVW bovw;
@@ -196,23 +236,42 @@ int main( int argc, char** argv )
         Codebook *cb = bovw.makeCodebook(imgDir);
         cb->save(codebookLoc);
     }
+    else if (option.compare("train_codebooks")==0)
+    {
+            
+        string imgDir = argv[2];
+        string codebookLoc = argv[3];
+        EnhancedBoVW bovw;
+        bovw.make3Codebooks(imgDir);
+        bovw.writeCodebooks(codebookLoc);
+    }
     else if (option.compare("train_codebook_simple")==0)
     {
             
         string imgDir = simple_corpus + "words_lots/";
         string codebookLoc = simple_corpus + "codebook.csv";
-        EnhancedBoVW bovw(simpleSpatialPyramids,3500,3,4,7,10,2,2,2,2);
+        EnhancedBoVW bovw(simpleSpatialPyramids,3500,3,6,8,10,2,2,2,2);
         Codebook *cb = bovw.makeCodebook(imgDir,160);
         cb->save(codebookLoc);
         cb->print();
     }
+    else if (option.compare("train_codebooks_simple")==0)
+    {
+            
+        string imgDir = simple_corpus + "words_lots/";
+        string codebookLoc = simple_corpus + "codebook.csv";
+        EnhancedBoVW bovw(simpleSpatialPyramids,3500,3,6,8,10,2,2,2,2);
+        bovw.make3Codebooks(imgDir,160);
+        bovw.writeCodebooks(codebookLoc);
+    }
     else if (option.compare("bovwscore_simple")==0)
     {
-        EnhancedBoVW bovw(simpleSpatialPyramids,3500,3,4,7,10,2,2,2,2);
-            
+        EnhancedBoVW bovw(simpleSpatialPyramids,3500,3,6,8,10,2,2,2,2);
+        
         string codebookLoc = simple_corpus + "codebook.csv";
-        bovw.codebook = new Codebook();
-        bovw.codebook->readIn(codebookLoc);
+        bovw.readCodebooks(codebookLoc);  
+//        bovw.codebook = new Codebook();
+//        bovw.codebook->readIn(codebookLoc);
         
         
         string f = argv[2];
@@ -223,13 +282,53 @@ int main( int argc, char** argv )
         double score = bovw.compareImage(img,*find_b);
         cout << score << endl;
     }
-    else if (option.compare("show_simple")==0)
+    else if (option.compare("bovwscore_single_simple")==0)
     {
-        EnhancedBoVW bovw(simpleSpatialPyramids,3500,3,4,7,10,2,2,2,2);
+        vector<Vec2i> spatialPyramids={Vec2i(1,1)};
+        EnhancedBoVW bovw(spatialPyramids,3500,3,6,8,10,2,2,2,2);
             
         string codebookLoc = simple_corpus + "codebook.csv";
-        bovw.codebook = new Codebook();
-        bovw.codebook->readIn(codebookLoc);
+        bovw.readCodebooks(codebookLoc);
+//        bovw.codebook = new Codebook();
+//        bovw.codebook->readIn(codebookLoc);
+        
+        
+        string f = argv[2];
+        string s = argv[3];
+        Mat find = imread(f, CV_LOAD_IMAGE_GRAYSCALE);
+        vector<float>* find_b = bovw.featurizeImage(find);
+        Mat img = imread(s, CV_LOAD_IMAGE_GRAYSCALE);
+        double score = bovw.compareImage(img,*find_b);
+        
+        auto desc = bovw.getDescriptors(find);
+        auto codedImg= bovw.codeDescriptorsIntegralImageSkip(desc,find.size,1);
+        vector<float>* featureVector = bovw.getPooledDescFastSkip(codedImg,Rect(0,0,find.cols,find.rows),spatialPyramids,1);
+        auto desc2 = bovw.getDescriptors(img);
+        auto codedImg2= bovw.codeDescriptorsIntegralImageSkip(desc2,img.size,1);
+        vector<float>* featureVector2 = bovw.getPooledDescFastSkip(codedImg2,Rect(0,0,img.cols,img.rows),spatialPyramids,1);
+        bovw.normalizeDesc(featureVector2);
+        bovw.normalizeDesc(featureVector);
+        double score2=0;
+        
+        for (int i=0; i<featureVector->size(); i++)
+        {
+            if (pow(featureVector->at(i)-featureVector2->at(i),2) > .001)
+            {
+                cout << "["<<i<<"] " << featureVector->at(i) <<  " != " << featureVector2->at(i) << endl;
+            }
+            score2 += pow(featureVector->at(i)-featureVector2->at(i),2);
+        }
+        cout << "score  " << score << endl;
+        cout << "score2 " << score2 << endl;
+    }
+    else if (option.compare("show_simple")==0)
+    {
+        EnhancedBoVW bovw(simpleSpatialPyramids,3500,3,6,8,10,2,2,2,2);
+            
+        string codebookLoc = simple_corpus + "codebook.csv";
+        bovw.readCodebooks(codebookLoc);
+//        bovw.codebook = new Codebook();
+//        bovw.codebook->readIn(codebookLoc);
         
         
         string f = argv[2];
@@ -238,11 +337,12 @@ int main( int argc, char** argv )
     }
     else if (option.compare("experiment_Aldavert_dist_batched_simple")==0)
     {
-        EnhancedBoVW bovw(simpleSpatialPyramids,3500,3,4,7,10,2,2,2,2);
+        EnhancedBoVW bovw(simpleSpatialPyramids,3500,3,6,8,10,2,2,2,2);
         
         string codebookLoc = simple_corpus + "codebook.csv";
-        bovw.codebook = new Codebook();
-        bovw.codebook->readIn(codebookLoc);
+        bovw.readCodebooks(codebookLoc);
+//        bovw.codebook = new Codebook();
+//        bovw.codebook->readIn(codebookLoc);
         
         EnhancedBoVWTests::experiment_Aldavert_dist_batched(bovw,
                                                             simple_corpus + "wordLocations.csv",
@@ -259,11 +359,12 @@ int main( int argc, char** argv )
         string second = argv[3];
         //vector<Vec2i> spatialPyramidsSingle={Vec2i(1,1)};
         
-        EnhancedBoVW bovw(simpleSpatialPyramids,3500,3,4,7,10,2,2,2,2);
+        EnhancedBoVW bovw(simpleSpatialPyramids,3500,3,6,8,10,2,2,2,2);
             
         string codebookLoc = simple_corpus + "codebook.csv";
-        bovw.codebook = new Codebook();
-        bovw.codebook->readIn(codebookLoc);
+        bovw.readCodebooks(codebookLoc);
+//        bovw.codebook = new Codebook();
+//        bovw.codebook->readIn(codebookLoc);
         
         Vec3b class0(255,255,255);
         Vec3b class1(255,0,0);
@@ -433,7 +534,7 @@ int main( int argc, char** argv )
         for (int i=featureVector->size()/6; i<2*featureVector->size()/6; i++)
         {
             score2Half += pow(featureVector->at(i)-featureVector2->at(i),2);
-            cout << featureVector->at(i) << "\t" << featureVector2->at(i) << endl;
+            
         }
         float score1q=0;
         for (int i=2*featureVector->size()/6; i<3*featureVector->size()/6; i++)
@@ -444,6 +545,7 @@ int main( int argc, char** argv )
         for (int i=3*featureVector->size()/6; i<4*featureVector->size()/6; i++)
         {
             score2q += pow(featureVector->at(i)-featureVector2->at(i),2);
+            cout << featureVector->at(i) << "\t" << featureVector2->at(i) << endl;
         }
         float score3q=0;
         for (int i=4*featureVector->size()/6; i<5*featureVector->size()/6; i++)

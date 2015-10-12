@@ -11,6 +11,9 @@ EnhancedBoVW::EnhancedBoVW(vector<Vec2i> spatialPyramids, int desc_thresh, int L
     this->desc_thresh=desc_thresh;
     this->LLC_numOfNN=LLC_numOfNN;
     codebook=NULL;
+    codebook_small=NULL;
+    codebook_med=NULL;
+    codebook_large=NULL;
     this->spatialPyramids = spatialPyramids;
 //    spatialPyramids = {Vec2i(2,2),Vec2i(4,2)};
 
@@ -362,11 +365,11 @@ void EnhancedBoVW::showEncoding(const Mat &img) const
     auto samplesUncoded = getDescriptors(img);
     for (auto desc : *samplesUncoded)
     {
-        if (get<2>(desc)==0 && get<0>(desc).size()>0)
+        if (desc.scale==0 && desc.values.size()>0)
         {
             
-            vector< tuple<int,float> > quan = codebook->quantizeSoft(get<0>(desc),LLC_numOfNN);
-            cout << "at (" << get<1>(desc).x << "," << get<1>(desc).y << "): " << get<0>(quan.front()) << endl;
+            vector< tuple<int,float> > quan = codebook->quantizeSoft(desc.values,LLC_numOfNN);
+            cout << "at (" << desc.position.x << "," << desc.position.y << "): " << get<0>(quan.front()) << endl;
 //            for (int i=0; i<codebook->size(); i++)
 //            {
 //                bool f=false;
@@ -380,7 +383,7 @@ void EnhancedBoVW::showEncoding(const Mat &img) const
 //                    cout << 0.0 << ",\t";
 //            }
 //            cout << endl;
-            for (float f : get<0>(desc))
+            for (float f : desc.values)
                 cout << f << ",\t";
             cout << endl;
         }
@@ -390,14 +393,14 @@ void EnhancedBoVW::showEncoding(const Mat &img) const
 
 
 
-vector< vector< Mat/*< float >*/ > >* EnhancedBoVW::codeDescriptorsIntegralImageSkip(vector< tuple< vector<float>, Point2i, int > >* desc, Mat::MSize imgsize, int skip) const
+vector< vector< Mat/*< float >*/ > >* EnhancedBoVW::codeDescriptorsIntegralImageSkip(vector< description >* desc, Mat::MSize imgsize, int skip) const
 {
-    auto lam = [&skip](const tuple< vector<float>, Point2i, int >& a, const tuple< vector<float>, Point2i, int > &b) -> bool
+    auto lam = [&skip](const description& a, const description &b) -> bool
     {
-         if (get<1>(a).x/skip != get<1>(b).x/skip) 
-             return get<1>(a).x/skip < get<1>(b).x/skip;
+         if (a.position.x/skip != b.position.x/skip) 
+             return a.position.x/skip < b.position.x/skip;
          else
-            return get<1>(a).y/skip < get<1>(b).y/skip;
+            return a.position.y/skip < b.position.y/skip;
     };
 
 
@@ -413,16 +416,26 @@ vector< vector< Mat/*< float >*/ > >* EnhancedBoVW::codeDescriptorsIntegralImage
         
         if (y==0)
         {
-            (*ret)[0][y] = Mat::zeros(codebook->size()*3,1,CV_32F);
+            if (codebook != NULL)
+                (*ret)[0][y] = Mat::zeros(codebook->size()*3,1,CV_32F);
+            else
+                (*ret)[0][y] = Mat::zeros(codebook_small->size() + 
+                                          codebook_med->size() +
+                                          codebook_large->size(),1,CV_32F);
         }
         else
             (*ret)[0][y] = (*ret)[0][y-1].clone();
-        while (iter!=desc->end() && get<1>(*iter).y/skip==y && get<1>(*iter).x/skip==0)
+        while (iter!=desc->end() && iter->position.y/skip==y && iter->position.x/skip==0)
         {
-            vector< tuple<int,float> > quan = codebook->quantizeSoft(get<0>(*iter),LLC_numOfNN);
+            vector< tuple<int,float> > quan = quantizeSoft(iter->values,LLC_numOfNN,iter->scale);
             for (const auto &v : quan)
             {
-                (*ret)[0][y].at<float>(get<0>(v)+codebook->size()*(get<2>(*iter)),0) += get<1>(v);
+                if (codebook != NULL)
+                    (*ret)[0][y].at<float>(get<0>(v)+codebook->size()*(iter->scale),0) += get<1>(v);
+                else
+                    (*ret)[0][y].at<float>(get<0>(v)+
+                                           (iter->scale>0?codebook_small->size():0)+
+                                           (iter->scale>1?codebook_med->size():0),0) += get<1>(v);
             }
 //            int it = codebook->quantize(get<0>(*iter));
 //            (*ret)[0][y].at<float>(it,0) += 1;
@@ -443,12 +456,17 @@ vector< vector< Mat/*< float >*/ > >* EnhancedBoVW::codeDescriptorsIntegralImage
                 (*ret)[x][y] = (*ret)[x-1][y].clone();
             else
                 (*ret)[x][y] = (*ret)[x][y-1]+(*ret)[x-1][y]-(*ret)[x-1][y-1];
-            while (iter!=desc->end() && get<1>(*iter).y/skip==y && get<1>(*iter).x/skip==x)
+            while (iter!=desc->end() && iter->position.y/skip==y && iter->position.x/skip==x)
             {
-                vector< tuple<int,float> > quan = codebook->quantizeSoft(get<0>(*iter),LLC_numOfNN);
+                vector< tuple<int,float> > quan = quantizeSoft(iter->values,LLC_numOfNN,iter->scale);
                 for (const auto &v : quan)
                 {
-                    (*ret)[x][y].at<float>(get<0>(v)+codebook->size()*get<2>(*iter),0) += get<1>(v);
+                    if (codebook != NULL)
+                        (*ret)[x][y].at<float>(get<0>(v)+codebook->size()*iter->scale,0) += get<1>(v);
+                    else
+                        (*ret)[x][y].at<float>(get<0>(v)+
+                                               (iter->scale>0?codebook_small->size():0)+
+                                               (iter->scale>1?codebook_med->size():0),0) += get<1>(v);
                 }
 //                int it = codebook->quantize(get<0>(*iter));
 //                (*ret)[x][y].at<float>(it,0) += 1;
@@ -483,7 +501,7 @@ void EnhancedBoVW::color(Mat &heatMap, float score, float maxV, float minV, int 
 }
 
 
-vector< tuple< vector<float>, Point2i, int > >* EnhancedBoVW::getDescriptors(const Mat &img) const
+vector< description >* EnhancedBoVW::getDescriptors(const Mat &img) const
 {   
 //    Size blockSize1(16,16);
 //    Size blockSize2(24,24);
@@ -554,21 +572,21 @@ vector< tuple< vector<float>, Point2i, int > >* EnhancedBoVW::getDescriptors(con
     hog2.compute(img,descriptors2,locations2);
     hog3.compute(img,descriptors3,locations3);
     
-    vector< tuple< vector< float >, Point2i, int > > *descAndLoc = new vector< tuple< vector< float >, Point2i, int > >();
+    vector< description > *descAndLoc = new vector< description >();
     
 
     
     for (int i=0; i< descriptors1.size(); i++)
     {
-        descAndLoc->push_back(make_tuple(descriptors1[i],locations1[i],0));
+        descAndLoc->push_back(description(descriptors1[i],locations1[i],SMALL));
     }
     for (int i=0; i< descriptors2.size(); i++)
     {
-        descAndLoc->push_back(make_tuple(descriptors2[i],locations2[i],1));
+        descAndLoc->push_back(description(descriptors2[i],locations2[i],MED));
     }
     for (int i=0; i< descriptors3.size(); i++)
     {
-        descAndLoc->push_back(make_tuple(descriptors3[i],locations3[i],2));
+        descAndLoc->push_back(description(descriptors3[i],locations3[i],LARGE));
     }
 
     
@@ -601,22 +619,22 @@ void EnhancedBoVW::printDescThreshContours(const Mat &img, int desc_thresh) cons
     hog2.compute(img,descriptors2,locations2);
     hog3.compute(img,descriptors3,locations3);
     
-    vector< tuple< vector< float >, Point2i, int > > *descAndLoc = new vector< tuple< vector< float >, Point2i, int > >();
+    vector< description > *descAndLoc = new vector< description >();
     
     
 
     
     for (int i=0; i< descriptors1.size(); i++)
     {
-        descAndLoc->push_back(make_tuple(descriptors1[i],locations1[i],0));
+        descAndLoc->push_back(description(descriptors1[i],locations1[i],SMALL));
     }
     for (int i=0; i< descriptors2.size(); i++)
     {
-        descAndLoc->push_back(make_tuple(descriptors2[i],locations2[i],1));
+        descAndLoc->push_back(description(descriptors2[i],locations2[i],MED));
     }
     for (int i=0; i< descriptors3.size(); i++)
     {
-        descAndLoc->push_back(make_tuple(descriptors3[i],locations3[i],2));
+        descAndLoc->push_back(description(descriptors3[i],locations3[i],LARGE));
     }
 
     Mat heat;
@@ -817,6 +835,27 @@ void EnhancedBoVW::filterDesc(vector<float> &unparsedDescriptors, vector<vector<
     }
 }
 
+vector< tuple<int,float> > EnhancedBoVW::quantizeSoft(const vector<float> &term, int t, int scale) const
+{
+    if (codebook != NULL)
+    {
+        return codebook->quantizeSoft(term,t);
+    }
+    else if(scale == SMALL && codebook_small!=NULL)
+    {
+        return codebook_small->quantizeSoft(term,t);
+    }
+    else if(scale == MED && codebook_med!=NULL)
+    {
+        return codebook_med->quantizeSoft(term,t);
+    }
+    else if(scale == LARGE && codebook_large!=NULL)
+    {
+        return codebook_large->quantizeSoft(term,t);
+    }
+    return vector< tuple<int,float> >();
+}
+
 Codebook* EnhancedBoVW::makeCodebook(string directory, int codebook_size)
 {
     vector< vector<float> > accum;
@@ -857,69 +896,15 @@ Codebook* EnhancedBoVW::makeCodebook(string directory, int codebook_size)
               for (auto t : *desc)
               {
                   //              assert(get<0>(t).size() > 0);
-                  if (get<0>(t).size() > 0)
-                      accum.push_back(get<0>(t));
+                  if (t.values.size() > 0)
+                      accum.push_back(t.values);
               }
           }
           
           delete desc;
       }
       
-      
-      
-      cout << "selecting random set" << endl;
-      cout << "really. accum is " << accum.size() << endl;
-      
-      Mat centriods;
-      TermCriteria crit(0,500,.9);
-//      Mat data(accum.size(),accum[0].size(),CV_32F);
-//      for (int r=0; r< accum.size(); r++)
-//          for (int c=0; c<accum[0].size(); c++)
-//              data.at<float>(r,c) = accum[r][c];
-      Mat data(codebook_size*100,accum[0].size(),CV_32F);
-      
-      
-      for (int count=0; count< codebook_size*100; count++)
-      {
-          int r=rand()%accum.size();
-          int orig=r;
-          while (accum[r].size()==0)
-          {
-              r = (1+r)%accum.size();
-              if (r==orig)
-              {
-                  cout << "ERROR: not enough descriptors" << endl;
-                  return NULL;
-              }
-          }
-          
-          
-          for (int c=0; c<accum[0].size(); c++)
-          {
-              assert(accum[r][c] >= 0);
-              data.at<float>(count,c) = accum[r][c];
-          }
-          accum[r].resize(0);
-      }
-      cout << "computing kmeans" << endl;
-      
-      Mat temp;
-//      Kmeans(data,codebook_size,temp,crit,10,KMEANS_RANDOM_CENTERS,&centriods);
-      kmeans(data,codebook_size,temp,crit,10,KMEANS_RANDOM_CENTERS,centriods);
-      
-       cout << "compiling codebook" << endl;
-      
-      codebook = new Codebook();
-      for (int r=0; r<centriods.rows; r++)
-      {
-          vector<double> toAdd;
-          for (int c=0; c<centriods.cols; c++)
-          {
-              assert(centriods.at<float>(r,c) >= 0);
-              toAdd.push_back(centriods.at<float>(r,c));
-          }
-          codebook->push_back(toAdd);
-      }
+      codebook = computeCodebookFromExamples(codebook_size,accum);
       
       return codebook;
     }
@@ -928,7 +913,139 @@ Codebook* EnhancedBoVW::makeCodebook(string directory, int codebook_size)
     return NULL;
 }
 
+void EnhancedBoVW::make3Codebooks(string directory, int codebook_size)
+{
+    vector< vector<float> > accum_small;
+    vector< vector<float> > accum_med;
+    vector< vector<float> > accum_large;
+    
+    
+    
+    DIR *dir;
+    struct dirent *ent;
+    if ((dir = opendir (directory.c_str())) != NULL)
+    {
+      cout << "training codebooks" << endl;
+      cout << "reading images and obtaining descriptors" << endl;
+      
+      vector<string> fileNames;
+      while ((ent = readdir (dir)) != NULL) {
+          string fileName(ent->d_name);
+          if (fileName[0] == '.' || (fileName[fileName.size()-1]!='G' && fileName[fileName.size()-1]!='g' &&  fileName[fileName.size()-1]!='f'))
+              continue;
+          fileNames.push_back(fileName);
+      }
+      //private(fileName,img,desc,t)
+      int loopCrit = min((int)5000,(int)fileNames.size());
+#pragma omp parallel for 
+      for (int nameIdx=0; nameIdx<loopCrit; nameIdx++)
+      {
+          
+          
+          string fileName=fileNames[nameIdx];
+          //cout << "examining " << fileName << endl;
+          
+          
+          
+          Mat img = imread(directory+fileName, CV_LOAD_IMAGE_GRAYSCALE);
+          
+          auto desc = getDescriptors(img);
+          
+#pragma omp critical
+          {
+              for (auto t : *desc)
+              {
+                  //              assert(get<0>(t).size() > 0);
+                  if (t.values.size() > 0)
+                  {
+                      if (t.scale==SMALL)
+                          accum_small.push_back(t.values);
+                      else if (t.scale==MED)
+                          accum_med.push_back(t.values);
+                      else if (t.scale==LARGE)
+                          accum_large.push_back(t.values);
+                      
+                  }
+              }
+          }
+          
+          delete desc;
+      }
 
+#pragma omp parallel num_threads(3)
+{      
+      int id = omp_get_thread_num();
+      if (id==0)
+          codebook_small = computeCodebookFromExamples(codebook_size,accum_small);
+      else if (id==1)
+          codebook_med = computeCodebookFromExamples(codebook_size,accum_med);
+      else if (id==2)
+          codebook_large = computeCodebookFromExamples(codebook_size,accum_large);
+}      
+    }
+    else
+        cout << "Error, could not load files for codebooks." << endl;
+}
+
+Codebook* EnhancedBoVW::computeCodebookFromExamples(int codebook_size,vector< vector<float> >& accum)
+{
+    Mat centriods;
+    TermCriteria crit(0,500,.9);
+    //      Mat data(accum.size(),accum[0].size(),CV_32F);
+    //      for (int r=0; r< accum.size(); r++)
+    //          for (int c=0; c<accum[0].size(); c++)
+    //              data.at<float>(r,c) = accum[r][c];
+    Mat data(codebook_size*300,accum[0].size(),CV_32F);
+    Codebook* codebook;
+    
+    cout << "selecting random set" << endl;
+    cout << "really. accum is " << accum.size() << endl;
+    for (int count=0; count< codebook_size*300; count++)
+    {
+        int r=rand()%accum.size();
+        int orig=r;
+        while (accum[r].size()==0)
+        {
+            r = (1+r)%accum.size();
+            if (r==orig)
+            {
+                cout << "ERROR: not enough descriptors" << endl;
+                return NULL;
+            }
+        }
+        
+        
+        for (int c=0; c<accum[0].size(); c++)
+        {
+            assert(accum[r][c] >= 0);
+            data.at<float>(count,c) = accum[r][c];
+        }
+        accum[r].resize(0);
+    }
+    cout << "computing kmeans" << endl;
+    
+    Mat temp;
+    //      Kmeans(data,codebook_size,temp,crit,10,KMEANS_RANDOM_CENTERS,&centriods);
+    kmeans(data,codebook_size,temp,crit,10,KMEANS_RANDOM_CENTERS,centriods);
+    
+    cout << "compiling codebook" << endl;
+    
+    codebook = new Codebook();
+    for (int r=0; r<centriods.rows; r++)
+    {
+        vector<double> toAdd;
+        for (int c=0; c<centriods.cols; c++)
+        {
+            assert(centriods.at<float>(r,c) >= 0);
+            toAdd.push_back(centriods.at<float>(r,c));
+        }
+        codebook->push_back(toAdd);
+    }
+    
+    return codebook;
+  
+  
+}
 
 vector<float>* EnhancedBoVW::getPooledDescFastSkip(vector< vector< Mat/*< float >*/ > >* samplesIntegralImage, Rect window, vector<Vec2i> spatialPyramids, int skip, int level) const
 {
@@ -1097,16 +1214,16 @@ void EnhancedBoVW::unittests()
     vector<float> class2 = {0,0,1};
     Mat img(3,3,CV_8U);
     
-    vector< tuple< vector<float>, Point2i, int > >* desc = new vector< tuple< vector<float>, Point2i, int > >();
-    desc->push_back(make_tuple(class0,Point2i(0,0),0));
-    desc->push_back(make_tuple(class0,Point2i(1,0),0));
-    desc->push_back(make_tuple(class0,Point2i(2,0),0));
-    desc->push_back(make_tuple(class1,Point2i(0,1),0));
-    desc->push_back(make_tuple(class1,Point2i(1,1),0));
-    desc->push_back(make_tuple(class1,Point2i(2,1),0));
-    desc->push_back(make_tuple(class2,Point2i(0,2),0));
-    desc->push_back(make_tuple(class2,Point2i(1,2),0));
-    desc->push_back(make_tuple(class2,Point2i(2,2),0));
+    vector< description >* desc = new vector< description >();
+    desc->push_back(description(class0,Point2i(0,0),0));
+    desc->push_back(description(class0,Point2i(1,0),0));
+    desc->push_back(description(class0,Point2i(2,0),0));
+    desc->push_back(description(class1,Point2i(0,1),0));
+    desc->push_back(description(class1,Point2i(1,1),0));
+    desc->push_back(description(class1,Point2i(2,1),0));
+    desc->push_back(description(class2,Point2i(0,2),0));
+    desc->push_back(description(class2,Point2i(1,2),0));
+    desc->push_back(description(class2,Point2i(2,2),0));
     
     
     vector< vector< Mat/*< float >*/ > >* descII = codeDescriptorsIntegralImageSkip( desc, img.size, 1);
@@ -1133,26 +1250,26 @@ void EnhancedBoVW::unittests()
     pooled = getPooledDescFastSkip(descII, Rect(0,1,2,2), spatialPyramids, 1);
     assert((*pooled)[0]==0 && (*pooled)[1]==2 && (*pooled)[2]==2);
     
-    desc = new vector< tuple< vector<float>, Point2i, int > >();
-    desc->push_back(make_tuple(class0,Point2i(0,0),0));
-    desc->push_back(make_tuple(class0,Point2i(1,0),0));
-    desc->push_back(make_tuple(class0,Point2i(2,0),0));
-    desc->push_back(make_tuple(class1,Point2i(0,1),0));
-    desc->push_back(make_tuple(class1,Point2i(1,1),0));
-    desc->push_back(make_tuple(class1,Point2i(2,1),0));
-    desc->push_back(make_tuple(class2,Point2i(0,2),0));
-    desc->push_back(make_tuple(class2,Point2i(1,2),0));
-    desc->push_back(make_tuple(class2,Point2i(2,2),0));
+    desc = new vector< description >();
+    desc->push_back(description(class0,Point2i(0,0),0));
+    desc->push_back(description(class0,Point2i(1,0),0));
+    desc->push_back(description(class0,Point2i(2,0),0));
+    desc->push_back(description(class1,Point2i(0,1),0));
+    desc->push_back(description(class1,Point2i(1,1),0));
+    desc->push_back(description(class1,Point2i(2,1),0));
+    desc->push_back(description(class2,Point2i(0,2),0));
+    desc->push_back(description(class2,Point2i(1,2),0));
+    desc->push_back(description(class2,Point2i(2,2),0));
     
-    desc->push_back(make_tuple(class0,Point2i(0,0),1));
-    desc->push_back(make_tuple(class0,Point2i(1,0),1));
-    desc->push_back(make_tuple(class0,Point2i(2,0),1));
-    desc->push_back(make_tuple(class1,Point2i(0,1),1));
-    desc->push_back(make_tuple(class1,Point2i(1,1),1));
-    desc->push_back(make_tuple(class1,Point2i(2,1),1));
-    desc->push_back(make_tuple(class2,Point2i(0,2),1));
-    desc->push_back(make_tuple(class2,Point2i(1,2),1));
-    desc->push_back(make_tuple(class2,Point2i(2,2),1));
+    desc->push_back(description(class0,Point2i(0,0),1));
+    desc->push_back(description(class0,Point2i(1,0),1));
+    desc->push_back(description(class0,Point2i(2,0),1));
+    desc->push_back(description(class1,Point2i(0,1),1));
+    desc->push_back(description(class1,Point2i(1,1),1));
+    desc->push_back(description(class1,Point2i(2,1),1));
+    desc->push_back(description(class2,Point2i(0,2),1));
+    desc->push_back(description(class2,Point2i(1,2),1));
+    desc->push_back(description(class2,Point2i(2,2),1));
     
     
     descII = codeDescriptorsIntegralImageSkip( desc, img.size, 1);
@@ -1200,24 +1317,24 @@ void EnhancedBoVW::unittests()
     */
     Mat img2(4,4,CV_8U);
     
-    desc = new vector< tuple< vector<float>, Point2i, int > >();
-    desc->push_back(make_tuple(class0,Point2i(0,0),0));
-    desc->push_back(make_tuple(class0,Point2i(1,0),0));
-    desc->push_back(make_tuple(class0,Point2i(2,0),0));
-    desc->push_back(make_tuple(class0,Point2i(3,0),0));
-    desc->push_back(make_tuple(class1,Point2i(0,1),0));
-    desc->push_back(make_tuple(class1,Point2i(1,1),0));
-    desc->push_back(make_tuple(class1,Point2i(2,1),0));
-    desc->push_back(make_tuple(class1,Point2i(3,1),0));
-    desc->push_back(make_tuple(class2,Point2i(0,2),0));
-    desc->push_back(make_tuple(class2,Point2i(1,2),0));
-    desc->push_back(make_tuple(class2,Point2i(2,2),0));
-    desc->push_back(make_tuple(class2,Point2i(3,2),0));
+    desc = new vector< description >();
+    desc->push_back(description(class0,Point2i(0,0),0));
+    desc->push_back(description(class0,Point2i(1,0),0));
+    desc->push_back(description(class0,Point2i(2,0),0));
+    desc->push_back(description(class0,Point2i(3,0),0));
+    desc->push_back(description(class1,Point2i(0,1),0));
+    desc->push_back(description(class1,Point2i(1,1),0));
+    desc->push_back(description(class1,Point2i(2,1),0));
+    desc->push_back(description(class1,Point2i(3,1),0));
+    desc->push_back(description(class2,Point2i(0,2),0));
+    desc->push_back(description(class2,Point2i(1,2),0));
+    desc->push_back(description(class2,Point2i(2,2),0));
+    desc->push_back(description(class2,Point2i(3,2),0));
     
-    desc->push_back(make_tuple(class0,Point2i(0,3),0));
-    desc->push_back(make_tuple(class1,Point2i(1,3),0));
-    desc->push_back(make_tuple(class2,Point2i(2,3),0));
-    desc->push_back(make_tuple(class2,Point2i(3,3),0));
+    desc->push_back(description(class0,Point2i(0,3),0));
+    desc->push_back(description(class1,Point2i(1,3),0));
+    desc->push_back(description(class2,Point2i(2,3),0));
+    desc->push_back(description(class2,Point2i(3,3),0));
     descII = codeDescriptorsIntegralImageSkip( desc, img2.size, 2);
     assert(descII->size()==2);
     assert((*descII)[0][0].at<float>(0,0)==2 && (*descII)[0][0].at<float>(1,0)==2 && (*descII)[0][0].at<float>(2,0)==0);
@@ -1244,25 +1361,25 @@ void EnhancedBoVW::unittests()
     
     
     Mat testimg = (Mat_<unsigned char>(20,20)<< 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0,
-                                             0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0,
-                                             0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0,
-                                             0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                             0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                             1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
-                                             1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0,
-                                             1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0,
-                                             1, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0,
-                                             1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0,
-                                             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0,
-                                             0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0,
-                                             0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1,
-                                             0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1,
-                                             0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0,
-                                             0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0,
-                                             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0,
-                                             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0,
-                                             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1);
+                                                0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0,
+                                                0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0,
+                                                0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                                0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                                1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
+                                                1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0,
+                                                1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0,
+                                                1, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0,
+                                                1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0,
+                                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0,
+                                                0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0,
+                                                0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1,
+                                                0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1,
+                                                0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0,
+                                                0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0,
+                                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0,
+                                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0,
+                                                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1);
     
     
     for (int x=0; x<img2.cols; x++)
@@ -1285,10 +1402,10 @@ void EnhancedBoVW::unittests()
     int testsDone=0;
     for (int i=0; i<samplesUncoded->size(); i++)
     {
-        if (get<2>(samplesUncoded->at(i))==0)
+        if ((samplesUncoded->at(i).scale)==SMALL)
         {
-            Point loc = get<1>(samplesUncoded->at(i));
-            vector<float> desc = get<0>(samplesUncoded->at(i));
+            Point loc = (samplesUncoded->at(i).position);
+            vector<float> desc = (samplesUncoded->at(i).values);
             if ((loc.x == 2 && loc.y == 2) || (loc.x == 8 && loc.y == 8) || (loc.x == 2 && loc.y == 14))
             {
                 assert(desc[0] > desc[1]);
@@ -1337,10 +1454,10 @@ void EnhancedBoVW::unittests()
                 testsDone++;
             }
         }
-        else if (get<2>(samplesUncoded->at(i))==1)
+        else if ((samplesUncoded->at(i).scale)==MED)
         {
-            Point loc = get<1>(samplesUncoded->at(i));
-            vector<float> desc = get<0>(samplesUncoded->at(i));
+            Point loc = (samplesUncoded->at(i).position);
+            vector<float> desc = (samplesUncoded->at(i).values);
             if ((loc.x == 6 && loc.y == 6))
             {
                 assert(desc[0] > desc[1]);
