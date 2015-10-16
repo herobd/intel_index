@@ -33,6 +33,8 @@ public:
     void print();
     static bool twentythree;
     
+    vector<double> getEx(int ex){return codebook[ex];}
+    
 private:
     vector< vector<double> > codebook;
     vector<double> inverseDocFreq;

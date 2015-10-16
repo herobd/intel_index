@@ -1068,24 +1068,12 @@ void EnhancedBoVWTests::experiment_Aldavert_dist_batched(EnhancedBoVW &bovw, str
 void EnhancedBoVWTests::experiment_Aldavert_dist_batched_test(int scenario)
 {
     int numNodes=1;
-    //MPI_Comm_size (MPI_COMM_WORLD,&numNodes);
     int iproc=0;
-    //MPI_Comm_rank (MPI_COMM_WORLD,&iproc);
-    
-    
-    //string locationCSVPath="data/IAM/bigramLocations_Almazan.csv";
-    //string exemplarDirPath="data/IAM/Almazan_bigrams/";
+
     try{
-//    regex imageNameNumExtract("(?:wordimg_)(\d+)");
     regex imageNameNumExtract("\\d+");
 
-//    string imageNameFormat="wordimg_%d.png";
-    //string exemplarNameFormat="%s%03d.png";
-    //string dataDirPath = "data/IAM/Almazan_words/";
     int dataSize=40;
-//    int dataSize=13752;
-//    int numExemplarsPer=10;
-//    int numExemplarsPer=5;
     
     map<string,vector<int> > locations;
     for (int i=0; i<10; i++)
@@ -1113,37 +1101,27 @@ void EnhancedBoVWTests::experiment_Aldavert_dist_batched_test(int scenario)
     if (iproc+1 == numNodes)
         myend = locations.size();   
 
-    cout << "["<<iproc<<"] is going from "<<mybegin<<" to "<<myend<<endl; 
+    //cout << "["<<iproc<<"] is going from "<<mybegin<<" to "<<myend<<endl; 
     
     auto iter = locations.begin();
     for (int i=0; i<mybegin; i++)
         iter++;
     
-//    for (const auto &wordTextLocPair : locations)
     for (int i=mybegin; i<myend; i++, iter++)
     {
         const auto &wordTextLocPair = *(iter);
         
         const vector<int> &word_locations = locations[wordTextLocPair.first];
         
-//#pragma omp parallel for num_threads(2)
         if (word_locations.size()>9 && wordTextLocPair.first.size()>2)
         {
-        cout << "["<<iproc<<"] on word["<<i<<"]: " <<  wordTextLocPair.first << endl;
+        //cout << "["<<iproc<<"] on word["<<i<<"]: " <<  wordTextLocPair.first << endl;
         for (int exemplarIdx=0; exemplarIdx<word_locations.size(); exemplarIdx++)
         {
-//            double startEx = omp_get_wtime();//clock();
             vector<pair<int,double> >scores;
-            //scores.reserve(dataSize-1);
-
-//            std::string imagePath = dataDirPath + "wordimg_" + to_string(word_locations[exemplarIdx]) + fileExt;
-//            Mat exemplar = imread(imagePath);
-//            assert(exemplar.rows>0);
-//            vector<float>* exemplar_b = bovw.featurizeImage(exemplar);
             
             
             
-            #pragma omp parallel
             {
                 vector<pair<int,double> >myScores;//(dataSize);
                 
@@ -1154,11 +1132,7 @@ void EnhancedBoVWTests::experiment_Aldavert_dist_batched_test(int scenario)
                     //double startImg = clock();
                     if (imageIdx == word_locations[exemplarIdx])
                         continue;
-                    
-//                    std::string imagePath = dataDirPath + "wordimg_" + to_string(imageIdx) + fileExt;
-//                    Mat word = imread(imagePath);
-//                    assert(word.rows>0);
-//                    double score = bovw.compareImage(word,*exemplar_b);
+ 
                     double score;
                     if (scenario==0)
                     {
@@ -1238,23 +1212,11 @@ void EnhancedBoVWTests::experiment_Aldavert_dist_batched_test(int scenario)
                     
                     
                     myScores.push_back(pair<int,double>(imageIdx,score));
-//                    myScores[imageIdx-1] = (pair<int,double>(imageIdx,score));
-    
-                    //double endImg = clock();
-                    //double durImg = (endImg-startImg)/(double)CLOCKS_PER_SEC;
-                    //cout << " ex " << exemplarIdx << ",  image " << imageIdx << " took " << durImg << " seconds."<<endl;
                 }
                 
-                #pragma omp critical
                 scores.insert(scores.end(),myScores.begin(),myScores.end());
             }
-//            if (scores.size() != dataSize-1 && scores.size() != dataSize)
-//            {
-//                cout << "Error, scores size:" << scores.size() << ", dataSize:" << dataSize << endl;
-//                assert(false);
-//            }
             sort(scores.begin(),scores.end(),[](const pair<int,double> &l, const pair<int,double> &r)->bool {return l.second < r.second;});
-//            fullResults(strcat(ngram,num2str(exemplarIdx)))=scores;
             
 
                 
@@ -1278,7 +1240,6 @@ void EnhancedBoVWTests::experiment_Aldavert_dist_batched_test(int scenario)
             
             avgPrecision = avgPrecision/totalRelevent;
             
-//#pragma omp critical
             {
                 fullResults += wordTextLocPair.first+"_"+to_string(exemplarIdx+1) + "{" + to_string(scores[0].first);
                 for (int i=1; i<scores.size(); i++)
@@ -1291,46 +1252,176 @@ void EnhancedBoVWTests::experiment_Aldavert_dist_batched_test(int scenario)
                 mapCount++;
             }
             
-//            double endEx = omp_get_wtime();//clock();
-//            double durEx = (endEx-startEx);///(double)CLOCKS_PER_SEC;
-//            cout << "[" << iproc << "] exemplar " << exemplarIdx << " took " << durEx << " seconds."<<endl;
         }
         
-        cout << "finished word " << i << " with " << map-prevMap << " mAP" << endl;
+        //cout << "finished word " << i << " with " << map-prevMap << " mAP" << endl;
         prevMap=map;
         }
-//        break;
     }
     
     
-    /*if (iproc == 0)
-    {
-        MPI_Status stat;
-        for (int i=1; i<numNodes; i++)
-        {
-            double tmp;
-            int tmp2;
-            MPI_Recv(&tmp,1,MPI_DOUBLE,i,1,MPI_COMM_WORLD,&stat);
-            MPI_Recv(&tmp2,1,MPI_INT,i,2,MPI_COMM_WORLD,&stat);
-            map += tmp;
-            mapCount += tmp2;
-        }
-        
-        map = map/mapCount;
-        cout << "mAP: "<<map<<endl;
-    }
-    else
-    {
-        MPI_Request req;
-        MPI_Isend(&map,1,MPI_DOUBLE,0,1,MPI_COMM_WORLD,&req);
-        MPI_Send(&mapCount,1,MPI_INT,0,2,MPI_COMM_WORLD);
-    }*/
-    cout << "mAP " << map/mapCount << " mAP sum:"<<map<< " count:" << mapCount << endl;
-    //save("results"+iproc=".mat","fullResults","map","mapCount");
-    
+
+    //cout << "mAP " << map/mapCount << " mAP sum:"<<map<< " count:" << mapCount << endl;
+    if (scenario == 0)
+        assert(map/mapCount == 1.0);
+    else if (scenario == 1)
+        assert(map/mapCount >= 0.75);
+    else if (scenario == 2)
+        assert(map/mapCount > 0.75);
+    else if (scenario == 3)
+        assert(map/mapCount >= 0.5);
+    else if (scenario == 4)
+        assert(map/mapCount < 0.33);
     
     } catch (std::regex_error& e) {
         cout << "regex error:"<<e.code() << endl;
         return;
     }
+}
+
+
+void EnhancedBoVWTests::test(EnhancedBoVW& bovw)
+{
+    bovw.codebook = new Codebook();
+    bovw.codebook->readIn("/home/brian/intel_index/data/gw_20p_wannot/codebook_deslant.dat");
+    string locationCSVPath = "/home/brian/intel_index/data/gw_20p_wannot/C_wordLocations.csv";
+    string dataDirPath = "/home/brian/intel_index/data/gw_20p_wannot/deslant/";
+    string fileExt = ".png";
+    regex imageNameNumExtract("\\d+");
+    
+    map<string,vector<int> > locations;
+    
+    ifstream file;
+    file.open (locationCSVPath, ios::in);
+    assert(file.is_open());
+    
+    string wordText;
+    string fileList;
+
+    
+    while (getline(file,wordText))
+    {
+        getline(file,fileList);
+        
+        smatch sm;
+        while(regex_search(fileList,sm,imageNameNumExtract))
+        {
+            int idx = stoi(sm[0]);
+            locations[wordText].push_back(idx);
+            
+//            for (auto x:sm) std::cout << x << " ";
+//            std::cout << std::endl;
+            fileList = sm.suffix().str();
+        }
+    }
+    
+    
+    file.close();
+    
+    double map=0;
+    int mapCount=0;
+    
+    auto iter = locations.begin();
+    int count=5;
+    for (int i=0; count>0; i++, iter++)
+    {
+        const auto &wordTextLocPair = *(iter);
+        
+        const vector<int> &word_locations = locations[wordTextLocPair.first];
+        
+        if (word_locations.size()>9 && wordTextLocPair.first.size()>2)
+        {
+            count--;
+        //cout << "["<<iproc<<"] on word["<<i<<"]: " <<  wordTextLocPair.first << endl;
+        for (int exemplarIdx=0; exemplarIdx<std::min((int)5,(int)word_locations.size()); exemplarIdx++)
+        {
+            vector<pair<int,double> >scores;
+
+            std::string imagePath = dataDirPath + "wordimg_" + to_string(word_locations[exemplarIdx]) + fileExt;
+            Mat exemplar = imread(imagePath,CV_LOAD_IMAGE_GRAYSCALE);
+            assert(exemplar.rows>0);
+            vector<float>* exemplar_b = bovw.featurizeImage(exemplar);
+            
+            
+            
+            #pragma omp parallel
+            {
+                vector<pair<int,double> >myScores;//(dataSize);
+                
+
+                #pragma omp for nowait //schedule(dynamic,200)
+                for (int imageIdx=1; imageIdx<=100; imageIdx++)
+                {
+                    //double startImg = clock();
+                    if (imageIdx == word_locations[exemplarIdx])
+                        continue;
+                    
+                    std::string imagePath = dataDirPath + "wordimg_" + to_string(imageIdx) + fileExt;
+                    Mat word = imread(imagePath,CV_LOAD_IMAGE_GRAYSCALE);
+                    assert(word.rows>0);
+                    double score = bovw.compareImage(word,*exemplar_b);
+                    
+                    
+                    myScores.push_back(pair<int,double>(imageIdx,score));
+//                    myScores[imageIdx-1] = (pair<int,double>(imageIdx,score));
+    
+                    //double endImg = clock();
+                    //double durImg = (endImg-startImg)/(double)CLOCKS_PER_SEC;
+                    //cout << " ex " << exemplarIdx << ",  image " << imageIdx << " took " << durImg << " seconds."<<endl;
+                }
+                
+                #pragma omp critical
+                scores.insert(scores.end(),myScores.begin(),myScores.end());
+            }
+            delete exemplar_b;
+//            if (scores.size() != dataSize-1 && scores.size() != dataSize)
+//            {
+//                cout << "Error, scores size:" << scores.size() << ", dataSize:" << dataSize << endl;
+//                assert(false);
+//            }
+            sort(scores.begin(),scores.end(),[](const pair<int,double> &l, const pair<int,double> &r)->bool {return l.second < r.second;});
+//            fullResults(strcat(ngram,num2str(exemplarIdx)))=scores;
+            
+
+                
+            
+            //compute average precision
+            int foundRelevent = 0;
+            double avgPrecision = 0.0;
+            int totalRelevent=word_locations.size()-1;
+            
+            for (int top=0; top<scores.size(); top++)
+            {
+                int ii = scores[top].first;
+                if (top==0)
+                {
+                    //cout << "top match is " << ii << endl;
+                }
+                if (find(word_locations.begin(),word_locations.end(),ii)!=word_locations.end())
+                {
+                    foundRelevent++;
+                    double precision = foundRelevent/(double)(top+1);
+                    avgPrecision += precision;
+                }
+            }
+            
+            avgPrecision = avgPrecision/totalRelevent;
+            
+//#pragma omp critical
+            {
+                cout << "average precision = "<<avgPrecision <<endl;
+                map += avgPrecision;
+                mapCount++;
+            }
+            
+//            double endEx = omp_get_wtime();//clock();
+//            double durEx = (endEx-startEx);///(double)CLOCKS_PER_SEC;
+//            cout << "[" << iproc << "] exemplar " << exemplarIdx << " took " << durEx << " seconds."<<endl;
+        }
+        
+        }
+        
+//        break;
+    }
+    cout << "mAP = " << map/mapCount << endl;
 }

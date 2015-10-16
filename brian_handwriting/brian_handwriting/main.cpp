@@ -147,6 +147,9 @@ int main( int argc, char** argv )
         
         for (int s=0; s<5; s++)
             EnhancedBoVWTests::experiment_Aldavert_dist_batched_test(s);
+        
+        
+        //EnhancedBoVWTests::test(bovw);
     }
     else if (option.compare("bovwscore")==0)
     {
@@ -186,6 +189,7 @@ int main( int argc, char** argv )
         
         bovw.codebook = new Codebook();
         bovw.codebook->readIn(codebookLoc);
+//        bovw.readCodebooks(codebookLoc);
         
         Mat find = imread(argv[3], CV_LOAD_IMAGE_GRAYSCALE);
         vector<float>* find_b = bovw.featurizeImage(find);
@@ -236,6 +240,15 @@ int main( int argc, char** argv )
         Codebook *cb = bovw.makeCodebook(imgDir);
         cb->save(codebookLoc);
     }
+    else if (option.compare("train_short_codebook")==0)
+    {
+            
+        string imgDir = argv[2];
+        string codebookLoc = argv[3];
+        EnhancedBoVW bovw;
+        Codebook *cb = bovw.makeCodebook(imgDir,200);
+        cb->save(codebookLoc);
+    }
     else if (option.compare("train_codebooks")==0)
     {
             
@@ -245,6 +258,24 @@ int main( int argc, char** argv )
         bovw.make3Codebooks(imgDir);
         bovw.writeCodebooks(codebookLoc);
     }
+    else if (option.compare("examine_codebook")==0)
+    {
+            
+        string codebookLoc = argv[2];
+        int ex1 = atoi(argv[3]);
+        int ex2 = atoi(argv[4]);
+        int ex3 = atoi(argv[5]);
+        Codebook cb;
+        cb.readIn(codebookLoc);
+        vector<double> hog1 = cb.getEx(ex1-cb.size());
+        vector<double> hog2 = cb.getEx(ex2-cb.size());
+        vector<double> hog3 = cb.getEx(ex3-cb.size());
+        
+        for (int i=0; i<cb.depth(); i++)
+        {
+            cout << hog1[i] << "\t" << hog2[i] << "\t" << hog3[i] << endl;
+        }
+    }
     else if (option.compare("train_codebook_simple")==0)
     {
             
@@ -253,7 +284,7 @@ int main( int argc, char** argv )
         EnhancedBoVW bovw(simpleSpatialPyramids,3500,3,6,8,10,2,2,2,2);
         Codebook *cb = bovw.makeCodebook(imgDir,160);
         cb->save(codebookLoc);
-        cb->print();
+        //cb->print();
     }
     else if (option.compare("train_codebooks_simple")==0)
     {
@@ -269,9 +300,9 @@ int main( int argc, char** argv )
         EnhancedBoVW bovw(simpleSpatialPyramids,3500,3,6,8,10,2,2,2,2);
         
         string codebookLoc = simple_corpus + "codebook.csv";
-        bovw.readCodebooks(codebookLoc);  
-//        bovw.codebook = new Codebook();
-//        bovw.codebook->readIn(codebookLoc);
+//        bovw.readCodebooks(codebookLoc);  
+        bovw.codebook = new Codebook();
+        bovw.codebook->readIn(codebookLoc);
         
         
         string f = argv[2];
@@ -288,9 +319,9 @@ int main( int argc, char** argv )
         EnhancedBoVW bovw(spatialPyramids,3500,3,6,8,10,2,2,2,2);
             
         string codebookLoc = simple_corpus + "codebook.csv";
-        bovw.readCodebooks(codebookLoc);
-//        bovw.codebook = new Codebook();
-//        bovw.codebook->readIn(codebookLoc);
+//        bovw.readCodebooks(codebookLoc);
+        bovw.codebook = new Codebook();
+        bovw.codebook->readIn(codebookLoc);
         
         
         string f = argv[2];
@@ -340,9 +371,9 @@ int main( int argc, char** argv )
         EnhancedBoVW bovw(simpleSpatialPyramids,3500,3,6,8,10,2,2,2,2);
         
         string codebookLoc = simple_corpus + "codebook.csv";
-        bovw.readCodebooks(codebookLoc);
-//        bovw.codebook = new Codebook();
-//        bovw.codebook->readIn(codebookLoc);
+//        bovw.readCodebooks(codebookLoc);
+        bovw.codebook = new Codebook();
+        bovw.codebook->readIn(codebookLoc);
         
         EnhancedBoVWTests::experiment_Aldavert_dist_batched(bovw,
                                                             simple_corpus + "wordLocations.csv",
@@ -362,9 +393,9 @@ int main( int argc, char** argv )
         EnhancedBoVW bovw(simpleSpatialPyramids,3500,3,6,8,10,2,2,2,2);
             
         string codebookLoc = simple_corpus + "codebook.csv";
-        bovw.readCodebooks(codebookLoc);
-//        bovw.codebook = new Codebook();
-//        bovw.codebook->readIn(codebookLoc);
+//        bovw.readCodebooks(codebookLoc);
+        bovw.codebook = new Codebook();
+        bovw.codebook->readIn(codebookLoc);
         
         Vec3b class0(255,255,255);
         Vec3b class1(255,0,0);
@@ -377,6 +408,7 @@ int main( int argc, char** argv )
         auto desc = bovw.getDescriptors(ex);
         
         auto codedImg= bovw.codeDescriptorsIntegralImageSkip(desc,ex.size,2);
+        return 1;
 //        Mat out(codedImg->at(0).size(), codedImg->size(), CV_8UC3);
 //        for (int y=0; y<codedImg->at(0).size(); y++)
 //            for (int x=0; x<codedImg->size(); x++)
@@ -545,12 +577,13 @@ int main( int argc, char** argv )
         for (int i=3*featureVector->size()/6; i<4*featureVector->size()/6; i++)
         {
             score2q += pow(featureVector->at(i)-featureVector2->at(i),2);
-            cout << featureVector->at(i) << "\t" << featureVector2->at(i) << endl;
+            //cout << featureVector->at(i) << "\t" << featureVector2->at(i) << endl;
         }
         float score3q=0;
         for (int i=4*featureVector->size()/6; i<5*featureVector->size()/6; i++)
         {
             score3q += pow(featureVector->at(i)-featureVector2->at(i),2);
+            cout << featureVector->at(i) << "\t" << featureVector2->at(i) << endl;
         }
         float score4q=0;
         for (int i=5*featureVector->size()/6; i<6*featureVector->size()/6; i++)

@@ -2,7 +2,7 @@
 
 #include <omp.h>
 //#include "opencv2/gpu/gpu.hpp"
-#include "kmeans_tbb.cpp"
+//#include "kmeans_tbb.cpp"
 
 #define SHOW_HEATMAP 0
 
@@ -341,6 +341,7 @@ float EnhancedBoVW::scanImageHorz(const Mat &img, const vector<float> &exemplar,
 
 float EnhancedBoVW::compareImage(const Mat &img, const vector<float> &exemplar) const
 {
+    assert(codebook != NULL);
     auto samplesUncoded = getDescriptors(img);
     auto samplesCodedII = codeDescriptorsIntegralImageSkip(samplesUncoded,img.size,skip);
     Rect r1(0, 0, img.cols, img.rows);
@@ -430,6 +431,9 @@ vector< vector< Mat/*< float >*/ > >* EnhancedBoVW::codeDescriptorsIntegralImage
             vector< tuple<int,float> > quan = quantizeSoft(iter->values,LLC_numOfNN,iter->scale);
             for (const auto &v : quan)
             {
+                if (get<0>(v)==267-codebook->size() && iter->scale==1)
+                    cout << "I'm adding " << get<1>(v) << endl;
+                
                 if (codebook != NULL)
                     (*ret)[0][y].at<float>(get<0>(v)+codebook->size()*(iter->scale),0) += get<1>(v);
                 else
@@ -461,6 +465,9 @@ vector< vector< Mat/*< float >*/ > >* EnhancedBoVW::codeDescriptorsIntegralImage
                 vector< tuple<int,float> > quan = quantizeSoft(iter->values,LLC_numOfNN,iter->scale);
                 for (const auto &v : quan)
                 {
+//                    if (get<0>(v)==267-codebook->size() && iter->scale==1)
+//                        cout << "I'm adding " << get<1>(v) << endl;
+                    
                     if (codebook != NULL)
                         (*ret)[x][y].at<float>(get<0>(v)+codebook->size()*iter->scale,0) += get<1>(v);
                     else
@@ -990,7 +997,7 @@ void EnhancedBoVW::make3Codebooks(string directory, int codebook_size)
 Codebook* EnhancedBoVW::computeCodebookFromExamples(int codebook_size,vector< vector<float> >& accum)
 {
     Mat centriods;
-    TermCriteria crit(0,500,.9);
+    TermCriteria crit(TermCriteria::COUNT + TermCriteria::EPS,500,.9);
     //      Mat data(accum.size(),accum[0].size(),CV_32F);
     //      for (int r=0; r< accum.size(); r++)
     //          for (int c=0; c<accum[0].size(); c++)
@@ -1027,6 +1034,7 @@ Codebook* EnhancedBoVW::computeCodebookFromExamples(int codebook_size,vector< ve
     Mat temp;
     //      Kmeans(data,codebook_size,temp,crit,10,KMEANS_RANDOM_CENTERS,&centriods);
     kmeans(data,codebook_size,temp,crit,10,KMEANS_RANDOM_CENTERS,centriods);
+    
     
     cout << "compiling codebook" << endl;
     

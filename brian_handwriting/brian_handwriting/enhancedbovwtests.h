@@ -13,6 +13,7 @@ public:
     static void experiment_Aldavert_dist_batched(EnhancedBoVW &bovw, string locationCSVPath, string dataDirPath, int dataSize, string fileExt, int batchNum, int numOfBatches, string outfile);
     
     static void experiment_Aldavert_dist_batched_test(int scenario);
+    static void test(EnhancedBoVW& bovw);
 };
 
 
