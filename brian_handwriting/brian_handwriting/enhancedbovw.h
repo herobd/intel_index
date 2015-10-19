@@ -12,6 +12,11 @@
 #include "hog.h"
 #include <tuple>
 
+#define NO_LLC 1
+#define NO_SP_PY 1
+#define NO_POW_NORM 1
+
+
 #define P_PARAMS 1
 #define CONCAT 1
 
@@ -42,7 +47,11 @@ public:
     Codebook* codebook_med;
     Codebook* codebook_large;
     
+#if !NO_LLC && !NO_SP_PY
     EnhancedBoVW(vector<Vec2i> spatialPyramids={Vec2i(3,2),Vec2i(9,2)}, int desc_thresh=3500, int LLC_numOfNN=3, int blockSize1=20, int blockSize2=30, int blockSize3=45, int blockStride=3, int hStride=8, int vStride=8, int skip=1);
+#else
+    EnhancedBoVW(vector<Vec2i> spatialPyramids={Vec2i(1,1)}, int desc_thresh=3500, int LLC_numOfNN=1, int blockSize1=20, int blockSize2=30, int blockSize3=45, int blockStride=3, int hStride=8, int vStride=8, int skip=1);
+#endif
     ~EnhancedBoVW(){if(codebook!=NULL) delete codebook;}
     void readCodebooks(string loc)
     {

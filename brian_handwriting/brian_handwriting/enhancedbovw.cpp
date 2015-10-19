@@ -1131,12 +1131,15 @@ vector<float>* EnhancedBoVW::getPooledDescFastSkip(vector< vector< Mat/*< float 
 
 void EnhancedBoVW::normalizeDesc(vector<float> *desc, float a) const
 {
+
     double norm=0;
     for (int i=0; i<desc->size(); i++)
     {
         float val = (*desc)[i];
+#if !NO_POW_NORM
         val = copysign(val,1) * pow(fabs(val),a);
         (*desc)[i] = val;
+#endif
         norm += val*val;
     }
     norm = sqrt(norm);

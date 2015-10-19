@@ -231,6 +231,24 @@ int main( int argc, char** argv )
         
         EnhancedBoVWTests::experiment_Aldavert_dist_batched(bovw,string(argv[3]),string(argv[4]),atoi(argv[5]), string(argv[6]),atoi(argv[7]),atoi(argv[8]),string(argv[9]));
     }
+    else if (option.compare("experiment_Aldavert_dist_batched_short")==0)
+    {
+        EnhancedBoVW bovw;
+        
+        string codebookLoc = "/home/brian/intel_index/data/gw_20p_wannot/codebook_deslant.dat";
+//        bovw.readCodebooks(codebookLoc);
+        bovw.codebook = new Codebook();
+        bovw.codebook->readIn(codebookLoc);
+        
+        EnhancedBoVWTests::experiment_Aldavert_dist_batched(bovw,
+                                                            "/home/brian/intel_index/data/gw_20p_wannot/C_wordLocations.csv",
+                                                            "/home/brian/intel_index/data/gw_20p_wannot/deslant/",
+                                                            4860,
+                                                            ".png",
+                                                            0,
+                                                            150,
+                                                            "simpleOut.out");
+    }
     else if (option.compare("train_codebook")==0)
     {
             

@@ -220,7 +220,7 @@ vector< tuple<int,float> > Codebook::quantizeSoft(const vector<float> &term, int
 //    //if (norm==0) norm=1;
 //    for (int j=0; j<t; j++)
 //    {
-//        ret.push_back(make_tuple(get<0>(q[j]),abs(a.at<double>(j,0)/norm)));
+//        ret.push_back(make_tuple(get<0>(q[j]),(a.at<double>(j,0)/norm)));
 //    }
     
     //from http://cyberzhg.github.io/blog/Computer-Vision/Locality-Constrained-Linear-Coding/
@@ -238,11 +238,9 @@ vector< tuple<int,float> > Codebook::quantizeSoft(const vector<float> &term, int
     
     cv::Mat z = B-cv::repeat(x,t,1);
     cv::Mat C = z*z.t();
-//    C = (C + (0.0001*cv::Mat::eye(t,t,CV_64F) * cv::trace(C))).inv() * cv::Mat::ones(t,1,CV_64F);
     double trace=cv::trace(C)[0];
     C = (C + (0.0001*trace*cv::Mat::eye(t,t,CV_64F))).inv() * cv::Mat::ones(t,1,CV_64F);
     double norm = cv::norm(cv::Mat::ones(1,t,CV_64F)*C);
-    //C = C / norm;
     for (int j=0; j<t; j++)
     {
         ret.push_back(make_tuple(get<0>(q[j]),(C.at<double>(j,0)/norm)));
@@ -266,6 +264,7 @@ vector< tuple<int,float> > Codebook::quantizeSoft(const vector<float> &term, int
     for (const auto &v : ret)
     {
         sumtest+=get<1>(v);
+        assert (fabs(get<1>(v))<6);
 //        if (get<1>(v)<0)
 //        {
 //            //cout << "neg val " << get<1>(v) << endl;
