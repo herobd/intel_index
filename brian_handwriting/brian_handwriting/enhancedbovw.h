@@ -12,9 +12,9 @@
 #include "hog.h"
 #include <tuple>
 
-#define NO_LLC 1
-#define NO_SP_PY 1
-#define NO_POW_NORM 1
+//#define NO_LLC 1
+//#define NO_SP_PY 1
+//#define NO_POW_NORM 1
 
 
 #define P_PARAMS 1
@@ -90,6 +90,7 @@ public:
     
     void showEncoding(const Mat &img) const;
     void printDescThreshContours(const Mat &img, int desc_thresh=3500) const;
+    void setLLC(int llc) {LLC_numOfNN=llc;}
     
 private:
     double desc_thresh;
