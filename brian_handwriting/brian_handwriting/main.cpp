@@ -253,6 +253,17 @@ int main( int argc, char** argv )
         
         EnhancedBoVWTests::experiment_Aldavert_dist_batched(bovw,string(argv[3]),string(argv[4]),atoi(argv[5]), string(argv[6]),atoi(argv[7]),atoi(argv[8]),string(argv[9]));
     }
+    else if (option.compare("experiment_Aldavert_dist_batched_LLC")==0)
+    {
+        EnhancedBoVW bovw;
+        bovw.setLLC(atoi(argv[2]));
+            
+        string codebookLoc = argv[3];
+        bovw.codebook = new Codebook();
+        bovw.codebook->readIn(codebookLoc);
+        
+        EnhancedBoVWTests::experiment_Aldavert_dist_batched(bovw,string(argv[4]),string(argv[5]),atoi(argv[6]), string(argv[7]),atoi(argv[8]),atoi(argv[9]),string(argv[10]));
+    }
     else if (option.compare("experiment_Aldavert_dist_batched_short")==0)
     {
         EnhancedBoVW bovw;
@@ -409,6 +420,24 @@ int main( int argc, char** argv )
     else if (option.compare("experiment_Aldavert_dist_batched_simple")==0)
     {
         EnhancedBoVW bovw(simpleSpatialPyramids,3500,simple_LLC,6,8,10,2,2,2,2);
+        
+        string codebookLoc = simple_corpus + "codebook.csv";
+//        bovw.readCodebooks(codebookLoc);
+        bovw.codebook = new Codebook();
+        bovw.codebook->readIn(codebookLoc);
+        
+        EnhancedBoVWTests::experiment_Aldavert_dist_batched(bovw,
+                                                            simple_corpus + "wordLocations.csv",
+                                                            simple_corpus + "words/",
+                                                            144,
+                                                            ".png",
+                                                            0,
+                                                            1,
+                                                            "simpleOut.out");
+    }
+    else if (option.compare("experiment_Aldavert_dist_batched_simple_LLC")==0)
+    {
+        EnhancedBoVW bovw(simpleSpatialPyramids,3500,atoi(argv[2]),6,8,10,2,2,2,2);
         
         string codebookLoc = simple_corpus + "codebook.csv";
 //        bovw.readCodebooks(codebookLoc);
