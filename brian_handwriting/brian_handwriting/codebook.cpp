@@ -222,40 +222,51 @@ vector< tuple<int,float> > Codebook::quantizeSoft(const vector<float> &term, int
 //    {
 //        ret.push_back(make_tuple(get<0>(q[j]),(a.at<double>(j,0)/norm)));
 //    }
-    
-    //from http://cyberzhg.github.io/blog/Computer-Vision/Locality-Constrained-Linear-Coding/
-    cv::Mat B(t,term.size(),CV_64F);
-    cv::Mat x(1,term.size(),CV_64F);
-    for (int i=0; i<term.size(); i++)
-    {
-        x.at<double>(0,i)=term[i];
-        for (int j=0; j<t; j++)
-        {
-            B.at<double>(j,i) = codebook[get<0>(q[j])][i];
-        }
-    }
+
     
     
-    cv::Mat z = B-cv::repeat(x,t,1);
-    cv::Mat C = z*z.t();
-    double trace=cv::trace(C)[0];
-    C = (C + (0.0001*trace*cv::Mat::eye(t,t,CV_64F))).inv() * cv::Mat::ones(t,1,CV_64F);
-    double norm = cv::norm(cv::Mat::ones(1,t,CV_64F)*C);
+//    //from http://cyberzhg.github.io/blog/Computer-Vision/Locality-Constrained-Linear-Coding/
+//    cv::Mat B(t,term.size(),CV_64F);
+//    cv::Mat x(1,term.size(),CV_64F);
+//    for (int i=0; i<term.size(); i++)
+//    {
+//        x.at<double>(0,i)=term[i];
+//        for (int j=0; j<t; j++)
+//        {
+//            B.at<double>(j,i) = codebook[get<0>(q[j])][i];
+//        }
+//    }
+    
+    
+//    cv::Mat z = B-cv::repeat(x,t,1);
+//    cv::Mat C = z*z.t();
+//    double trace=cv::trace(C)[0];
+//    C = (C + (0.0001*trace*cv::Mat::eye(t,t,CV_64F))).inv() * cv::Mat::ones(t,1,CV_64F);
+//    ///Ignore negative values? Improves simple by 5 (w/o power norm)
+//    for (int j=0; j<t; j++)
+//    {
+//        if (C.at<double>(j,0)<0)
+//            C.at<double>(j,0)=0;
+//    }
+//    //////////////////////////
+//    double norm = cv::norm(cv::Mat::ones(1,t,CV_64F)*C);
+//    for (int j=0; j<t; j++)
+//    {
+//        ret.push_back(make_tuple(get<0>(q[j]),(C.at<double>(j,0)/norm)));
+//    }
+    
+    
+    
+    //Hack workaround. Improves above by 10 on simple
+    float total=0;
     for (int j=0; j<t; j++)
     {
-        ret.push_back(make_tuple(get<0>(q[j]),(C.at<double>(j,0)/norm)));
+        total += get<1>(q[j]);
     }
-    
-//    //Hack workaround.
-//    float total=0;
-//    for (int j=0; j<t; j++)
-//    {
-//        total += get<1>(q[j]);
-//    }
-//    for (int j=0; j<t; j++)
-//    {
-//        ret.push_back(make_tuple(get<0>(q[j]),get<1>(q[j])/total));
-//    }
+    for (int j=0; j<t; j++)
+    {
+        ret.push_back(make_tuple(get<0>(q[j]),get<1>(q[j])/total));
+    }
     
     
 //    cout << "best " << best << ", min " << min << endl;
@@ -264,7 +275,7 @@ vector< tuple<int,float> > Codebook::quantizeSoft(const vector<float> &term, int
     for (const auto &v : ret)
     {
         sumtest+=get<1>(v);
-        assert (fabs(get<1>(v))<6);
+        //assert (fabs(get<1>(v))<6);
 //        if (get<1>(v)<0)
 //        {
 //            //cout << "neg val " << get<1>(v) << endl;

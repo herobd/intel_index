@@ -428,7 +428,7 @@ int main( int argc, char** argv )
     {
         string first = argv[2];
         string second = argv[3];
-        //vector<Vec2i> spatialPyramidsSingle={Vec2i(1,1)};
+        vector<Vec2i> spatialPyramidsSingle={Vec2i(1,1)};
         
         EnhancedBoVW bovw(simpleSpatialPyramids,3500,simple_LLC,6,8,10,2,2,2,2);
             
@@ -447,30 +447,30 @@ int main( int argc, char** argv )
         cout << "width=" << ex.cols << " height=" << ex.rows << endl;
         auto desc = bovw.getDescriptors(ex);
         
-        auto codedImg= bovw.codeDescriptorsIntegralImageSkip(desc,ex.size,2);
-        return 1;
-//        Mat out(codedImg->at(0).size(), codedImg->size(), CV_8UC3);
-//        for (int y=0; y<codedImg->at(0).size(); y++)
-//            for (int x=0; x<codedImg->size(); x++)
-//            {
-//                Rect win;
-//                win.x=x;
-//                win.y=y;
-//                win.width=1;
-//                win.height=1;
-//                vector<float>* featureVector = bovw.getPooledDescFastSkip(codedImg,win,spatialPyramidsSingle,1);
-//                int greatest=-1;
-//                int max=0;
-//                for (int i=0; i<featureVector->size(); i++)
-//                {
-//                    float f = featureVector->at(i);
-//                    if (f>max)
-//                    {
-//                        greatest=i;
-//                        max=f;
-//                    }
-//                }
-//                switch (greatest) {
+        auto codedImg= bovw.codeDescriptorsIntegralImageSkip(desc,ex.size,1);
+        
+        Mat out(codedImg->at(0).size(), codedImg->size(), CV_8UC3);
+        for (int y=0; y<codedImg->at(0).size(); y++)
+            for (int x=0; x<codedImg->size(); x++)
+            {
+                Rect win;
+                win.x=x;
+                win.y=y;
+                win.width=1;
+                win.height=1;
+                vector<float>* featureVector = bovw.getPooledDescFastSkip(codedImg,win,spatialPyramidsSingle,1);
+                int greatest=-1;
+                int max=0;
+                for (int i=0; i<featureVector->size(); i++)
+                {
+                    float f = featureVector->at(i);
+                    if (f>max)
+                    {
+                        greatest=i;
+                        max=f;
+                    }
+                }
+                switch (greatest) {
 //                case 0:
 //                    out.at<Vec3b>(y,x)=class0;
 //                    break;
@@ -507,42 +507,51 @@ int main( int argc, char** argv )
 //                case 11:
 //                    out.at<Vec3b>(y,x)=class3;
 //                    break;
-//                default:
-//                    out.at<Vec3b>(y,x)=none;
-//                    break;
-//                }
+                case 147:
+                    out.at<Vec3b>(y,x)=class1;
+                    break;
+                case 147+160:
+                    out.at<Vec3b>(y,x)=class2;
+                    break;
+                case 147+320:
+                    out.at<Vec3b>(y,x)=class3;
+                    break;
+                default:
+                    out.at<Vec3b>(y,x)=none;
+                    break;
+                }
                 
-//            }
-//        imshow("composed",out);
-//        waitKey(1);
+            }
+        imshow("composed",out);
+        waitKey(1);
         
         Mat ex2 = imread(simple_corpus + second, CV_LOAD_IMAGE_GRAYSCALE);
         cout << "width=" << ex2.cols << " height=" << ex2.rows << endl;
         auto desc2 = bovw.getDescriptors(ex2);
         
-        auto codedImg2= bovw.codeDescriptorsIntegralImageSkip(desc2,ex2.size,2);
-//        Mat out2(codedImg2->at(0).size(), codedImg2->size(), CV_8UC3);
-//        for (int y=0; y<codedImg2->at(0).size(); y++)
-//            for (int x=0; x<codedImg2->size(); x++)
-//            {
-//                Rect win;
-//                win.x=x;
-//                win.y=y;
-//                win.width=1;
-//                win.height=1;
-//                vector<float>* featureVector = bovw.getPooledDescFastSkip(codedImg2,win,spatialPyramidsSingle,1);
-//                int greatest=-1;
-//                int max=0;
-//                for (int i=0; i<featureVector->size(); i++)
-//                {
-//                    float f = featureVector->at(i);
-//                    if (f>max)
-//                    {
-//                        greatest=i;
-//                        max=f;
-//                    }
-//                }
-//                switch (greatest) {
+        auto codedImg2= bovw.codeDescriptorsIntegralImageSkip(desc2,ex2.size,1);
+        Mat out2(codedImg2->at(0).size(), codedImg2->size(), CV_8UC3);
+        for (int y=0; y<codedImg2->at(0).size(); y++)
+            for (int x=0; x<codedImg2->size(); x++)
+            {
+                Rect win;
+                win.x=x;
+                win.y=y;
+                win.width=1;
+                win.height=1;
+                vector<float>* featureVector = bovw.getPooledDescFastSkip(codedImg2,win,spatialPyramidsSingle,1);
+                int greatest=-1;
+                int max=0;
+                for (int i=0; i<featureVector->size(); i++)
+                {
+                    float f = featureVector->at(i);
+                    if (f>max)
+                    {
+                        greatest=i;
+                        max=f;
+                    }
+                }
+                switch (greatest) {
 //                case 0:
 //                    out2.at<Vec3b>(y,x)=class0;
 //                    break;
@@ -555,22 +564,31 @@ int main( int argc, char** argv )
 //                case 3:
 //                    out2.at<Vec3b>(y,x)=class3;
 //                    break;
-//                default:
-//                    out2.at<Vec3b>(y,x)=none;
-//                    break;
-//                }
+                case 147:
+                    out2.at<Vec3b>(y,x)=class1;
+                    break;
+                case 147+160:
+                    out2.at<Vec3b>(y,x)=class2;
+                    break;
+                case 147+320:
+                    out2.at<Vec3b>(y,x)=class3;
+                    break;
+                default:
+                    out2.at<Vec3b>(y,x)=none;
+                    break;
+                }
                 
-//            }
-//        imshow("composed2",out2);
-//        waitKey(1);
+            }
+        imshow("composed2",out2);
+        waitKey(1);
         
         vector<float>* exf = bovw.featurizeImage(ex);
         double score = bovw.compareImage(ex2,*exf);
         cout << "score  " << score << endl;
         
         
-        vector<float>* featureVector2 = bovw.getPooledDescFastSkip(codedImg2,Rect(0,0,ex2.cols,ex2.rows),simpleSpatialPyramids,2);
-        vector<float>* featureVector = bovw.getPooledDescFastSkip(codedImg,Rect(0,0,ex.cols,ex.rows),simpleSpatialPyramids,2);
+        vector<float>* featureVector2 = bovw.getPooledDescFastSkip(codedImg2,Rect(0,0,ex2.cols,ex2.rows),simpleSpatialPyramids,1);
+        vector<float>* featureVector = bovw.getPooledDescFastSkip(codedImg,Rect(0,0,ex.cols,ex.rows),simpleSpatialPyramids,1);
         bovw.normalizeDesc(featureVector2);
         bovw.normalizeDesc(featureVector);
         double score2=0;
@@ -623,7 +641,7 @@ int main( int argc, char** argv )
         for (int i=4*featureVector->size()/6; i<5*featureVector->size()/6; i++)
         {
             score3q += pow(featureVector->at(i)-featureVector2->at(i),2);
-            cout << featureVector->at(i) << "\t" << featureVector2->at(i) << endl;
+            //cout << featureVector->at(i) << "\t" << featureVector2->at(i) << endl;
         }
         float score4q=0;
         for (int i=5*featureVector->size()/6; i<6*featureVector->size()/6; i++)
@@ -635,7 +653,7 @@ int main( int argc, char** argv )
         
         
         
-        //waitKey();
+        waitKey();
     }
     else
     {
