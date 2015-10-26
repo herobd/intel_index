@@ -431,8 +431,8 @@ vector< vector< Mat/*< float >*/ > >* EnhancedBoVW::codeDescriptorsIntegralImage
             vector< tuple<int,float> > quan = quantizeSoft(iter->values,LLC_numOfNN,iter->scale);
             for (const auto &v : quan)
             {
-                if (get<0>(v)==267-codebook->size() && iter->scale==1)
-                    cout << "I'm adding " << get<1>(v) << endl;
+                //if (get<0>(v)==267-codebook->size() && iter->scale==1)
+                //    cout << "I'm adding " << get<1>(v) << endl;
                 
                 if (codebook != NULL)
                     (*ret)[0][y].at<float>(get<0>(v)+codebook->size()*(iter->scale),0) += get<1>(v);
@@ -910,8 +910,8 @@ Codebook* EnhancedBoVW::makeCodebook(string directory, int codebook_size)
           
           delete desc;
       }
-      
-      codebook = computeCodebookFromExamples(codebook_size,accum);
+      codebook = new Codebook();
+      codebook->trainFromExamples(codebook_size,accum);
       
       return codebook;
     }
@@ -978,82 +978,27 @@ void EnhancedBoVW::make3Codebooks(string directory, int codebook_size)
           
           delete desc;
       }
+      
+      codebook_small = new Codebook();
+      codebook_med = new Codebook();
+      codebook_large = new Codebook();
 
 #pragma omp parallel num_threads(3)
 {      
       int id = omp_get_thread_num();
       if (id==0)
-          codebook_small = computeCodebookFromExamples(codebook_size,accum_small);
+          codebook_small->trainFromExamples(codebook_size,accum_small);
       else if (id==1)
-          codebook_med = computeCodebookFromExamples(codebook_size,accum_med);
+          codebook_med->trainFromExamples(codebook_size,accum_med);
       else if (id==2)
-          codebook_large = computeCodebookFromExamples(codebook_size,accum_large);
+          codebook_large->trainFromExamples(codebook_size,accum_large);
 }      
     }
     else
         cout << "Error, could not load files for codebooks." << endl;
 }
 
-Codebook* EnhancedBoVW::computeCodebookFromExamples(int codebook_size,vector< vector<float> >& accum)
-{
-    Mat centriods;
-    TermCriteria crit(TermCriteria::COUNT + TermCriteria::EPS,500,.9);
-    //      Mat data(accum.size(),accum[0].size(),CV_32F);
-    //      for (int r=0; r< accum.size(); r++)
-    //          for (int c=0; c<accum[0].size(); c++)
-    //              data.at<float>(r,c) = accum[r][c];
-    Mat data(codebook_size*300,accum[0].size(),CV_32F);
-    Codebook* codebook;
-    
-    cout << "selecting random set" << endl;
-    cout << "really. accum is " << accum.size() << endl;
-    for (int count=0; count< codebook_size*300; count++)
-    {
-        int r=rand()%accum.size();
-        int orig=r;
-        while (accum[r].size()==0)
-        {
-            r = (1+r)%accum.size();
-            if (r==orig)
-            {
-                cout << "ERROR: not enough descriptors" << endl;
-                return NULL;
-            }
-        }
-        
-        
-        for (int c=0; c<accum[0].size(); c++)
-        {
-            assert(accum[r][c] >= 0);
-            data.at<float>(count,c) = accum[r][c];
-        }
-        accum[r].resize(0);
-    }
-    cout << "computing kmeans" << endl;
-    
-    Mat temp;
-    //      Kmeans(data,codebook_size,temp,crit,10,KMEANS_RANDOM_CENTERS,&centriods);
-    kmeans(data,codebook_size,temp,crit,10,KMEANS_RANDOM_CENTERS,centriods);
-    
-    
-    cout << "compiling codebook" << endl;
-    
-    codebook = new Codebook();
-    for (int r=0; r<centriods.rows; r++)
-    {
-        vector<double> toAdd;
-        for (int c=0; c<centriods.cols; c++)
-        {
-            assert(centriods.at<float>(r,c) >= 0);
-            toAdd.push_back(centriods.at<float>(r,c));
-        }
-        codebook->push_back(toAdd);
-    }
-    
-    return codebook;
-  
-  
-}
+
 
 vector<float>* EnhancedBoVW::getPooledDescFastSkip(vector< vector< Mat/*< float >*/ > >* samplesIntegralImage, Rect window, vector<Vec2i> spatialPyramids, int skip, int level) const
 {

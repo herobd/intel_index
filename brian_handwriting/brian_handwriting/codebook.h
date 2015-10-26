@@ -25,6 +25,7 @@ public:
     unsigned int size() const {return codebook.size();}
     unsigned int depth() const {if (codebook.size()>1) return codebook[0].size(); return 0;}
     double getInverseDocFreq(int i) const {assert(i<codebook.size()); return inverseDocFreq[i];}
+    void trainFromExamples(int codebook_size,vector< vector<float> >& accum);
     void save(string filePath);
     void readIn(string filePath);
     void readInCSV(string filePath);

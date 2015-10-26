@@ -316,7 +316,63 @@ int Codebook::quantize(const cv::Mat &term) const
     return best;
 }
 
-
+void Codebook::trainFromExamples(int codebook_size,vector< vector<float> >& accum)
+{
+    cv::Mat centriods;
+    cv::TermCriteria crit(cv::TermCriteria::COUNT + cv::TermCriteria::EPS,500,.9);
+    //      Mat data(accum.size(),accum[0].size(),CV_32F);
+    //      for (int r=0; r< accum.size(); r++)
+    //          for (int c=0; c<accum[0].size(); c++)
+    //              data.at<float>(r,c) = accum[r][c];
+    cv::Mat data(codebook_size*480,accum[0].size(),CV_32F);
+    
+    cout << "selecting random set" << endl;
+    cout << "really. accum is " << accum.size() << endl;
+    for (int count=0; count< codebook_size*480; count++)
+    {
+        int r=rand()%accum.size();
+        int orig=r;
+        while (accum[r].size()==0)
+        {
+            r = (1+r)%accum.size();
+            if (r==orig)
+            {
+                cout << "ERROR: not enough descriptors" << endl;
+                exit(-1);
+            }
+        }
+        
+        
+        for (int c=0; c<accum[0].size(); c++)
+        {
+            assert(accum[r][c] >= 0);
+            data.at<float>(count,c) = accum[r][c];
+        }
+        accum[r].resize(0);
+    }
+    cout << "computing kmeans" << endl;
+    
+    cv::Mat temp;
+    //      Kmeans(data,codebook_size,temp,crit,10,KMEANS_RANDOM_CENTERS,&centriods);
+    cv::kmeans(data,codebook_size,temp,crit,10,cv::KMEANS_RANDOM_CENTERS,centriods);
+    
+    
+    cout << "compiling codebook" << endl;
+    
+    for (int r=0; r<centriods.rows; r++)
+    {
+        vector<double> toAdd;
+        for (int c=0; c<centriods.cols; c++)
+        {
+            assert(centriods.at<float>(r,c) >= 0);
+            toAdd.push_back(centriods.at<float>(r,c));
+        }
+        codebook.push_back(toAdd);
+    }
+    
+  
+  
+}
 
 
 void Codebook::save(string filePath)
