@@ -4,6 +4,8 @@
 #include <sstream>
 #include <iostream>
 
+#define CONV_THRESH 0.001
+
 bool Codebook::twentythree;
 
 Codebook::Codebook()
@@ -102,8 +104,9 @@ vector< tuple<int,float> > Codebook::quantizeSoft(const vector<float> &term, int
         for (int f=0; f<sizeT; f++)
         {
             double val =term[f]-codebook[i][f];
-            dist += sqrt(val*val);
+            dist += (val*val);
         }
+        dist = sqrt(dist);
         if (dist<minDist)
             minDist=dist;
 //        cout << i<<": "<<dist<<endl;
@@ -257,15 +260,13 @@ vector< tuple<int,float> > Codebook::quantizeSoft(const vector<float> &term, int
     
     
     
-    //Hack workaround. Improves above by 10 on simple
-    float total=0;
+    //Hack workaround. new
     for (int j=0; j<t; j++)
     {
-        total += get<1>(q[j]);
-    }
-    for (int j=0; j<t; j++)
-    {
-        ret.push_back(make_tuple(get<0>(q[j]),get<1>(q[j])/total));
+        double quot = 0;
+        for (int j_other=0; j_other<t; j_other++)
+            quot += get<1>(q[j])/get<1>(q[j_other]);
+        ret.push_back(make_tuple(get<0>(q[j]),1/quot));
     }
     
     
@@ -316,63 +317,7 @@ int Codebook::quantize(const cv::Mat &term) const
     return best;
 }
 
-void Codebook::trainFromExamples(int codebook_size,vector< vector<float> >& accum)
-{
-    cv::Mat centriods;
-    cv::TermCriteria crit(cv::TermCriteria::COUNT + cv::TermCriteria::EPS,500,.9);
-    //      Mat data(accum.size(),accum[0].size(),CV_32F);
-    //      for (int r=0; r< accum.size(); r++)
-    //          for (int c=0; c<accum[0].size(); c++)
-    //              data.at<float>(r,c) = accum[r][c];
-    cv::Mat data(codebook_size*480,accum[0].size(),CV_32F);
-    
-    cout << "selecting random set" << endl;
-    cout << "really. accum is " << accum.size() << endl;
-    for (int count=0; count< codebook_size*480; count++)
-    {
-        int r=rand()%accum.size();
-        int orig=r;
-        while (accum[r].size()==0)
-        {
-            r = (1+r)%accum.size();
-            if (r==orig)
-            {
-                cout << "ERROR: not enough descriptors" << endl;
-                exit(-1);
-            }
-        }
-        
-        
-        for (int c=0; c<accum[0].size(); c++)
-        {
-            assert(accum[r][c] >= 0);
-            data.at<float>(count,c) = accum[r][c];
-        }
-        accum[r].resize(0);
-    }
-    cout << "computing kmeans" << endl;
-    
-    cv::Mat temp;
-    //      Kmeans(data,codebook_size,temp,crit,10,KMEANS_RANDOM_CENTERS,&centriods);
-    cv::kmeans(data,codebook_size,temp,crit,10,cv::KMEANS_RANDOM_CENTERS,centriods);
-    
-    
-    cout << "compiling codebook" << endl;
-    
-    for (int r=0; r<centriods.rows; r++)
-    {
-        vector<double> toAdd;
-        for (int c=0; c<centriods.cols; c++)
-        {
-            assert(centriods.at<float>(r,c) >= 0);
-            toAdd.push_back(centriods.at<float>(r,c));
-        }
-        codebook.push_back(toAdd);
-    }
-    
-  
-  
-}
+
 
 
 void Codebook::save(string filePath)
@@ -456,6 +401,205 @@ void Codebook::readInCSV(string filePath)
     
     
     file.close();
+}
+
+
+void Codebook::my_kmeans(const cv::Mat& data, int size, cv::Mat& centers)
+{
+    vector<float> maxs;
+    maxs.resize(data.cols,0);
+    vector<float> mins;
+    mins.resize(data.cols,99999);
+    for (int r=0; r<data.rows; r++)
+    {
+        for (int c=0; c<data.cols; c++)
+        {
+            if (data.at<float>(r,c) > maxs[c])
+                maxs[c]=data.at<float>(r,c);
+            if (data.at<float>(r,c) < mins[c])
+                mins[c]=data.at<float>(r,c);
+        }
+    }
+    
+    bool cont = true;
+    while(cont)
+    {
+        cont=false;
+        centers = (cv::Mat_<float>(size,data.cols));
+        default_random_engine generator;
+        for (int r=0; r<centers.rows; r++)
+        {
+            for (int c=0; c<centers.cols; c++)
+            {
+                uniform_real_distribution<float> distribution(mins[c],maxs[c]);
+                centers.at<float>(r,c) = distribution(generator);
+            }
+        }
+        //vector<int> curClass(data.rows);
+        
+        for (int iter=0; iter<100; iter++)
+        {
+            cv::Mat sum(size,data.cols,CV_32F,cv::Scalar(0.));
+            vector<int> count(size);
+            for (int r=0; r<data.rows; r++)
+            {
+                int bestClass=0;
+                int minDist=cv::norm(data.row(r) - centers.row(0));
+                for (int cl=1; cl<size; cl++)
+                {
+                    float dist = cv::norm(data.row(r) - centers.row(cl));
+                    if (dist < minDist)
+                    {
+                        bestClass=cl;
+                        minDist=dist;
+                    }
+                }
+                //curClass[r]=bestClass;
+                sum.row(bestClass)=(sum.row(bestClass) + data.row(r));
+                count[bestClass]++;
+            }
+            
+            cout << "centers"<<endl;
+            int conv=0;
+            for (int cl=0; cl<size; cl++)
+            {
+                if (count[cl]==0)
+                {
+                    cont=true;
+                    continue;
+                }
+                else if (count[cl]==1)
+                {
+                    cout << cl << " has 1"<<endl;
+                }
+                cv::Mat newVal = sum.row(cl)/count[cl];
+                double dist = cv::norm(newVal - centers.row(cl));
+                if (dist < CONV_THRESH)
+                    conv++;
+                //centers.row(cl) = (newVal+0);
+                newVal.copyTo(centers.row(cl));
+                
+                for (int i=0; i<newVal.cols; i++)
+                {
+                    cout << centers.at<float>(cl,i) << ", ";
+                    assert(centers.at<float>(cl,i) == newVal.at<float>(0,i));
+                }
+                cout << endl;
+            }
+            if (conv > size-1)
+            {
+                cout << "my_kmeans reached convergence" << endl;
+                break;
+            }
+        }
+    }
+}
+
+
+void Codebook::save(vector<int>& temp, cv::Mat& data, int codebook_size)
+{
+        assert(temp.size() == data.rows);
+        vector< vector<float> > sums(codebook_size);
+        vector<int> count(codebook_size);
+        for (int r=0; r<temp.size(); r++)
+        {
+            int cl = temp[r];
+            count.at(cl)++;
+            if (sums[cl].size()==0)
+                sums[cl].resize(data.cols,0);
+            for (int c=0; c<data.cols; c++)
+            {
+                
+                sums[cl][c] += data.at<float>(r,c);
+            }
+        }
+        cout << "compiling codebook" << endl;
+    
+        for (int cl=0; cl<codebook_size; cl++)
+        {
+            assert(count[cl]>0);
+            vector<double> toAdd;
+            for (int c=0; c<data.cols; c++)
+            {
+                assert(sums[cl][c]>=0);
+                toAdd.push_back(sums[cl][c]/count[cl]);
+            }
+            codebook.push_back(toAdd);
+        }
+        
+}
+
+void Codebook::trainFromExamples(int codebook_size,vector< vector<float> >& accum)
+{
+    cv::Mat centriods;
+    cv::TermCriteria crit(cv::TermCriteria::COUNT + cv::TermCriteria::EPS,400,.9);
+    //      Mat data(accum.size(),accum[0].size(),CV_32F);
+    //      for (int r=0; r< accum.size(); r++)
+    //          for (int c=0; c<accum[0].size(); c++)
+    //              data.at<float>(r,c) = accum[r][c];
+    int examples_size = std::min( std::max(codebook_size*300, 100000), (int) accum.size());
+    cv::Mat data(examples_size,accum[0].size(),CV_32F);
+    
+    cout << "selecting random set" << endl;
+    cout << "really. accum is " << accum.size() << endl;
+    for (int count=0; count< examples_size; count++)
+    {
+        int r=rand()%accum.size();
+        int orig=r;
+        while (accum[r].size()==0)
+        {
+            r = (1+r)%accum.size();
+            if (r==orig)
+            {
+                cout << "ERROR: not enough descriptors" << endl;
+                assert(false);
+                exit(-1);
+                //break;
+            }
+        }
+        //if (r==orig) break;
+        
+        for (int c=0; c<data.cols; c++)
+        {
+            assert(accum[r][c] >= 0);
+            data.at<float>(count,c) = accum[r][c];
+        }
+        accum[r].resize(0);
+    }
+    
+    
+    cout << "computing kmeans" << endl;
+    
+    vector<int> temp;
+    cv::kmeans(data,codebook_size,temp,crit,3,cv::KMEANS_PP_CENTERS,centriods);
+    
+    //my_kmeans(data,codebook_size,centriods);
+    if(centriods.rows != codebook_size)
+    {
+        cout << "Centriods is probably blank (not cb size), saving" << endl;
+        //assert(temp.type() == cv::CV_64UI1);
+        save(temp,data,codebook_size);
+        return;
+    }
+    
+    cout << "compiling codebook" << endl;
+    
+    for (int r=0; r<centriods.rows; r++)
+    {
+        vector<double> toAdd;
+        for (int c=0; c<centriods.cols; c++)
+        {
+            if (centriods.at<float>(r,c) < -1)
+            {
+                cout << "Negative in centriods, saving" << endl;
+                save(temp,data,codebook_size);
+                return;
+            }
+            toAdd.push_back(centriods.at<float>(r,c));
+        }
+        codebook.push_back(toAdd);
+    }
+
 }
 
 void Codebook::unittest()
@@ -653,8 +797,8 @@ void Codebook::unittest()
             score3 = get<1>(p);
     }
     assert(score3>score2);
-    assert(score2>score1);
-    assert(score1>score0);
+    assert(score2>=score1);
+    //assert(score1>=score0);
     assert(score0+score1+score2+score3>=.9999 && score0+score1+score2+score3<=1.0001);
     sumtest=0;
     for (const auto &v : quan)
@@ -682,7 +826,7 @@ void Codebook::unittest()
     }
     assert(score3>score2);
     assert(score2>score1);
-    assert(score1>score0);
+    //assert(score1>score0);
     assert(score0+score1+score2+score3>=.9999 && score0+score1+score2+score3<=1.0001);
     sumtest=0;
     for (const auto &v : quan)
@@ -691,6 +835,65 @@ void Codebook::unittest()
     }
     assert(sumtest<1.0001 && sumtest>.9999);
     
+    
+    ////Test training of codebook////////
+    codebook.clear();
+    vector< vector<float> >accum(1000);
+    default_random_engine generator;
+    normal_distribution<float> distributionP(5.0,.10);
+    normal_distribution<float> distributionN(2.0,.10);
+    normal_distribution<float> distributionR(3.0,.10);
+    for (int i=0; i<accum.size(); i++)
+    {
+        for (int j=0; j<5*2+2; j++)
+        {
+            if (i%5 == j%5 && j<10)
+                accum[i].push_back(fabs(distributionP(generator)));
+            else if (j<10)
+                accum[i].push_back(fabs(distributionN(generator)));
+            else
+                accum[i].push_back(fabs(distributionR(generator)));
+        }
+        
+    }
+    for (int i=0; i<accum.size(); i++)
+    {
+        for (int j=0; j<accum[i].size(); j++)
+        {
+            assert(accum[i][j] != 0);
+        }
+    }
+    
+    trainFromExamples(5,accum);
+    
+    vector<bool> found(5);
+    for (int i=0; i<size(); i++)
+    {
+        double hi=0;
+        int index;
+        double hi2=0;
+        int index2;
+        for (int j=0; j<codebook[i].size(); j++)
+        {
+            if (codebook[i][j] > hi)
+            {
+                hi2=hi;
+                index2=index;
+                hi=codebook[i][j];
+                index=j;
+            }
+            else if (codebook[i][j] > hi2)
+            {
+                hi2=codebook[i][j];
+                index2=j;
+            }
+        }
+        assert (index%5 == index2%5);
+        assert(!found[index%5]);
+        found[index%5]=true;
+    }
+    for (int i=0; i<size(); i++)
+        assert(found[i]);
     
 //    codebook.clear();
 //    for (double y=0.1; y<6; y+=2+.05*(int)y)

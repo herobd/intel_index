@@ -26,6 +26,9 @@ public:
     unsigned int depth() const {if (codebook.size()>1) return codebook[0].size(); return 0;}
     double getInverseDocFreq(int i) const {assert(i<codebook.size()); return inverseDocFreq[i];}
     void trainFromExamples(int codebook_size,vector< vector<float> >& accum);
+    static void my_kmeans(const cv::Mat& data, int size, cv::Mat& centers);
+    void save(vector<int>& temp, cv::Mat& data, int codebook_size);
+    
     void save(string filePath);
     void readIn(string filePath);
     void readInCSV(string filePath);
