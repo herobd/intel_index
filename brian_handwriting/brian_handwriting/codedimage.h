@@ -3,7 +3,7 @@
 
 #include "FeaturizedImage.h"
 #include "opencv2/core/core.hpp"
-#include "codebook.h"
+#include "codebook_2.h"
 
 class CodedImage
 {
@@ -34,3 +34,4 @@ private:
 
 
 #endif // CODEDIMAGE_H
+

@@ -1,3 +1,6 @@
+#include "defines.h"
+#if !USE_CODEBOOK_2
+
 #include "codebook.h"
 
 #include <assert.h>
@@ -331,7 +334,9 @@ void Codebook::save(string filePath)
     {
         for (double val : exemplar)
         {
-            file << val << endl;
+            //stringstream s;
+            //s << setprecision(15) << val;
+            file << setprecision(15) << val << endl;
         }
     }
     file.close();
@@ -353,7 +358,7 @@ void Codebook::readIn(string filePath)
         for (int f=0; f < numOfFeatures; f++)
         {
             getline (file,line);
-            int val = stoi(line);
+            double val = stof(line);
             exemplar.push_back(val);
         }
         push_back(exemplar);
@@ -496,7 +501,7 @@ void Codebook::my_kmeans(const cv::Mat& data, int size, cv::Mat& centers)
 }
 
 
-void Codebook::save(vector<int>& temp, cv::Mat& data, int codebook_size)
+void Codebook::rescue(vector<int>& temp, cv::Mat& data, int codebook_size)
 {
         assert(temp.size() == data.rows);
         vector< vector<float> > sums(codebook_size);
@@ -532,12 +537,12 @@ void Codebook::save(vector<int>& temp, cv::Mat& data, int codebook_size)
 void Codebook::trainFromExamples(int codebook_size,vector< vector<float> >& accum)
 {
     cv::Mat centriods;
-    cv::TermCriteria crit(cv::TermCriteria::COUNT + cv::TermCriteria::EPS,400,.9);
+    cv::TermCriteria crit(cv::TermCriteria::COUNT + cv::TermCriteria::EPS,1000,.99);
     //      Mat data(accum.size(),accum[0].size(),CV_32F);
     //      for (int r=0; r< accum.size(); r++)
     //          for (int c=0; c<accum[0].size(); c++)
     //              data.at<float>(r,c) = accum[r][c];
-    int examples_size = std::min( std::max(codebook_size*300, 100000), (int) accum.size());
+    int examples_size = std::min( std::max(codebook_size*500, 100000), (int) accum.size());
     cv::Mat data(examples_size,accum[0].size(),CV_32F);
     
     cout << "selecting random set" << endl;
@@ -571,14 +576,14 @@ void Codebook::trainFromExamples(int codebook_size,vector< vector<float> >& accu
     cout << "computing kmeans" << endl;
     
     vector<int> temp;
-    cv::kmeans(data,codebook_size,temp,crit,3,cv::KMEANS_PP_CENTERS,centriods);
+    cv::kmeans(data,codebook_size,temp,crit,7,cv::KMEANS_PP_CENTERS,centriods);
     
     //my_kmeans(data,codebook_size,centriods);
     if(centriods.rows != codebook_size)
     {
-        cout << "Centriods is probably blank (not cb size), saving" << endl;
+        cout << "Centriods is probably blank (not cb size), rescuing" << endl;
         //assert(temp.type() == cv::CV_64UI1);
-        save(temp,data,codebook_size);
+        rescue(temp,data,codebook_size);
         return;
     }
     
@@ -591,8 +596,8 @@ void Codebook::trainFromExamples(int codebook_size,vector< vector<float> >& accu
         {
             if (centriods.at<float>(r,c) < -1)
             {
-                cout << "Negative in centriods, saving" << endl;
-                save(temp,data,codebook_size);
+                cout << "Negative in centriods, rescuing" << endl;
+                rescue(temp,data,codebook_size);
                 return;
             }
             toAdd.push_back(centriods.at<float>(r,c));
@@ -628,6 +633,7 @@ void Codebook::unittest()
     codebook.clear();
     inverseDocFreq.clear();
     readIn("tmp.dat435");
+    
     
     vector<float> term = {.5,0,.1};
     vector< tuple<int,float> > quan = quantizeSoft(term,1);
@@ -866,6 +872,8 @@ void Codebook::unittest()
     
     trainFromExamples(5,accum);
     
+    int cw_0;
+    int cw_4;
     vector<bool> found(5);
     for (int i=0; i<size(); i++)
     {
@@ -891,10 +899,87 @@ void Codebook::unittest()
         assert (index%5 == index2%5);
         assert(!found[index%5]);
         found[index%5]=true;
+        if (index%5==0)
+            cw_0=i;
+        if (index%5==4)
+            cw_4=i;
     }
     for (int i=0; i<size(); i++)
         assert(found[i]);
     
+    
+    vector<float> term9 = {7,3,3.3,2,2,3,1.5,1.7,.6,1.5,.1,10};
+    quan = quantizeSoft(term9,1);
+    assert(quan.size()==1 && get<1>(quan[0])==1 && get<0>(quan[0])==cw_0);
+    
+    vector<float> term10 = {7,3,3.3,2,10,7.1,2,2,2,12,.1,10};
+    quan = quantizeSoft(term10,3);
+    score0=0;
+    double score4=0;
+    double scoreOther=0;
+    for (auto p : quan)
+    {
+        if (get<0>(p) == cw_0)
+            score0 = get<1>(p);
+        else if (get<0>(p) == cw_4)
+            score4 = get<1>(p);
+        else
+            scoreOther = get<1>(p);
+    }
+    assert(quan.size()==3 && score0!=0 && score4!=0 && scoreOther!=0);
+    assert(score0>scoreOther);
+    assert(score4>scoreOther);
+    sumtest=0;
+    for (const auto &v : quan)
+    {
+        sumtest+=get<1>(v);
+    }
+    assert(sumtest<1.0001 && sumtest>.9999);
+    
+    vector< vector<double> > copy(codebook.size());
+    for (int i=0; i<codebook.size(); i++)
+    {   
+        for (int j=0; j<depth();   j++)
+            copy[i].push_back(codebook[i][j]);
+    }
+    save("tmp.dat435");
+    codebook.clear();
+    inverseDocFreq.clear();
+    readIn("tmp.dat435");
+    for (int i=0; i<codebook.size(); i++)
+    {   
+        for (int j=0; j<depth();   j++)
+            assert(fabs(copy[i][j] - codebook[i][j])<.00001);
+    }
+    //double check
+    vector<bool> found_doublecheck(5);
+    for (int i=0; i<size(); i++)
+    {
+        double hi=0;
+        int index;
+        double hi2=0;
+        int index2;
+        for (int j=0; j<codebook[i].size(); j++)
+        {
+            if (codebook[i][j] > hi)
+            {
+                hi2=hi;
+                index2=index;
+                hi=codebook[i][j];
+                index=j;
+            }
+            else if (codebook[i][j] > hi2)
+            {
+                hi2=codebook[i][j];
+                index2=j;
+            }
+        }
+        assert (index%5 == index2%5);
+        assert(!found_doublecheck[index%5]);
+        found_doublecheck[index%5]=true;
+    }
+    for (int i=0; i<size(); i++)
+        assert(found_doublecheck[i]);
 //    codebook.clear();
 //    for (double y=0.1; y<6; y+=2+.05*(int)y)
 //        for (double x=0.1; x<5; x+=2+1.33*(int)y)
@@ -927,3 +1012,4 @@ void Codebook::print()
         cout << endl;
     }
 }
+#endif

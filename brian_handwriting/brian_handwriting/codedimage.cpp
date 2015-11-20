@@ -13,20 +13,7 @@ CodedImage::CodedImage(FeaturizedImage &img, Codebook &codebook)
         for (int i =0; i < img.width(); i++)
         {
             vector<double> fv = img.get(i,j);
-            if(Codebook::twentythree && i==44 & j==2)
-            {
-                cout << "fv-dif: ";
-                for (int iii=0; iii<fv.size(); iii++)
-                    cout<<fv[iii]<<",";
-                cout<<endl;
-            }
-            else if(Codebook::twentythree && i==44 & j==3)
-            {
-                cout << "fv-nex: ";
-                for (int iii=0; iii<fv.size(); iii++)
-                    cout<<fv[iii]<<",";
-                cout<<endl;
-            }
+
             
             data[i+j*fWidth] = codebook.quantize(fv);
         }

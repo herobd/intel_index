@@ -3,6 +3,7 @@
 #include "enhancedbovw.h"
 //#include <mpi.h>
 #include <omp.h>
+#include <limits>
 class EnhancedBoVWTests
 {
 public:
@@ -14,6 +15,8 @@ public:
     
     static void experiment_Aldavert_dist_batched_test(int scenario);
     static void test(EnhancedBoVW& bovw);
+    static void createGGobiFile(EnhancedBoVW &bovw, string locationCSVPath, string dataDirPath, string fileExt, int numWords, string outfile);
+    static void drawData(EnhancedBoVW &bovw, string locationCSVPath, string dataDirPath, string fileExt, int numWords, string outfile);
 };
 
 

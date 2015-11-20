@@ -39,7 +39,7 @@ vector<float>* EnhancedBoVW::featurizeImage(const Mat &img) const
     
     vector<float>* exe = getPooledDescFastSkip(samplesCoded, Rect(0,0,img.cols,img.rows),spatialPyramids,skip);
     normalizeDesc(exe);
-    
+    assert(exe->size()>0);
     delete samplesCoded;
     return exe;
     
@@ -435,11 +435,15 @@ vector< vector< Mat/*< float >*/ > >* EnhancedBoVW::codeDescriptorsIntegralImage
                 //    cout << "I'm adding " << get<1>(v) << endl;
                 
                 if (codebook != NULL)
+                {
                     (*ret)[0][y].at<float>(get<0>(v)+codebook->size()*(iter->scale),0) += get<1>(v);
+                    //assert((*ret)[0][y].at<float>(get<0>(v)+codebook->size()*(iter->scale),0)==(*ret)[0][y].at<float>(get<0>(v)+codebook->size()*(iter->scale),0));
+                }
                 else
                     (*ret)[0][y].at<float>(get<0>(v)+
                                            (iter->scale>0?codebook_small->size():0)+
                                            (iter->scale>1?codebook_med->size():0),0) += get<1>(v);
+                
             }
 //            int it = codebook->quantize(get<0>(*iter));
 //            (*ret)[0][y].at<float>(it,0) += 1;
@@ -485,7 +489,7 @@ vector< vector< Mat/*< float >*/ > >* EnhancedBoVW::codeDescriptorsIntegralImage
             }
         }
     }
-    
+    assert(iter==desc->end());
     
     delete desc;
     return ret;
@@ -510,58 +514,6 @@ void EnhancedBoVW::color(Mat &heatMap, float score, float maxV, float minV, int 
 
 vector< description >* EnhancedBoVW::getDescriptors(const Mat &img) const
 {   
-//    Size blockSize1(16,16);
-//    Size blockSize2(24,24);
-//    Size blockSize3(32,32);
-    
-//    Size blockStride(4,4);
-    
-   
-//    HOGDescriptor hog1(blockSize1,blockSize1,blockStride,blockSize1,9,1,-1,HOGDescriptor::L2Hys,.2,true,1);
-//    HOGDescriptor hog2(blockSize2,blockSize2,blockStride,blockSize2,9,1,-1,HOGDescriptor::L2Hys,.2,true,1);
-//    HOGDescriptor hog3(blockSize3,blockSize3,blockStride,blockSize3,9,1,-1,HOGDescriptor::L2Hys,.2,true,1);
-
-    
-    
-//    vector<float> desc1;
-//    hog1.compute(img,desc1,blockStride);
-//    vector<float> desc2;
-//    hog2.compute(img,desc2,blockStride);
-//    vector<float> desc3;
-//    hog3.compute(img,desc3,blockStride);
- 
-//    vector<vector<float> > descriptors1(1);
-//    vector<vector<float> > descriptors2(1);
-//    vector<vector<float> > descriptors3(1);
-//    vector< Point2i > locations1;
-//    vector< Point2i > locations2;
-//    vector< Point2i > locations3;
-    
-//    filterDesc(desc1,descriptors1,locations1,hog1.getDescriptorSize(), blockSize1, blockStride, img.size());
-//    filterDesc(desc2,descriptors2,locations2,hog2.getDescriptorSize(), blockSize2, blockStride, img.size());
-//    filterDesc(desc3,descriptors3,locations3,hog3.getDescriptorSize(), blockSize3, blockStride, img.size());
-    
-//    vector< tuple< vector< float >, Point2i > > *descAndLoc = new vector< tuple< vector< float >, Point2i > >();
-//    for (int i=0; i< descriptors1.size(); i++)
-//    {
-//        if (descriptors1[i].size() > 0)
-//            descAndLoc->push_back(make_tuple(descriptors1[i],locations1[i]));
-//    }
-//    for (int i=0; i< descriptors2.size(); i++)
-//    {
-//        if (descriptors2[i].size() > 0)
-//            descAndLoc->push_back(make_tuple(descriptors2[i],locations2[i]));
-//    }
-//    for (int i=0; i< descriptors3.size(); i++)
-//    {
-//        if (descriptors3[i].size() > 0)
-//            descAndLoc->push_back(make_tuple(descriptors3[i],locations3[i]));
-//    }
-    
-//    int blockSize1=16;
-//    int blockSize2=24;
-//    int blockSize3=32;
-//    int blockStride=3;
     
 
     
@@ -793,54 +745,7 @@ void EnhancedBoVW::printDescThreshContours(const Mat &img, int desc_thresh) cons
     waitKey();
 }
 
-void EnhancedBoVW::filterDesc(vector<float> &unparsedDescriptors, vector<vector<float> > &descriptors1, vector< Point2i > &locations, int descSize, Size blockSize1, Size blockStride, Size imgSize) const
-{
-//    cout << "desc size " << descSize<<endl;
-    int i=0;
-    int location=-1;
-    double norm=0;
-    double maxNorm = 0;
-    double minNorm = 999999;
-    for (float n : unparsedDescriptors)
-    {
-        
-        
-        
-        if ((i++)%descSize==0) {
-            location++;
-            descriptors1.resize(location+1);
-            
-//            int x= (location/((imgSize.width-(blockSize1.width-blockStride.width))/blockStride.width))*blockStride.width + blockSize1.width/2-blockStride.width/2;
-//            int y= (location%((imgSize.height-(blockSize1.width-blockStride.width))/blockStride.width))*blockStride.height + blockSize1.height/2-blockStride.height/2;
-            
-            int x= (location/(1+(imgSize.height-blockSize1.height)/blockStride.height)) * blockStride.width+blockSize1.width/2;
-            int y= (location%(1+(imgSize.height-blockSize1.height)/blockStride.height)) * blockStride.height+blockSize1.height/2;
-            
-//            int x= (location%(1+(imgSize.width-blockSize1.width)/blockStride.width)) * blockStride.width+blockSize1.width/2;
-//            int y= (location/(1+(imgSize.width-blockSize1.width)/blockStride.width)) * blockStride.height+blockSize1.height/2;
-            
-            assert(x<imgSize.width && y<imgSize.height);
-            locations.push_back(Point2i(x,y));
-            
-            if (location!=0)
-            {
-//                cout << "norm: "<<sqrt(norm)<<endl;
-                if (norm > desc_thresh)
-                {
-                    descriptors1[location-1].resize(0);
-                }
-                if (norm > maxNorm) maxNorm = norm;
-                if (norm < minNorm/* && norm!=0*/) minNorm = norm;
-                
-                
-            }
-            
-            norm=0;
-        }
-        descriptors1[location].push_back(n);
-        norm += n*n;
-    }
-}
+
 
 vector< tuple<int,float> > EnhancedBoVW::quantizeSoft(const vector<float> &term, int t, int scale) const
 {
@@ -1070,7 +975,7 @@ vector<float>* EnhancedBoVW::getPooledDescFastSkip(vector< vector< Mat/*< float 
         ret->insert(ret->end(),sub->begin(),sub->end());
         delete sub;
     }
-    
+    assert(ret->size()>0);
     return ret;
 }
 

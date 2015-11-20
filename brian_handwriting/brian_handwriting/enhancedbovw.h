@@ -2,7 +2,7 @@
 #define ENHANCEDBOVW_H
 
 //#include "opencv2/core/core.hpp"
-#include "codebook.h"
+#include "codebook_2.h"
 //#include "opencv2/nonfree/features2d.hpp"
 //#include "opencv2/highgui/highgui.hpp"
 //#include "opencv2/imgproc/imgproc.hpp"
@@ -88,6 +88,21 @@ public:
     vector<float>* featurizeImage(const Mat &img) const;
     void normalizeDesc(vector<float> *desc, float a=.35) const;
     
+    int featureSize() const
+    {
+        int codebook_m;
+        if (codebook != NULL)
+            codebook_m = codebook->size()*3;
+        else
+            codebook_m = codebook_small->size() + codebook_med->size() + codebook_large->size();
+        int py_m=0;
+        for (Vec2i level : spatialPyramids)
+        {
+            py_m += level[0]*level[1];
+        }
+        return codebook_m * py_m;
+    }
+    
     void unittests();
     
     void showEncoding(const Mat &img) const;
@@ -111,8 +126,8 @@ private:
     
     void color(Mat &heatMap, float score, float max, float min, int midI, int midJ) const;
     
-    void filterDesc(vector<float> &desc1, vector<vector<float> > &descriptors1, vector< Point2i > &locations, int descSize, Size blockSize1, Size blockStride, Size imgSize) const;
-    Codebook* computeCodebookFromExamples(int codebook_size,vector< vector<float> >& accum);
+    
+    //Codebook* computeCodebookFromExamples(int codebook_size,vector< vector<float> >& accum);
     
 };
 

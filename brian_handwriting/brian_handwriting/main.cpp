@@ -306,6 +306,38 @@ int main( int argc, char** argv )
                                                             150,
                                                             "simpleOut.out");
     }
+    else if (option.compare("bovw_ggobi")==0)
+    {
+        EnhancedBoVW bovw;
+            
+        string codebookLoc = argv[2];
+        bovw.codebook = new Codebook();
+        bovw.codebook->readIn(codebookLoc);
+        
+        string locationCSVPath = argv[3];
+        string dataDirPath = argv[4];
+        string fileExt = argv[5];
+        int numWords = atoi(argv[6]);
+        string outfile = argv[7];
+        
+        EnhancedBoVWTests::createGGobiFile(bovw, locationCSVPath, dataDirPath, fileExt, numWords, outfile);
+    }
+    else if (option.compare("bovw_draw")==0)
+    {
+        EnhancedBoVW bovw;
+            
+        string codebookLoc = argv[2];
+        bovw.codebook = new Codebook();
+        bovw.codebook->readIn(codebookLoc);
+        
+        string locationCSVPath = argv[3];
+        string dataDirPath = argv[4];
+        string fileExt = argv[5];
+        int numWords = atoi(argv[6]);
+        string outfile = argv[7];
+        
+        EnhancedBoVWTests::drawData(bovw, locationCSVPath, dataDirPath, fileExt, numWords, outfile);
+    }
     else if (option.compare("train_codebook")==0)
     {
             
