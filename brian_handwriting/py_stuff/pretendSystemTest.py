@@ -41,6 +41,8 @@ if (len(sys.argv)>9):
 	stopThresh=float(sys.argv[8])
 	pathLeftoverWords=sys.argv[9]
 
+countThresh=1000
+
 class Word:
 	def __init__(self,text):
 		self.text=text
@@ -60,7 +62,8 @@ class Word:
 fDic = open(pathDic, 'r')
 dictionary = []
 for line in fDic.xreadlines():
-   dictionary.append(line.strip().lower())
+   wordFixed = re.sub(r'\W','',line.strip()).lower();
+   dictionary.append(wordFixed)
 fDic.close()
 
 #get capitalized versions
@@ -145,9 +148,9 @@ print 'out of vocabulary = ' + str(OoV)
 count=0
 
 fO.write('iterations,completion,completion(no OoV)\n')
-while (len(words)/float(startNum) > 1.0-stopThresh):
+while (len(words)/float(startNum) > 1.0-stopThresh and count<countThresh):
 	for ngram in ngrams:
-		if (len(words)/float(startNum) <= 1.0-stopThresh):
+		if (len(words)/float(startNum) <= 1.0-stopThresh or count>=countThresh):
 			break
 
 		#effectedWords = []
