@@ -338,6 +338,41 @@ int main( int argc, char** argv )
         
         EnhancedBoVWTests::drawData(bovw, locationCSVPath, dataDirPath, fileExt, numWords, outfile);
     }
+    else if (option.compare("bovw_draw_words")==0)
+    {
+        EnhancedBoVW bovw;
+            
+        string codebookLoc = argv[2];
+        bovw.codebook = new Codebook();
+        bovw.codebook->readIn(codebookLoc);
+        
+        string locationCSVPath = argv[3];
+        string dataDirPath = argv[4];
+        string fileExt = argv[5];
+        string outfile = argv[6];
+        vector<string> words;
+        for (int i=7; i<argc; i++)
+            words.push_back(argv[i]);
+        EnhancedBoVWTests::drawDataForWords(bovw, locationCSVPath, dataDirPath, fileExt, words, outfile);
+    }
+    else if (option.compare("bovw_compare_words")==0)
+    {
+        EnhancedBoVW bovw;
+            
+        string codebookLoc = argv[2];
+        bovw.codebook = new Codebook();
+        bovw.codebook->readIn(codebookLoc);
+        
+        string locationCSVPath = argv[3];
+        string dataDirPath = argv[4];
+        string fileExt = argv[5];
+        string exampleFile = argv[6];
+        string outfile = argv[7];
+        vector<string> words;
+        for (int i=8; i<argc; i++)
+            words.push_back(argv[i]);
+        EnhancedBoVWTests::compareDataForWords(bovw, locationCSVPath, dataDirPath, fileExt, words, exampleFile, outfile);
+    }
     else if (option.compare("train_codebook")==0)
     {
             

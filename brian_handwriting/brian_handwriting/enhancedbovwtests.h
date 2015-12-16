@@ -17,6 +17,12 @@ public:
     static void test(EnhancedBoVW& bovw);
     static void createGGobiFile(EnhancedBoVW &bovw, string locationCSVPath, string dataDirPath, string fileExt, int numWords, string outfile);
     static void drawData(EnhancedBoVW &bovw, string locationCSVPath, string dataDirPath, string fileExt, int numWords, string outfile);
+    static void drawDataForWords(EnhancedBoVW &bovw, string locationCSVPath, string dataDirPath, string fileExt, const vector<string>& wordsToDraw, string outfile);
+    static void compareDataForWords(EnhancedBoVW &bovw, string locationCSVPath, string dataDirPath, string fileExt, const vector<string>& wordsToDraw, string ex_file, string outfile);
+    
+private:
+    static void constructHistograms(EnhancedBoVW &bovw, string locationCSVPath, string dataDirPath, string fileExt, string outfile, const map<string,vector<int> >& locations, const vector<string>& wordsToDraw);
+    static void compareHistograms(EnhancedBoVW &bovw, string locationCSVPath, string dataDirPath, string fileExt, string outfile, const map<string,vector<int> >& locations, const vector<string>& wordsToDraw, const Mat& toCompare);
 };
 
 

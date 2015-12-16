@@ -14,7 +14,7 @@
 
 //#define NO_LLC 1
 //#define NO_SP_PY 1
-#define NO_POW_NORM 1
+//#define NO_POW_NORM 1
 
 
 #define P_PARAMS 1
