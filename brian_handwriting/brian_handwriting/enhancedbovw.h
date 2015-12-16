@@ -2,7 +2,7 @@
 #define ENHANCEDBOVW_H
 
 //#include "opencv2/core/core.hpp"
-#include "codebook.h"
+#include "codebook_2.h"
 //#include "opencv2/nonfree/features2d.hpp"
 //#include "opencv2/highgui/highgui.hpp"
 //#include "opencv2/imgproc/imgproc.hpp"
@@ -12,9 +12,9 @@
 #include "hog.h"
 #include <tuple>
 
-#define NO_LLC 1
-#define NO_SP_PY 1
-#define NO_POW_NORM 1
+//#define NO_LLC 1
+//#define NO_SP_PY 1
+//#define NO_POW_NORM 1
 
 
 #define P_PARAMS 1
@@ -48,9 +48,11 @@ public:
     Codebook* codebook_large;
     
 #if !NO_LLC && !NO_SP_PY
-    EnhancedBoVW(vector<Vec2i> spatialPyramids={Vec2i(3,2),Vec2i(9,2)}, int desc_thresh=3500, int LLC_numOfNN=3, int blockSize1=20, int blockSize2=30, int blockSize3=45, int blockStride=3, int hStride=8, int vStride=8, int skip=1);
+    EnhancedBoVW(vector<Vec2i> spatialPyramids={Vec2i(3,2),Vec2i(9,2)}, int desc_thresh=3500, int LLC_numOfNN=10, int blockSize1=20, int blockSize2=30, int blockSize3=45, int blockStride=3, int hStride=8, int vStride=8, int skip=3);
+#elif !NO_SP_PY
+    EnhancedBoVW(vector<Vec2i> spatialPyramids={Vec2i(3,2),Vec2i(9,2)}, int desc_thresh=3500, int LLC_numOfNN=1, int blockSize1=20, int blockSize2=30, int blockSize3=45, int blockStride=3, int hStride=8, int vStride=8, int skip=3);
 #else
-    EnhancedBoVW(vector<Vec2i> spatialPyramids={Vec2i(1,1)}, int desc_thresh=3500, int LLC_numOfNN=1, int blockSize1=20, int blockSize2=30, int blockSize3=45, int blockStride=3, int hStride=8, int vStride=8, int skip=1);
+    EnhancedBoVW(vector<Vec2i> spatialPyramids={Vec2i(1,1)}, int desc_thresh=3500, int LLC_numOfNN=1, int blockSize1=20, int blockSize2=30, int blockSize3=45, int blockStride=3, int hStride=8, int vStride=8, int skip=3);
 #endif
     ~EnhancedBoVW(){if(codebook!=NULL) delete codebook;}
     void readCodebooks(string loc)
@@ -86,10 +88,26 @@ public:
     vector<float>* featurizeImage(const Mat &img) const;
     void normalizeDesc(vector<float> *desc, float a=.35) const;
     
+    int featureSize() const
+    {
+        int codebook_m;
+        if (codebook != NULL)
+            codebook_m = codebook->size()*3;
+        else
+            codebook_m = codebook_small->size() + codebook_med->size() + codebook_large->size();
+        int py_m=0;
+        for (Vec2i level : spatialPyramids)
+        {
+            py_m += level[0]*level[1];
+        }
+        return codebook_m * py_m;
+    }
+    
     void unittests();
     
     void showEncoding(const Mat &img) const;
     void printDescThreshContours(const Mat &img, int desc_thresh=3500) const;
+    void setLLC(int llc) {LLC_numOfNN=llc;}
     
 private:
     double desc_thresh;
@@ -108,8 +126,8 @@ private:
     
     void color(Mat &heatMap, float score, float max, float min, int midI, int midJ) const;
     
-    void filterDesc(vector<float> &desc1, vector<vector<float> > &descriptors1, vector< Point2i > &locations, int descSize, Size blockSize1, Size blockStride, Size imgSize) const;
-    Codebook* computeCodebookFromExamples(int codebook_size,vector< vector<float> >& accum);
+    
+    //Codebook* computeCodebookFromExamples(int codebook_size,vector< vector<float> >& accum);
     
 };
 

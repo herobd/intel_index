@@ -2,7 +2,7 @@
 #define BAGSPOTTER_H
 
 #include "opencv2/core/core.hpp"
-#include "codebook.h"
+#include "codebook_2.h"
 #include "opencv2/nonfree/features2d.hpp"
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/imgproc/imgproc.hpp"

@@ -231,10 +231,6 @@ void Corpus::generateCodebook(int codebook_size)
     int test=0;
     for (FeaturizedImage* fi : pages)
     {
-        if (test++==23)
-            codebook.twentythree=true;
-        else
-            codebook.twentythree=false;
         CodedImage *ci = new CodedImage(*fi,codebook);
         codedPages.push_back(ci);
     }

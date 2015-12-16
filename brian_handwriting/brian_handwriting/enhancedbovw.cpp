@@ -39,7 +39,7 @@ vector<float>* EnhancedBoVW::featurizeImage(const Mat &img) const
     
     vector<float>* exe = getPooledDescFastSkip(samplesCoded, Rect(0,0,img.cols,img.rows),spatialPyramids,skip);
     normalizeDesc(exe);
-    
+    assert(exe->size()>0);
     delete samplesCoded;
     return exe;
     
@@ -431,15 +431,19 @@ vector< vector< Mat/*< float >*/ > >* EnhancedBoVW::codeDescriptorsIntegralImage
             vector< tuple<int,float> > quan = quantizeSoft(iter->values,LLC_numOfNN,iter->scale);
             for (const auto &v : quan)
             {
-                if (get<0>(v)==267-codebook->size() && iter->scale==1)
-                    cout << "I'm adding " << get<1>(v) << endl;
+                //if (get<0>(v)==267-codebook->size() && iter->scale==1)
+                //    cout << "I'm adding " << get<1>(v) << endl;
                 
                 if (codebook != NULL)
+                {
                     (*ret)[0][y].at<float>(get<0>(v)+codebook->size()*(iter->scale),0) += get<1>(v);
+                    //assert((*ret)[0][y].at<float>(get<0>(v)+codebook->size()*(iter->scale),0)==(*ret)[0][y].at<float>(get<0>(v)+codebook->size()*(iter->scale),0));
+                }
                 else
                     (*ret)[0][y].at<float>(get<0>(v)+
                                            (iter->scale>0?codebook_small->size():0)+
                                            (iter->scale>1?codebook_med->size():0),0) += get<1>(v);
+                
             }
 //            int it = codebook->quantize(get<0>(*iter));
 //            (*ret)[0][y].at<float>(it,0) += 1;
@@ -485,7 +489,7 @@ vector< vector< Mat/*< float >*/ > >* EnhancedBoVW::codeDescriptorsIntegralImage
             }
         }
     }
-    
+    assert(iter==desc->end());
     
     delete desc;
     return ret;
@@ -510,58 +514,6 @@ void EnhancedBoVW::color(Mat &heatMap, float score, float maxV, float minV, int 
 
 vector< description >* EnhancedBoVW::getDescriptors(const Mat &img) const
 {   
-//    Size blockSize1(16,16);
-//    Size blockSize2(24,24);
-//    Size blockSize3(32,32);
-    
-//    Size blockStride(4,4);
-    
-   
-//    HOGDescriptor hog1(blockSize1,blockSize1,blockStride,blockSize1,9,1,-1,HOGDescriptor::L2Hys,.2,true,1);
-//    HOGDescriptor hog2(blockSize2,blockSize2,blockStride,blockSize2,9,1,-1,HOGDescriptor::L2Hys,.2,true,1);
-//    HOGDescriptor hog3(blockSize3,blockSize3,blockStride,blockSize3,9,1,-1,HOGDescriptor::L2Hys,.2,true,1);
-
-    
-    
-//    vector<float> desc1;
-//    hog1.compute(img,desc1,blockStride);
-//    vector<float> desc2;
-//    hog2.compute(img,desc2,blockStride);
-//    vector<float> desc3;
-//    hog3.compute(img,desc3,blockStride);
- 
-//    vector<vector<float> > descriptors1(1);
-//    vector<vector<float> > descriptors2(1);
-//    vector<vector<float> > descriptors3(1);
-//    vector< Point2i > locations1;
-//    vector< Point2i > locations2;
-//    vector< Point2i > locations3;
-    
-//    filterDesc(desc1,descriptors1,locations1,hog1.getDescriptorSize(), blockSize1, blockStride, img.size());
-//    filterDesc(desc2,descriptors2,locations2,hog2.getDescriptorSize(), blockSize2, blockStride, img.size());
-//    filterDesc(desc3,descriptors3,locations3,hog3.getDescriptorSize(), blockSize3, blockStride, img.size());
-    
-//    vector< tuple< vector< float >, Point2i > > *descAndLoc = new vector< tuple< vector< float >, Point2i > >();
-//    for (int i=0; i< descriptors1.size(); i++)
-//    {
-//        if (descriptors1[i].size() > 0)
-//            descAndLoc->push_back(make_tuple(descriptors1[i],locations1[i]));
-//    }
-//    for (int i=0; i< descriptors2.size(); i++)
-//    {
-//        if (descriptors2[i].size() > 0)
-//            descAndLoc->push_back(make_tuple(descriptors2[i],locations2[i]));
-//    }
-//    for (int i=0; i< descriptors3.size(); i++)
-//    {
-//        if (descriptors3[i].size() > 0)
-//            descAndLoc->push_back(make_tuple(descriptors3[i],locations3[i]));
-//    }
-    
-//    int blockSize1=16;
-//    int blockSize2=24;
-//    int blockSize3=32;
-//    int blockStride=3;
     
 
     
@@ -793,54 +745,7 @@ void EnhancedBoVW::printDescThreshContours(const Mat &img, int desc_thresh) cons
     waitKey();
 }
 
-void EnhancedBoVW::filterDesc(vector<float> &unparsedDescriptors, vector<vector<float> > &descriptors1, vector< Point2i > &locations, int descSize, Size blockSize1, Size blockStride, Size imgSize) const
-{
-//    cout << "desc size " << descSize<<endl;
-    int i=0;
-    int location=-1;
-    double norm=0;
-    double maxNorm = 0;
-    double minNorm = 999999;
-    for (float n : unparsedDescriptors)
-    {
-        
-        
-        
-        if ((i++)%descSize==0) {
-            location++;
-            descriptors1.resize(location+1);
-            
-//            int x= (location/((imgSize.width-(blockSize1.width-blockStride.width))/blockStride.width))*blockStride.width + blockSize1.width/2-blockStride.width/2;
-//            int y= (location%((imgSize.height-(blockSize1.width-blockStride.width))/blockStride.width))*blockStride.height + blockSize1.height/2-blockStride.height/2;
-            
-            int x= (location/(1+(imgSize.height-blockSize1.height)/blockStride.height)) * blockStride.width+blockSize1.width/2;
-            int y= (location%(1+(imgSize.height-blockSize1.height)/blockStride.height)) * blockStride.height+blockSize1.height/2;
-            
-//            int x= (location%(1+(imgSize.width-blockSize1.width)/blockStride.width)) * blockStride.width+blockSize1.width/2;
-//            int y= (location/(1+(imgSize.width-blockSize1.width)/blockStride.width)) * blockStride.height+blockSize1.height/2;
-            
-            assert(x<imgSize.width && y<imgSize.height);
-            locations.push_back(Point2i(x,y));
-            
-            if (location!=0)
-            {
-//                cout << "norm: "<<sqrt(norm)<<endl;
-                if (norm > desc_thresh)
-                {
-                    descriptors1[location-1].resize(0);
-                }
-                if (norm > maxNorm) maxNorm = norm;
-                if (norm < minNorm/* && norm!=0*/) minNorm = norm;
-                
-                
-            }
-            
-            norm=0;
-        }
-        descriptors1[location].push_back(n);
-        norm += n*n;
-    }
-}
+
 
 vector< tuple<int,float> > EnhancedBoVW::quantizeSoft(const vector<float> &term, int t, int scale) const
 {
@@ -910,8 +815,8 @@ Codebook* EnhancedBoVW::makeCodebook(string directory, int codebook_size)
           
           delete desc;
       }
-      
-      codebook = computeCodebookFromExamples(codebook_size,accum);
+      codebook = new Codebook();
+      codebook->trainFromExamples(codebook_size,accum);
       
       return codebook;
     }
@@ -978,82 +883,27 @@ void EnhancedBoVW::make3Codebooks(string directory, int codebook_size)
           
           delete desc;
       }
+      
+      codebook_small = new Codebook();
+      codebook_med = new Codebook();
+      codebook_large = new Codebook();
 
 #pragma omp parallel num_threads(3)
 {      
       int id = omp_get_thread_num();
       if (id==0)
-          codebook_small = computeCodebookFromExamples(codebook_size,accum_small);
+          codebook_small->trainFromExamples(codebook_size,accum_small);
       else if (id==1)
-          codebook_med = computeCodebookFromExamples(codebook_size,accum_med);
+          codebook_med->trainFromExamples(codebook_size,accum_med);
       else if (id==2)
-          codebook_large = computeCodebookFromExamples(codebook_size,accum_large);
+          codebook_large->trainFromExamples(codebook_size,accum_large);
 }      
     }
     else
         cout << "Error, could not load files for codebooks." << endl;
 }
 
-Codebook* EnhancedBoVW::computeCodebookFromExamples(int codebook_size,vector< vector<float> >& accum)
-{
-    Mat centriods;
-    TermCriteria crit(TermCriteria::COUNT + TermCriteria::EPS,500,.9);
-    //      Mat data(accum.size(),accum[0].size(),CV_32F);
-    //      for (int r=0; r< accum.size(); r++)
-    //          for (int c=0; c<accum[0].size(); c++)
-    //              data.at<float>(r,c) = accum[r][c];
-    Mat data(codebook_size*300,accum[0].size(),CV_32F);
-    Codebook* codebook;
-    
-    cout << "selecting random set" << endl;
-    cout << "really. accum is " << accum.size() << endl;
-    for (int count=0; count< codebook_size*300; count++)
-    {
-        int r=rand()%accum.size();
-        int orig=r;
-        while (accum[r].size()==0)
-        {
-            r = (1+r)%accum.size();
-            if (r==orig)
-            {
-                cout << "ERROR: not enough descriptors" << endl;
-                return NULL;
-            }
-        }
-        
-        
-        for (int c=0; c<accum[0].size(); c++)
-        {
-            assert(accum[r][c] >= 0);
-            data.at<float>(count,c) = accum[r][c];
-        }
-        accum[r].resize(0);
-    }
-    cout << "computing kmeans" << endl;
-    
-    Mat temp;
-    //      Kmeans(data,codebook_size,temp,crit,10,KMEANS_RANDOM_CENTERS,&centriods);
-    kmeans(data,codebook_size,temp,crit,10,KMEANS_RANDOM_CENTERS,centriods);
-    
-    
-    cout << "compiling codebook" << endl;
-    
-    codebook = new Codebook();
-    for (int r=0; r<centriods.rows; r++)
-    {
-        vector<double> toAdd;
-        for (int c=0; c<centriods.cols; c++)
-        {
-            assert(centriods.at<float>(r,c) >= 0);
-            toAdd.push_back(centriods.at<float>(r,c));
-        }
-        codebook->push_back(toAdd);
-    }
-    
-    return codebook;
-  
-  
-}
+
 
 vector<float>* EnhancedBoVW::getPooledDescFastSkip(vector< vector< Mat/*< float >*/ > >* samplesIntegralImage, Rect window, vector<Vec2i> spatialPyramids, int skip, int level) const
 {
@@ -1125,7 +975,7 @@ vector<float>* EnhancedBoVW::getPooledDescFastSkip(vector< vector< Mat/*< float 
         ret->insert(ret->end(),sub->begin(),sub->end());
         delete sub;
     }
-    
+    assert(ret->size()>0);
     return ret;
 }
 

@@ -10,7 +10,7 @@
 #include "opencv2/nonfree/nonfree.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
 #include <assert.h>
-#include "codebook.h"
+#include "codebook_2.h"
 
 using namespace cv;
 int matchKeypoints( int argc, char** argv );

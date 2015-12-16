@@ -921,7 +921,7 @@ void EnhancedBoVWTests::experiment_Aldavert_dist_batched(EnhancedBoVW &bovw, str
     {
         const auto &wordTextLocPair = *(iter);
         
-        const vector<int> &word_locations = locations[wordTextLocPair.first];
+        const vector<int> &word_locations = wordTextLocPair.second;//locations[wordTextLocPair.first];
         
 //#pragma omp parallel for num_threads(2)
         if (word_locations.size()>9 && wordTextLocPair.first.size()>2)
@@ -1424,4 +1424,409 @@ void EnhancedBoVWTests::test(EnhancedBoVW& bovw)
 //        break;
     }
     cout << "mAP = " << map/mapCount << endl;
+}
+
+void EnhancedBoVWTests::createGGobiFile(EnhancedBoVW &bovw, string locationCSVPath, string dataDirPath, string fileExt, int numWords, string outfile)
+{
+
+    regex imageNameNumExtract("\\d+");
+
+
+    
+    map<string,vector<int> > locations;
+    
+    ifstream file;
+    file.open (locationCSVPath, ios::in);
+    assert(file.is_open());
+    
+    string wordText;
+    string fileList;
+
+    vector< tuple<string,int> > most(1);
+    most[0] = make_tuple(string("ERROR"),0);
+    while (getline(file,wordText))
+    {
+        getline(file,fileList);
+        
+        smatch sm;
+        while(regex_search(fileList,sm,imageNameNumExtract))
+        {
+            int idx = stoi(sm[0]);
+            locations[wordText].push_back(idx);
+            
+
+            fileList = sm.suffix().str();
+        }
+        auto iter = most.begin();
+        while (locations[wordText].size() < get<1>(*iter) && iter != most.end())
+            iter++;
+        most.insert(iter,make_tuple(wordText,locations[wordText].size()));
+        if (most.size() > numWords && numWords!=-1)
+            most.pop_back();
+    }
+    
+    
+    file.close();
+    
+    int count=0;
+    for (auto t : most)
+    {
+        count += locations[get<0>(t)].size();
+    }
+    
+    ofstream o(outfile);
+    if (!o)
+    {
+        cout << "ERROR: could not open for writing GGobi file: " << outfile << endl;
+        exit(-1);
+    }
+    
+    o << "<?xml version=\"1.0\"?>" << endl;
+    o << "<!DOCTYPE ggobidata SYSTEM \"ggobi.dtd\">" << endl;
+    o << "<ggobidata>" << endl;
+    
+    o << "<data name=\"BoVW\">" << endl;
+    o << "<variables count=\""+to_string(bovw.featureSize())+"\">" << endl;
+    for (int i=0; i<bovw.featureSize(); i++)
+    {
+        o << "<realvariable>" << endl;
+        o << "<name> v"<<i<<" </name>" << endl;
+        o << "</realvariable>" << endl;
+    }
+    o << "</variables>" << endl;
+    
+    o << "<records count=\""<<count<<"\">" << endl;
+    for (auto t : most)
+    {
+        for (int loc : locations[get<0>(t)])
+        {
+            std::string imagePath = dataDirPath + "wordimg_" + to_string(loc) + fileExt;
+            Mat exemplar = imread(imagePath,CV_LOAD_IMAGE_GRAYSCALE);
+            assert(exemplar.rows>0);
+            vector<float>* exemplar_b = bovw.featurizeImage(exemplar);
+            assert(exemplar_b->size() == bovw.featureSize());
+            o << "<record label=\""<<get<0>(t)<<"\">" << endl;
+            for (int i=0; i<exemplar_b->size(); i++)
+            {
+                o << "<real>" << exemplar_b->at(i) << "</real> ";
+            }
+            o << "\n</record>" << endl;
+        }
+    }
+    o << "</records>" << endl;
+    
+    o << "</ggobidata>" << endl;
+    o.close();
+}
+
+void EnhancedBoVWTests::drawData(EnhancedBoVW &bovw, string locationCSVPath, string dataDirPath, string fileExt, int numWords, string outfile)
+{
+
+    regex imageNameNumExtract("\\d+");
+
+
+    
+    map<string,vector<int> > locations;
+    
+    ifstream file;
+    file.open (locationCSVPath, ios::in);
+    assert(file.is_open());
+    
+    string wordText;
+    string fileList;
+
+    vector< tuple<string,int> > most(1);
+    most[0] = make_tuple(string("ERROR"),0);
+    while (getline(file,wordText))
+    {
+        getline(file,fileList);
+        
+        smatch sm;
+        while(regex_search(fileList,sm,imageNameNumExtract))
+        {
+            int idx = stoi(sm[0]);
+            locations[wordText].push_back(idx);
+            
+
+            fileList = sm.suffix().str();
+        }
+        auto iter = most.begin();
+        while (locations[wordText].size() < get<1>(*iter) && iter != most.end())
+            iter++;
+        most.insert(iter,make_tuple(wordText,locations[wordText].size()));
+        if (most.size() > numWords && numWords!=-1)
+            most.pop_back();
+    }
+    
+    
+    file.close();
+    vector<string> wordsToDraw;
+    for (auto t : most)
+    {
+        wordsToDraw.push_back(get<0>(t));
+    }
+    constructHistograms(bovw, locationCSVPath, dataDirPath, fileExt, outfile, locations, wordsToDraw);
+}
+
+void EnhancedBoVWTests::drawDataForWords(EnhancedBoVW &bovw, string locationCSVPath, string dataDirPath, string fileExt, const vector<string>& wordsToDraw, string outfile)
+{
+
+    regex imageNameNumExtract("\\d+");
+
+
+    
+    map<string,vector<int> > locations;
+    
+    ifstream file;
+    file.open (locationCSVPath, ios::in);
+    assert(file.is_open());
+    
+    string wordText;
+    string fileList;
+
+    while (getline(file,wordText))
+    {
+        getline(file,fileList);
+        
+        smatch sm;
+        while(regex_search(fileList,sm,imageNameNumExtract))
+        {
+            int idx = stoi(sm[0]);
+            locations[wordText].push_back(idx);
+            
+
+            fileList = sm.suffix().str();
+        }
+    }
+    
+    
+    file.close();
+    constructHistograms(bovw, locationCSVPath, dataDirPath, fileExt, outfile, locations, wordsToDraw);
+}
+
+
+void EnhancedBoVWTests::constructHistograms(EnhancedBoVW &bovw, string locationCSVPath, string dataDirPath, string fileExt, string outfile, const map<string,vector<int> >& locations, const vector<string>& wordsToDraw)
+{
+    //int count=0;
+    vector<double> maxs;
+    maxs.resize(bovw.featureSize(),0);
+    vector<double> mins;
+    mins.resize(bovw.featureSize(),numeric_limits<double>::max());
+    vector< vector<float>* > images;
+    for (string word : wordsToDraw)
+    {
+        //count += locations[get<0>(t)].size();
+        vector<float>* avg = new vector<float>(bovw.featureSize());
+        for (int loc : locations.at(word))
+        {
+            std::string imagePath = dataDirPath + "wordimg_" + to_string(loc) + fileExt;
+            Mat exemplar = imread(imagePath,CV_LOAD_IMAGE_GRAYSCALE);
+            assert(exemplar.rows>0);
+            vector<float>* exemplar_b = bovw.featurizeImage(exemplar);
+            assert(exemplar_b->size() > 0);
+            images.push_back(exemplar_b);
+            
+            for (int i=0; i<exemplar_b->size(); i++)
+            {
+                if (exemplar_b->at(i) > maxs[i])
+                    maxs[i] = exemplar_b->at(i);
+                if (exemplar_b->at(i) < mins[i])
+                    mins[i] = exemplar_b->at(i);
+                avg->at(i)+=exemplar_b->at(i);
+            }
+        }
+        for (int i=0; i<avg->size(); i++)
+            avg->at(i)/=locations.at(word).size();
+        images.push_back(NULL);
+        images.push_back(avg);
+        images.push_back(NULL);
+    }
+    
+    int row=0;
+    
+    int numBins=bovw.featureSize()/(3*bovw.codebook->size());
+    Mat hists[numBins];
+    for (int i=0; i<numBins; i++)
+    {
+        hists[i] = (Mat_<Vec3b>(images.size(),3*bovw.codebook->size()));
+    }
+    for (vector<float>* exemplar_b : images)
+    {
+        //assert(exemplar_b->size() == bovw.featureSize());
+        //assert(row<images.size());
+        //_colorCylcleIndex=0;
+        for (int i=0; i<bovw.featureSize(); i++)
+        {
+            int bin = i/(3*bovw.codebook->size());
+            int feature = i%(3*bovw.codebook->size());
+            double weight;
+            if (exemplar_b!=NULL)
+            {
+                weight = ((exemplar_b->at(i)-mins[i])/(maxs[i]-mins[i]!=0?maxs[i]-mins[i]:1));
+                int r = weight>.5?255*(weight-.5)/.5:0;
+                int g = weight>.5?255*(1.0-weight)/.5:255*(weight)/.5;
+                int b = weight<.5?((weight+.2)/.7)*255*(.5-weight)/.5:0;
+                Vec3b color=Vec3b(b,g,r);
+                hists[bin].at<Vec3b>(row,feature) = color;
+            }
+            else
+            {
+                Vec3b color=Vec3b(255,255,255);
+                hists[bin].at<Vec3b>(row,feature) = color;
+            }
+            
+            //hists[bin].at<Vec3b>(row,3*feature) = color;
+            //hists[bin].at<Vec3b>(1+row,1+3*feature) = color;
+            //hists[bin].at<Vec3b>(row,1+3*feature) = color;
+            //hists[bin].at<Vec3b>(1+row,3*feature) = color;
+        }
+        
+        row+=1;
+        //delete exemplar_b;
+    }
+    for (int i=0; i<numBins; i++)
+    {
+        imwrite(to_string(i)+"_"+outfile,hists[i]);
+    }
+    cout << "done" << endl;
+}
+
+void EnhancedBoVWTests::compareDataForWords(EnhancedBoVW &bovw, string locationCSVPath, string dataDirPath, string fileExt, const vector<string>& wordsToDraw, string ex_file, string outfile)
+{
+
+    regex imageNameNumExtract("\\d+");
+
+
+    
+    map<string,vector<int> > locations;
+    
+    ifstream file;
+    file.open (locationCSVPath, ios::in);
+    assert(file.is_open());
+    
+    string wordText;
+    string fileList;
+
+    while (getline(file,wordText))
+    {
+        getline(file,fileList);
+        
+        smatch sm;
+        while(regex_search(fileList,sm,imageNameNumExtract))
+        {
+            int idx = stoi(sm[0]);
+            locations[wordText].push_back(idx);
+            
+
+            fileList = sm.suffix().str();
+        }
+    }
+    
+    
+    file.close();
+    Mat ex_im=imread(ex_file,CV_LOAD_IMAGE_GRAYSCALE);
+    compareHistograms(bovw, locationCSVPath, dataDirPath, fileExt, outfile, locations, wordsToDraw,ex_im);
+}
+
+void EnhancedBoVWTests::compareHistograms(EnhancedBoVW &bovw, string locationCSVPath, string dataDirPath, string fileExt, string outfile, const map<string,vector<int> >& locations, const vector<string>& wordsToDraw, const Mat& toCompare)
+{
+    
+    //int count=0;
+    vector<double> maxs;
+    maxs.resize(bovw.featureSize(),0);
+    vector<double> mins;
+    mins.resize(bovw.featureSize(),numeric_limits<double>::max());
+    vector< vector<float>* > images;
+    
+    vector<float>* exemplar_c = bovw.featurizeImage(toCompare);
+    images.push_back(NULL);
+    images.push_back(exemplar_c);
+    images.push_back(NULL);
+    for (int i=0; i<exemplar_c->size(); i++)
+    {
+        if (exemplar_c->at(i) > maxs[i])
+            maxs[i] = exemplar_c->at(i);
+        if (exemplar_c->at(i) < mins[i])
+            mins[i] = exemplar_c->at(i);
+    }
+    
+    for (string word : wordsToDraw)
+    {
+        //count += locations[get<0>(t)].size();
+        vector<float>* avg = new vector<float>(bovw.featureSize());
+        for (int loc : locations.at(word))
+        {
+            std::string imagePath = dataDirPath + "wordimg_" + to_string(loc) + fileExt;
+            Mat exemplar = imread(imagePath,CV_LOAD_IMAGE_GRAYSCALE);
+            assert(exemplar.rows>0);
+            vector<float>* exemplar_b = bovw.featurizeImage(exemplar);
+            
+            double score = bovw.compareImage(exemplar,*exemplar_c);
+            cout << score << endl;
+            assert(exemplar_b->size() > 0);
+            images.push_back(exemplar_b);
+            
+            for (int i=0; i<exemplar_b->size(); i++)
+            {
+                if (exemplar_b->at(i) > maxs[i])
+                    maxs[i] = exemplar_b->at(i);
+                if (exemplar_b->at(i) < mins[i])
+                    mins[i] = exemplar_b->at(i);
+                avg->at(i)+=exemplar_b->at(i);
+            }
+        }
+        for (int i=0; i<avg->size(); i++)
+            avg->at(i)/=locations.at(word).size();
+        images.push_back(NULL);
+        images.push_back(avg);
+        images.push_back(NULL);
+    }
+    
+    int row=0;
+    
+    int numBins=bovw.featureSize()/(3*bovw.codebook->size());
+    Mat hists[numBins];
+    for (int i=0; i<numBins; i++)
+    {
+        hists[i] = (Mat_<Vec3b>(images.size(),3*bovw.codebook->size()));
+    }
+    for (vector<float>* exemplar_b : images)
+    {
+        //assert(exemplar_b->size() == bovw.featureSize());
+        //assert(row<images.size());
+        //_colorCylcleIndex=0;
+        for (int i=0; i<bovw.featureSize(); i++)
+        {
+            int bin = i/(3*bovw.codebook->size());
+            int feature = i%(3*bovw.codebook->size());
+            double weight;
+            if (exemplar_b!=NULL)
+            {
+                weight = ((exemplar_b->at(i)-mins[i])/(maxs[i]-mins[i]!=0?maxs[i]-mins[i]:1));
+                int r = weight>.5?255*(weight-.5)/.5:0;
+                int g = weight>.5?255*(1.0-weight)/.5:255*(weight)/.5;
+                int b = weight<.5?((weight+.2)/.7)*255*(.5-weight)/.5:0;
+                Vec3b color=Vec3b(b,g,r);
+                hists[bin].at<Vec3b>(row,feature) = color;
+            }
+            else
+            {
+                Vec3b color=Vec3b(255,255,255);
+                hists[bin].at<Vec3b>(row,feature) = color;
+            }
+            
+            //hists[bin].at<Vec3b>(row,3*feature) = color;
+            //hists[bin].at<Vec3b>(1+row,1+3*feature) = color;
+            //hists[bin].at<Vec3b>(row,1+3*feature) = color;
+            //hists[bin].at<Vec3b>(1+row,3*feature) = color;
+        }
+        
+        row+=1;
+        //delete exemplar_b;
+    }
+    for (int i=0; i<numBins; i++)
+    {
+        imwrite(to_string(i)+"_"+outfile,hists[i]);
+    }
+    cout << "done" << endl;
 }

@@ -1,6 +1,8 @@
 #ifndef DEFINES_H
 #define DEFINES_H
 
+#define USE_CODEBOOK_2 1
+
 inline int mod(int a, int b)
 {
     while (a<0) a+=b;

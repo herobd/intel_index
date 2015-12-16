@@ -5,7 +5,7 @@
 #include "corpus.h"
 #include <iostream>
 #include "siftizedimage.h"
-#include "codebook.h"
+#include "codebook_2.h"
 #include "customsift.h"
 #include <random>
 //#include <HMMlib/hmm_table.hpp>

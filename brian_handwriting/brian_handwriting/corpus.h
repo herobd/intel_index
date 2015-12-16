@@ -10,7 +10,7 @@
 #include "opencv2/imgproc/imgproc.hpp"
 #include <fstream>
 #include "hmmquery.h"
-#include "codebook.h"
+#include "codebook_2.h"
 
 #define CODEBOOK_SAMPLE_AMOUNT .05
 
