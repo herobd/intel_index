@@ -22,6 +22,8 @@
 #include <string>
 #include <limits>
 
+#include "binarization.h"
+
 #define DESKEW 1
 #define S 2.0
 
@@ -41,6 +43,27 @@ Mat translateImg(Mat &img, int offsetx, int offsety){
 
 int main (int argc, char** argv)
 {
+    //testing start
+        Binarization::test();
+        Mat img = imread(argv[1], CV_LOAD_IMAGE_GRAYSCALE);
+        
+        Mat shrunkTest;
+        resize(img,shrunkTest,Size(0,0),1/S,1/S, CV_INTER_AREA);
+        
+        /*Mat srcTest;
+        threshold( shrunkTest, srcTest, 150, 255,0);
+        
+        fillBorder(srcTest);
+        
+        bitwise_not(srcTest, srcTest);
+        double skewTest = compute_skew(srcTest);
+        Mat deskewedTest = deskew(srcTest,skewTest,shrunkTest);*/
+        
+        Mat bin = Binarization::ntirogiannisBinarization(shrunkTest,255,0,true);
+        imshow("bin",bin);
+        waitKey();
+        return 0;
+    //testing end
     Mat orig = imread(argv[1], CV_LOAD_IMAGE_GRAYSCALE);
     Mat orig2 = imread(argv[2], CV_LOAD_IMAGE_GRAYSCALE);
     //assert(orig.cols==orig2.cols && orig.rows==orig2.rows);
