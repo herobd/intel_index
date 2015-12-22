@@ -59,8 +59,9 @@ int main (int argc, char** argv)
         double skewTest = compute_skew(srcTest);
         Mat deskewedTest = deskew(srcTest,skewTest,shrunkTest);*/
         
-        Mat bin = Binarization::ntirogiannisBinarization(shrunkTest,255,0,true);
+        Mat bin = Binarization::ntirogiannisBinarization(img,255,0,true);
         imshow("bin",bin);
+        imwrite("bin.png",bin);
         waitKey();
         return 0;
     //testing end
