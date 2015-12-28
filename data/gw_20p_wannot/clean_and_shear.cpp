@@ -241,12 +241,10 @@ mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 	double slant = mxGetScalar(prhs[2]);
 	
 	bool VIZ=false;
-	if (filePath.compare("wordimg_9")==0 || 
-        filePath.compare("wordimg_22")==0 ||
-        filePath.compare("wordimg_66")==0 ||
-        filePath.compare("wordimg_18")==0)
+	/*if (filePath.compare("wordimg_9")==0 || 
+        filePath.compare("wordimg_78")==0 )
        VIZ=true;
-	
+	*/
 	//DImage img(("tmp/"+filePath+".tif").c_str(),DImage::DFileFormat_tiff);
 	Mat mat = imread("tmp/"+filePath+".tif", CV_LOAD_IMAGE_GRAYSCALE);
 	//cout << "read image" <<endl;
@@ -290,62 +288,91 @@ mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 	int pad=255;
 	img = img.shearedH(slant,pad,true);//fill corners with black
 	//cout << "sheared" <<endl;
-	//TODO fill corners
+	
+	
 	convertDImageToMat(img,&mat);
 	//cout << "converted back" <<endl;
     if (VIZ)
 	    {imshow("sheared",mat); waitKey();}
+    
+    //fill corners
 	Mat fillMaskFlipped(mat.rows,mat.cols,CV_8U,Scalar(1));
-	int space=2;
-	for (int r=fillMaskFlipped.rows-1; r>fillMaskFlipped.rows-1-space; r--)
-        for (int c=0; c<space; c++)
+	for (int r=fillMaskFlipped.rows-1; r>=0; r--)
+        for (int c=0; c<fillMaskFlipped.cols; c++)
         {
-            if (mat.at<unsigned char>(r,c)==pad)
-            {
-                fillMaskFlipped.at<unsigned char>(r,c)=0;
-            }
-            else
-            {
-                fillMaskFlipped.at<unsigned char>(r,c)=1;
-            }
+            int flag = (abs(mat.at<unsigned char>(r,c)-pad)<3 || 
+                        abs(mat.at<unsigned char>(r+1,c-1)-pad)<3 ||
+                        abs(mat.at<unsigned char>(r-1,c+1)-pad)<3)?0:1;
+            fillMaskFlipped.at<unsigned char>(r,c)=flag;
+            
         }
 	
+	
+	/*
+	int space=1;
+	//for (int r=fillMaskFlipped.rows-1; r>fillMaskFlipped.rows-1-space; r--)
+    //    for (int c=0; c<space; c++)
+    //    {
+    //        int flag = (abs(mat.at<unsigned char>(r,c)-pad)<3)?0:1;
+    //        fillMaskFlipped.at<unsigned char>(r,c)=flag;
+    //    }
+        
+    for (int r=fillMaskFlipped.rows-1; r>=0; r--)
+        for (int c=0; c<space; c++)
+        {
+            int flag = (abs(mat.at<unsigned char>(r,c)-pad)<3)?0:1;
+            fillMaskFlipped.at<unsigned char>(r,c)=flag;
+        }
+	
+	for (int c=0; c<fillMaskFlipped.cols; c++)
+	    for (int r=fillMaskFlipped.rows-1; r>fillMaskFlipped.rows-1-space; r--)
+        {
+            int flag = (abs(mat.at<unsigned char>(r,c)-pad)<3)?0:1;
+            fillMaskFlipped.at<unsigned char>(r,c)=flag;
+        }
+        
     for (int c=0; c<fillMaskFlipped.cols-space; c++)
     {
         bool cont=false;
         for (int r=fillMaskFlipped.rows-1; r>=space; r--)
         {
-            int flag = (mat.at<unsigned char>(r,c)==pad)?0:1;
+            int flag = (abs(mat.at<unsigned char>(r,c)-pad)<3)?0:1;
             if (flag==0 && !cont)
                 cont=true;
             fillMaskFlipped.at<unsigned char>(r-space,c+space)=flag;
-            if (r==fillMaskFlipped.rows-1)
-            {
-                for (int rf=r-space-1; rf<=fillMaskFlipped.rows-1; rf++)
-                    fillMaskFlipped.at<unsigned char>(rf,c+space)=flag;
-            }
-            if (c==0)
-            {
-                for (int cf=c+space-1; cf>=0; cf--)
-                    fillMaskFlipped.at<unsigned char>(r-space,cf)=flag;
-            }
+            //if (r==fillMaskFlipped.rows-1 && flag==0)
+            //{
+            //    for (int rf=r-space-1; rf<=fillMaskFlipped.rows-1; rf++)
+            //        fillMaskFlipped.at<unsigned char>(rf,c+space)=flag;
+            //}
+            //if (c==0 && flag==0)
+            //{
+            //    for (int cf=c+space-1; cf>=0; cf--)
+            //        fillMaskFlipped.at<unsigned char>(r-space,cf)=flag;
+            //}
         
         }
         if (!cont)
             break;
     }
     
-    for (int c=fillMaskFlipped.cols-1; c>fillMaskFlipped.cols-1-space; c--)
+    //for (int c=fillMaskFlipped.cols-1; c>fillMaskFlipped.cols-1-space; c--)
+    //    for (int r=0; r<space; r++)
+    //    {
+    //        int flag = (abs(mat.at<unsigned char>(r,c)-pad)<3)?0:1;
+    //        fillMaskFlipped.at<unsigned char>(r,c)=flag;
+    //    }
+    for (int c=fillMaskFlipped.cols-1; c>=0; c--)
         for (int r=0; r<space; r++)
         {
-            if (mat.at<unsigned char>(r,c)==pad)
-            {
-                fillMaskFlipped.at<unsigned char>(r,c)=0;
-            }
-            else
-            {
-                fillMaskFlipped.at<unsigned char>(r,c)=1;
-            }
+            int flag = (abs(mat.at<unsigned char>(r,c)-pad)<3)?0:1;
+            fillMaskFlipped.at<unsigned char>(r,c)=flag;
+        }
+    for (int r=0; r<fillMaskFlipped.rows; r++)
+        for (int c=fillMaskFlipped.cols-1; c>fillMaskFlipped.cols-1-space; c--)
+        {
+            int flag = (abs(mat.at<unsigned char>(r,c)-pad)<3)?0:1;
+            fillMaskFlipped.at<unsigned char>(r,c)=flag;
         }
     
     for (int c=fillMaskFlipped.cols-1; c>=space; c--)
@@ -353,28 +380,41 @@ mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
         bool cont=false;
         for (int r=0; r<fillMaskFlipped.rows-space; r++)
         {
-            int flag = (mat.at<unsigned char>(r,c)==pad)?0:1;
+            int flag = (abs(mat.at<unsigned char>(r,c)-pad)<3)?0:1;
             if (flag==0 && !cont)
                 cont=true;
             fillMaskFlipped.at<unsigned char>(r+space,c-space)=flag;
-            if (c==fillMaskFlipped.cols-1)
-            {
-                for (int cf=c-space-1; cf<=fillMaskFlipped.cols-1; cf++)
-                    fillMaskFlipped.at<unsigned char>(r+space,cf)=flag;
-            }
-            if (r==0)
-            {
-                for (int rf=r+space-1; rf>=0; rf--)
-                    fillMaskFlipped.at<unsigned char>(rf,c-space)=flag;
-            }
+            //if (c==fillMaskFlipped.cols-1 && flag==0)
+            //{
+           //   for (int cf=c-space-1; cf<=fillMaskFlipped.cols-1; cf++)
+           //         fillMaskFlipped.at<unsigned char>(r+space,cf)=flag;
+            //}
+            //if (r==0 && flag==0)
+            //{
+            //    for (int rf=r+space-1; rf>=0; rf--)
+            //        fillMaskFlipped.at<unsigned char>(rf,c-space)=flag;
+            //}
         
         }
         if (!cont)
             break;
-    }
+    }*/
     if (VIZ)
-        {Binarization::imshowB("fillamsk",fillMaskFlipped,255,0); waitKey();}
-	mat = Binarization::inpainting(mat,fillMaskFlipped,NULL,&average,&std);
+    {   Binarization::imshowB("fillamsk",fillMaskFlipped,255,0); waitKey();
+        Mat showMask = mat.clone();
+        Mat showUnmask = mat.clone();
+        for (int r=fillMaskFlipped.rows-1; r>=0; r--)
+            for (int c=0; c<fillMaskFlipped.cols; c++)
+            {
+                if (fillMaskFlipped.at<unsigned char>(r,c) == 0)
+                    showUnmask.at<unsigned char>(r,c)=255;
+                else if (fillMaskFlipped.at<unsigned char>(r,c) == 1)
+                    showMask.at<unsigned char>(r,c)=255;
+            }
+        imshow("masked",showMask); waitKey();
+        imshow("unmasked",showUnmask); waitKey();
+    }
+	mat = Binarization::inpainting(mat,fillMaskFlipped,NULL,&average,&std,VIZ);
 	//cout << "filled" <<endl;
 	/*for (int r=0; r<mat.rows; r++)
 	    for (int c=0; c<mat.cols; c++)
@@ -386,7 +426,7 @@ mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 	    {imshow("filled",mat); waitKey();}
 	//img.save((dirPath+"/"+filePath+".png").c_str(), DImage::DFileFormat_png);
 	imwrite(dirPath+"/"+filePath+".png",mat);
-	
+	//cout << "write "<<dirPath<<"/"<<filePath<<".png"<<endl;
 }
 
 

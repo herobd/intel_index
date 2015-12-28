@@ -7,7 +7,7 @@
 % Author: Toni M. Rath (trath@cs.umass.edu) 08/2004
 
 function seg_boxes_and_deskew (outdir)
-f=textread('file_order_TEST.txt','%s');
+f=textread('file_order.txt','%s');
 
 c=1;
 for i=1:length(f)

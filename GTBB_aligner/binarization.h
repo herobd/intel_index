@@ -26,7 +26,7 @@ namespace Binarization
 
     Mat dilate(const Mat& src, int size);
 
-    Mat inpainting(const Mat& src, const Mat& mask, Mat* prime=NULL, double* avg=NULL, double* std=NULL);
+    Mat inpainting(const Mat& src, const Mat& mask, Mat* prime=NULL, double* avg=NULL, double* std=NULL, bool show=false);
 
     Mat img_normalize(const Mat& src, const Mat& bg);
 

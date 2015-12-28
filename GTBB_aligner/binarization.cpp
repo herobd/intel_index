@@ -371,7 +371,7 @@ Mat Binarization::dilate(const Mat& src, int size)
     return dst;
 }
 
-Mat Binarization::inpainting(const Mat& src, const Mat& mask, Mat* prime, double* avg, double* std)
+Mat Binarization::inpainting(const Mat& src, const Mat& mask, Mat* prime, double* avg, double* std, bool show)
 {
     int x_start[4] = {0,0,mask.cols-1,mask.cols-1};
     int x_end[4] = {mask.cols,mask.cols,-1,-1};
@@ -384,14 +384,14 @@ Mat Binarization::inpainting(const Mat& src, const Mat& mask, Mat* prime, double
     Mat I = src.clone();
     for (int i=0; i<4; i++)
     {
-        P[i] = (Mat_<unsigned char>(mask.rows,mask.cols));;
+        P[i] = (Mat_<unsigned char>(mask.rows,mask.cols));
         Mat M = mask.clone();
         int yStep = y_end[i]>y_start[i]?1:-1;
         int xStep = x_end[i]>x_start[i]?1:-1;
         for (int y=y_start[i]; y!=y_end[i]; y+=yStep)
             for (int x=x_start[i]; x!=x_end[i]; x+=xStep)
             {
-                P[i].at<unsigned char>(y,x) = 255;
+                
                 if (M.at<unsigned char>(y,x) == 0)
                 {
                     
@@ -407,30 +407,42 @@ Mat Binarization::inpainting(const Mat& src, const Mat& mask, Mat* prime, double
                                                         (x+1<I.cols?I.at<unsigned char>(y,x+1)*M.at<unsigned char>(y,x+1):0) +
                                                         (y+1<I.rows?I.at<unsigned char>(y+1,x)*M.at<unsigned char>(y+1,x):0)
                                                       )/denom;
-                        if (P[i].at<unsigned char>(y,x)!=0)
-                        {
+                        //if (P[i].at<unsigned char>(y,x)!=0)
+                        //{
                             if (avg!=NULL && std!=NULL)
                             {
                                 if (P[i].at<unsigned char>(y,x)>*avg)
                                 {
                                     double dif = std::min(P[i].at<unsigned char>(y,x)-(*avg), 3*(*std));
-                                    P[i].at<unsigned char>(y,x) -= 3*dif/(*std);
+                                    P[i].at<unsigned char>(y,x) -= 8.5*dif/(*std);
                                 }
                                 else if (P[i].at<unsigned char>(y,x)<*avg)
                                 {
                                     double dif = std::min((*avg)-P[i].at<unsigned char>(y,x), 3*(*std));
-                                    P[i].at<unsigned char>(y,x) += 3*dif/(*std);
+                                    P[i].at<unsigned char>(y,x) += 8.5*dif/(*std);
                                 }
                             }
                             I.at<unsigned char>(y,x) = P[i].at<unsigned char>(y,x);
                             M.at<unsigned char>(y,x) = 1;
-                        }
-                        else
-                            P[i].at<unsigned char>(y,x) = 255;
+                        //}
+                        //else
+                        //    P[i].at<unsigned char>(y,x) = 255;
                     }
+                    else
+                        P[i].at<unsigned char>(y,x) = 255;
                 }
+                else
+                    P[i].at<unsigned char>(y,x) = I.at<unsigned char>(y,x);
             }
     }
+    if (show)
+    {
+        imshow("P[0]",P[0]); waitKey();
+        imshow("P[1]",P[1]); waitKey();
+        imshow("P[2]",P[2]); waitKey();
+        imshow("P[3]",P[3]); waitKey();
+    }
+    
     for (int y=0; y<mask.rows; y++)
         for (int x=0; x<mask.cols; x++)
         {
