@@ -72,7 +72,8 @@ void scrubCC(const Mat& bin, Mat& mask, int xStart, int yStart)
     vector<int> minY_x;
     int maxY=0;
     vector<int> maxY_x;
-    while (!toVisit.empty() && count<=SCRUB_THRESH)
+    int thresh = std::min(SCRUB_THRESH,0.05*(bin.rows*bin.cols));
+    while (!toVisit.empty() && count<=thresh)
     {
         Point cur = toVisit.back();
         toVisit.pop_back();
@@ -113,7 +114,7 @@ void scrubCC(const Mat& bin, Mat& mask, int xStart, int yStart)
         }
     }
 
-    if (count <= SCRUB_THRESH)
+    if (count <= thresh)
     {   
         //cout <<"removing blob"<<endl;
         toVisit.clear();

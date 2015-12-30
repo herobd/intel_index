@@ -5,6 +5,7 @@
 //A combined approach for the binarization of handwritten document images
 //Ntirogiannis, Gatos, Pratikakis
 //2014
+//Implementation by Brian Davis 2015
 Mat Binarization::ntirogiannisBinarization(const Mat& src, int off, int on, bool visualize)
 {
         
@@ -32,14 +33,18 @@ Mat Binarization::ntirogiannisBinarization(const Mat& src, int off, int on, bool
         
     Mat normalized = img_normalize(src,bg_estimation);
     if (visualize)
-        {imshow("normalized",normalized); waitKey();}//here
+        {imshow("normalized",normalized); waitKey();}
+    //bg_estimation.release();
         
     Mat otsued = otsuBinarization(normalized);
     if (visualize)
-        {imshowB("otsued",otsued,off,on); waitKey();}//here
+        {imshowB("otsued",otsued,off,on); waitKey();}
+    //normalized.release();
+        
     Mat first_binarization = postProcessing(otsued);
     if (visualize)
         {imshowB("first_binarization",first_binarization,off,on); waitKey();}
+    //otsued.release();
     
     Mat skel = LeeChenSkel(first_binarization);
     if (visualize)
@@ -48,10 +53,8 @@ Mat Binarization::ntirogiannisBinarization(const Mat& src, int off, int on, bool
     extract_feat(src,&skel, &FG_average, &FG_std);
     double BG_average, BG_std;
     extract_feat(BG_prime,NULL, &BG_average, &BG_std);
-    //Mat fg_feat = extract_fg_feat(src)
-    //Mat bg_feat = extract_bg_feat(bg_estimation?);
     double C = -50.0*log10((FG_average+FG_std)/(BG_average-BG_std));
-    double SW = strokeWidth(first_binarization,skel);
+    double SW = strokeWidth(first_binarization,skel);   
     
     cout << "FG_avg: "<<FG_average<<" FG_std: "<<FG_std<<" BG_avg: "<<BG_average<<" BG_std: "<<BG_std<<" C: "<<C<<" SW: "<<SW<<endl;
     
@@ -71,8 +74,6 @@ Mat Binarization::ntirogiannisBinarization(const Mat& src, int off, int on, bool
                     dst.at<unsigned char>(r,c)=off;
             }
     }
-    if (visualize)
-        waitKey();
     
     return dst;
 }
@@ -203,11 +204,13 @@ Mat Binarization::niblackBinarization(const Mat& src, int size, double k)//fast
     double varSum;
     double stdDev;
     double thresh;
-    for (int xOff=-floor(size/2); xOff<ceil(size/2); xOff++)
+    int regionStart=-floor(size/2);
+    int regionEnd=ceil(size/2);
+    for (int xOff=regionStart; xOff<regionEnd; xOff++)
     {
         double sumCol=0;
         double sqSumCol=0;
-        for (int yOff=-floor(size/2); yOff<ceil(size/2); yOff++)
+        for (int yOff=regionStart; yOff<regionEnd; yOff++)
         {
             int ty = 0+yOff;
             if (ty<0 || ty>=src.rows)
@@ -216,9 +219,9 @@ Mat Binarization::niblackBinarization(const Mat& src, int size, double k)//fast
             int tx = 0+xOff;
             if (tx<0 || tx>=src.cols)
                 tx = 0-xOff;
-                
-            sumCol +=src.at<unsigned char>(ty,tx);
-            sqSumCol +=src.at<unsigned char>(ty,tx)*src.at<unsigned char>(ty,tx);
+            int val = src.at<unsigned char>(ty,tx);
+            sumCol +=val;
+            sqSumCol +=val*val;
         }
         sumCols.push_back(sumCol);
         sum += sumCol;
@@ -236,11 +239,11 @@ Mat Binarization::niblackBinarization(const Mat& src, int size, double k)//fast
             //move rows
             auto sumColsIter = sumCols.begin();
             auto sqSumColsIter = sqSumCols.begin();
-            int yOffPrev = -floor(size/2)-1;
-            int yOffNext = ceil(size/2)-1;
+            int yOffPrev = regionStart-1;
+            int yOffNext = regionEnd-1;
             sum=0;
             sqSum=0;
-            for (int xOff=-floor(size/2); xOff<ceil(size/2); xOff++)
+            for (int xOff=regionStart; xOff<regionEnd; xOff++)
             {
                 int tyPrev = y+yOffPrev;
                 if (tyPrev<0 || tyPrev>=src.rows)
@@ -252,14 +255,16 @@ Mat Binarization::niblackBinarization(const Mat& src, int size, double k)//fast
                 int tx = x+xOff;
                 if (tx<0 || tx>=src.cols)
                     tx = x-xOff;
-                    
-                *sumColsIter -=src.at<unsigned char>(tyPrev,tx);
-                *sumColsIter +=src.at<unsigned char>(tyNext,tx);
+                
+                int prevVal = src.at<unsigned char>(tyPrev,tx);
+                int nextVal = src.at<unsigned char>(tyNext,tx);
+                *sumColsIter -=prevVal;
+                *sumColsIter +=nextVal;
                 sum += *sumColsIter;
                 sumColsIter++;
                 
-                *sqSumColsIter -=src.at<unsigned char>(tyPrev,tx)*src.at<unsigned char>(tyPrev,tx);
-                *sqSumColsIter +=src.at<unsigned char>(tyNext,tx)*src.at<unsigned char>(tyNext,tx);
+                *sqSumColsIter -=prevVal*prevVal;
+                *sqSumColsIter +=nextVal*nextVal;
                 sqSum += *sqSumColsIter;
                 sqSumColsIter++;
             }
@@ -289,7 +294,7 @@ Mat Binarization::niblackBinarization(const Mat& src, int size, double k)//fast
                 sqSum -= sqSumCols.front();
                 sqSumCols.pop_front();
                 
-                xOff = ceil(size/2)-1;
+                xOff = regionEnd-1;
             }
             else
             {
@@ -299,12 +304,12 @@ Mat Binarization::niblackBinarization(const Mat& src, int size, double k)//fast
                 sqSum -= sqSumCols.back();
                 sqSumCols.pop_back();
                 
-                xOff = -floor(size/2);
+                xOff = regionStart;
             }
             
             double sumCol=0;
             double sqSumCol=0;
-            for (int yOff=-floor(size/2); yOff<ceil(size/2); yOff++)
+            for (int yOff=regionStart; yOff<regionEnd; yOff++)
             {
                 int ty = y+yOff;
                 if (ty<0 || ty>=src.rows)
@@ -313,9 +318,10 @@ Mat Binarization::niblackBinarization(const Mat& src, int size, double k)//fast
                 int tx = x+xOff;
                 if (tx<0 || tx>=src.cols)
                     tx = x-xOff;
-                    
-                sumCol +=src.at<unsigned char>(ty,tx);
-                sqSumCol +=src.at<unsigned char>(ty,tx)*src.at<unsigned char>(ty,tx);
+                
+                int val = src.at<unsigned char>(ty,tx);
+                sumCol += val;
+                sqSumCol +=val*val;
             }
             if (y%2==0)
             {
@@ -454,7 +460,7 @@ Mat Binarization::inpainting(const Mat& src, const Mat& mask, Mat* prime, double
                                                        std::min(P[2].at<unsigned char>(y,x),
                                                                 P[3].at<unsigned char>(y,x))
                                                      );
-                assert(dst.at<unsigned char>(y,x)!=0);
+                //assert(dst.at<unsigned char>(y,x)!=0);
                 if (prime != NULL)
                     prime->at<unsigned char>(y,x) =  (P[0].at<unsigned char>(y,x) + 
                                                       P[1].at<unsigned char>(y,x) + 
@@ -582,54 +588,57 @@ tuple< Mat,map<int,int> > connComp(const Mat& bin, function<void (int,int,int)> 
             if (bin.at<unsigned char>(r,c)==1)
             {
                 countPixels++;
-                int upBin = bin.at<unsigned char>(r-1,c);
-                int leftBin = bin.at<unsigned char>(r,c-1);
-                int upLeftBin = bin.at<unsigned char>(r-1,c-1);
-                int upRightBin = bin.at<unsigned char>(r-1,c+1);
-                
                 int ccI=0;
-                if (r!=0&&upBin!=0)
+                if (r!=0&&bin.at<unsigned char>(r-1,c)!=0)
                 {
                     ccI = cc.at<int>(r-1,c);
+                    int orig = ccI;
                     while (ccMap[ccI]!=0)
                     {
                         ccI = ccMap[ccI];
-                        //ccMap[cc.at<int>(r-1,c)]=ccI;
+                        ccMap[orig]=ccI;
                     }
+                    
                     if (cc.at<int>(r-1,c) != ccI)
                         cc.at<int>(r-1,c)=ccI;
                 }
-                else if (c!=0&&leftBin!=0)
+                else if (c!=0&&bin.at<unsigned char>(r,c-1)!=0)
                 {
                     ccI = cc.at<int>(r,c-1);
+                    int orig = ccI;
                     while (ccMap[ccI]!=0)
                     {
                         ccI = ccMap[ccI];
-                        //ccMap[cc.at<int>(r,c-1)]=ccI;
+                        ccMap[orig]=ccI;
                     }
+                    
                     if (cc.at<int>(r,c-1) != ccI)
                         cc.at<int>(r,c-1)=ccI;
                 }
-                else if (r!=0&&c!=0&&upLeftBin!=0)
+                else if (r!=0&&c!=0&&bin.at<unsigned char>(r-1,c-1)!=0)
                 {
                     ccI = cc.at<int>(r-1,c-1);
+                    int orig = ccI;
                     while (ccMap[ccI]!=0)
                     {
                         ccI = ccMap[ccI];
-                        //ccMap[cc.at<int>(r-1,c-1)]=ccI;
+                        ccMap[orig]=ccI;
                     }
+                    
                     if (cc.at<int>(r-1,c-1) != ccI)
                         cc.at<int>(r-1,c-1)=ccI;
                 }
                 int ccIDag=0;
-                if (r!=0&&c<bin.cols-1&&upRightBin!=0)
+                if (r!=0&&c<bin.cols-1&&bin.at<unsigned char>(r-1,c+1)!=0)
                 {
                     ccIDag = cc.at<int>(r-1,c+1);
+                    int orig = ccIDag;
                     while (ccMap[ccIDag]!=0)
                     {
                         ccIDag = ccMap[ccIDag];
-                        //ccMap[cc.at<int>(r-1,c+1)]=ccIDag;
+                        ccMap[orig]=ccIDag;
                     }
+                    
                     if (cc.at<int>(r-1,c+1) != ccIDag)
                         cc.at<int>(r-1,c+1)=ccIDag;
                 }
@@ -666,78 +675,11 @@ tuple< Mat,map<int,int> > connComp(const Mat& bin, function<void (int,int,int)> 
                         addToCC(ccI,r,c);
                     }
                 }
-                /*if ((r==0||upBin==0) && (c==0||leftBin==0))
-                {
-                    cc.at<unsigned int>(r,c)=++ccIndex;
-                    ccMap[ccIndex]=0;
-                    newCC(ccIndex,r,c);
-                }
-                else if ((r==0||upBin==0) && (c!=0&&leftBin!=0))
-                {
-                    int leftCCIndex = cc.at<int>(r,c-1);
-                    while (ccMap[leftCCIndex]!=0)
-                        leftCCIndex = ccMap[leftCCIndex];
-                    int ccI=leftCCIndex;
-                    cc.at<unsigned int>(r,c)=ccI;
-                    assert(ccI!=1);
-                    addToCC(ccI,r,c);
-                }
-                else if ((r!=0&&upBin!=0) && (c==0||leftBin==0))
-                {
-                    int upCCIndex = cc.at<int>(r-1,c);
-                    while (ccMap[upCCIndex]!=0)
-                            upCCIndex = ccMap[upCCIndex];
-                    int ccI=upCCIndex;
-                    cc.at<unsigned int>(r,c)=ccI;
-                    assert(ccI!=1);
-                    addToCC(ccI,r,c);
-                }
-                else if ((r!=0&&c!=0&&upLeftBin!=0) && (c==0||leftBin==0))
-                {
-                    int upCCIndex = cc.at<int>(r-1,c);
-                    while (ccMap[upCCIndex]!=0)
-                            upCCIndex = ccMap[upCCIndex];
-                    int ccI=upCCIndex;
-                    cc.at<unsigned int>(r,c)=ccI;
-                    assert(ccI!=1);
-                    addToCC(ccI,r,c);
-                }
-                else //merge
-                {
-                    int upCCIndex = cc.at<int>(r-1,c);
-                    while (ccMap[upCCIndex]!=0)
-                            upCCIndex = ccMap[upCCIndex];
-                    int leftCCIndex = cc.at<int>(r,c-1);
-                    while (ccMap[leftCCIndex]!=0)
-                        leftCCIndex = ccMap[leftCCIndex];
-                    if (upCCIndex==leftCCIndex)
-                    {
-                        int ccI=upCCIndex;
-                        cc.at<unsigned int>(r,c)=ccI;
-                        assert(ccI!=1);
-                        addToCC(ccI,r,c);
-                    }
-                    else
-                    {
-                        int mergeTo = upCCIndex;
-                        int toMerge = leftCCIndex;
-                        if (mergeTo != toMerge)
-                        {
-                            //cout << "merging "<<toMerge<<" to "<<mergeTo<<endl;
-                            ccMap[toMerge]=mergeTo;
-                            mergeCC(mergeTo,toMerge,r,c);
-                        }
-                        addToCC(mergeTo,r,c);
-                        cc.at<unsigned int>(r,c)=mergeTo;
-                        
-                        assert(mergeTo!=1);
-                        assert(toMerge!=1);
-                    }
-                }*/
+                
             }
-            assert(oldIndex==ccIndex || oldIndex+1==ccIndex);
-            assert(ccIndex==1 || ccMap.find(ccIndex)!=ccMap.end());
-            assert(ccIndex>0);
+            //assert(oldIndex==ccIndex || oldIndex+1==ccIndex);
+            //assert(ccIndex==1 || ccMap.find(ccIndex)!=ccMap.end());
+            //assert(ccIndex>0);
         }
     return make_tuple(cc,ccMap);
 }
@@ -1079,10 +1021,10 @@ double Binarization::computeStrokeWidth(int row, int col, const Mat& bin)
     double minSqrDist=9999;
     Point minPoint(-1,-1);
     bool term = false;
-    vector<Point> toEval;
-    vector<Point> toEvalNext;
+    list<Point> toEval;
+    list<Point> toEvalNext;
     toEval.push_back(Point(col,row));
-    Mat mark = bin.clone();
+    Mat mark = Mat::zeros(bin.rows,bin.cols,CV_8U);//bin.clone();
     mark.at<unsigned char>(row,col)=0;
     do
     {
@@ -1109,25 +1051,25 @@ double Binarization::computeStrokeWidth(int row, int col, const Mat& bin)
             }
             else
             {
-                if (p.y>0&&mark.at<unsigned char>(u)!=0)
+                if (p.y>0&&mark.at<unsigned char>(u)!=1)
                 {
                     toEvalNext.push_back(u);
-                    mark.at<unsigned char>(u)=0;
+                    mark.at<unsigned char>(u)=1;
                 }
-                if (p.y<bin.rows-1&&mark.at<unsigned char>(d)!=0)
+                if (p.y<bin.rows-1&&mark.at<unsigned char>(d)!=1)
                 {
                     toEvalNext.push_back(d);
-                    mark.at<unsigned char>(d)=0;
+                    mark.at<unsigned char>(d)=1;
                 }
-                if (p.x>0&&mark.at<unsigned char>(l)!=0)
+                if (p.x>0&&mark.at<unsigned char>(l)!=1)
                 {
                     toEvalNext.push_back(l);
-                    mark.at<unsigned char>(l)=0;
+                    mark.at<unsigned char>(l)=1;
                 }
-                if (p.x<bin.cols-1&&mark.at<unsigned char>(r)!=0)
+                if (p.x<bin.cols-1&&mark.at<unsigned char>(r)!=1)
                 {
                     toEvalNext.push_back(r);
-                    mark.at<unsigned char>(r)=0;
+                    mark.at<unsigned char>(r)=1;
                 }
             }
         }
@@ -1147,52 +1089,12 @@ double Binarization::strokeWidth(const Mat& bin, const Mat& skel)
         ccMax[ccI]=std::max(computeStrokeWidth(r,c,bin),ccMax[ccI]);
     };
     auto mergeCC = [&ccMax, &bin](int mergeTo, int toMerge, int r, int c) {
-        ccMax[mergeTo]=std::max(computeStrokeWidth(r,c,bin),std::max(ccMax[mergeTo],ccMax[toMerge]));
+        ccMax[mergeTo]=std::max(ccMax[mergeTo],ccMax[toMerge]);//std::max(computeStrokeWidth(r,c,bin),std::max(ccMax[mergeTo],ccMax[toMerge]));
     };
-    tuple< Mat,map<int,int> > ccA = connComp(bin,newCC,addToCC,mergeCC);
+    tuple< Mat,map<int,int> > ccA = connComp(skel,newCC,addToCC,mergeCC);
     Mat cc = get<0>(ccA);
     map<int,int> ccMap = get<1>(ccA);
-    /*
-    Mat cc = skel.clone();
-    map<int,int> ccMap;
-    map<int,int> ccCounts;
-    map<int,double> ccMax;
-    int ccIndex=1;
-    for (int r=0; r<skel.rows; r++)
-        for (int c=0; c<skel.cols; c++)
-        {
-            if (bin.at<unsigned char>(r,c)==1)
-            {
-                if ((r==0||bin.at<unsigned char>(r-1,c)==0) && (c==0||bin.at<unsigned char>(r,c-1)==0))
-                {
-                    cc.at<unsigned char>(r,c)=++ccIndex;
-                    ccMap[ccIndex]=0;
-                    ccMax[ccIndex]=std::max(computeStrokeWidth(r,c,bin),ccMax[ccIndex]);
-                }
-                else if ((r==0||bin.at<unsigned char>(r-1,c)==0||cc.at<unsigned char>(r-1,c)==cc.at<unsigned char>(r,c-1)) && (c!=0&&bin.at<unsigned char>(r,c-1)!=0))
-                {
-                    int ccI=bin.at<unsigned char>(r,c-1);
-                    cc.at<unsigned char>(r,c)=ccI;
-                    ccMax[ccI]=std::max(computeStrokeWidth(r,c,bin),ccMax[ccI]);
-                }
-                else if ((r!=0&&bin.at<unsigned char>(r-1,c)!=0) && (c==0||bin.at<unsigned char>(r,c-1)==0))
-                {
-                    int ccI=bin.at<unsigned char>(r-1,c);
-                    cc.at<unsigned char>(r,c)=ccI;
-                    ccMax[ccI]=std::max(computeStrokeWidth(r,c,bin),ccMax[ccI]);
-                }
-                else //merge
-                {
-                    int toMerge = bin.at<unsigned char>(r,c-1);
-                    while (ccMap[toMerge]!=0)
-                        toMerge = ccMap[toMerge];
-                    int mergeTo = bin.at<unsigned char>(r-1,c);
-                    ccMap[toMerge]=mergeTo;
-                    ccMax[mergeTo]=std::max(computeStrokeWidth(r,c,bin),std::max(ccMax[mergeTo],ccMax[toMerge]));
-                    cc.at<unsigned char>(r,c)=mergeTo;
-                }
-            }
-        }*/
+    
     double sum=0;
     int ccCount=0;
     for (auto ccPointer : ccMap)
@@ -1300,19 +1202,26 @@ Mat Binarization::combine(const Mat& o_bin, const Mat& n_bin, double C)
         }*/
     
     
-    Mat res(n_bin.size(),n_bin.type());
+    //Mat res(n_bin.rows,n_bin.cols,n_bin.type());
+    Mat res = Mat::zeros(n_bin.size(), CV_8UC1);
     vector<int> ccKeep;
     for (auto ccPointer : ccMap)
     {
         if (ccPointer.second==0 && ccPointer.first!=0)
         {
+            //cout <<"ratio: "<<(100.0*ccCountsIntersectOtsu[ccPointer.first])/ccCounts[ccPointer.first]<<endl;
             if ((100.0*ccCountsIntersectOtsu[ccPointer.first])/ccCounts[ccPointer.first] >= C)
+            {
                 ccKeep.push_back(ccPointer.first);
+                //cout<<"kept: "<<ccPointer.first<<endl;
+            }
         }
     }
     for (int r=0; r<cc.rows; r++)
         for (int c=0; c<cc.cols; c++)
         {
+            
+            
             if (cc.at<int>(r,c)!=0)
             {
                 int ccI = cc.at<int>(r,c);
@@ -1321,8 +1230,9 @@ Mat Binarization::combine(const Mat& o_bin, const Mat& n_bin, double C)
                     ccI = ccMap[ccI];
                     ccMap[cc.at<int>(r,c)]=ccI;
                 }
+                //if (find(ccKeep.begin(), ccKeep.end(),ccI) != ccKeep.end())
                 if (binary_search(ccKeep.begin(), ccKeep.end(),ccI))
-                    res.at<unsigned char>(r,c)==1;
+                    res.at<unsigned char>(r,c)=1;
                 
             }
         }
