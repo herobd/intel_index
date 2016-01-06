@@ -431,7 +431,7 @@ void EnhancedBoVWTests::experiment_Aldavert_dist(EnhancedBoVW &bovw, string loca
 }
 */
 
-void EnhancedBoVWTests::experiment(EnhancedBoVW &bovw, string locationCSVPath, string exemplarDirPath, string dataDirPath, int dataSize, int numExemplarsPer, string fileExt, bool skip)
+void EnhancedBoVWTests::experiment(EnhancedBoVW &bovw, string locationCSVPath, string exemplarDirPath, string dataDirPath, int dataSize, int numExemplarsPer, string fileExt, string outfile, bool skip)
 {
     
     
@@ -539,7 +539,7 @@ void EnhancedBoVWTests::experiment(EnhancedBoVW &bovw, string locationCSVPath, s
                     string imagePath = dataDirPath + "wordimg_" + to_string(imageIdx) + fileExt;
                     Mat word = imread(imagePath,CV_LOAD_IMAGE_GRAYSCALE);
                     assert(word.rows>0);
-                    double score = bovw.scanImage(word,*exemplar_b,exemplar.size());
+                    double score = bovw.scanImageHorz(word,*exemplar_b,exemplar.size());
                     
                     
                     myScores.push_back(pair<int,double>(imageIdx,score));
@@ -604,10 +604,10 @@ void EnhancedBoVWTests::experiment(EnhancedBoVW &bovw, string locationCSVPath, s
 //        break;
     }
     map = map/mapCount;
-    cout << "[IAM/bigram] mAP: "<<map<<endl;
+    cout << "[] mAP: "<<map<<endl;
 //    save("results.mat","fullResults","map");
     ofstream out;
-    out.open ("./results_IAM_bigram.dat", ios::out);
+    out.open (outfile, ios::out);
     out << fullResults;
     out.close();
     
