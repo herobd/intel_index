@@ -45,7 +45,7 @@ for cb=1:nBatches
             for window_lx = 1:windowStride:size(full_im,2)-windowWidth
                 %extract sub-image
                 endIdx=(window_lx+windowWidth);
-                if (window_lx+windowStride>size(full_im,2)-windowWidth) || (endIdx > size(full_im,2))
+                if (endIdx > size(full_im,2))
                     endIdx=size(full_im,2);
                 end
 
@@ -67,7 +67,7 @@ for cb=1:nBatches
 %     fid = fopen(opts.fileFeatures_slidingwindow, 'r+');    
 %     fseek(fid, 2*4  + (int64(cb)-1)*imagesPerBatch*opts.FVdim * 4, 'bof');
 %     fwrite(fid, featsBatch(:,1:nInBatch,:), 'single');        
-    save(opts.fileFeatures_slidingwindow,'featsBatch','-v7.3');
+    save(opts.fileFeatures_slidingwindow,'featsBatch');
 end
 disp(toc);
 

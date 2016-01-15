@@ -10,7 +10,7 @@ if ~exist(opts.fileAttModels,'file') || ~exist(opts.fileAttRepresQu_subword,'fil
         else
             % When running the code in a single machine
             features = readMat(opts.fileFeatures);
-            features_slidingwindowX=load(opts.fileFeatures_slidingwindow,'featsBatch','-v7.3');
+            features_slidingwindowX=load(opts.fileFeatures_slidingwindow,'featsBatch');
             features_slidingwindow=features_slidingwindowX.featsBatch;
             features_subword = readMat(opts.fileFeatures_subword);
             % Training and validation sets are concatenated
@@ -34,7 +34,7 @@ if ~exist(opts.fileAttModels,'file') || ~exist(opts.fileAttRepresQu_subword,'fil
         features = readMat(opts.fileFeatures);
     end
     if ~exist('features_slidingwindow','var');
-        features_slidingwindowX=load(opts.fileFeatures_slidingwindow,'featsBatch','-v7.3');
+        features_slidingwindowX=load(opts.fileFeatures_slidingwindow,'featsBatch');
         features_slidingwindow=features_slidingwindowX.featsBatch;
     end
     feats_va = features(:,data.idxValidation);
