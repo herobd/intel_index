@@ -15,7 +15,7 @@ opts.dataset = dataset;
 
 opts.precForThresh = 0.5;
 opts.threshold = 0.4504;
-opts.saveSpottings = false;
+opts.saveSpottings = true;
 
 
 
@@ -244,12 +244,12 @@ if ~exist(opts.dataFolder,'dir')
 end
 opts.fileData = sprintf('%s/%s_data.mat',opts.pathFiles,opts.dataset);
 opts.fileImages = sprintf('%s/%s_images%s.bin',opts.pathFiles,opts.dataset,tagminH);
-opts.fileImages_subword = sprintf('%s/%s_images_subword%s.bin',opts.pathFiles,opts.dataset,tagminH);
+opts.fileImages_subword = sprintf('%s/%s_images_subword%s_%s.bin',opts.pathFiles,opts.dataset,tagminH,typegrams);
 opts.fileWriters = sprintf('%s/%s_writers.mat',opts.pathFiles,opts.dataset);
 opts.fileGMM = sprintf('%s/%s%s.bin',opts.dataFolder,opts.dataset,tagGMM);
 opts.filePCA = sprintf('%s/%s%s.bin',opts.dataFolder,opts.dataset,tagPCA);
 opts.filePHOCs = sprintf('%s/%s%s.bin',opts.dataFolder,opts.dataset,opts.tagPHOC);
-opts.filePHOCs_subword = sprintf('%s/%s%s_subword.bin',opts.dataFolder,opts.dataset,opts.tagPHOC);
+opts.filePHOCs_subword = sprintf('%s/%s%s_subword_%s.bin',opts.dataFolder,opts.dataset,opts.tagPHOC,typegrams);
 opts.fileFeatures = sprintf('%s/%s%s.bin',opts.dataFolder,opts.dataset,opts.tagFeatures);
 opts.fileFeatures_slidingwindow = sprintf('%s/%s%s_slidingwindow.mat',opts.dataFolder,opts.dataset,opts.tagFeatures);
 opts.fileFeatures_subword = sprintf('%s/%s%s_subword.bin',opts.dataFolder,opts.dataset,opts.tagFeatures);

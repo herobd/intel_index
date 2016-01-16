@@ -1,5 +1,5 @@
-function [p1, mAP, thresh] = eval_dp_asymm_subword(alpha, opts, queries, dataset_slidingwindow, allClasses, queriesClasses, queriesIdx, doqbs)
-if nargin < 8
+function [p1, mAP, thresh] = eval_dp_asymm_subword(alpha, DATA, opts, queries, dataset_slidingwindow, allClasses, queriesClasses, queriesIdx, doqbs)
+if nargin < 9
     doqbs = 0;
 end
 
@@ -79,8 +79,11 @@ queries(isnan(queries)) = 0;
 %S=queries*dataset';
 if opts.saveSpottings
     
-    imagesTOC = readImagesToc(opts.fileImages);
+    [imagesTOC,countImages] = readImagesTocCount(opts.fileImages);
     [fid,msg] = fopen(opts.fileImages, 'r');
+    nums = [1:size(DATA.idxTest,1)];
+    mapImages = nums(DATA.idxTest);
+    assert(size(mapImages,2) == size(dataset_slidingwindow,2));
     spottings=[];
     windowWidth=opts.windowWidth;
     windowStride=opts.windowStride;
@@ -93,12 +96,10 @@ S=[];
 for i = 1:size(dataset_slidingwindow,2)
     tmp = queries*dataset_slidingwindow{i};
     if opts.saveSpottings
-        img_gray = readImage(fid, imagesTOC, i);
         
         ii=1;
         for ngram = opts.ngrams
-            img = cat(3, img_gray, img_gray, img_gray);
-            maxScoreForNgram=0;
+	    maxScoreForNgram=0;
             location=-1;
             for exN = 1:opts.ngramCountPer
                 for loc = 1:size(tmp,2)
@@ -112,6 +113,9 @@ for i = 1:size(dataset_slidingwindow,2)
             end
             if location ~= -1 && maxScoreForNgram>opts.threshold
                 %highlight spotted window
+                %img_gray = imread(DATA.wordsTe(i).pathIm);
+	        img_gray = readImage(fid, imagesTOC, mapImages(i));
+                img = cat(3, img_gray, img_gray, img_gray);
                 locationStart = 1 + (location-1)*windowStride;
                 locationEnd = locationStart+windowWidth;
                 if locationEnd>size(img,2)

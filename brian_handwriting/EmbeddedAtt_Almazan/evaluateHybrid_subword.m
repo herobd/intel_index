@@ -68,7 +68,7 @@ for i=1:length(alpha)
 % 	disp('looping s');
     attReprQu_hybrid_subword = attReprQu_cca_subword*alpha(i) + phocsQu_cca_subword*(1-alpha(i));
 %     disp(['eval ', num2str(i)]);
-    [p1,mAPEucl,thresh] = eval_dp_asymm_subword(alpha(i), opts, attReprQu_hybrid_subword, attReprTe_cca_slidingwindow, DATA.wordClsTe_subword, DATA.wordClsQu_subword, DATA.ngramIdx);
+    [p1,mAPEucl,thresh] = eval_dp_asymm_subword(alpha(i),DATA, opts, attReprQu_hybrid_subword, attReprTe_cca_slidingwindow, DATA.wordClsTe_subword, DATA.wordClsQu_subword, DATA.ngramIdx);
 %     disp('exit eval');
     hybrid_map(i) = mean(mAPEucl)*100;
     hybrid_p1(i) = mean(p1)*100;
