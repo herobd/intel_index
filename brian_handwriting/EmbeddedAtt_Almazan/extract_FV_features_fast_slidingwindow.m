@@ -45,7 +45,7 @@ for cb=1:nBatches
             for window_lx = 1:windowStride:size(full_im,2)-windowWidth
                 %extract sub-image
                 endIdx=(window_lx+windowWidth);
-                if (window_lx+windowStride>size(full_im,2)-windowWidth) || (endIdx > size(full_im,2))
+                if (endIdx > size(full_im,2))
                     endIdx=size(full_im,2);
                 end
 

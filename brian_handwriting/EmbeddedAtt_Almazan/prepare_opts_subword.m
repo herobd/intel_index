@@ -13,6 +13,9 @@ if nargin < 1
 end
 opts.dataset = dataset;
 
+opts.precForThresh = 0.5;
+opts.threshold = 0.4504;
+opts.saveSpottings = true;
 
 
 
@@ -150,15 +153,17 @@ if strcmp(opts.dataset,'GW')
     if strcmp(typegrams, 'bigrams')
         opts.ngrams = {'th' 'he', 'er', 'an', 're', 'on', 'at', 'or', 'es', 'en', 'te', 'nd', 'ed', 'ar', 'to', 'ti', 'st', 'ng', 'nt', 'it'};
         opts.ngramCountPer=10;
-        opts.windowWidth=135;%should be wide
+        %opts.windowWidth=135;%should be wide
+        opts.windowWidth=75;%modified 66?
     else
         opts.ngrams = {'the', 'and', 'ing', 'ion', 'ent', 'her', 'for', 'hat', 'his', 'tha'};
         opts.ngramCountPer=5;
-        opts.windowWidth=187;
+        %opts.windowWidth=187;
+        opts.windowWidth=120;
     end
 elseif strcmp(opts.dataset,'IAM')
     opts.PCADIM = 30;
-    opts.RemoveStopWords = 1;
+    opts.RemoveStopWords = 0;
     opts.swFile = 'data/swIAM.txt';
     opts.minH = 80;
     opts.maxH = 80;
@@ -194,6 +199,10 @@ elseif strcmp(opts.dataset,'LP')
     opts.doMinibox = 0;
 end
 
+if opts.saveSpottings %colors!
+    opts.pathResults = 'results';
+end
+
 opts.FVdim = (opts.PCADIM+2)*opts.numSpatialX*opts.numSpatialY*opts.G*2;
 
 if opts.evalRecog || opts.TestHybrid
@@ -222,7 +231,7 @@ end
 tagFeats = '_FV';
 
 opts.tagPHOC = sprintf('_PHOCs%s%s%s',tagLevels,tagLevelsB,tagNumB);
-opts.tagFeatures = sprintf('%s%s%s%s',tagFeats,tagPCA,tagGMM,tagFold);
+opts.tagFeatures = sprintf('%s%s%s%s_%d',tagFeats,tagPCA,tagGMM,tagFold,opts.windowWidth);
 
 % Paths and files
 opts.pathFiles = sprintf('%s/files',opts.pathData);
@@ -235,12 +244,12 @@ if ~exist(opts.dataFolder,'dir')
 end
 opts.fileData = sprintf('%s/%s_data.mat',opts.pathFiles,opts.dataset);
 opts.fileImages = sprintf('%s/%s_images%s.bin',opts.pathFiles,opts.dataset,tagminH);
-opts.fileImages_subword = sprintf('%s/%s_images_subword%s.bin',opts.pathFiles,opts.dataset,tagminH);
+opts.fileImages_subword = sprintf('%s/%s_images_subword%s_%s.bin',opts.pathFiles,opts.dataset,tagminH,typegrams);
 opts.fileWriters = sprintf('%s/%s_writers.mat',opts.pathFiles,opts.dataset);
 opts.fileGMM = sprintf('%s/%s%s.bin',opts.dataFolder,opts.dataset,tagGMM);
 opts.filePCA = sprintf('%s/%s%s.bin',opts.dataFolder,opts.dataset,tagPCA);
 opts.filePHOCs = sprintf('%s/%s%s.bin',opts.dataFolder,opts.dataset,opts.tagPHOC);
-opts.filePHOCs_subword = sprintf('%s/%s%s_subword.bin',opts.dataFolder,opts.dataset,opts.tagPHOC);
+opts.filePHOCs_subword = sprintf('%s/%s%s_subword_%s.bin',opts.dataFolder,opts.dataset,opts.tagPHOC,typegrams);
 opts.fileFeatures = sprintf('%s/%s%s.bin',opts.dataFolder,opts.dataset,opts.tagFeatures);
 opts.fileFeatures_slidingwindow = sprintf('%s/%s%s_slidingwindow.mat',opts.dataFolder,opts.dataset,opts.tagFeatures);
 opts.fileFeatures_subword = sprintf('%s/%s%s_subword.bin',opts.dataFolder,opts.dataset,opts.tagFeatures);

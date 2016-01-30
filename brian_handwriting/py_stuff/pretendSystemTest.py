@@ -152,7 +152,6 @@ while (len(words)/float(startNum) > 1.0-stopThresh and count<countThresh):
 	for ngram in ngrams:
 		if (len(words)/float(startNum) <= 1.0-stopThresh or count>=countThresh):
 			break
-
 		#effectedWords = []
 		thisStat = [0,0,0,0,0,0]
 		for w in words:

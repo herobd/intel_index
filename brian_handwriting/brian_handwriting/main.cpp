@@ -232,6 +232,24 @@ int main( int argc, char** argv )
 //        bovw.printDescThreshContours(find);
 //        bovw.printDescThreshContours(img);
     }
+    else if (option.compare("experiment_subword")==0)
+    {
+        EnhancedBoVW bovw;
+            
+        string codebookLoc = argv[2];
+        bovw.codebook = new Codebook();
+        bovw.codebook->readIn(codebookLoc);
+        
+        string locationCSVPath = argv[3];
+        string exemplarDirPath = argv[4];
+        string dataDirPath = argv[5];
+        int dataSize = atoi(argv[6]);
+        int numExemplarsPer = atoi(argv[7]);
+        string fileExt = argv[8];
+        string outfile = argv[9];
+        
+        EnhancedBoVWTests::experiment(bovw, locationCSVPath, exemplarDirPath, dataDirPath, dataSize, numExemplarsPer, fileExt, outfile, true);
+    }
     else if (option.compare("experiment_Aldavert_dist_batched")==0)
     {
         EnhancedBoVW bovw;

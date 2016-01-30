@@ -22,8 +22,10 @@
 #include <string>
 #include <limits>
 
+#include "binarization.h"
+
 #define DESKEW 1
-#define S 2.0
+#define S 1.0
 
 using namespace std;
 using namespace cv;
@@ -41,6 +43,7 @@ Mat translateImg(Mat &img, int offsetx, int offsety){
 
 int main (int argc, char** argv)
 {
+
     Mat orig = imread(argv[1], CV_LOAD_IMAGE_GRAYSCALE);
     Mat orig2 = imread(argv[2], CV_LOAD_IMAGE_GRAYSCALE);
     //assert(orig.cols==orig2.cols && orig.rows==orig2.rows);
@@ -62,10 +65,10 @@ int main (int argc, char** argv)
     resize(orig,shrunk,Size(0,0),1/S,1/S, CV_INTER_AREA);
     
     #if DESKEW
-    Mat src;
+    Mat src = Binarization::ntirogiannisBinarization(shrunk,255,0);
     threshold( shrunk, src, 150, 255,0);
     
-    fillBorder(src);
+    //fillBorder(src);
     
     bitwise_not(src, src);
     double skew = compute_skew(src);
@@ -76,10 +79,10 @@ int main (int argc, char** argv)
     resize(orig2,shrunk2,Size(0,0),1/S,1/S, CV_INTER_AREA);
     
     #if DESKEW
-    Mat src2;
-    threshold( shrunk2, src2, 150, 255,0);
+    Mat src2=Binarization::ntirogiannisBinarization(shrunk2,255,0);
+    //threshold( shrunk2, src2, 150, 255,0);
     
-    fillBorder(src2);
+    //fillBorder(src2);
     
     bitwise_not(src2, src2);
     double skew2 = compute_skew(src2);
@@ -96,7 +99,7 @@ int main (int argc, char** argv)
     {
         if (fImage.cols<fImage2.cols)
         {
-            int difx =  fImage2.cols-orig.cols;
+            int difx =  fImage2.cols-fImage.cols;
             if (fImage.rows<fImage2.rows)
             {
                 int dify = fImage2.rows-fImage.rows;
@@ -207,10 +210,10 @@ int main (int argc, char** argv)
     out.at<Vec3b>(maxPoint) = Vec3b(0,0,255);
     cout << "max("<<maxPoint.x<<","<<maxPoint.y<<"): " << maxVal << endl;
     
-    int shiftX = S*(maxPoint.x<=result.cols/2?maxPoint.x:maxPoint.x-result.cols);
-    int shiftY = S*(maxPoint.y<=result.rows/2?maxPoint.y:maxPoint.y-result.rows);
+    int shiftX = (maxPoint.x<=result.cols/2?maxPoint.x:maxPoint.x-result.cols);//*S
+    int shiftY = (maxPoint.y<=result.rows/2?maxPoint.y:maxPoint.y-result.rows);//*S
     cout << "shift: " << shiftX <<", "<<shiftY<<endl;
-    translateImg(orig2,shiftX,shiftY);
+    translateImg(shrunk2,shiftX,shiftY);
     
     
     imwrite("img1.png",orig);
