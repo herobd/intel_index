@@ -145,13 +145,14 @@ print 'out of vocabulary = ' + str(OoV)
 count=0
 
 fO.write('iterations,completion,completion(no OoV)\n')
-while (len(words)/float(startNum) > 1.0-stopThresh):
+iters=0
+while (len(words)/float(startNum) > 1.0-stopThresh and iters<1000):
 	for ngram in ngrams:
-		if (len(words)/float(startNum) <= 1.0-stopThresh):
+		if (len(words)/float(startNum) <= 1.0-stopThresh or iters>=1000):
 			break
-
 		#effectedWords = []
 		thisStat = [0,0,0,0,0,0]
+		iters+=1
 		for w in words:
 			#print 'looking for '+ngram+' in '+w.text
 			for loc in [m.start() for m in re.finditer(ngram, w.text)]:
