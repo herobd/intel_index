@@ -305,15 +305,13 @@
 % not capitalized unless they are the first or last word of the title.
 % Linebreaks \\ can be used within to get better formatting as desired.
 % Do not put math or special symbols in the title.
-\title{Graduate Research Fellowship Proposal:\\Computer Assisted Transcription of Historical Handwritten Documents}
+\title{BYU Graduate Research Fellowship Proposal:\\A Novel Computer Assisted Transcription System for Historical Handwritten Documents}
 
 
 % author names and affiliations
 % use a multiple column layout for up to three different
 % affiliations
 \author{\IEEEauthorblockN{Brian Davis}
-\IEEEauthorblockA{Department of Computer Science\\
-Email: briandavis@byu.net}
 %\and
 %\IEEEauthorblockN{Homer Simpson}
 %\IEEEauthorblockA{Twentieth Century Fox\\
@@ -353,16 +351,18 @@ Email: briandavis@byu.net}
 
 
 % make the title area
+\onecolumn{
 \maketitle
 
 % As a general rule, do not put math, special symbols or citations
 % in the abstract
 \begin{abstract}
-Many handwritten historical documents contain valuable information that can only be effectively disseminated if they are transcribed to digital text. Computer assisted transcription (CAT) has emerged as a way to reduce man-hours spent transcribing documents by leveraging handwriting recognition technology in concert with humans' efforts. I propose to create a prototype of a highly modular and parallelizable CAT method can be created by leveraging a novel technique of subword spotting. Rather than attempting to recognize the text as a whole, it will find (or spot) common groups of two or three letters, referred to as character n-grams, in the document images leveraging word spotting methods. Word spotting (finding a word image in a corpus) is well studied and provides a strong foundation for subword spotting. Character n-grams will occur with high frequency (compared to whole words) while being relatively easy to spot (compared to individual characters), meaning a high information gain for the work done. Finding these character n-grams in the document images provides partial transcription information from which the system, with user oversight, will begin to infer complete transcriptions. This is done by using the relative placement of spotted n-grams to constrain matching with a Lexicon of words (a large set of words and names). I will validate the proposed system with a series of user studies. This CAT system will be very fit for crowdsourcing transcription work and should be appealing to casual mobile users. I hope this will draw more volunteers to crowdsourced transcription projects like FamilySearch Indexing.
+Many handwritten historical documents contain valuable information that can only be effectively disseminated if they are transcribed to digital text. Computer assisted transcription (CAT) has emerged as a way to reduce man-hours spent transcribing documents by leveraging handwriting recognition technology in concert with humans' efforts. I propose to create a prototype of a highly modular and parallelizable CAT method which relies a novel technique of subword spotting. Rather than attempting to recognize the text as a whole, it will find (or spot) common groups of two or three letters, referred to as character n-grams, in the document images leveraging word spotting methods. Word spotting (finding a word image in a corpus) is well studied and provides a strong foundation for subword spotting. Character n-grams will occur with high frequency (compared to whole words) while being relatively easy to spot (compared to individual characters), meaning a high information gain for the work done. Finding these character n-grams in the document images provides partial transcription information from which the system, with user oversight, will begin to infer complete transcriptions. This is done by using the relative placement of spotted n-grams to constrain matching with a Lexicon of words (a large set of words and names). I will validate the proposed system with a series of user studies. This CAT system will be very fit for crowdsourcing transcription work and should be appealing to casual mobile users. I hope this will draw more volunteers to crowdsourced transcription projects like FamilySearch Indexing.
 \end{abstract}
-
+}
+\newpage
 %  keywords: CAT, computer assisted transcription, transcription, handwriting, word spotting, character n-gram, subword
-
+%Many handwritten historical documents contain valuable information that can only be effectively disseminated if they are transcribed to digital text. Computer assisted transcription (CAT) has emerged as a way to reduce man-hours spent transcribing documents by using handwriting recognition technology with human efforts. I propose to create a prototype of a parallelizable CAT method which relies a novel technique of subword spotting. Rather than attempting to recognize the text as a whole, it will find common groups of two or three letters, referred to as character n-grams, in the document images leveraging word spotting methods. Word spotting (finding a word image in a corpus) is well studied and provides a strong foundation for subword spotting. N-grams will occur with high frequency while being relatively easy to spot, meaning a high information gain for the work done.
 
 
 
@@ -374,51 +374,50 @@ Many handwritten historical documents contain valuable information that can only
 %
 % For peerreview papers, this IEEEtran command inserts a page break and
 % creates the second title. It will be ignored for other modes.
-\IEEEpeerreviewmaketitle
+\twocolumn{
 
 \section{Proposal Body}
 
 \subsection{Introduction} %and prior work
-Manual transcription of handwritten historical documents is a costly process, requiring many man-hours. Current handwriting recognition technology is an inaccurate replacement; during a recent competition for handwriting recognition on historical documents, the top method had a word error rate above 25\%\cite{icdarComp2015}.  However, computer assisted transcription (CAT) methods offer a middle ground between manual and fully automated transcription. CAT methods aim to harness handwriting recognition technology and human efforts together in an effective way. I will explain a few prior CAT systems to examine the state of the art methods. Additionally, crowdsourcing has been an effective means of transcribing large corpi of handwritten documents (e.g. FamilySearch Indexing). I propose to create a prototype of a new CAT system which is directed at crowdsourced work, and is particularly adaptable to mobile users. The ubiquity of smartphones means mobile users represent a large resource for crowdsourced work, but these potential users generally limited with small screens, no keyboards (limited data entry), and shorter attention spans. Our system addresses these limitations.
+Manual transcription of handwritten historical documents is a costly process, requiring many man-hours. Current handwriting recognition technology is an inaccurate replacement; during a recent competition for handwriting recognition on historical documents, the top method had a word error rate above 25\%\cite{icdarComp2015}.  However, computer assisted transcription (CAT) methods offer a middle ground between manual and fully automated transcription. CAT methods aim to harness handwriting recognition technology and human efforts together in an effective way. I will explain a few prior CAT systems to examine the state of the art methods. Additionally, crowdsourcing has been an effective means of transcribing large corpi of handwritten documents (e.g. FamilySearch Indexing). I propose to create a prototype of a new CAT system which is directed at crowdsourced work, and is particularly adaptable to mobile users. The ubiquity of smartphones means mobile users represent a large resource for crowdsourced work, but these potential users generally limited with small screens, no keyboards (limited data entry), and shorter attention spans. The system I propose addresses these limitations.
 
 \subsection{Prior Work}
-Toselli et al\cite{Toselli2010}\footnote{You can find a demo of their system at \url{http://cat.prhlt.upv.es/iht/}} have explored the realm of CAT using the idea of user-verified prefixes. They use a fairly standard recognition algorithm (Hidden Markov Model) as the backbone of their approach. The recognition is done for a line of text and the user corrects the first error (See Fig.~\ref{fig:Toselli_multimodalCAT}). Recognition is run again reusing the computation up to that point and the correction. The recognition algorithm relies on a language model, which means this approach cannot be used to effectively transcribe documents containing non-sentence writing, such as tables and lists. Serrano, et al also have pursued a similar approach, where the user corrects the $n$ words the recognition algorithm had the least confidence in \cite{Serrano2014}.
 
-\begin{figure}
-    \centering
-    \includegraphics[width=0.47\textwidth]{Toselli_multimodalCAT}
-    \caption{A screenshot of a demo of Toselli et al's multimodal CAT system. The red line is drawn by the user to indicate the need to insert a word into the automatically obtained transcription.}
-    \label{fig:Toselli_multimodalCAT}
-\end{figure}
+%\begin{figure}
+%    \centering
+%    \includegraphics[width=0.47\textwidth]{Toselli_multimodalCAT}
+%    \caption{A screenshot of a demo of Toselli et al's multimodal CAT system. The red line is drawn by the user to indicate the need to insert a word into the automatically obtained transcription.}
+%    \label{fig:Toselli_multimodalCAT}
+%\end{figure}
 
-Robert Clawson designed Intelligent Indexing\cite{Clawson2014}\footnote{You can view a short demo of his system at \url{http://tiny.cc/intelind}}, a CAT system for handwritten documents. Intelligent Indexing relies on finding matching word images in a document (word spotting) and assigning them the same user-specified label.
+Robert Clawson designed Intelligent Indexing\cite{Clawson2014}\footnote{You can view a short demo of his system at \url{http://tiny.cc/intelind}}, a CAT system for handwritten documents. Intelligent Indexing relies on finding matching word images in a document (word spotting) and assigning all of them the same user-specified label.
 %, as seen in Fig.~\ref{fig:ii}.
-The user oversight of matches was accomplished by showing the user a list of matches (with an adjustable threshold for sensitivity) from which the user removed the false-positive matches, as seen in Fig.~\ref{fig:ii}. This leveraged the human user's natural ability to discriminate. Zagoris et al\cite{Zagoris2015}\footnote{You can find a demo of their system at \url{http://vc.ee.duth.gr/ws/}} also designed a CAT system which uses word spotting, as seen in Fig.~\ref{fig:zagoris}. Rather than focusing on having a user remove bad spots, as the user confirms correct matches/spottings, a relevance feedback loop helps select better results from the word spotting. Both of these approaches allow a few user actions to transcribe many words. However, both of these approaches are limited as they require frequent word repetition to be effective. There are some commonly repeating words for certain documents, but there are many words which repeat infrequently, if at all, in documents (e.g. names).
+The user oversight of matches was accomplished by showing the user a list of matches (with an adjustable threshold for sensitivity) from which the user removed the false-positive matches. This leveraged the human user's natural ability to discriminate. Zagoris et al\cite{Zagoris2015}\footnote{You can find a demo of their system at \url{http://vc.ee.duth.gr/ws/}} also designed a CAT system which uses word spotting. Rather than focusing on having a user remove bad spots, as the user confirms correct matches/spottings, a relevance feedback loop helps select better results from the word spotting. Both of these approaches allow a few user actions to transcribe many words. However, both of these approaches are limited as they require frequent word repetition to be effective. There are some commonly repeating words for certain documents, but there are many words which repeat infrequently, if at all, in documents (e.g. names).
 
 
-\begin{figure}
-    \centering
-    \begin{subfigure}[t]{0.23\textwidth}
-    		\centering
-    		\includegraphics[width=\textwidth]{ii_ex_new_a}
-    		\caption{A small window shows matching words from the column. The user can get rid of bad matches (e.g. ``Wife'') by clicking on them.}
-    	\end{subfigure}
-    	~
-    	\begin{subfigure}[t]{0.23\textwidth}
-    		\centering
-    		\includegraphics[width=\textwidth]{ii_ex_new_b}
-    		\caption{The matched words are given the same label, indicated by the highlighting, and the red box is advanced to the next word to be transcribed.}
-    	\end{subfigure}
-    	\caption{An example of Clawson's Intelligent Indexing, a CAT system for tabular documents.}
-    	\label{fig:ii}
-\end{figure}
-
-\begin{figure}
-    \centering
-    \includegraphics[width=0.47\textwidth]{zagoris}
-    \caption{A screenshot of a demo of Zagoris et al's word spotting based CAT system. The matched words of previously transcribed words have also been given the same label). The current word's matching results are shown as the long list on the right and the user confirmed spottings the short list to its left.}
-    \label{fig:zagoris}
-\end{figure}
+%\begin{figure}
+%    \centering
+%    \begin{subfigure}[t]{0.23\textwidth}
+%    		\centering
+%    		\includegraphics[width=\textwidth]{ii_ex_new_a}
+%    		\caption{A small window shows matching words from the column. The user can get rid of bad matches (e.g. ``Wife'') by clicking on them.}
+%    	\end{subfigure}
+%    	~
+%    	\begin{subfigure}[t]{0.23\textwidth}
+%    		\centering
+%    		\includegraphics[width=\textwidth]{ii_ex_new_b}
+%    		\caption{The matched words are given the same label, indicated by the highlighting, and the red box is advanced to the next word to be transcribed.}
+%    	\end{subfigure}
+%    	\caption{An example of Clawson's Intelligent Indexing, a CAT system for tabular documents.}
+%    	\label{fig:ii}
+%\end{figure}
+%
+%\begin{figure}
+%    \centering
+%    \includegraphics[width=0.47\textwidth]{zagoris}
+%    \caption{A screenshot of a demo of Zagoris et al's word spotting based CAT system. The matched words of previously transcribed words have also been given the same label). The current word's matching results are shown as the long list on the right and the user confirmed spottings the short list to its left.}
+%    \label{fig:zagoris}
+%\end{figure}
 
 Neudecker and Tzadok\cite{Neudecker2010} presented a CAT system for historical printed documents (a different domain than handwritten documents) which is very similar to the CAT system I am presenting here. Their system first segments (isolates) the individual characters of the documents and runs an OCR (optical character recognition) engine on them. Those characters with low confidence are then presented to a user for verification in a character session. A single character session contains all the low-confidence character images classified to a single character; the user merely needs to select the incorrect classifications.
 An example of their system's character session for the character ``?'' is given in Fig.~\ref{fig:carpet}. 
@@ -426,12 +425,12 @@ Then in a word session, a word image is shown to the user with possible transcri
 
 \begin{figure}
     \centering
-    \includegraphics[width=.47\textwidth]{carpet}
-    \caption{Screen shot of character session for ``?'' from Neudecker and Tzadok's CAT system, taken directly from their report \cite{Neudecker2010}. Both this method and Intelligent Indexing use an interface that makes it easy for users to simply click on erroneous classifications.}
+    \includegraphics[width=.4\textwidth]{carpet}
+    \caption{Screen shot of character session for ``?'' from Neudecker and Tzadok's\cite{Neudecker2010} CAT system.}
     \label{fig:carpet}
 \end{figure}
 
-There are three key strengths of the system presented in \cite{Neudecker2010}. One is that there is no dependence on a language model (unlike \cite{Toselli2010} and \cite{Serrano2014}), meaning as long as a documents' characters can be segmented, it can transcribe the document. The second is that it formats all user tasks as selections, rather than typing, thereby minimizing the time to complete each task and reducing human errors from typing. This also creates a much more enjoyable experience for the user and could be easily adapted to a small touch screen. The third key strength is that it is highly parallelizable for crowd-sourced transcribing, meaning multiple users can be helping transcribing the same page at the same time. This parallelism is achieved as all character sessions are independent of one another and all word sessions are independent of one another. The CAT system for handwritten documents I propose follows this system's flexibility for document types, simple user tasks and parallelizable framework.
+There are three key strengths of the system presented in \cite{Neudecker2010}. One is that there is no dependence on a language model, meaning as long as a documents' characters can be segmented, it can transcribe the document. The second is that it formats all user tasks as selections, rather than typing, thereby minimizing the time to complete each task and reducing human errors from typing. This also creates a much more enjoyable experience for the user and could be easily adapted to a small touch screen. The third key strength is that it is highly parallelizable for crowd-sourced transcribing, meaning multiple users can be helping transcribing the same page at the same time. This parallelism is achieved as all character sessions are independent of one another and all word sessions are independent of one another. The CAT system for handwritten documents I propose follows this system's flexibility for document types, simple user tasks and parallelizable framework.
 
 
 \subsection{Proposed CAT System}
@@ -439,19 +438,19 @@ Clawson\cite{Clawson2014} and Zagoris et al\cite{Zagoris2015} rely on word spott
 A happy median, to word spotting and OCR, is character n-gram spotting, which is spotting short subwords (groups of two or three letters) within the words of the document. Character n-grams have more frequent repetition than words do, but are large enough to spot (i.e. don't require character segmentation), meaning there should be a relatively large information gain for the work of spotting a single n-gram. This provides the backbone of the CAT system I propose.
 
 
-Our system follows a similar pattern as \cite{Neudecker2010}; Fig.~\ref{fig:system_diagram} shows an overview of the process. N-grams are spotted in the document images. Low confidence spottings are then presented to users to indicate incorrect spottings (Fig.~\ref{fig:userTask_spot} might be how this would be presented to a user). From the spotted n-grams partial transcriptions of words (the system knows some, but not all of the letters) are found, from which the list of possible transcriptions can be narrowed considerably. Additional reduction can be done by scoring the possible transcriptions against the word image with an ordinary word spotting or handwriting recognition algorithm. Once this list has been narrowed down to a few words, this list is presented to users to select the correct transcription (Fig.~\ref{fig:userTask_trans} might be how this would be presented to a user). Additionally, spotted n-grams and transcribed word images provide information the system can learn from to improve later spotting iterations.
+My system follows a similar pattern as \cite{Neudecker2010}; Fig.~\ref{fig:system_diagram} shows an overview of the process. N-grams are spotted in the document images. Low confidence spottings are then presented to users to indicate incorrect spottings (Fig.~\ref{fig:userTask_spot} might be how this would be presented to a user). From the spotted n-grams partial transcriptions of words (the system knows some, but not all of the letters) are found, from which the list of possible transcriptions can be narrowed considerably. Additional reduction can be done by scoring the possible transcriptions against the word image with an ordinary word spotting or handwriting recognition algorithm. Once this list has been narrowed down to a few words, this list is presented to users to select the correct transcription (Fig.~\ref{fig:userTask_trans} might be how this would be presented to a user). Additionally, spotted n-grams and transcribed word images provide information the system can learn from to improve later spotting iterations.
 
 \begin{figure}
     \centering
     \includegraphics[width=.45\textwidth]{flow5}
-    \caption{Work-flow of proposed CAT system. (a) N-grams are spotted by the system (``ed'' as an example here). (b) User removes false-positives (``el''). (c) After some iterations of n-gram spotting, a regular expression is generated (from ``en'' and ``ed'') and used to query the system's lexicon of words. (d) If 10 or less words are returned, present the list to a user to select the correct transcription (``enlisted'').}
+    \caption{Work-flow of proposed CAT system. (a) N-grams are spotted by the system (``ed'' as an example here). (b) User removes false-positives (``el''). (c) After some iterations of n-gram spotting, a query is generated (from ``en'' and ``ed''). (d) If 10 or less words are returned from the query, present the list to a user to select the correct transcription (``enlisted'').}
     \label{fig:system_diagram}
 \end{figure}
 
 \begin{figure}
     \centering
     \includegraphics[width=.25\textwidth]{userTask_spot}
-    \caption{A mock-up of what the user might see when verifying character n-gram spotting in the proposed system. The highlighted images are from the server spotting a particular character n-gram. The red-boxed image has been selected by the user as it is a false-positive.}
+    \caption{A mock-up of what the user might see when verifying character n-gram spotting in the proposed system.}
     \label{fig:userTask_spot}
 \end{figure}
 
@@ -462,10 +461,10 @@ Our system follows a similar pattern as \cite{Neudecker2010}; Fig.~\ref{fig:syst
     \label{fig:userTask_trans}
 \end{figure}
 
-\section{Justification}
+\subsection{Justification}
 
 
-Let us examine the George Washington (GW) dataset\cite{GW} (documents of 20 pages George Washington's letters, about 4,600 words) as an example of how effective this might be. If the 100 most frequent bigrams (groups of two letters) in the English language are spotted in the GW dataset with 50\% recall (i.e.~we actually spot only 50\% of the occurrences of each bigram), 41\% of the words in the corpus can be narrowed down to 10 or fewer possible transcriptions. This is using a lexicon of 108,028 words and 6,939 names. From this list of 10 or fewer words a user can easily select the correct transcription. More words can be transcribed as online learning is used to create new spotting queries; character n-grams that are missed will be spotted with subsequent queries. If subsequent bigram spotting queries also have 50\% recall, 73\% of the corpus can be transcribed with 250 spottings (i.e. going through the 100 bigrams 2.5 times). See Fig.~\ref{fig:fullSim} for more thorough results of simulating this process. These results are promising, especially with such a large lexicon; most handwriting recognition algorithms are restricted in lexicon size, meaning they would not be able to transcribe many of the things our system will be, like uncommon names.  Preliminary results in spotting character n-grams in the GW dataset have yielded a very promising results using a naive sliding window adoption of Almaz\'{a}n et al's\cite{Almazan2014} spotting method.
+Let us examine the George Washington (GW) dataset\cite{GW} (documents of 20 pages George Washington's letters, about 4,600 words) as an example of how effective this might be. If the 100 most frequent bigrams (groups of two letters) in the English language are spotted in the GW dataset with 50\% recall (i.e.~only 50\% of the occurrences of each bigram are spotted), 41\% of the words in the corpus can be narrowed down to 10 or fewer possible transcriptions. This is using a lexicon of 108,028 words and 6,939 names. From this list of 10 or fewer words a user can easily select the correct transcription. More words can be transcribed as online learning is used to create new spotting queries; character n-grams that are missed will be spotted with subsequent queries. If subsequent bigram spotting queries also have 50\% recall, 73\% of the corpus can be transcribed with 250 spottings (i.e. going through the 100 bigrams 2.5 times). See Fig.~\ref{fig:fullSim} for more thorough results of simulating this process. These results are promising, especially with such a large lexicon; most handwriting recognition algorithms are restricted in lexicon size, meaning they would not be able to transcribe many of the words my system will be, like uncommon names.  Preliminary results in spotting character n-grams in the GW dataset have yielded a very promising results using a naive sliding window adoption of Almaz\'{a}n et al's\cite{Almazan2014} spotting method.
 
 %\begin{figure}
 %    \centering
@@ -483,16 +482,17 @@ Let us examine the George Washington (GW) dataset\cite{GW} (documents of 20 page
 
 \subsection{Discussion}
 
-The verifying of spotted n-grams can be broken up into small tasks of a handful of confirmations. The selection of transcriptions will be from a short list making them small tasks. With the added element that these tasks do not require typing, they are ideal for mobile users. Each task takes a few seconds of judgement and one or more taps. Tasks can be rapidly completed for any amount of time a user is willing to spend; this dynamic will appeal to casual users in a way many other transcription methods (CAT or manual) do not. The rapid nature of the tasks also would lend to a variety of gamification methods that the system could be injected into. An additional positive feature of the reliance on subword spotting is that the verification of spotted n-grams is somewhat language agnostic, meaning users might feel comfortable completing this task for a language other than their native tongue.
-
-There are a handful of limitations to this system. First, it is dependant on word segmentation. Even if the n-gram spotting method is segmentation free, the words still need to be segmented to create the lexicon queries. Another limitation is that better results for sentence structured documents would be achieved if including NLP processing. Though it would be possible to include this, by processing possible transcriptions with the words around them, I leave it out to allow a greater variety of documents. The other limitations are based on performance of some of the pieces. The n-gram spotting algorithm may require some contextual exemplars (e.g. for training), requiring a few pages of a new corpus to be manually transcribed before the system can operate. If the n-gram spotting performs poorly, either users will be required to reject many spotting results or a low recall will have to be accepted, both options hurting the effectiveness of the system. If the word spotting/handwriting recognition algorithm, is unable to prune the list of possible transcriptions effectively, the lexicon size may have to be restricted in size. But I believe these limitations are negligable given the gains of the system and our preliminary subword spotting results.
-
-We have presented a highly parallelizable CAT system which leverages character n-gram spotting to form partial transcriptions and, user interaction to maintain high accuracy and complete transcriptions. User interaction takes place as small selection tasks, ideal for mobile users. While it has yet to be implemented, I believe this system could make a large impact on the work that can be done with crowdsourced transcription by both providing an effective tool as well as one appealing to a largely untapped user-base.
+The verifying of spotted n-grams can be broken up into small tasks of a handful of confirmations. The selection of transcriptions will be from a short list making them small tasks. With the added element that these tasks do not require typing, they are ideal for mobile users. Each task takes a few seconds of judgement and one or more taps. Tasks can be rapidly completed for any amount of time a user is willing to spend; this dynamic will appeal to casual users in a way many other transcription methods (CAT or manual) do not. The rapid nature of the tasks also would lend to a variety of gamification methods that the system could be injected into. An additional positive feature of the reliance on subword spotting is that the verification of spotted n-grams is somewhat language agnostic, meaning users might feel comfortable completing this task for a language other than their native tongue. This addresses a pressing need for non-English transcription in FamilySearch's Indexing program.
 
 
-
-
-
+% can use a bibliography generated by BibTeX as a .bbl file
+% BibTeX documentation can be easily obtained at:
+% http://mirror.ctan.org/biblio/bibtex/contrib/doc/
+% The IEEEtran BibTeX style support page is at:
+% http://www.michaelshell.org/tex/ieeetran/bibtex/
+\bibliographystyle{IEEEtran}
+% argument is your BibTeX string definitions and bibliography database(s)
+\bibliography{IEEEabrv,bib}
 
 
 % trigger a \newpage just before the given reference
@@ -504,16 +504,16 @@ We have presented a highly parallelizable CAT system which leverages character n
 %\IEEEtriggercmd{\enlargethispage{-5in}}
 
 % references section
+}
 
-
-
+\onecolumn{
 \newpage
 \section{Curriculum Vitae}
 \begin{itemize}
 	\item Current: MS in Computer Science
 	\begin{itemize}
 		\item One published paper: \\
-			Davis, Brian L., William A. Barrett, and Scott D. Swingle. "Min-cut segmentation of cursive handwriting in tabular documents." IS&T/SPIE Electronic Imaging. International Society for Optics and Photonics, 2015.
+			\emph{Davis, Brian L., William A. Barrett, and Scott D. Swingle. "Min-cut segmentation of cursive handwriting in tabular documents." IS{\&}T/SPIE Electronic Imaging. International Society for Optics and Photonics, 2015.}
 		\item Teaching Assistant for CS 450 and CS 650
 	\end{itemize}
 	\item BS in Computer Science, Mathematics Minor from BYU, 2014
@@ -522,34 +522,36 @@ We have presented a highly parallelizable CAT system which leverages character n
 	\end{itemize}
 	\item Employment
 	\begin{itemize}
-		\iter Intern, Rincon Research Corporation, 2013 \\
+		\item \emph{Intern, Rincon Research Corporation, 2013} \\
 			 Collaborated with intern team to execute deployment and testing of LWA antennas for future research use
-		\iter Programmer, BYU Creative Works Department, 2011-2013 \\
-			Designed, developed and published language translation app in harmony with Android developer
-		\iter Development Intern, LDS Church, Info. & Comm. Services, 2012 \\
+		\item \emph{Programmer, BYU Creative Works Department, 2011-2013} \\
+			Designed, developed and published language translation iOS app in harmony with Android developer
+		\item \emph{Development Intern, LDS Church, Info. \& Comm. Services, 2012} \\
 			Made significant strides towards completion of pre-existing access management project taking ownership of both frontend and backend development
 	\end{itemize}
 	
 \end{itemize}
 
+
 \newpage
 \section{Academic Merit Statement}
-Historical handwritten document transcription is a valuable to many different fields. The focus I have with this project is documents with genealogical value, primarily those which FamilySearch has yet to transcribe with their Indexing program; I believe my CAT system will be very helpful in the work of transcribing these. But many fields in the humanities would benefit from more effective means of transcribing historical handwritten documents. While our CAT system has many strengths, an important contribution it gives is a new paradigm for transcribing handwritten documents, the one which Neudecker and Tzadok\cite{Neudecker2010} presented for printed documents. This paradigm divorce's the transcribers from the page and focuses on the transcription of the words.
+Historical handwritten document transcription is a valuable to many different fields. The focus I have with this project is documents with genealogical value, primarily those which FamilySearch has yet to transcribe with their Indexing program; I believe my CAT system will be very helpful in the work of transcribing these. But many fields in the humanities would benefit from more effective means of transcribing historical handwritten documents. While my CAT system has many strengths, an important contribution it gives is a new paradigm for transcribing handwritten documents, the one which Neudecker and Tzadok\cite{Neudecker2010} presented for printed documents. This paradigm divorce's the transcribers from the page and focuses on the transcription of the words.
 
-Subword spotting is an unexplored area of research. This is particularly because there has been no application for it. This project introduces the first explicit use of subword spotting, a first attempt at developing an effective subword spotting method, and, if successful, justification for the use of subword spotting as an effective substitute to character recognition and word recognition.
+Document analysis research has a rich, international, research community, with a strong subset focused on historical documents. I believe that the idea of subword spotting will be a good contribution to many types of analysis and recognition done on documents.
+Subword spotting has previously been an unexplored area of research. This is particularly because there has been no application for it. This project introduces the first explicit use of subword spotting, a first attempt at developing an effective subword spotting method, and, if successful, justification for the use of subword spotting as an effective substitution for (or augmentation to) character recognition or word recognition. The budget below is directed at travel expenses to aid in travelling to key conferences in my field of study. I believe being able to communicate these ideas to the international community and learn from world experts in the field of document analysis and handwriting recognition will be very valuable.
+
+
 
 \newpage
 \section{Budget}
 %TODO
-
-% can use a bibliography generated by BibTeX as a .bbl file
-% BibTeX documentation can be easily obtained at:
-% http://mirror.ctan.org/biblio/bibtex/contrib/doc/
-% The IEEEtran BibTeX style support page is at:
-% http://www.michaelshell.org/tex/ieeetran/bibtex/
-\bibliographystyle{IEEEtran}
-% argument is your BibTeX string definitions and bibliography database(s)
-\bibliography{IEEEabrv,bib}
+The funding would be used for assistance in travel expenses. The estimated travel expenses for three key conferences is about \$6000:\\
+\begin{itemize}
+\item Document Analysis Systems 2016 [DAS] (Greece): \$1800
+\item International Conference on Frontiers in Handwriting Recognition 2016 [ICFHR] (China): \$2300
+\item International Conference on Document Analysis 2017 [ICDAR] (Japan): \$1900
+\end{itemize}
+}%one column
 %
 %\bibliography{bib}
 % <OR> manually copy in the resultant .bbl file

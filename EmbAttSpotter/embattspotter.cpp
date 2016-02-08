@@ -1,13 +1,59 @@
 #include "embattspotter.h"
 
 
-EmbAttSpotter::EmbAttSpotter()
+EmbAttSpotter::EmbAttSpotter(string saveName)
 {
+    
+    _GMM.means=NULL;
+    _GMM.covariances=NULL;
+    _GMM.priors=NULL;
+    
+    SIFT_sizes=[2,4,6,8,10,12];
+    stride=3;
+    magnif=6.0;
+    windowsize=1.5;   
+    contrastthreshold=0.005; 
+    
+    minH = -1;//?
+    PCA_dim = 62;
+    num_samples_PCA = 200000;
+    numGMMClusters = 16;
+    numSpatialX = 6;//num pf bins for spatail pyr
+    numSpatialY = 2;
+    
+    phoc_levels = [2 3 4 5];
+    
+    this->saveName = saveName;//+"_sp"+to_string(numSpatialX)+"x"+to_string(numSpatialY);
+}
+
+EmbAttSpotter::~EmbAttSpotter()
+{
+    if (_GMM.means!=NULL)
+    {
+        delete[] _GMM.means;
+        delete[] _GMM.covariances;
+        delete[] _GMM.priors;
+    }
+    if (_attModels!=NULL)
+    {
+        _attModels->W.release();
+        _attModels->M.release();
+        delete _attModels;
+    }
+    if (_batches_features!=NULL)
+    {
+        for (Mat& m : *_batches_features) 
+            m.release();
+        delete _batches_features;
+    }
 }
 
 void EmbAttSpotter::loadCorpus(string dir)
 {
     //TODO perform line and word segmentation and then all extract features and if we are trained, embed the word images
+    
+    //For now assume segmented word images
+    //divide out batches
 }
 
 vector<float> EmbAttSpotter::spot(const Mat& exemplar, string word, float alpha=0.5)
@@ -17,14 +63,12 @@ vector<float> EmbAttSpotter::spot(const Mat& exemplar, string word, float alpha=
     assert(exemplar.rows*exemplar.cols>1 || alpha==0);
     
     const Embedding& embedding = get_embedding();
-    const vector<Mat>& batches_cca_att = get_batches_cca_att();
-    const AttributesModels& attModels = get_attModels();
     
     Mat im;
     exemplar.convertTo(im, CV_32FC1);
-    query_feats = extractFeats();
+    query_feats = extract_feats();
     
-    query_att = attModels.W.t()*query_feats;
+    query_att = attModels().W.t()*query_feats;
     
     Mat matx = embedding.rndmatx(Rect(0,0,embedding.M,embedding.rndmatx.cols));
     Mat maty = embedding.rndmaty(Rect(0,0,embedding.M,embedding.rndmatx.cols));
@@ -44,42 +88,59 @@ vector<float> EmbAttSpotter::spot(const Mat& exemplar, string word, float alpha=
     normalizeColumns(query_cca_phoc);
     Mat query_cca_hy = query_cca_att*alpha + query_cca_phoc*(1-alpha);
     
-    Mat s;//scores
+    //Mat s;//scores
+    vector<float> scores(corpusSize);
     
-    //TODO parallelize
+    #pragma parallel for
     for (int i=0; i<numBatches; i++)
     {
-        Mat batch_cca_att = batches_cca_att[i];
-        Mat s_batch = query_cca_hy*batch_cca_att.t();
-        s.push_back(s_batch);
+        Mat s_batch = query_cca_hy*batches_cca_att()[i].t();
+        //s.push_back(s_batch);
+        assert(s_batch.cols==1)
+        copy(s_batch.data(),s_batch.data()+s_batch.rows,scores.begin()+batches_index[i]);
     }
-    return s.toVector();
+    //return s.toVector();
+    return scores;
 }
 
-Mat EmbAttSpotter::extractFeats(const Mat& im)
+Mat EmbAttSpotter::extract_feats(const Mat& im)
 {
-    vector<int> SIFT_sizes=[2,4,6,8,10,12];
-    int stride=3;
-    double magnif=6.0;
-    double windowsize=1.5;   
-    double contrastthreshold=0.005; 
     
-    int maxSize=0;
-    for (int size : SIFT_sizes)
-    {
-        if (size>maxSize)
-            maxSize=size;
-    }
-    
-    
-    
-    Mat feats=phow(im,*PCA());
+    Mat feats=phow(im,&PCA());
     
     Mat feats_FV = getImageDescriptorFV(feats.t());
     
     
     
     return feats_FV;
+}
+
+vector<Mat>* EmbAttSpotter::extract_FV_feats_fast(const vector<string>& imageLocations)
+{
+    
+    vector<Mat>* ret = new vector<Mat>(numBatches);
+    
+    #pragma parallel for
+    for (int i=0; i<numBatches; i++)
+    {
+        ret->at(i) = Mat_<float>(batches_indexEnd[i]-batches_index[i],FV_DIM);
+        for (int j=batches_index[i]; j<batches_indexEnd[i]; j++)
+        {
+            Mat im = imread(imageLocations[j];
+            Mat feats=phow(im,*PCA());
+            ret->at(i).row(j-batches_index[i]) = getImageDescriptorFV(feats.t());
+        }
+    }
+    return ret;
+}
+
+const vector<Mat>&? batches_features()
+{
+    if (_batches_features==NULL)
+    {
+        _batches_features = extract_FV_feats_fast(//TODO);
+    }
+    return *_batches_features;
 }
 
 Mat EmbAttSPotter::phow(const Mat& im, const PCA_Object* PCA_pt)
@@ -111,6 +172,8 @@ Mat EmbAttSPotter::phow(const Mat& im, const PCA_Object* PCA_pt)
         SIFT detector(nfeaturePoints,nOctivesPerLayer,contrastthreshold);//TODO remove by contrastthreshold and if all zero (or a neg)
         Mat desc;
         detector(ims,noArray(),*keyPoints,desc,true);
+        desc.convertTo(desc, CV_32FC1)
+        desc /= 255.0;
         
         //normalize, subtract mean 
         for (unsigned int i=0; i<desc.rows; i++)
@@ -152,33 +215,50 @@ Mat EmbAttSPotter::phow(const Mat& im, const PCA_Object* PCA_pt)
 
 Mat EmbAttSpotter::getImageDescriptorFV(const Mat& feats)
 {
-    int dimension = feasts.cols;
-    int numClusters = 
+    assert(feats.cols==DESC_DIM);
+    int dimension = DESC_DIM;
+    int numClusters = numGMMClusters;
     assert(feats.isContinuous());
     float* dataToEncode = (float*)feats.data();//VL expects column major order, but we have our featvecs on the rows
     int numDataToEncode = feats.rows;
     //float* enc = vl_malloc(sizeof(float) * 2 * dimension * numClusters);
-    Mat ret(dimension*2*numClusters,1);
+    Mat ret(FV_DIM,1);
     assert(ret.isContinuous());
     float* enc = (float*)ret.data;
     //float f2 = enc[rowIdx*ret.step1() + colIdx];
     // run fisher encoding
     vl_fisher_encode
         (enc, VL_TYPE_FLOAT,
-         vl_gmm_get_means(GMM()), dimension, numClusters,
-         vl_gmm_get_covariances(GMM()),
-         vl_gmm_get_priors(GMM()),
+         GMM().means, dimension, numClusters,
+         GMM().covariances,
+         GMM().priors,
          dataToEncode, numDataToEncode,
          VL_FISHER_FLAG_IMPROVED
          ) ;
      return ret;
 }
 
-const vector<Mat>& EmbAttSpotter::get_batches_cca_att()
+const vector<Mat>& EmbAttSpotter::batches_cca_att()
 {
+    string name = saveName+"_batches_cca_att_"+to_string(numBatches)+".dat";
     if (_batches_cca_att == NULL)
     {
-        //TODO load or init
+        //init
+        _batches_cca_att = new vector<Mat>(numBatches);
+        
+        //load
+        ifstream in(name);
+        if (in)
+        {
+            int numBatchesRead;
+            in >> numBatchesRead;
+            if (numBatchesRead==numBatches)
+            {
+                for (int i=0; i<numBatches; i++)
+                    _batches_cca_att->at(i) = readFloatMat(in);
+            }
+            in.close();
+        }
     }
     if (_batches_cca_att->size() != numBatches)
     {
@@ -195,15 +275,28 @@ const vector<Mat>& EmbAttSpotter::get_batches_cca_att()
             Mat batch_cca_att = embedding.Wx.t()*batch_emb_att;
             _batches_cca_att->push_back(batch_cca_att);
         }
+        
+        //save
+        ofstream out(name);
+        out << numBatches << " ";
+        for (int i=0; i<numBatches; i++)
+            writeFloatMat(in,_batches_cca_att->at(i));
+        out.close();
     }
     return *_batches_cca_att;
 }
 
-const AttributesModels& EmbAttSpotter::get_attModels()
+const struct AttributesModels& EmbAttSpotter::attModels()
 {
     if (_attModels==NULL)
     {
         //TODO learn_attributes_bagging
+        
+        //blind implementation
+        for (int idxAtt=0; idxAtt<DESC_DIM; idxAtt++)
+        {
+            
+        }
     }
     return *_attModels;
 }
@@ -234,24 +327,42 @@ void train(string gtFile, string imageDir, string saveAs)
     compute_GMM_PCA(numWordsTrainGMM,imageDir,saveAs);
 }
 
-void compute_GMM_PCA(int numWordsTrain, string imageDir, string saveAs, bool retrain)
+
+//We compute the GMM and PCA together as they are relient on the same data.
+void get_GMM_PCA(int numWordsTrain, string imageDir, string saveAs, bool retrain)
 {   
-    int minH = ?;
-    int PCA_dim = ?;
-    int num_samples_PCA = 200000;
-    string name = saveAs+"_GMM_PCA_"+minH.dat+"_"+PCA_dim+".dat";
-    if (!retrain && ifstream(name))
+    
+    
+    string name = saveAs+"_GMM_PCA_"+to_string(minH)+"_"+to_string(numGMMClusters)+"_"+to_string(PCA_dim)+".dat";
+    ifstream in(name)
+    if (!retrain && in)
     {
-         cout << name << " file already exists. Not retraining GMM and PCA." << endl;
+         //cout << name << " file already exists. Not retraining GMM and PCA." << endl;
+         //load
+        assert(_GMM.means==NULL);
+        
+        _PCA.mean = readFloatMat(in);
+        _PCA.eigvec = readFloatMat(in);
+        int size;
+        _GMM.means = readFloatArray(in,&size);
+        numGMMClusters = size/DESC_DIM;
+        _GMM.covariances = readFloatArray(in,&size);
+        assert(numGMMClusters==size/DESC_DIM);
+        _GMM.priors = readFloatArray(in,&size);
+        assert(numGMMClusters==size);
+        in.close();
     }
     else
     {
+        if (in)
+            in.close();
         DIR *dir;
         struct dirent *ent;
         if ((dir = opendir (directory.c_str())) != NULL)
         {
-            cout << "reading images and obtaining descriptors" << endl;
-
+            //cout << "reading images and obtaining descriptors" << endl;
+            
+            //get all filenames
             vector<string> fileNames;
             while ((ent = readdir (dir)) != NULL) {
                 string fileName(ent->d_name);
@@ -260,11 +371,15 @@ void compute_GMM_PCA(int numWordsTrain, string imageDir, string saveAs, bool ret
                 fileNames.push_back(fileName);
             }
             
-            Mat for_PCA(SIFT_dim,num_samples_PCA,?);
+            Mat for_PCA(SIFT_DIM,num_samples_PCA,CV_32F);
             int sample_per_for_PCA = num_samples_PCA/numWordsTrain;
             int on_sample=0;
             
             vector<Mat> bins(numSpatialX*numSpatialY);
+            for (int i=0; i<numSpatialX*numSpatialY; i++)
+            {
+                bins[xBin+yBin*numSpatialX] = Mat(0,SIFT_DIM+2,descType)
+            }
             
             for (int i=0; i<numWordsTrain; i++)
             {
@@ -278,22 +393,21 @@ void compute_GMM_PCA(int numWordsTrain, string imageDir, string saveAs, bool ret
                     resize(im, im, Size(minH, newWidth), 0, 0, INTER_CUBIC);
                 }
                  
-                Mat desc = phow(im);
-                //TODO divide by max (255?)
+                Mat desc = phow(im);//includes xy's, normalization
+                
                 
                 //sample for PCA, discard x,y
                 for (int sample=0; sample<sample_per_for_PCA; sample++)
                 {
                     int randIndex = rand()%desc.rows;
-                    for_PCA.row(num_samples_PCA++).copyTo(desc(Rect(0,randIndex,SIFT_dim,1)));
+                    for_PCA.row(num_samples_PCA++).copyTo(desc(Rect(0,randIndex,SIFT_DIM,1)));
                 }
                 
                 //place in bins
-                vector<Point> bins(desc.rows);
                 for (int r=0; r<desc.rows; r++)
                 {
-                    int xBin = (desc.at<?>(r,desc.cols-2)/(double)im.cols)*numSpatialX;
-                    int yBin = (desc.at<?>(r,desc.cols-1)/(double)im.rows)*numSpatialY;
+                    int xBin = (desc.at<descType>(r,desc.cols-2)/(double)im.cols)*numSpatialX;
+                    int yBin = (desc.at<descType>(r,desc.cols-1)/(double)im.rows)*numSpatialY;
                     bins[xBin+yBin*numSpatialX].push_back(desc.row(r));
                 }
             }
@@ -303,7 +417,18 @@ void compute_GMM_PCA(int numWordsTrain, string imageDir, string saveAs, bool ret
                 
             
             //GMM
+            compute_GMM(bins,numSpatialX,numSpatialY,numGMMClusters)
             
+            
+            //save
+            ofstream out;
+            out.open(name);
+            writeFloatMat(out,PCA().mean);
+            writeFloatMat(out,PCA().eigvec);
+            writeFloatArray(out,GMM().means,numGMMClusters*DESC_DIM*numSpatialX*numSpatialY);
+            writeFloatArray(out,GMM().covariances,numGMMClusters*DESC_DIM*numSpatialX*numSpatialY);
+            writeFloatArray(out,GMM().priors,numGMMClusters*numSpatialX*numSpatialY);
+            out.close();
         }
         else
         {
@@ -311,4 +436,247 @@ void compute_GMM_PCA(int numWordsTrain, string imageDir, string saveAs, bool ret
             assert(false);
         }
     }
+    
+}
+
+void writeFloatMat(ofstream& dst, const Mat& m)
+{
+    assert(m.type==CV_32F);
+    dst << m.rows<<" "<<m.cols<<" ";
+    for (int r=0; r<m.rows; r++)
+        for (int c=0; c<m.cols; c++)
+            dst << m.at<float>(r,c) << " ";
+}
+
+Mat readFloatMat(ifstream& src)
+{
+    int rows, cols;
+    src >> rows >> cols;
+    Mat ret(rows,cols,CV_32F);
+    for (int r=0; r<rows; r++)
+        for (int c=0; c<cols; c++)
+            src >> ret.at<float>(r,c);
+    return ret;
+}
+
+void writeFloatArray(ofstream& dst, const float* a, int size)
+{
+    dst << size<<" ";
+    for (int i=0; i<size; i++)=
+           dst << a[i] << " ";
+}
+
+float* readFloatArray(ifstream& src, int* sizeO)
+{
+    int size;
+    src >> size;
+    float* ret = new float[size];
+    for (int i=0; r<size; i++)
+        src >> ret[i]);
+    if (size)!=NULL)
+        *sizeO = size;
+    return ret;
+}
+
+const struct PCA& PCA()
+{
+    if (_PCA.eigvec.rows==0)
+        get_GMM_PCA(numWordsTrain, imageDir, saveAs, retrainGMM_PCA);
+    
+    return _PCA;
+}
+
+const struct GMM& GMM()
+{
+    if (_GMM.means==NULL)
+        get_GMM_PCA(numWordsTrain, imageDir, saveAs, retrainGMM_PCA);
+    
+    return _GMM;
+}
+
+void compute_PCA(const Mat& data, int PCA_dim)
+{
+    assert(_PCA.eigvec.rows==0);
+    //Mat mean;
+    //reduce(data,mean, 1, CV_REDUCE_AVG);
+    //assert(mean.cols==SIFT_DIM);
+    //Mat covar;
+    //calcCovarMatrix(data, covar, mean, cv::COVAR_ROWS | CV_COVAR_NORMAL );
+    PCA pt_pca(data, cv::Mat(), CV_PCA_DATA_AS_ROW, 0);//? I'm unsure if this is the correct usage
+    _PCA.mean = pt_pca.mean;
+    assert(mean.rows==1);
+    Mat eig_vals = pt_pca.eigenvalues;
+    Mat eig_vecs = pt_pca.eigenvectors;
+    
+    Mat idxs;
+    sortIdx(eig_vals, idxs, CV_SORT_EVERY_ROW + CV_SORT_DESCENDING);
+    _PCA.eigvec = eig_vals(Rect(0,0,PCA_dim,eig_vecs.cols));//Mat(PCA_dim,eig_vecs.cols,eig_vals.type());
+    
+}
+
+void compute_GMM(const Mat& bins, int numSpatialX, int numSpatialY, int numGMMClusters)
+{
+    assert(_GMM.means==NULL);
+    _GMM.means = new float[numGMMClusters*DESC_DIM*numSpatialX*numSpatialY];
+    _GMM.covariances = new float[numGMMClusters*DESC_DIM*numSpatialX*numSpatialY];
+    _GMM.priors = new float[numGMMClusters*numSpatialX*numSpatialY];
+    for (int i=0; i<numSpatialX*numSpatialY; i++)
+    {
+        Mat d = bins[xBin+yBin*numSpatialX](Rect(0,0,bins[xBin+yBin*numSpatialX].rows,SIFT_DIM));
+        Mat xy = bins[xBin+yBin*numSpatialX](Rect(0,SIFdim,bins[xBin+yBin*numSpatialX].rows,2));
+        Mat d -= PCA().mean;
+        d = (PCA().eigvec.t()*d.t()).t();
+        hconcat(d,xy,d);
+        assert(d.type() == CV_32F);
+        VlGMM* gmm = vl_gmm_new (VL_TYPE_FLOAT, SIFTdim+2, numGMMClusters) ;
+        vl_gmm_set_max_num_iterations (gmm, 30);
+        vl_gmm_set_initialization (gmm,VlGMMRand);
+        vl_gmm_cluster (gmm, d, d.rows);
+        
+        float* means = vl_gmm_get_means(gmm)
+        copy(means,means+numGMMClusters*DESC_DIM,_GMM.means+numGMMClusters*i);
+        
+        float* covariances = vl_gmm_get_covariances(gmm);
+        copy(covariances,covariances+numGMMClusters*DESC_DIM,_GMM.covariances+numGMMClusters*i);
+
+        float* priors = vl_gmm_get_priors(gmm);
+        copy(priors,priors+numGMMClusters,_GMM.priors+numGMMClusters*i);
+    }
+}
+
+
+
+
+? embed_labels_PHOC()
+{
+    /* Prepare dict */
+    map<char,int> vocUni2pos;
+    for (int i=0; i<unigrams.size(); i++)
+    {
+        vocUni2pos[unigrams[i]] = i;
+    }
+    map<std::string,int> vocBi2pos;
+    for (int i=0; i<bigrams.size(); i++)
+    {
+        vocBi2pos[bigrams[i]] = i;
+    }
+    
+    
+    int totalLevels = 0;
+    for (int level : phoc_levels)
+    {
+        totalLevels+=level;
+    }
+    
+    int phocSize = totalLevels*Nvoc;
+    
+    int phocSize_bi=0;
+    for (int level : phoc_levels_bi)
+    {
+        phocSize_bi+=level*Nvoc_bi;
+    }
+    
+    /* Prepare output */
+    float *phocs = new float[phocSize*corpusSize+phocSize_bi*corpusSize];
+    /* Compute */
+    for (int i=0; i < corpusSize;i++)
+    {
+        computePhoc(corpusLabels[i], vocUni2pos, map<string,int>(),unigrams.size(), phoc_levels, &phocs[i*phocSize]);
+    }
+    
+    for (int i=0; i < corpusSize;i++)
+    {
+        computePhoc(corpusLabels[i], map<char,int>(), vocBi2pos,bigrams.size(), phoc_levels_bi, &phocs[phocSize*corpusSize+i*phocSize_bi]);
+    }
+    
+    
+    return ?;
+}
+
+#define HARD 0
+
+void computePhoc(string str, map<char,int> vocUni2pos, map<string,int> vocBi2pos, int Nvoc, vector<int> levels, float *out)
+{
+    int strl = str.length;
+    
+    int doUnigrams = vocUni2pos.size()!=0;
+    int doBigrams = vocBi2pos.size()!=0;
+    
+    /* For each block */
+    float *p = out;
+    for (int level : levels)
+    {
+        /* For each split in that level */
+        for (int ns=0; ns < level; ns++)
+        {
+            float starts = ns/(float)level;
+            float ends = (ns+1)/(float)level;
+            
+            /* For each character */
+            if (doUnigrams)
+            {
+                for (int c=0; c < strl; c++)
+                {
+                    if (vocUni2pos.count(str[c])==0)
+                    {
+                        /* Character not included in dictionary. Skipping.*/
+                        continue;
+                    }
+                    int posOff = vocUni2pos[str[c]];
+                    float startc = c/(float)strl;
+                    float endc = (c+1)/(float)strl;
+                    
+                    /* Compute overlap over character size (1/strl)*/
+                    if (endc < starts || ends < startc) continue;
+                    float start = (starts > startc)?starts:startc;
+                    float end = (ends < endc)?ends:endc;
+                    float ov = (end-start)*strl;
+                    #if HARD
+                    if (ov >=0.48)
+                    {
+                        p[posOff]+=1;
+                    }
+                    #else
+                    p[posOff] = max(ov, p[posOff]);
+                    #endif
+                }
+            }
+            if (doBigrams)
+            {
+                for (int c=0; c < strl-1; c++)
+                {
+                    string sstr=str.substr(c,2);
+                    if (vocBi2pos.count(sstr)==0)
+                    {
+                        /* Character not included in dictionary. Skipping.*/
+                        continue;
+                    }
+                    int posOff = vocBi2pos[sstr];
+                    float startc = c/(float)strl;
+                    float endc = (c+2)/(float)strl;
+                    
+                    /* Compute overlap over bigram size (2/strl)*/
+                    if (endc < starts || ends < startc){ continue;}
+                    float start = (starts > startc)?starts:startc;
+                    float end = (ends < endc)?ends:endc;
+                    float ov = (end-start)*strl/2.0;
+                    if (ov >=0.48)
+                    {
+                        p[posOff]+=1;
+                    }
+                }
+            }
+            p+=Nvoc;
+        }
+    }
+    return;
+}
+
+? phocs()
+{
+    if (_phocs==NULL)
+    {
+        _phocs = embed_labels_PHOC();
+    }
+    return *_phocs;
 }

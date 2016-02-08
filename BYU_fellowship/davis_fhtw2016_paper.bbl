@@ -29,21 +29,6 @@ J.~A. S\'{a}nchez, A.~H. Toselli, V.~Romero, and E.~Vidal, ``{ICDAR} 2015
   \url{icdar.org/proceedings}
 \BIBentrySTDinterwordspacing
 
-\bibitem{Toselli2010}
-A.~Toselli, V.~Romero, M.~Pastor, , and E.~Vidal, ``Multimodal interactive
-  transcription of text images,'' \emph{Pattern Recognition}, vol.~43, no.~5,
-  pp. 1814--1825, 2010.
-
-\bibitem{Serrano2014}
-\BIBentryALTinterwordspacing
-N.~Serrano, A.~Gim\'{e}nez, J.~Civera, A.~Sanchis, and A.~Juan,
-  ``\BIBforeignlanguage{English}{Interactive handwriting recognition with
-  limited user effort},'' \emph{\BIBforeignlanguage{English}{International
-  Journal on Document Analysis and Recognition (IJDAR)}}, vol.~17, no.~1, pp.
-  47--59, 2014. [Online]. Available:
-  \url{http://dx.doi.org/10.1007/s10032-013-0204-5}
-\BIBentrySTDinterwordspacing
-
 \bibitem{Clawson2014}
 \BIBentryALTinterwordspacing
 R.~Clawson, ``Intelligent indexing: A semi-automated, trainable system for
@@ -58,7 +43,7 @@ K.~Zagoris, I.~Pratikakis, and B.~Gatos, ``A framework for efficient
 
 \bibitem{Neudecker2010}
 C.~Neudecker and A.~Tzadok, ``User collaboration for improving access to
-  historical texts,'' \emph{Liber Quarterly}, vol.~20, no.~1, p. 119–128,
+  historical texts,'' \emph{Liber Quarterly}, vol.~20, no.~1, pp. 119--128,
   2010.
 
 \bibitem{GW}

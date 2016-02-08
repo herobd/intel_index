@@ -8,8 +8,8 @@ import re
 #for i in test[:-1]:
 #	print i
 
-if (len(sys.argv)==1 or len(sys.argv)>11):
-	print 'Usage: python pretendSystemTest [dictionaryfile] [ngramfile] [recall rate] [confidence range: 0-(2?)] [corpus file] [out file] (opt: stats out file) (opt: stop threshold) (opt: leftover words file)'
+if (len(sys.argv)==1 or len(sys.argv)>14):
+	print 'Usage: python pretendSystemTest [dictionaryfile] [ngramfile] [recall rate] [confidence range: 0-(2?)] [corpus file] [out file] (optionals: [stats out file] [stop threshold] [leftover words file] [ngramApprovalListSize] [transcribeListSize] [pruneNgrams] [accuracy])'
 	sys.exit()
 
 #path to dictionary file, expectsd word on each newline
@@ -37,11 +37,25 @@ if (len(sys.argv)>7):
 
 stopThresh=.9
 pathLeftoverWords=None
-if (len(sys.argv)>9):
+if (len(sys.argv)>8):
 	stopThresh=float(sys.argv[8])
+if (len(sys.argv)>9):
 	pathLeftoverWords=sys.argv[9]
 
-countThresh=1000
+ngramApprovalListSize=6
+transcribeListSize=10
+accuracy=.5
+pruneNgrams=.05
+if (len(sys.argv)>10):
+	ngramApprovalListSize=int(sys.argv[10])
+if (len(sys.argv)>11):
+	transcribeListSize=int(sys.argv[11])
+if (len(sys.argv)>12):
+	pruneNgrams=float(sys.argv[12])
+if (len(sys.argv)>13):
+	accuracy=float(sys.argv[13])
+
+countThresh=250
 
 class Word:
 	def __init__(self,text):
@@ -135,6 +149,7 @@ for line in fC.xreadlines():
 		found=True
 		break
    if not found:
+	#print wordfixed
   	OoV+=1
 fC.close()
 
@@ -147,6 +162,9 @@ print 'startNum='+str(startNum)
 print 'out of vocabulary = ' + str(OoV)
 count=0
 
+totalNumUserApprovalTasks=0
+totalNumNgramsNeedingApproval=0
+
 fO.write('iterations,completion,completion(no OoV)\n')
 while (len(words)/float(startNum) > 1.0-stopThresh and count<countThresh):
 	for ngram in ngrams:
@@ -154,6 +172,7 @@ while (len(words)/float(startNum) > 1.0-stopThresh and count<countThresh):
 			break
 		#effectedWords = []
 		thisStat = [0,0,0,0,0,0]
+		numSpotted=0
 		for w in words:
 			#print 'looking for '+ngram+' in '+w.text
 			for loc in [m.start() for m in re.finditer(ngram, w.text)]:
@@ -161,10 +180,18 @@ while (len(words)/float(startNum) > 1.0-stopThresh and count<countThresh):
 					#loc = w.text.find(ngram)
 					w.spot(ngram,loc)
 					w.effected=True
+					numSpotted+=1
 					#print ngram + ' found in ' + w.text
 		
+		
 		#lookup effected words and remove if 10 or less possibilities
-		words = [w for w in words if ((not w.effected) or dicLookup(w)>10)]
+		words = [w for w in words if ((not w.effected) or dicLookup(w)>transcribeListSize)]
+		
+		
+		
+		numNeedingApproval = int(numSpotted*(1/accuracy)*(1-pruneNgrams))
+		totalNumNgramsNeedingApproval += numNeedingApproval
+		totalNumUserApprovalTasks += numNeedingApproval/ngramApprovalListSize;
 		
 		thisStat[5] = startNum - len(words)
 		for w in words:
@@ -193,9 +220,25 @@ while (len(words)/float(startNum) > 1.0-stopThresh and count<countThresh):
 		fO.write(str(count)+','+str(done*100)+','+str(doneNoOoV*100)+'\n')
 		
 		count += 1
-		
 
+print 'num words not transcribed = '+str(len(words))
+fO.write('totalNumUserApprovalTasks = '+str(totalNumUserApprovalTasks)+'\n')
+print 'totalNumUserApprovalTasks = '+str(totalNumUserApprovalTasks)
+fO.write('totalNumNgramsNeedingApproval = '+str(totalNumNgramsNeedingApproval)+'\n')
+print 'totalNumNgramsNeedingApproval = '+str(totalNumNgramsNeedingApproval)
 fO.close()
+
+taskSecVer=5
+taskSecTran=5
+taskSecLeft=10
+numVerTran = 2
+numVerLeft = 2
+hoursTask = (totalNumUserApprovalTasks*taskSecVer+((startNum-len(words))*numVerTran)*taskSecTran)/(60.0*60.0)
+hoursLeft = (len(words)*taskSecLeft*numVerLeft)/(60.0*60.0)
+#print 'estimated hours (triple approve) = '+str(((totalNumUserApprovalTasks+(startNum-len(words))*3)*taskSec+len(words)*taskSec*(2*2))/(60.0*60.0))
+print 'estimated hours (double approve) = '+str(hoursTask+hoursLeft)
+print 'estimated hours tasks = '+str(hoursTask)
+print 'estimated hours leftover = '+str(hoursLeft)
 
 if pathStats is not None:
 	fO = open(pathStats,'w')
