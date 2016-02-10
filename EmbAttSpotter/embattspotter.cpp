@@ -22,6 +22,13 @@ EmbAttSpotter::EmbAttSpotter(string saveName)
     numSpatialY = 2;
     
     phoc_levels = [2 3 4 5];
+    unigrams = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z'];
+    if (useNumbers)
+    {
+        for (char n : "0123456789")
+            unigrams.push_back(n);
+    }
+    bigrams = ...;//TODO
     
     this->saveName = saveName;//+"_sp"+to_string(numSpatialX)+"x"+to_string(numSpatialY);
 }
@@ -40,11 +47,25 @@ EmbAttSpotter::~EmbAttSpotter()
         _attModels->M.release();
         delete _attModels;
     }
-    if (_batches_features!=NULL)
+    if (_features!=NULL)
     {
-        for (Mat& m : *_batches_features) 
-            m.release();
-        delete _batches_features;
+        _features->release();
+        delete _features;
+    }
+    if (_feats_training!=NULL)
+    {
+        _feats_training.release();
+        delete _feats_training;
+    }
+    if (_phocs_training!=NULL)
+    {
+        _phocs_training.release();
+        delete _phocs_training;
+    }
+    if (_phocs!=NULL)
+    {
+        _phocs.release();
+        delete _phocs;
     }
 }
 
@@ -66,7 +87,7 @@ vector<float> EmbAttSpotter::spot(const Mat& exemplar, string word, float alpha=
     
     Mat im;
     exemplar.convertTo(im, CV_32FC1);
-    query_feats = extract_feats();
+    query_feats = extract_feats(im);
     
     query_att = attModels().W.t()*query_feats;
     
@@ -106,41 +127,83 @@ vector<float> EmbAttSpotter::spot(const Mat& exemplar, string word, float alpha=
 Mat EmbAttSpotter::extract_feats(const Mat& im)
 {
     
-    Mat feats=phow(im,&PCA());
+    Mat feats_m=phow(im,&PCA());
     
-    Mat feats_FV = getImageDescriptorFV(feats.t());
+    Mat feats_FV = getImageDescriptorFV(feats_m.t());
     
     
     
     return feats_FV;
 }
 
-vector<Mat>* EmbAttSpotter::extract_FV_feats_fast(const vector<string>& imageLocations)
+Mat* EmbAttSpotter::extract_FV_feats_fast(const vector<string>& imageLocations)
 {
     
-    vector<Mat>* ret = new vector<Mat>(numBatches);
-    
+    //vector<Mat>* ret = new vector<Mat>(numBatches);
+    Mat* ret = new Mat(corpusSize,FV_DIM);
     #pragma parallel for
     for (int i=0; i<numBatches; i++)
     {
-        ret->at(i) = Mat_<float>(batches_indexEnd[i]-batches_index[i],FV_DIM);
+        //ret->at(i) = Mat_<float>(batches_indexEnd[i]-batches_index[i],FV_DIM);
+        Mat tmp = Mat_<float>(batches_indexEnd[i]-batches_index[i],FV_DIM);
         for (int j=batches_index[i]; j<batches_indexEnd[i]; j++)
         {
             Mat im = imread(imageLocations[j];
             Mat feats=phow(im,*PCA());
-            ret->at(i).row(j-batches_index[i]) = getImageDescriptorFV(feats.t());
+            //ret->at(i).row(j-batches_index[i]) = getImageDescriptorFV(feats.t());
+            tmp.row(j-batches_index[i]) = getImageDescriptorFV(feats.t());
+        }
+        #pragma omp critical
+        {
+            Mat aux = ret->rowRange(batches_index[i],batches_indexEnd[i]);
+            tmp.copyTo(aux);
         }
     }
     return ret;
 }
 
-const vector<Mat>&? batches_features()
+const Mat& features()
 {
-    if (_batches_features==NULL)
+    string name = saveName+"_features.dat";
+    if (_features==NULL)
     {
-        _batches_features = extract_FV_feats_fast(//TODO);
+        ifstream in(name)
+        if (in && !retrain)
+        {
+            //load
+            _features = new Mat(readFloatMat(in));
+            in.close();
+        }
+        else
+        {
+            in.close();
+            _features = extract_FV_feats_fast(//TODO);
+            //save
+            ofstream out(name);
+            writeFloatMat(out,*_features);
+            out.close();
+        }
+        
     }
-    return *_batches_features;
+    return *_features;
+}
+
+const Mat& feats_training()
+{
+    if (_feats_training==NULL)
+    {
+        _feats_training = new Mat(idxTrain.size()+idxValidation.size(),features().cols,features().type());
+        int row=0;
+        for (int idx : idxTrain)
+        {
+            features().row(idx).copyTo(_feats_training->row(row++));
+        }
+        for (int idx : idxValidation)
+        {
+            features().row(idx).copyTo(_feats_training->row(row++));
+        }
+    }
+    return *_feats_training;
 }
 
 Mat EmbAttSPotter::phow(const Mat& im, const PCA_Object* PCA_pt)
@@ -152,7 +215,7 @@ Mat EmbAttSPotter::phow(const Mat& im, const PCA_Object* PCA_pt)
     int cx = bb_x1+w/2;
     int cy = bb_y1+h/2;
 
-    Mat feats;
+    Mat feats_m;
     //for all sizes, extract SIFT features
     for (int size : SIFT_sizes)
     {
@@ -208,19 +271,19 @@ Mat EmbAttSPotter::phow(const Mat& im, const PCA_Object* PCA_pt)
         }
         
         //vconcat(feats,augmented,feats);
-        feats.push_back(augmented);
+        feats_m.push_back(augmented);
     }
-    return feats;
+    return feats_m;
 }
 
-Mat EmbAttSpotter::getImageDescriptorFV(const Mat& feats)
+Mat EmbAttSpotter::getImageDescriptorFV(const Mat& feats_m)
 {
-    assert(feats.cols==DESC_DIM);
+    assert(feats_m.cols==DESC_DIM);
     int dimension = DESC_DIM;
     int numClusters = numGMMClusters;
-    assert(feats.isContinuous());
-    float* dataToEncode = (float*)feats.data();//VL expects column major order, but we have our featvecs on the rows
-    int numDataToEncode = feats.rows;
+    assert(feats_m.isContinuous());
+    float* dataToEncode = (float*)feats_m.data();//VL expects column major order, but we have our featvecs on the rows
+    int numDataToEncode = feats_m.rows;
     //float* enc = vl_malloc(sizeof(float) * 2 * dimension * numClusters);
     Mat ret(FV_DIM,1);
     assert(ret.isContinuous());
@@ -280,23 +343,75 @@ const vector<Mat>& EmbAttSpotter::batches_cca_att()
         ofstream out(name);
         out << numBatches << " ";
         for (int i=0; i<numBatches; i++)
-            writeFloatMat(in,_batches_cca_att->at(i));
+            writeFloatMat(out,_batches_cca_att->at(i));
         out.close();
     }
     return *_batches_cca_att;
+}
+
+AttributeModels* learn_attributes_bagging()
+{
+    int dimFeats=feats_training().cols;
+    int numAtt = phoc_training().cols;
+    AttributeModels* ret = new AttributeModels();
+    ret->W=zeros(dimFeats,numAtt,CV_32F);
+    ret->B=zeros(1,numAtt,CV_32F);
+    ret->numPosSamples=zeros(1,numAtt,CV_32I);
+    
+    Mat threshed;
+    threshold(phoc_training(),threshed, 0.47999, 1, THRESH_BINARY);
+    assert(threshed.type()==CV_8U);
+    for (int idxAtt=0; idxAtt<numAtt; idxAtt++)
+    {
+        vector<int> idxPos;
+        vector<int> idxNeg;
+        for (int r=0; r<threshed.rows; r++)
+        {
+            if (threshed.at<unsigned char>(r,idxAtt)==1)
+                idxPos.push_back(r);
+            else
+                idxNeg.push_back(r);
+        }
+        if (idxPos.size()<2 || idxNeg.size()<2)
+        {
+            cout << "Model for attribute "<<idxAtt<<". Note enough data."<<endl;
+            //continue
+        }
+        else
+        {
+            //TODO...
+            Mat phoc_att = phoc_training()(Rect(0,idxAtt,phoc_training().rows,1));
+        }
+    }
 }
 
 const struct AttributesModels& EmbAttSpotter::attModels()
 {
     if (_attModels==NULL)
     {
-        //TODO learn_attributes_bagging
-        
-        //blind implementation
-        for (int idxAtt=0; idxAtt<DESC_DIM; idxAtt++)
+        string name = saveAs+"_attModes.dat";
+        ifstream in(name)
+        if (!retrain && in)
         {
-            
+            //load
+            _attModels = new AttributeModels();
+            _attModels->W = readFloatMat(in);
+            _attModels->B = readFloatMat(in);
+            _attModels->numPosSamples = readFloatMat(in);
+            in.close();
         }
+        else
+        {
+            in.close();
+            _attModels = learn_attributes_bagging();
+            //save
+            ofstream out(name);
+            writeFloatMat(out,_attModels->W);
+            writeFloatMat(out,_attModels->B);
+            writeFloatMat(out,_attModels->numPosSamples);
+            out.close();
+        }
+        
     }
     return *_attModels;
 }
@@ -378,7 +493,7 @@ void get_GMM_PCA(int numWordsTrain, string imageDir, string saveAs, bool retrain
             vector<Mat> bins(numSpatialX*numSpatialY);
             for (int i=0; i<numSpatialX*numSpatialY; i++)
             {
-                bins[xBin+yBin*numSpatialX] = Mat(0,SIFT_DIM+2,descType)
+                bins[xBin+yBin*numSpatialX] = zeros(0,SIFT_DIM+2,descType)
             }
             
             for (int i=0; i<numWordsTrain; i++)
@@ -547,7 +662,7 @@ void compute_GMM(const Mat& bins, int numSpatialX, int numSpatialY, int numGMMCl
 
 
 
-? embed_labels_PHOC()
+Mat* embed_labels_PHOC()
 {
     /* Prepare dict */
     map<char,int> vocUni2pos;
@@ -568,34 +683,35 @@ void compute_GMM(const Mat& bins, int numSpatialX, int numSpatialY, int numGMMCl
         totalLevels+=level;
     }
     
-    int phocSize = totalLevels*Nvoc;
+    int phocSize = totalLevels*unigrams.size();
     
     int phocSize_bi=0;
     for (int level : phoc_levels_bi)
     {
-        phocSize_bi+=level*Nvoc_bi;
+        phocSize_bi+=level*bigrams.size();
     }
     
     /* Prepare output */
-    float *phocs = new float[phocSize*corpusSize+phocSize_bi*corpusSize];
+    //float *phocs = new float[phocSize*corpusSize+phocSize_bi*corpusSize];
+    Mat* phocs = new Mat(corpusSize,phocSize+phocSize_bi,CV_32F);
     /* Compute */
     for (int i=0; i < corpusSize;i++)
     {
-        computePhoc(corpusLabels[i], vocUni2pos, map<string,int>(),unigrams.size(), phoc_levels, &phocs[i*phocSize]);
+        computePhoc(corpusLabels[i], vocUni2pos, map<string,int>(),unigrams.size(), phoc_levels, phocSize, phocs,i);
     }
     
     for (int i=0; i < corpusSize;i++)
     {
-        computePhoc(corpusLabels[i], map<char,int>(), vocBi2pos,bigrams.size(), phoc_levels_bi, &phocs[phocSize*corpusSize+i*phocSize_bi]);
+        computePhoc(corpusLabels[i], map<char,int>(), vocBi2pos,bigrams.size(), phoc_levels_bi, phocSize_bi, phocs,i);
     }
     
     
-    return ?;
+    return phocs;
 }
 
 #define HARD 0
 
-void computePhoc(string str, map<char,int> vocUni2pos, map<string,int> vocBi2pos, int Nvoc, vector<int> levels, float *out)
+void computePhoc(string str, map<char,int> vocUni2pos, map<string,int> vocBi2pos, int Nvoc, vector<int> levels, int descSize, Mat *out, int row;)
 {
     int strl = str.length;
     
@@ -603,7 +719,7 @@ void computePhoc(string str, map<char,int> vocUni2pos, map<string,int> vocBi2pos
     int doBigrams = vocBi2pos.size()!=0;
     
     /* For each block */
-    float *p = out;
+    //float *p = out;
     for (int level : levels)
     {
         /* For each split in that level */
@@ -634,7 +750,8 @@ void computePhoc(string str, map<char,int> vocUni2pos, map<string,int> vocBi2pos
                     #if HARD
                     if (ov >=0.48)
                     {
-                        p[posOff]+=1;
+                        //p[posOff]+=1;
+                        out->at<float>(row,posOff)+=1;
                     }
                     #else
                     p[posOff] = max(ov, p[posOff]);
@@ -662,7 +779,8 @@ void computePhoc(string str, map<char,int> vocUni2pos, map<string,int> vocBi2pos
                     float ov = (end-start)*strl/2.0;
                     if (ov >=0.48)
                     {
-                        p[posOff]+=1;
+                        //p[posOff]+=1;
+                        out->at<float>(row,(out->cols-descSize)+posOff)+=1;
                     }
                 }
             }
@@ -672,11 +790,29 @@ void computePhoc(string str, map<char,int> vocUni2pos, map<string,int> vocBi2pos
     return;
 }
 
-? phocs()
+const Mat* phocs()
 {
     if (_phocs==NULL)
     {
         _phocs = embed_labels_PHOC();
     }
     return *_phocs;
+}
+
+const Mat& phocs_training()
+{
+    if (_phocs_training==NULL)
+    {
+        _phocs_training = new Mat(idxTrain.size()+idxValidation.size(),phocs().cols,phocs().type());
+        int row=0;
+        for (int idx : idxTrain)
+        {
+            phocs().row(idx).copyTo(_phocs_training->row(row++));
+        }
+        for (int idx : idxValidation)
+        {
+            phocs().row(idx).copyTo(_phocs_training->row(row++));
+        }
+    }
+    return *_phocs_training;
 }

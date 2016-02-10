@@ -44,11 +44,13 @@ class EmbAttSpotter : public SegmentationBasedSpotter
     {
         Mat W;
         Mat B;
-        int numPosSamples;
+        Mat numPosSamples;
     }
     struct AttributesModels* _attModels;
     
     vector<Mat>* _batches_features;
+    
+    Mat* _phocs;
     
     string saveName;
     vector<int> SIFT_sizes;
@@ -71,7 +73,9 @@ class EmbAttSpotter : public SegmentationBasedSpotter
     int numSpatialX;
     int numSpatialY;
     
-    vecotr<int> phoc_levels;
+    vector<int> phoc_levels;
+    vector<char> unigrams;
+    vector<string> bigrams;
     
 public:
     EmbAttSpotter(string saveName="embAttSpotter");
