@@ -89,7 +89,7 @@ vector<float> EmbAttSpotter::spot(const Mat& exemplar, string word, float alpha=
     exemplar.convertTo(im, CV_32FC1);
     query_feats = extract_feats(im);
     
-    query_att = attModels().W.t()*query_feats;
+    query_att = attModels().W*query_feats.t();
     
     Mat matx = embedding.rndmatx(Rect(0,0,embedding.M,embedding.rndmatx.cols));
     Mat maty = embedding.rndmaty(Rect(0,0,embedding.M,embedding.rndmatx.cols));
@@ -117,7 +117,7 @@ vector<float> EmbAttSpotter::spot(const Mat& exemplar, string word, float alpha=
     {
         Mat s_batch = query_cca_hy*batches_cca_att()[i].t();
         //s.push_back(s_batch);
-        assert(s_batch.cols==1)
+        assert(s_batch.cols==1);
         copy(s_batch.data(),s_batch.data()+s_batch.rows,scores.begin()+batches_index[i]);
     }
     //return s.toVector();
@@ -225,17 +225,27 @@ Mat EmbAttSPotter::phow(const Mat& im, const PCA_Object* PCA_pt)
         GaussianBlur( im, ims, Size( 5*sigma, 5*sigma ), sigma, sigma );
         
         //describe dense points
-        vector<KeyPoint>* keyPoints = new vector<KeyPoint>();
+        vector<KeyPoint> keyPoints;
         for (int x=off; x<img.cols; x+=stride)
             for (int y=off; y<img.rows; y+=stride)
-                keyPoints->push_back(KeyPoint(x,y,size));
+                keyPoints.push_back(KeyPoint(x,y,size));
         
         int nfeaturePoints=keyPoints->size();
         int nOctivesPerLayer=3;
-        SIFT detector(nfeaturePoints,nOctivesPerLayer,contrastthreshold);//TODO remove by contrastthreshold and if all zero (or a neg)
+        SIFT detector(nfeaturePoints,nOctivesPerLayer,contrastthreshold);
         Mat desc;
-        detector(ims,noArray(),*keyPoints,desc,true);
+        detector(ims,noArray(),keyPoints,desc,true);
+        vector<int> toKeep;
+        Mat summed;
         desc.convertTo(desc, CV_32FC1)
+        reduce(desc,summed,1,CV_REDUCE_SUM);
+        for (int r=0; r<keyPoint.size(); r++)//TODO remove by contrastthreshold
+        {
+            if (summed.at<float>(r,0)>0)
+                toKeep.push_back(r);
+        }
+        if (toKeep.size<keyPoint.size())
+            desc = select_rows(desc,toKeep);
         desc /= 255.0;
         
         //normalize, subtract mean 
@@ -349,14 +359,16 @@ const vector<Mat>& EmbAttSpotter::batches_cca_att()
     return *_batches_cca_att;
 }
 
-AttributeModels* learn_attributes_bagging()
+void learn_attributes_bagging()
 {
     int dimFeats=feats_training().cols;
     int numAtt = phoc_training().cols;
-    AttributeModels* ret = new AttributeModels();
-    ret->W=zeros(dimFeats,numAtt,CV_32F);
-    ret->B=zeros(1,numAtt,CV_32F);
-    ret->numPosSamples=zeros(1,numAtt,CV_32I);
+    int numSamples = phoc_training().rows;
+    _attModels =  = new AttributeModels();
+    _attModels->W=zeros(dimFeats,numAtt,CV_32F);
+    //_attModels->B=zeros(1,numAtt,CV_32F);
+    _attModels->numPosSamples=zeros(1,numAtt,CV_32F);
+    _attReprTr = new Mat(zeros(numSamples,numAtt,CV_32F)); //attFeatsTr, attFeatsBag
     
     Mat threshed;
     threshold(phoc_training(),threshed, 0.47999, 1, THRESH_BINARY);
@@ -380,16 +392,152 @@ AttributeModels* learn_attributes_bagging()
         else
         {
             //TODO...
-            Mat phoc_att = phoc_training()(Rect(0,idxAtt,phoc_training().rows,1));
+            Mat Np(numSamples,1,CV_32F);
+            int N=0;
+            int numPosSamples=0;
+            
+            for (int cPass=0; cPass<2; cPass++)
+            {
+                random_shuffle ( idxPos.begin(), idxPos.end() );
+                random_shuffle ( idxNeg.begin(), idxNeg.end() );
+                int nTrainPos = .8*idxPos.size();
+                int nValPos = idxPos.size()-nTrainPos;
+                int nTrainNeg = .8*idxNeg.size();
+                int nValNeg = idxNeg.size()-nTrainNeg;
+                
+                for (int it=0; it<5; it++)
+                {
+                    vector<int> idxTrain;
+                    idxTrain.insert(idxTrain.end(), idxPos.begin(), idxPos.begin()+nTrainPos);
+                    idxTrain.insert(idxTrain.end(), idxNeg.begin(), idxNeg.begin()+nTrainNeg);
+                    vector<int> idxVal;
+                    idxVal.insert(idxVal.end(), idxPos.begin()+nTrainPos,idxPos.end());
+                    idxVal.insert(idxVal.end(), idxNeg.begin()+nTrainNeg,idxNeg.end());
+                    assert(idxTrain.size()==nTrainPos+nTrainNeg);
+                    assert(idxVal.size()==nValPos+nValNeg);
+                    
+                    Mat featsTrain = select_rows(feats_training(),idxTrain);
+                    //Mat phocsTrain = select_rows(phocs_training(),idxTrain);
+                    Mat featsVal = select_rows(feats_training(),idxVal);
+                    //Mat phocsVal = select_rows(phocs_training(),idxVal);
+                    
+                    numPosSamples = numPosSamples + nTrainPos;
+                    
+                    float* labelsTrain[featsTrain.rows];//binary vector, 1 where idxAtt is not zero, -1 where it is zero
+                    for (int r=0; r<featsTrain.rows; r++)
+                    {
+                        labelsTrain[r] = phocs_training().at<float>(idxTrain[r],idxAtt)!=0?1:-1;
+                    }
+                    float* labelsVal[featsVal.rows];//binary vector, 1 where idxAtt is not zero, -1 where it is zero
+                    for (int r=0; r<featsVal.rows; r++)
+                    {
+                        labelsVal[r] = phocs_training().at<float>(idxVal[r],idxAtt)!=0?1:-1;
+                    }
+                    
+                    _attModels->W += cvSVM(featsTrain,labelsTrain,featsVal,labelsVal);
+                    
+                    N++;
+                    for (int idx : idxVal)
+                        Np.at<float>(idx++,0)+=1;
+                    for (int r=0; r<featsVal.rows; r++)
+                    {
+                        float s=0;
+                        for (int c=0; c<featsVal.cols; c++)
+                            s += featsVal.at<flaot>(r,c)*vl_svm_get_model(svm)[c];
+                        _attReprTr->at<float>(r,idxAtt)+=s;
+                    }
+                }
+            }
+            
+            if (N!=0)
+            {
+                _attModels->W /= (float)N;
+                divide((*_attReprTr)(Rect(0,idxAtt,numSamples,1)),Np,(*_attReprTr)(Rect(0,idxAtt,numSamples,1)));
+                _attModels->numPosSamples.at<float>(0,idxAtt) = ceil(numPosSamples/(double)N);
+            }
         }
     }
+}
+
+Mat cvSVM(const Mat& featsTrain, const float* labelsTrain, const Mat& featsVal, const float* labelsVal)
+{
+    assert(featsTrain.isContinuous());
+    assert(featsVal.isContinuous());
+    double bestmap=0;
+    double bestlambda=0;
+    double best
+    VlSvm * bestsvm=NULL;
+    for (double lambda : sgdparams_lbds)
+    {
+        VlSvm * svm = vl_svm_new(VlSvmSolverSdca,
+                               featsTrain.data, featsTrain.cols, featsTrain.rows,
+                               labelsTrain,
+                               lambda) ;
+        vl_svm_set_bias_multiplier (svm, 0.1);
+        vl_svm_train(svm) ;
+        
+        double cmap = modelMap(svm,featsVal,labelsVal);
+        if (cmap > bestmap)
+        {
+            bestmap=cmap;
+            bestlambda=lambda;
+            if (bestsvm!=NULL)
+                delete bestsvm;
+            bestsvm=svm;
+        }
+        else
+        {
+            delete svm;
+        }
+    }
+    Mat ret(1,featsVal.cols,CV_32F);
+    for (int c=0; c<ret.cols; c++)
+    {
+        ret.at<float>(1,c)=vl_svm_get_model(bestsvm)[c];
+    }
+    delete bestsvm;
+    return ret;
+}
+
+double modelMap(VlSvm * svm, const Mat& featsVal, const float* labelsVal)
+{
+    vector< pair<int,float> > scores(featsVal.rows);
+    for (int r=0; r<featsVal.rows; r++)
+    {
+        float s=0;
+        for (int c=0; c<featsVal.cols; c++)
+            s += featsVal.at<flaot>(r,c)*vl_svm_get_model(svm)[c];
+        scores[r]=make_pair(labelsVal[r],s);
+    }
+    sort(scores.begin(), scores.end(),[](const pair<int,float>& lh, const pair<int,float>& rh) {return lh.second>rh.second;}); 
+    vector<float> acc(scores.size());
+    int accum=0;
+    int N=0;
+    int place=0;
+    double map=0;
+    for (const pair<int,float>& score : scores)
+    {
+        accum += score.first;
+        map += (accum*score.first)/(double)(++place);
+    }
+    return map/N;
+}
+
+Mat select_rows(const Mat& m, vector<int> idx)
+{
+    Mat ret(idx.size(); m.cols, m.type());
+    for (int i=0; i<idx.size(); i++)
+    {
+        m.row(idx[i]).copyTo(ret.row(i));
+    }
+    return ret;
 }
 
 const struct AttributesModels& EmbAttSpotter::attModels()
 {
     if (_attModels==NULL)
     {
-        string name = saveAs+"_attModes.dat";
+        string name = saveAs+"_attModels.dat";
         ifstream in(name)
         if (!retrain && in)
         {
@@ -398,22 +546,59 @@ const struct AttributesModels& EmbAttSpotter::attModels()
             _attModels->W = readFloatMat(in);
             _attModels->B = readFloatMat(in);
             _attModels->numPosSamples = readFloatMat(in);
+            _attReprTr = new Mat();
+            *_attReprTr = readFloatMat(in);
             in.close();
         }
         else
         {
             in.close();
-            _attModels = learn_attributes_bagging();
+            learn_attributes_bagging();
             //save
             ofstream out(name);
             writeFloatMat(out,_attModels->W);
             writeFloatMat(out,_attModels->B);
             writeFloatMat(out,_attModels->numPosSamples);
+            writeFloatMat(out,_attReprTr);
             out.close();
         }
         
     }
     return *_attModels;
+}
+
+const Mat& EmbAttSpotter::attReprTr()
+{
+    if (_attReprTr==NULL)
+    {
+        string name = saveAs+"_attModels.dat";
+        ifstream in(name)
+        if (!retrain && in)
+        {
+            //load
+            _attModels = new AttributeModels();
+            _attModels->W = readFloatMat(in);
+            _attModels->B = readFloatMat(in);
+            _attModels->numPosSamples = readFloatMat(in);
+            _attReprTr = new Mat();
+            *_attReprTr = readFloatMat(in);;
+            in.close();
+        }
+        else
+        {
+            in.close();
+            learn_attributes_bagging();
+            //save
+            ofstream out(name);
+            writeFloatMat(out,_attModels->W);
+            writeFloatMat(out,_attModels->B);
+            writeFloatMat(out,_attModels->numPosSamples);
+            writeFloatMat(out,_attReprTr);
+            out.close();
+        }
+        
+    }
+    return *_attReprTr;
 }
 
 vector<struct spotting_sw> EmbAttSpotter::spot_sw(const Mat& exemplar, string ngram, float alpha=0.5)

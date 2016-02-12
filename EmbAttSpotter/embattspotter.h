@@ -43,7 +43,7 @@ class EmbAttSpotter : public SegmentationBasedSpotter
     struct AttributesModels
     {
         Mat W;
-        Mat B;
+        //Mat B;
         Mat numPosSamples;
     }
     struct AttributesModels* _attModels;

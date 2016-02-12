@@ -13,26 +13,29 @@
 opts = prepare_opts_subword('IAM','trigrams');
 data = load_dataset(opts);
 data = load_subword(opts,data);
-
+disp('[main] loaded');
 %% Prepare images
 prepare_images(opts,data);
 prepare_images_subword(opts,data);
-
+disp('[main] prepared');
 %% Embed text labels with PHOC
 data.phocs = embed_labels_PHOC(opts,data);
 data.phocs_subword = embed_labels_PHOC_subword(opts,data);
-
+disp('[main] embedded');
 %% Extract features from images
 extract_features_subword(opts);
-
+disp('[main] extracted');
 %% Split data into sets
 data = prepare_data_learning_subword(opts,data);
-
+disp('[main] split');
 %% Learn PHOC attributes
 data.att_models = learn_attributes_subword(opts,data);
+proj_attributes_subword(opts,data,data.att_models.W);
+disp('[main] learned att');
 
 %% Learn common subspaces and/or calibrations
 [embedding,mAPsval] = learn_common_subspace(opts,data);
+disp('[main] learned subspace');
 
 %% Evaluate
 mAPstest = evaluate_subword(opts,data,embedding);

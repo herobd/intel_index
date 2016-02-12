@@ -833,46 +833,200 @@ void EnhancedBoVWTests::experiment_Aldavert(EnhancedBoVW &bovw, string locationC
     }
 }
 
-void EnhancedBoVWTests::experiment_Aldavert_dist_batched(EnhancedBoVW &bovw, string locationCSVPath, string dataDirPath, int dataSize, string fileExt, int batchNum, int numOfBatches, string outfile)
+void EnhancedBoVWTests::experiment_dist_batched(EnhancedBoVW &bovw, string locationCSVPath, string exemplarDirPath, string dataDirPath, int dataSize, int numExemplarsPer, string fileExt, int batchNum, int numOfBatches, string outfile)
 {
     int numNodes=numOfBatches;
-    //MPI_Comm_size (MPI_COMM_WORLD,&numNodes);
     int iproc=batchNum;
-    //MPI_Comm_rank (MPI_COMM_WORLD,&iproc);
-    
-    
-    //string locationCSVPath="data/IAM/bigramLocations_Almazan.csv";
-    //string exemplarDirPath="data/IAM/Almazan_bigrams/";
     try{
 //    regex imageNameNumExtract("(?:wordimg_)(\d+)");
     regex imageNameNumExtract("\\d+");
 
-//    string imageNameFormat="wordimg_%d.png";
-    //string exemplarNameFormat="%s%03d.png";
-    //string dataDirPath = "data/IAM/Almazan_words/";
-//    int dataSize=4860;
-//    int dataSize=13752;
-//    int numExemplarsPer=10;
-//    int numExemplarsPer=5;
     
     map<string,vector<int> > locations;
     
     ifstream file;
     file.open (locationCSVPath, ios::in);
     assert(file.is_open());
-//    string line;
+    
+    string ngram;
+    string fileList;
+    
+
+    
+    while (getline(file,ngram))
+    {
+        getline(file,fileList);
+        
+        smatch sm;
+        while(regex_search(fileList,sm,imageNameNumExtract))
+        {
+            int idx = stoi(sm[0]);
+            locations[ngram].push_back(idx);
+            fileList = sm.suffix().str();
+        }
+    }
+    
+    
+    file.close();
+    
+    
+//    map<> fullResults;
+    string fullResults="";
+    
+    double map=0;
+    double prevMap=0;
+    int mapCount=0;
+    int prevCount=0;
+    
+    int taskSize = locations.size() / numNodes;
+    int mybegin = iproc * taskSize;
+    int myend = (iproc+1) * taskSize;
+    if (myend > locations.size())
+        myend = locations.size();
+    if (iproc+1 == numNodes)
+        myend = locations.size();   
+
+    cout << "["<<iproc<<"] is going from "<<mybegin<<" to "<<myend<<endl; 
+    
+    auto iter = locations.begin();
+    for (int i=0; i<mybegin; i++)
+        iter++;
+    
+//    for (const auto &ngramLocPair : locations)
+    for (int i=mybegin; i<myend; i++, iter++)
+    {
+        const auto &ngramLocPair = *(iter);
+        
+        const vector<int> &ngram_locations = ngramLocPair.second;//locations[ngramLocPair.first];
+        string dirPath = exemplarDirPath + ngramLocPair.first + "/";
+        cout << "["<<iproc<<"] on ngram["<<i<<"]: " <<  ngramLocPair.first << endl;
+        for (int exemplarIdx=0; exemplarIdx<numExemplarsPer; exemplarIdx++)
+        {
+            vector<pair<int,double> >scores;
+
+            
+            string imagePath=dirPath;
+            if (exemplarIdx+1<100) imagePath+="0";
+            if (exemplarIdx+1<10) imagePath+="0";
+            imagePath+=to_string(exemplarIdx+1);
+            imagePath+=".png";
+            Mat exemplar = imread(imagePath,CV_LOAD_IMAGE_GRAYSCALE);
+            assert(exemplar.rows>0);
+            vector<float>* exemplar_b = bovw.featurizeImage(exemplar);
+            
+            #pragma omp parallel
+            {
+                vector<pair<int,double> >myScores;//(dataSize);
+                
+
+                #pragma omp for nowait //schedule(dynamic,200)
+                for (int imageIdx=1; imageIdx<=dataSize; imageIdx++)
+                {
+                    //double startImg = clock();
+                    if (imageIdx == ngram_locations[exemplarIdx])
+                        continue;
+                    
+                    std::string imagePath = dataDirPath + "wordimg_" + to_string(imageIdx) + fileExt;
+                    Mat word = imread(imagePath,CV_LOAD_IMAGE_GRAYSCALE);
+                    assert(word.rows>0);
+                    double score = bovw.scanImageHorz(word,*exemplar_b,exemplar.size());
+                    
+                    
+                    myScores.push_back(pair<int,double>(imageIdx,score));
+                }
+                
+                #pragma omp critical
+                scores.insert(scores.end(),myScores.begin(),myScores.end());
+            }
+            delete exemplar_b;
+//            if (scores.size() != dataSize-1 && scores.size() != dataSize)
+//            {
+//                cout << "Error, scores size:" << scores.size() << ", dataSize:" << dataSize << endl;
+//                assert(false);
+//            }
+            sort(scores.begin(),scores.end(),[](const pair<int,double> &l, const pair<int,double> &r)->bool {return l.second < r.second;});
+//            fullResults(strcat(ngram,num2str(exemplarIdx)))=scores;
+            
+
+                
+            
+            //compute average precision
+            int foundRelevent = 0;
+            double avgPrecision = 0.0;
+            int totalRelevent=ngram_locations.size()-1;
+            
+            for (int top=0; top<scores.size(); top++)
+            {
+                int ii = scores[top].first;
+                if (top==0)
+                {
+                    cout << "top match is " << ii << endl;
+                }
+                if (find(ngram_locations.begin(),ngram_locations.end(),ii)!=ngram_locations.end())
+                {
+                    foundRelevent++;
+                    double precision = foundRelevent/(double)(top+1);
+                    avgPrecision += precision;
+                }
+            }
+            
+            avgPrecision = avgPrecision/totalRelevent;
+            
+//#pragma omp critical
+            {
+                fullResults += ngramLocPair.first+"_"+to_string(exemplarIdx+1) + "{" + to_string(scores[0].first);
+                for (int i=1; i<scores.size(); i++)
+                {
+                    fullResults += "," + to_string(scores[i].first);
+                }
+                fullResults += "}\n";
+                
+                map += avgPrecision;
+                mapCount++;
+            }
+            
+        }
+        
+        cout << "finished ngram '" << ngramLocPair.first << "'' with " << (map-prevMap)/(mapCount-prevCount) << " mAP" << endl;
+        prevMap=map;
+        prevCount=mapCount;
+        
+//        break;
+    }
+    
+    
+    cout << "for batch " << batchNum << " mAP sum:"<<map<< " count:" << mapCount << endl;
+    //save("results"+iproc=".mat","fullResults","map","mapCount");
+    ofstream out;
+    out.open (outfile+to_string(iproc), ios::out);
+    out << fullResults;
+    out.close();
+    
+    } catch (std::regex_error& e) {
+        cout << "regex error:"<<e.code() << endl;
+        return;
+    }
+}
+
+void EnhancedBoVWTests::experiment_Aldavert_dist_batched(EnhancedBoVW &bovw, string locationCSVPath, string dataDirPath, int dataSize, string fileExt, int batchNum, int numOfBatches, string outfile)
+{
+    int numNodes=numOfBatches;
+    int iproc=batchNum;
+    try{
+//    regex imageNameNumExtract("(?:wordimg_)(\d+)");
+    regex imageNameNumExtract("\\d+");
+
+    
+    map<string,vector<int> > locations;
+    
+    ifstream file;
+    file.open (locationCSVPath, ios::in);
+    assert(file.is_open());
     
     string wordText;
-//    getline(file,ngram);
     string fileList;
-//    getline(file,fileList);
     
-//    smatch sm;
-//    regex_match(fileList,sm,imageNameNumExtract);
-//    for (unsigned i=0; i<sm.size(); ++i) {
-//        int idx = stoi(sm[i]);
-//        locations[ngram].push_back(idx);
-//    }
+
     
     while (getline(file,wordText))
     {
@@ -883,9 +1037,6 @@ void EnhancedBoVWTests::experiment_Aldavert_dist_batched(EnhancedBoVW &bovw, str
         {
             int idx = stoi(sm[0]);
             locations[wordText].push_back(idx);
-            
-//            for (auto x:sm) std::cout << x << " ";
-//            std::cout << std::endl;
             fileList = sm.suffix().str();
         }
     }
@@ -959,11 +1110,6 @@ void EnhancedBoVWTests::experiment_Aldavert_dist_batched(EnhancedBoVW &bovw, str
                     
                     
                     myScores.push_back(pair<int,double>(imageIdx,score));
-//                    myScores[imageIdx-1] = (pair<int,double>(imageIdx,score));
-    
-                    //double endImg = clock();
-                    //double durImg = (endImg-startImg)/(double)CLOCKS_PER_SEC;
-                    //cout << " ex " << exemplarIdx << ",  image " << imageIdx << " took " << durImg << " seconds."<<endl;
                 }
                 
                 #pragma omp critical
@@ -1016,9 +1162,6 @@ void EnhancedBoVWTests::experiment_Aldavert_dist_batched(EnhancedBoVW &bovw, str
                 mapCount++;
             }
             
-//            double endEx = omp_get_wtime();//clock();
-//            double durEx = (endEx-startEx);///(double)CLOCKS_PER_SEC;
-//            cout << "[" << iproc << "] exemplar " << exemplarIdx << " took " << durEx << " seconds."<<endl;
         }
         
         cout << "finished word " << i << " with " << (map-prevMap)/(mapCount-prevCount) << " mAP" << endl;
@@ -1029,28 +1172,6 @@ void EnhancedBoVWTests::experiment_Aldavert_dist_batched(EnhancedBoVW &bovw, str
     }
     
     
-    /*if (iproc == 0)
-    {
-        MPI_Status stat;
-        for (int i=1; i<numNodes; i++)
-        {
-            double tmp;
-            int tmp2;
-            MPI_Recv(&tmp,1,MPI_DOUBLE,i,1,MPI_COMM_WORLD,&stat);
-            MPI_Recv(&tmp2,1,MPI_INT,i,2,MPI_COMM_WORLD,&stat);
-            map += tmp;
-            mapCount += tmp2;
-        }
-        
-        map = map/mapCount;
-        cout << "mAP: "<<map<<endl;
-    }
-    else
-    {
-        MPI_Request req;
-        MPI_Isend(&map,1,MPI_DOUBLE,0,1,MPI_COMM_WORLD,&req);
-        MPI_Send(&mapCount,1,MPI_INT,0,2,MPI_COMM_WORLD);
-    }*/
     cout << "for batch " << batchNum << " mAP sum:"<<map<< " count:" << mapCount << endl;
     //save("results"+iproc=".mat","fullResults","map","mapCount");
     ofstream out;
