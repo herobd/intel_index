@@ -252,7 +252,8 @@ int main( int argc, char** argv )
     }
     else if (option.compare("experiment_dist_batched")==0)
     {
-        EnhancedBoVW bovw;
+        vector<Vec2i> spp={Vec2i(1,1),Vec2i(2,2)};
+        EnhancedBoVW bovw(spp);
             
         string codebookLoc = argv[2];
         bovw.codebook = new Codebook();
