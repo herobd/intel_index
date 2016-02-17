@@ -48,8 +48,9 @@ class EmbAttSpotter : public SegmentationBasedSpotter
     }
     struct AttributesModels* _attModels;
     
-    vector<Mat>* _batches_features;
+    //vector<Mat>* _batches_features;
     vector<Mat>* _features_corpus;
+    vector<Mat>* _feats_training;
     
     
     Mat* _phocs;
