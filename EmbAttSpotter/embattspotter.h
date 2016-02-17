@@ -49,6 +49,8 @@ class EmbAttSpotter : public SegmentationBasedSpotter
     struct AttributesModels* _attModels;
     
     vector<Mat>* _batches_features;
+    vector<Mat>* _features_corpus;
+    
     
     Mat* _phocs;
     
@@ -65,6 +67,8 @@ class EmbAttSpotter : public SegmentationBasedSpotter
     int numBatches; 
     vector<int> batches_index;//vector of size numBatches, containing the starting index of each batch
     vector<int> batches_indexEnd;
+    
+    vector<string>* corpus_imgfiles;
     
     int minH;//?
     int PCA_dim;

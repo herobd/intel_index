@@ -9,11 +9,20 @@ if ~exist(opts.fileAttModels,'file') || ~exist(opts.fileAttRepresQu_subword,'fil
             % When running the code in a cluster
         else
             % When running the code in a single machine
-            data.feats_training = readMatBig(opts.fileFeatures,[find(data.idxTrain); find(data.idxValidation)]);
-            features_subword = readMat(opts.fileFeatures_subword);
+            
+            
+            %features = readMat(opts.fileFeatures);            
             % Training and validation sets are concatenated
             %data.feats_training = features(:, [find(data.idxTrain); find(data.idxValidation)]);
-            data.phocs_training = [data.phocsTr data.phocsVa];
+            
+            %data.feats_training = readMatBig(opts.fileFeatures,[find(data.idxTrain); find(data.idxValidation)]);
+            %data.phocs_training = [data.phocsTr data.phocsVa];
+            data.feats_training = readMatBig(opts.fileFeatures,[find(data.idxTrain)]);
+            data.phocs_training = [data.phocsTr];
+            
+            features_subword = readMat(opts.fileFeatures_subword);
+            
+            
             %clear features;
             [attModels,attReprTr] = learn_attributes_bagging(opts,data);
         end

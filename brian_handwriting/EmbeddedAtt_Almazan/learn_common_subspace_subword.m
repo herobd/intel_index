@@ -1,5 +1,6 @@
 function [embedding,mAP,bestmAPval] = learn_common_subspace_subword(opts,data)
 'kjfgkdfjkgfd'
+'NOT USED!!!!!!!!!!!!!!!'
 %% Load attribute representations
 attReprTr = readMat(opts.fileAttRepresTr);
 attReprVa = readMat(opts.fileAttRepresVal);

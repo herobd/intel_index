@@ -1,5 +1,8 @@
 #include "embattspotter.h"
 
+#if TEST_MODE
+    #include "embattspotter_test.cpp"
+#endif
 
 EmbAttSpotter::EmbAttSpotter(string saveName)
 {
@@ -31,6 +34,11 @@ EmbAttSpotter::EmbAttSpotter(string saveName)
     bigrams = ...;//TODO
     
     this->saveName = saveName;//+"_sp"+to_string(numSpatialX)+"x"+to_string(numSpatialY);
+    
+    
+    numBatches=-1;
+    corpusSize=-1;
+    corpus_imgfiles=NULL;
 }
 
 EmbAttSpotter::~EmbAttSpotter()
@@ -47,10 +55,10 @@ EmbAttSpotter::~EmbAttSpotter()
         _attModels->M.release();
         delete _attModels;
     }
-    if (_features!=NULL)
+    if (_features_corpus!=NULL)
     {
-        _features->release();
-        delete _features;
+        _features_corpus->release();
+        delete _features_corpus;
     }
     if (_feats_training!=NULL)
     {
@@ -136,11 +144,11 @@ Mat EmbAttSpotter::extract_feats(const Mat& im)
     return feats_FV;
 }
 
-Mat* EmbAttSpotter::extract_FV_feats_fast(const vector<string>& imageLocations)
+vector<Mat>* EmbAttSpotter::extract_FV_feats_fast_corpus(const vector<string>& imageLocations)
 {
     
     //vector<Mat>* ret = new vector<Mat>(numBatches);
-    Mat* ret = new Mat(corpusSize,FV_DIM);
+    vector<Mat>* ret = new vector<Mat>(numBatches);
     #pragma parallel for
     for (int i=0; i<numBatches; i++)
     {
@@ -153,13 +161,84 @@ Mat* EmbAttSpotter::extract_FV_feats_fast(const vector<string>& imageLocations)
             //ret->at(i).row(j-batches_index[i]) = getImageDescriptorFV(feats.t());
             tmp.row(j-batches_index[i]) = getImageDescriptorFV(feats.t());
         }
-        #pragma omp critical
+        //#pragma omp critical
         {
-            Mat aux = ret->rowRange(batches_index[i],batches_indexEnd[i]);
-            tmp.copyTo(aux);
+            //Mat aux = ret->rowRange(batches_index[i],batches_indexEnd[i]);
+            //tmp.copyTo(aux);
+            ret->at(i)=tmp;
         }
     }
     return ret;
+}
+
+const vector<Mat>& features_corpus(int batchNum)
+{
+    string name = saveName+"_features_corpus.dat";
+    if (_features_corpus==NULL)
+    {
+        ifstream in(name)
+        if (in && !retrain)
+        {
+            //load
+            int num;
+            in >> num;
+            if (numBatches==-1)
+            {
+                numBatches=num;
+            }
+            else
+                assert(num==numBatches);
+            _features_corpus = new vector<Mat>(numBatches);
+            int trackCorpusSize=0;
+            batches_index.clear();
+            batches_indexEnd.clear();
+            
+            for (int i=0; i<numBatches; i++) {
+                batches_index.push_back(trackCorpusSize);
+                _features_corpus->at(i)=readFloatMat(in);
+                trackCorpusSize += _features_corpus->at(i).rows;
+                batches_indexEnd.push_back(trackCorpusSize);
+            }
+            in.close();
+            
+            if (corpusSize==-1)
+                corpusSize=trackCorpusSize;
+            else
+                assert(corpusSize==trackCorpusSize);
+            //initBatches();
+        }
+        else
+        {
+            in.close();
+            assert(corpus_imgfiles!=NULL);
+            _features_corpus = extract_FV_feats_fast_corpus(*corpus_imgfiles);
+            //save
+            ofstream out(name);
+            out << numBatches;
+            for (int i=0; i<numBatches; i++)
+            {      
+                writeFloatMat(out,_features_corpus->at(i));
+            }
+            out.close();
+        }
+        
+    }
+    return *_features;
+}
+
+void initBatches()
+{
+    int batchSize = corpusSize/numBatches;
+    batches_index.clear();
+    batches_indexEnd.clear();
+    
+    batches_index.push_back(0);
+    for (int i=1; i<numBatches; i++)
+    {
+        batches_indexEnd.push_back(i*batchSize);
+        batches_index.push_back(i*batchSize);
+    }
+    batches_indexEnd.push_back(corpusSize);
 }
 
 const Mat& features()
@@ -205,6 +284,20 @@ const Mat& feats_training()
     }
     return *_feats_training;
 }
+
+/*const Mat& feats_testing()
+{
+    if (_feats_testing==NULL)
+    {
+        _feats_testing = new Mat(idxTest.size(),features().cols,features().type());
+        int row=0;
+        for (int idx : idxTest)
+        {
+            features().row(idx).copyTo(_feats_training->row(row++));
+        }
+    }
+    return *_feats_testing;
+}*/
 
 Mat EmbAttSPotter::phow(const Mat& im, const PCA_Object* PCA_pt)
 {
@@ -341,8 +434,8 @@ const vector<Mat>& EmbAttSpotter::batches_cca_att()
         Mat matx = embedding.rndmatx(Rect(0,0,embedding.M,embedding.rndmatx.cols));
         for (int i=0; i<numBatches; i++)
         {
-            //TODO load batch_att
-            Mat tmp = matx*batch_att;
+            // load batch_att
+            Mat tmp = matx*batch_att(i);
             vconcat(cos(tmp),sin(tmp),tmp);
             Mat batch_emb_att = (1/sqrt(embedding.M)) * tmp - embedding.matt;
             Mat batch_cca_att = embedding.Wx.t()*batch_emb_att;
@@ -357,6 +450,12 @@ const vector<Mat>& EmbAttSpotter::batches_cca_att()
         out.close();
     }
     return *_batches_cca_att;
+}
+
+Mat batch_att(int batchNum)
+{
+    Mat m = features_corpus(batchNum);
+    return attModels().W*(m.t());
 }
 
 void learn_attributes_bagging()
@@ -391,7 +490,7 @@ void learn_attributes_bagging()
         }
         else
         {
-            //TODO...
+            //...
             Mat Np(numSamples,1,CV_32F);
             int N=0;
             int numPosSamples=0;
@@ -615,7 +714,7 @@ Mat EmbAttSpotter::scores_sw(const Mat& query, const vector<Mat>& corpus_batch)
 {
     for (const Mat& inst : corpus_batch)
     {
-        
+        //TODO
     }
 }
 
@@ -772,8 +871,8 @@ float* readFloatArray(ifstream& src, int* sizeO)
     src >> size;
     float* ret = new float[size];
     for (int i=0; r<size; i++)
-        src >> ret[i]);
-    if (size)!=NULL)
+        src >> ret[i];
+    if (sizeO!=NULL)
         *sizeO = size;
     return ret;
 }
