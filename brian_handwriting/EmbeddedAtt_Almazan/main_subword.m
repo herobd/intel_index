@@ -30,7 +30,7 @@ data = prepare_data_learning_subword(opts,data);
 disp('[main] split');
 %% Learn PHOC attributes
 data.att_models = learn_attributes_subword(opts,data);
-proj_attributes_subword(opts,data,data.att_models.W);
+proj_attributes_subword(opts,data,[data.att_models(:).W]);
 disp('[main] learned att');
 
 %% Learn common subspaces and/or calibrations

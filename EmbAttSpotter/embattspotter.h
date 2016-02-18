@@ -82,6 +82,10 @@ class EmbAttSpotter : public SegmentationBasedSpotter
     vector<char> unigrams;
     vector<string> bigrams;
     
+    #if TEST_MODE
+        vector<string> testImages;
+    #endif
+    
 public:
     EmbAttSpotter(string saveName="embAttSpotter");
     void loadCorpus(string dir);
