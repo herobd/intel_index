@@ -6,10 +6,14 @@ void test()
     _features_corpus=NULL;
     vector<Mat>* temp_feats_training = _feats_training;
     _feats_training=NULL;
+    vector<Mat>* temp_batches_cca_att = _batches_cca_att;
+    _batches_cca_att=NULL;
     vector<string>* tempcorpus_imgfiles = corpus_imgfiles;
     corpus_imgfiles = &testImages;
     vector<string>* temptraining_imgfiles=training_imgfiles;
     training_imgfiles=&testImages;
+    int tempnumBatches=numBatches;
+    numBatches=-1;
     vector<int> tempbatches_index=batches_index;
     vector<int> tempbatches_indexEnd=batches_indexEnd;
     string tempsaveName=saveName;
@@ -26,8 +30,11 @@ void test()
     _features_corpus=temp_features_corpus;
     delete _feats_training;
     _feats_training=temp_feats_training;
+    delete _batches_cca_att;
+    _batches_cca_att=temp_batches_cca_att;
     corpus_imgfiles=tempcorpus_imgfiles;
     training_imgfiles=temptraining_imgfiles;
+    numBatches=tempnumBatches;
     batches_index=tempbatches_index;
     batches_indexEnd=tempbatches_indexEnd;
     saveName=tempsaveName;
@@ -106,44 +113,27 @@ void features_corpus_test()
 
 
 
-const Mat& feats_training_test()
+void feats_training_test()
 {
-    string name = saveName+"_feats_training.dat";
-    if (_feats_training==NULL)
+    vector<Mat> res1 = feats_training();//create
+    delete _feats_training;
+    _feats_training=NULL;//clear
+    vector<Mat> res2 = feats_training();//load
+    assert(res1.size()==1);
+    assert(res1.size() == res2.size());
+    for (int i=0; i<res1.size(); i++)
     {
-        ifstream in(name)
-        if (in && !retrain)
-        {
-            //load
-            int num;
-            in >> num;
-            assert(num==1);
-            _feats_training = new vector<Mat>(1);
-            _feats_training->at(0)=readFloatMat(in);
-            in.close();
-            //initBatches();
-        }
-        else
-        {
-            in.close();
-            assert(training_imgfiles!=NULL);
-            _feats_training = extract_FV_feats_fast_and_batch(*training_imgfiles,NULL,NULL,training_imgfiles->size());
-            assert(_feats_training->size()==1);
-            //save
-            ofstream out(name);
-            out << 1;
-            writeFloatMat(out,_feats_training->at(0));
-            
-            out.close();
-        }
-        
+        assert(res1[i].rows==res2[i].rows);
+        assert(res1[i].cols==res2[i].cols);
+        for (int r=0; r<res1[i].rows; r++)
+            for (int c=0; c<res1[i].cols; c++)
+                assert(res1[i].at<float>(r,c)==res2[i].at<float>(r,c));
     }
-    return _feats_training->at(0);
 }
 
 
-Mat EmbAttSPotter::phow(const Mat& im, const PCA_Object* PCA_pt)
-{
+Mat EmbAttSpotter::phow(const Mat& im, const PCA_Object* PCA_pt)
+{//TODO
     int bb_x1, bb_x2, bb_y1, bb_y2;
     DoBB(im,&bb_x1,&bb_x2,&bb_y1,&bb_y2);
     int bb_w=bb_x2-bb_x1 + 1;
@@ -223,7 +213,7 @@ Mat EmbAttSPotter::phow(const Mat& im, const PCA_Object* PCA_pt)
 }
 
 Mat EmbAttSpotter::getImageDescriptorFV(const Mat& feats_m)
-{
+{//TODO
     assert(feats_m.cols==DESC_DIM);
     int dimension = DESC_DIM;
     int numClusters = numGMMClusters;
@@ -247,58 +237,23 @@ Mat EmbAttSpotter::getImageDescriptorFV(const Mat& feats_m)
      return ret;
 }
 
-const vector<Mat>& EmbAttSpotter::batches_cca_att()
+void EmbAttSpotter::batches_cca_att_test()
 {
-    string name = saveName+"_batches_cca_att_"+to_string(numBatches)+".dat";
-    if (_batches_cca_att == NULL)
+    assert(numBatches!=-1);
+    vector<Mat> res1 = batches_cca_att();//create
+    delete _batches_cca_att;
+    _batches_cca_att=NULL;//clear
+    vector<Mat> res2 = batches_cca_att();//load
+    
+    assert(res1.size() == res2.size());
+    for (int i=0; i<res1.size(); i++)
     {
-        //init
-        _batches_cca_att = new vector<Mat>(numBatches);
-        
-        //load
-        ifstream in(name);
-        if (in)
-        {
-            int numBatchesRead;
-            in >> numBatchesRead;
-            if (numBatchesRead==numBatches)
-            {
-                for (int i=0; i<numBatches; i++)
-                    _batches_cca_att->at(i) = readFloatMat(in);
-            }
-            in.close();
-        }
+        assert(res1[i].rows==res2[i].rows);
+        assert(res1[i].cols==res2[i].cols);
+        for (int r=0; r<res1[i].rows; r++)
+            for (int c=0; c<res1[i].cols; c++)
+                assert(res1[i].at<float>(r,c)==res2[i].at<float>(r,c));
     }
-    if (_batches_cca_att->size() != numBatches)
-    {
-        _batches_cca_att->clear();
-        
-        const Embedding& embedding = get_embedding();
-        Mat matx = embedding.rndmatx(Rect(0,0,embedding.M,embedding.rndmatx.cols));
-        for (int i=0; i<numBatches; i++)
-        {
-            // load batch_att
-            Mat tmp = matx*batch_att(i);
-            vconcat(cos(tmp),sin(tmp),tmp);
-            Mat batch_emb_att = (1/sqrt(embedding.M)) * tmp - embedding.matt;
-            Mat batch_cca_att = embedding.Wx.t()*batch_emb_att;
-            _batches_cca_att->push_back(batch_cca_att);
-        }
-        
-        //save
-        ofstream out(name);
-        out << numBatches << " ";
-        for (int i=0; i<numBatches; i++)
-            writeFloatMat(out,_batches_cca_att->at(i));
-        out.close();
-    }
-    return *_batches_cca_att;
-}
-
-Mat batch_att(int batchNum)
-{
-    Mat m = features_corpus(batchNum);
-    return attModels().W*(m.t());
 }
 
 void learn_attributes_bagging()
@@ -328,7 +283,7 @@ void learn_attributes_bagging()
         }
         if (idxPos.size()<2 || idxNeg.size()<2)
         {
-            cout << "Model for attribute "<<idxAtt<<". Note enough data."<<endl;
+            cout << "No model for attribute "<<idxAtt<<". Note enough data."<<endl;
             //continue
         }
         else

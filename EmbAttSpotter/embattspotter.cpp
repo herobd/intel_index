@@ -11,6 +11,8 @@ EmbAttSpotter::EmbAttSpotter(string saveName)
     _GMM.covariances=NULL;
     _GMM.priors=NULL;
     
+    _embedding=NULL;
+    
     SIFT_sizes=[2,4,6,8,10,12];
     stride=3;
     magnif=6.0;
@@ -62,6 +64,17 @@ EmbAttSpotter::~EmbAttSpotter()
         _attModels->M.release();
         delete _attModels;
     }
+    if (_embedding!=NULL)
+    {
+        _embedding->rndmatx.release();
+        _embedding->rndmaty.release();
+        _embedding->M.release();
+        _embedding->matt.release();
+        _embedding->mphoc.release();
+        _embedding->Wx.release();
+        _embedding->Wy.release();
+        delete _embedding;
+    }
     if (_features_corpus!=NULL)
     {
         //_features_corpus->release();
@@ -98,7 +111,7 @@ vector<float> EmbAttSpotter::spot(const Mat& exemplar, string word, float alpha=
     assert(word.length()>0 || alpha==1);
     assert(exemplar.rows*exemplar.cols>1 || alpha==0);
     
-    const Embedding& embedding = get_embedding();
+    
     
     Mat im;
     exemplar.convertTo(im, CV_32FC1);
@@ -106,19 +119,19 @@ vector<float> EmbAttSpotter::spot(const Mat& exemplar, string word, float alpha=
     
     query_att = attModels().W*query_feats.t();
     
-    Mat matx = embedding.rndmatx(Rect(0,0,embedding.M,embedding.rndmatx.cols));
-    Mat maty = embedding.rndmaty(Rect(0,0,embedding.M,embedding.rndmatx.cols));
+    Mat matx = embedding().rndmatx(Rect(0,0,embedding().M,embedding().rndmatx.cols));
+    Mat maty = embedding().rndmaty(Rect(0,0,embedding().M,embedding().rndmatx.cols));
     
     Mat tmp = matx*query_att;
     vconcat(cos(tmp),sin(tmp),tmp);
-    Mat query_emb_att = (1/sqrt(embedding.M)) * tmp - embedding.matt;
+    Mat query_emb_att = (1/sqrt(embedding().M)) * tmp - embedding().matt;
     tmp = maty*query_phoc;
     vconcat(cos(tmp),sin(tmp),tmp);
-    Mat query_emb_phoc = (1/sqrt(embedding.M)) * tmp - embedding.mphoc;
+    Mat query_emb_phoc = (1/sqrt(embedding().M)) * tmp - embedding().mphoc;
     
     
-    Mat query_cca_att = embedding.Wx.t()*query_emb_att;
-    Mat query_cca_phoc = embedding.Wy.t()*query_emb_phoc;
+    Mat query_cca_att = embedding().Wx.t()*query_emb_att;
+    Mat query_cca_phoc = embedding().Wy.t()*query_emb_phoc;
     
     normalizeColumns(query_cca_att);
     normalizeColumns(query_cca_phoc);
@@ -339,8 +352,42 @@ const Mat& feats_training()
     return _feats_training->at(0);
 }
 
+/*const Mat& feats_validation()
+{
+    string name = saveName+"_feats_validation.dat";
+    if (_feats_validation==NULL)
+    {
+        ifstream in(name)
+        if (in && !retrain)
+        {
+            //load
+            int num;
+            in >> num;
+            assert(num==1);
+            _feats_validation = new vector<Mat>(1);
+            _feats_validation->at(0)=readFloatMat(in);
+            in.close();
+        }
+        else
+        {
+            in.close();
+            assert(validation_imgfiles!=NULL);
+            _feats_validation = extract_FV_feats_fast_and_batch(*validation_imgfiles,NULL,NULL,validation_imgfiles->size());
+            assert(_feats_validation->size()==1);
+            //save
+            ofstream out(name);
+            out << 1;
+            writeFloatMat(out,_feats_validation->at(0));
+            
+            out.close();
+        }
+        
+    }
+    return _feats_validation->at(0);
+}*/
 
-Mat EmbAttSPotter::phow(const Mat& im, const PCA_Object* PCA_pt)
+
+Mat EmbAttSpotter::phow(const Mat& im, const PCA_Object* PCA_pt)
 {
     int bb_x1, bb_x2, bb_y1, bb_y2;
     DoBB(im,&bb_x1,&bb_x2,&bb_y1,&bb_y2);
@@ -471,15 +518,15 @@ const vector<Mat>& EmbAttSpotter::batches_cca_att()
     {
         _batches_cca_att->clear();
         
-        const Embedding& embedding = get_embedding();
-        Mat matx = embedding.rndmatx(Rect(0,0,embedding.M,embedding.rndmatx.cols));
+        //const Embedding& embedding = get_embedding();
+        Mat matx = embedding().rndmatx(Rect(0,0,embedding().M,embedding().rndmatx.cols));
         for (int i=0; i<numBatches; i++)
         {
             // load batch_att
             Mat tmp = matx*batch_att(i);
             vconcat(cos(tmp),sin(tmp),tmp);
-            Mat batch_emb_att = (1/sqrt(embedding.M)) * tmp - embedding.matt;
-            Mat batch_cca_att = embedding.Wx.t()*batch_emb_att;
+            Mat batch_emb_att = (1/sqrt(embedding().M)) * tmp - embedding().matt;
+            Mat batch_cca_att = embedding().Wx.t()*batch_emb_att;
             _batches_cca_att->push_back(batch_cca_att);
         }
         
@@ -508,7 +555,7 @@ void learn_attributes_bagging()
     _attModels->W=zeros(dimFeats,numAtt,CV_32F);
     //_attModels->B=zeros(1,numAtt,CV_32F);
     _attModels->numPosSamples=zeros(1,numAtt,CV_32F);
-    _attReprTr = new Mat(zeros(numSamples,numAtt,CV_32F)); //attFeatsTr, attFeatsBag
+    _attReprTr = new Mat(zeros(numAtt,numSamples,CV_32F)); //attFeatsTr, attFeatsBag
     
     Mat threshed;
     threshold(phoc_training(),threshed, 0.47999, 1, THRESH_BINARY);
@@ -526,7 +573,7 @@ void learn_attributes_bagging()
         }
         if (idxPos.size()<2 || idxNeg.size()<2)
         {
-            cout << "Model for attribute "<<idxAtt<<". Note enough data."<<endl;
+            cout << "No model for attribute "<<idxAtt<<". Note enough data."<<endl;
             //continue
         }
         else
@@ -584,7 +631,7 @@ void learn_attributes_bagging()
                         float s=0;
                         for (int c=0; c<featsVal.cols; c++)
                             s += featsVal.at<flaot>(r,c)*vl_svm_get_model(svm)[c];
-                        _attReprTr->at<float>(r,idxAtt)+=s;
+                        _attReprTr->at<float>(idxAtt,r)+=s;
                     }
                 }
             }
@@ -707,7 +754,169 @@ const struct AttributesModels& EmbAttSpotter::attModels()
     return *_attModels;
 }
 
-const Mat& EmbAttSpotter::attReprTr()
+const struct Embedding& EmbAttSpotter::embedding()
+{
+    if (_embedding==NULL)
+    {
+        string name = saveAs+"_embedding.dat";
+        ifstream in(name)
+        if (!retrain && in)
+        {
+            //load
+            _embedding = new Embedding();
+            _embedding->rndmatx = readFloatMat(in);
+            _embedding->rndmaty = readFloatMat(in);
+            _embedding->M = readFloatMat(in);
+            _embedding->matt = readFloatMat(in);
+            _embedding->mphoc = readFloatMat(in);
+            _embedding->Wx = readFloatMat(in);
+            _embedding->Wy = readFloatMat(in);
+            in.close();
+        }
+        else
+        {
+            in.close();
+            learn_common_subspace();
+            //save
+            ofstream out(name);
+            writeFloatMat(out,_embedding->rndmatx);
+            writeFloatMat(out,_embedding->rndmaty);
+            writeFloatMat(out,_embedding->M);
+            writeFloatMat(out,_embedding->matt);
+            writeFloatMat(out,_embedding->mphoc);
+            writeFloatMat(out,_embedding->Wx);
+            writeFloatMat(out,_embedding->Wy);
+            out.close();
+        }
+        
+    }
+    return *_embedding;
+}
+
+void learn_common_subspace()
+{
+    assert(_embedding==NULL);
+    _embedding = new Embedding();
+    
+    /*Mat attReprTr_lcs, attReprVa_lcs, phocsTr_lcs, phocsVa_lcs;
+    vector<string> wordClsTr, wordClsVa;
+    //...
+    
+    assert(attReprTr().rows == phocsTr().rows && 
+            attReprTr().rows == training_labels.size());
+    
+    vector<int> seeds;
+    for (int cont = 0; cont < attReprTr().rows; cont++)
+        seeds.push_back(cont);
+
+    randShuffle(seeds);
+
+    Mat output;
+    for (int cont = 0; cont < (int)(0.66*seeds.size()); cont++)
+    {
+        attReprTr_lcs.push_back(attReprTr().row(seeds[cont]));
+        phocsTr_lcs.push_back(phocsTr().row(seeds[cont]));
+        wordClsTr.push_back(training_labels[seeds[cont]]);
+    }
+    for (int cont = 0.66*seeds.size(); cont < seeds.size(); cont++)
+    {
+        attReprVal_lcs.push_back(attReprTr().row(seeds[cont]));
+        phocsVal_lcs.push_back(phocsTr().row(seeds[cont]));
+        wordClsVal.push_back(training_labels[seeds[cont]]);
+    }*/
+    
+    //learnKCCA
+    int M = 2500;
+    float G = 40;
+    int Dims = 160;
+    float reg = 1e-5;
+    int Dx = attReprTr_lcs.rows;
+    int Dy = phocsTr_lcs.rows;
+    Mat rndmatx(M,Dx,CV_32F);
+    Mat rndmaty(M,Dy,CV_32F);
+    RNG rng(12345);
+    rng.fill(rndmatx,RNG::NORMAL,Scalar(0),Scalar(1/G));
+    rng.fill(rndmaty,RNG::NORMAL,Scalar(0),Scalar(1/G));
+    
+    Mat tmp = rndmatx*attReprTr();
+    vconcat(cos(tmp),sin(tmp),tmp);
+    Mat attReprTr_emb = 1/sqrt(M) * tmp;
+    tmp = rndmaty*phocsTr();
+    vconcat(cos(tmp),sin(tmp),tmp);
+    Mat phocsTr_emb = 1/sqrt(bestM) * [ cos(tmp); sin(tmp)];
+
+    // Mean center
+    Mat ma;// = mean(attReprTr_emb,2);
+    reduce(attReprTr_emb, ma, 1, CV_REDUCE_AVG);
+    for (int c = 0; c < attReprTr_emb.cols; ++c) {
+        attReprTr_emb.col(c) = attReprTr_emb.col(r) - ma;
+    }
+
+    Mat mh;// = mean(attReprTr_emb,2);
+    reduce(phocsTr_emb, mh, 1, CV_REDUCE_AVG);
+    for (int c = 0; c < phocsTr_emb.cols; ++c) {
+        phocsTr_emb.col(c) = phocsTr_emb.col(r) - mh;
+    }
+
+    // Learn CCA
+    [Wx,Wy] = cca2(attReprTr_emb.t(), phocsTr_emb.t(),reg,K);
+    //TODO
+}
+
+void cca2(Mat X, Mat Y, float reg, int d)
+{
+    // CCA calculate canonical correlations
+    
+    /* [Wx Wy r] = cca(X,Y) where Wx and Wy contains the canonical correlation
+    % vectors as columns and r is a vector with corresponding canonical
+    % correlations. The correlations are sorted in descending order. X and Y
+    % are matrices where each column is a sample. Hence, X and Y must have
+    % the same number of columns.
+    %
+    % Example: If X is M*K and Y is N*K there are L=MIN(M,N) solutions. Wx is
+    % then M*L, Wy is N*L and r is L*1.
+    %
+    %
+    % ? 2000 Magnus Borga, Link?pings universitet*/
+
+    // --- Calculate covariance matrices ---
+    int N = X.rows;
+    int Dx = X.cols;
+    int Dy = Y.cols;    
+
+
+    Mat Cxx = X.t()*X / N + reg*eye(Dx);
+    Mat Cyy = Y.t()*Y/N + reg*eye(Dy);
+    Mat Cxy = X.t()*Y / N;
+    Mat Cyx = Cxy.t();
+
+    // --- Calcualte Wx and r ---
+    Mat M =  ((Cxx\Cxy)/Cyy)*Cyx;
+    [Wx,r] = eigs(double(M),d); // Basis in X
+    eigen(M, eigenvalues);
+    Wx = single(Wx);
+    r = sqrt(real(r));      // Canonical correlations
+
+    % --- Sort correlations ---
+        
+    V = fliplr(Wx);		% reverse order of eigenvectors
+    r = flipud(diag(r));	% extract eigenvalues anr reverse their orrer
+    [r,I]= sort((real(r)));	% sort reversed eigenvalues in ascending order
+    r = flipud(r);		% restore sorted eigenvalues into descending order
+    for j = 1:length(I)
+      Wx(:,j) = V(:,I(j));  % sort reversed eigenvectors in ascending order
+    end
+    Wx = fliplr(Wx);	% restore sorted eigenvectors into descending order
+
+
+
+    % --- Calcualte Wy  ---
+
+    Wy = (Cyy\Cyx)*Wx;     % Basis in Y
+    Wy = Wy./repmat(sqrt(sum(abs(Wy).^2)),Dy,1); % Normalize Wy
+}
+
+const Mat& EmbAttSpotter::attReprTr()//correct orientation
 {
     if (_attReprTr==NULL)
     {
@@ -718,7 +927,7 @@ const Mat& EmbAttSpotter::attReprTr()
             //load
             _attModels = new AttributeModels();
             _attModels->W = readFloatMat(in);
-            _attModels->B = readFloatMat(in);
+            //_attModels->B = readFloatMat(in);
             _attModels->numPosSamples = readFloatMat(in);
             _attReprTr = new Mat();
             *_attReprTr = readFloatMat(in);;
@@ -731,7 +940,7 @@ const Mat& EmbAttSpotter::attReprTr()
             //save
             ofstream out(name);
             writeFloatMat(out,_attModels->W);
-            writeFloatMat(out,_attModels->B);
+            //writeFloatMat(out,_attModels->B);
             writeFloatMat(out,_attModels->numPosSamples);
             writeFloatMat(out,_attReprTr);
             out.close();
@@ -740,6 +949,34 @@ const Mat& EmbAttSpotter::attReprTr()
     }
     return *_attReprTr;
 }
+
+/*const Mat& EmbAttSpotter::attReprVa()
+{
+    if (_attReprVa==NULL)
+    {
+        string name = saveAs+"_attReprVa.dat";
+        ifstream in(name)
+        if (!retrain && in)
+        {
+            //load
+            _attReprVa = new Mat();
+            *_attReprVa = readFloatMat(in);;
+            in.close();
+        }
+        else
+        {
+            in.close();
+            _attReprVa = new Mat();
+            *_attReprVa = attModels().W*feats_validation().t();
+            //save
+            ofstream out(name);
+            writeFloatMat(out,_attReprVa);
+            out.close();
+        }
+        
+    }
+    return *_attReprVa;
+}*/
 
 vector<struct spotting_sw> EmbAttSpotter::spot_sw(const Mat& exemplar, string ngram, float alpha=0.5)
 {
@@ -987,7 +1224,7 @@ void compute_GMM(const Mat& bins, int numSpatialX, int numSpatialY, int numGMMCl
 
 
 
-Mat* embed_labels_PHOC()
+Mat* embed_labels_PHOC(vector<string> labels)
 {
     /* Prepare dict */
     map<char,int> vocUni2pos;
@@ -1018,16 +1255,16 @@ Mat* embed_labels_PHOC()
     
     /* Prepare output */
     //float *phocs = new float[phocSize*corpusSize+phocSize_bi*corpusSize];
-    Mat* phocs = new Mat(corpusSize,phocSize+phocSize_bi,CV_32F);
+    Mat* phocs = new Mat(phocSize+phocSize_bi,,labels.size()CV_32F);
     /* Compute */
-    for (int i=0; i < corpusSize;i++)
+    for (int i=0; i < labels.size();i++)
     {
-        computePhoc(corpusLabels[i], vocUni2pos, map<string,int>(),unigrams.size(), phoc_levels, phocSize, phocs,i);
+        computePhoc(labels[i], vocUni2pos, map<string,int>(),unigrams.size(), phoc_levels, phocSize, phocs,i);
     }
     
     for (int i=0; i < corpusSize;i++)
     {
-        computePhoc(corpusLabels[i], map<char,int>(), vocBi2pos,bigrams.size(), phoc_levels_bi, phocSize_bi, phocs,i);
+        computePhoc(labels[i], map<char,int>(), vocBi2pos,bigrams.size(), phoc_levels_bi, phocSize_bi, phocs,i);
     }
     
     
@@ -1036,7 +1273,7 @@ Mat* embed_labels_PHOC()
 
 #define HARD 0
 
-void computePhoc(string str, map<char,int> vocUni2pos, map<string,int> vocBi2pos, int Nvoc, vector<int> levels, int descSize, Mat *out, int row;)
+void computePhoc(string str, map<char,int> vocUni2pos, map<string,int> vocBi2pos, int Nvoc, vector<int> levels, int descSize, Mat *out, int instance;)
 {
     int strl = str.length;
     
@@ -1076,7 +1313,7 @@ void computePhoc(string str, map<char,int> vocUni2pos, map<string,int> vocBi2pos
                     if (ov >=0.48)
                     {
                         //p[posOff]+=1;
-                        out->at<float>(row,posOff)+=1;
+                        out->at<float>(posOff,instance)+=1;
                     }
                     #else
                     p[posOff] = max(ov, p[posOff]);
@@ -1105,7 +1342,7 @@ void computePhoc(string str, map<char,int> vocUni2pos, map<string,int> vocBi2pos
                     if (ov >=0.48)
                     {
                         //p[posOff]+=1;
-                        out->at<float>(row,(out->cols-descSize)+posOff)+=1;
+                        out->at<float>((out->rows-descSize)+posOff,instance)+=1;
                     }
                 }
             }
@@ -1115,16 +1352,16 @@ void computePhoc(string str, map<char,int> vocUni2pos, map<string,int> vocBi2pos
     return;
 }
 
-const Mat* phocs()
+const Mat* phocsTr()//correct orientation
 {
-    if (_phocs==NULL)
+    if (_phocsTr==NULL)
     {
-        _phocs = embed_labels_PHOC();
+        _phocsTr = embed_labels_PHOC(training_labels);
     }
-    return *_phocs;
+    return *_phocsTr;
 }
 
-const Mat& phocs_training()
+/*const Mat& phocs_training()
 {
     if (_phocs_training==NULL)
     {
@@ -1140,4 +1377,4 @@ const Mat& phocs_training()
         }
     }
     return *_phocs_training;
-}
+}*/

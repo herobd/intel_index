@@ -48,6 +48,18 @@ class EmbAttSpotter : public SegmentationBasedSpotter
     }
     struct AttributesModels* _attModels;
     
+    struct Embedding
+    {
+        Mat rndmatx;
+        Mat rndmaty;
+        Mat M;
+        Mat matt;
+        Mat mphoc;
+        Mat Wx;
+        Mat Wy;
+    }
+    struct Embedding* _embedding;
+    
     //vector<Mat>* _batches_features;
     vector<Mat>* _features_corpus;
     vector<Mat>* _feats_training;
@@ -63,13 +75,16 @@ class EmbAttSpotter : public SegmentationBasedSpotter
     double contrastthreshold;
     
     int corpusSize;
-    vector<string> corpusLabels;
+    
     
     int numBatches; 
     vector<int> batches_index;//vector of size numBatches, containing the starting index of each batch
     vector<int> batches_indexEnd;
     
     vector<string>* corpus_imgfiles;
+    
+    vector<string>* training_imgfiles;
+    vector<string> training_labels;
     
     int minH;//?
     int PCA_dim;
