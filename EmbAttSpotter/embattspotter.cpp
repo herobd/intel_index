@@ -23,17 +23,23 @@ EmbAttSpotter::EmbAttSpotter(string saveName)
     PCA_dim = 62;
     num_samples_PCA = 200000;
     numGMMClusters = 16;
-    numSpatialX = 6;//num pf bins for spatail pyr
+    numSpatialX = 6;//num of bins for spatail pyr
     numSpatialY = 2;
     
-    phoc_levels = [2 3 4 5];
+    phoc_levels = [2, 3, 4, 5];
     unigrams = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z'];
     if (useNumbers)
     {
         for (char n : "0123456789")
             unigrams.push_back(n);
     }
-    bigrams = ...;//TODO
+    phoc_levels_bi = [2];
+    ifstream bFile("bigrams.txt");
+    string bigram;
+    while (getline(bFile,bigram))
+    {
+        bigrams.push_back(bigram);
+    }
     
     this->saveName = saveName;//+"_sp"+to_string(numSpatialX)+"x"+to_string(numSpatialY);
     
@@ -41,12 +47,13 @@ EmbAttSpotter::EmbAttSpotter(string saveName)
     numBatches=-1;
     corpusSize=-1;
     corpus_imgfiles=NULL;
+    training_imgfiles=NULL;
     
     
     
     
     #if TEST_MODE
-        testImages = ["test/small0.png","test/small1.png","test/small2.png","test/small3.png","test/small4.png"];
+        testImages = ["test/testImages/small0.png","test/testImages/small1.png","test/testImages/small2.png","test/testImages/small3.png","test/testImages/small4.png"];
     #endif
 }
 
@@ -85,15 +92,20 @@ EmbAttSpotter::~EmbAttSpotter()
         //_feats_training.release();
         delete _feats_training;
     }
-    if (_phocs_training!=NULL)
+    /*if (_phocs_training!=NULL)
     {
-        _phocs_training.release();
+        _phocs_training->release();
         delete _phocs_training;
     }
     if (_phocs!=NULL)
     {
-        _phocs.release();
+        _phocs->release();
         delete _phocs;
+    }*/
+    if (_phocsrT!=NULL)
+    {
+        _phocsTr->release();
+        delete _phocsTr;
     }
 }
 
@@ -155,7 +167,7 @@ vector<float> EmbAttSpotter::spot(const Mat& exemplar, string word, float alpha=
 Mat EmbAttSpotter::extract_feats(const Mat& im)
 {
     
-    Mat feats_m=phow(im,&PCA());
+    Mat feats_m=phow(im,&PCA_());
     
     Mat feats_FV = getImageDescriptorFV(feats_m.t());
     
@@ -177,7 +189,7 @@ Mat EmbAttSpotter::extract_feats(const Mat& im)
         for (int j=batches_index[i]; j<batches_indexEnd[i]; j++)
         {
             Mat im = imread(imageLocations[j];
-            Mat feats=phow(im,*PCA());
+            Mat feats=phow(im,*PCA_());
             //ret->at(i).row(j-batches_index[i]) = getImageDescriptorFV(feats.t());
             tmp.row(j-batches_index[i]) = getImageDescriptorFV(feats.t());
         }
@@ -227,8 +239,8 @@ vector<Mat>* EmbAttSpotter::extract_FV_feats_fast_and_batch(const vector<string>
         #pragma omp parallel for
         for (int j=start; j<end; j++)
         {
-            Mat im = imread(imageLocations[j];
-            Mat feats=phow(im,*PCA());
+            Mat im = imread(imageLocations[j],CV_GRAYSCALE);
+            Mat feats=phow(im,&PCA_());
             //ret->at(i).row(j-batches_index[i]) = getImageDescriptorFV(feats.t());
             Mat r = getImageDescriptorFV(feats.t());
             #pragma omp critical //?
@@ -241,18 +253,18 @@ vector<Mat>* EmbAttSpotter::extract_FV_feats_fast_and_batch(const vector<string>
     
     if (del)
     {
-        delete batch_index;
-        delete batch_indexEnd;
+        delete batches_index;
+        delete batches_indexEnd;
     }
     return ret;
 }
 
-const vector<Mat>& features_corpus()
+const vector<Mat>& EmbAttSpotter::features_corpus()
 {
     string name = saveName+"_features_corpus.dat";
     if (_features_corpus==NULL)
     {
-        ifstream in(name)
+        ifstream in(name);
         if (in && !retrain)
         {
             //load
@@ -318,12 +330,12 @@ const vector<Mat>& features_corpus()
 }*/
 
 
-const Mat& feats_training()
+const Mat& EmbAttSpotter::feats_training()
 {
     string name = saveName+"_feats_training.dat";
     if (_feats_training==NULL)
     {
-        ifstream in(name)
+        ifstream in(name);
         if (in && !retrain)
         {
             //load
@@ -387,7 +399,7 @@ const Mat& feats_training()
 }*/
 
 
-Mat EmbAttSpotter::phow(const Mat& im, const PCA_Object* PCA_pt)
+Mat EmbAttSpotter::phow(const Mat& im, const struct PCA* PCA_pt)
 {
     int bb_x1, bb_x2, bb_y1, bb_y2;
     DoBB(im,&bb_x1,&bb_x2,&bb_y1,&bb_y2);
@@ -540,13 +552,13 @@ const vector<Mat>& EmbAttSpotter::batches_cca_att()
     return *_batches_cca_att;
 }
 
-Mat batch_att(int batchNum)
+Mat EmbAttSpotter::batch_att(int batchNum)
 {
     Mat m = features_corpus()[batchNum];
     return attModels().W*(m.t());
 }
 
-void learn_attributes_bagging()
+void EmbAttSpotter::learn_attributes_bagging()
 {
     int dimFeats=feats_training().cols;
     int numAtt = phoc_training().cols;
@@ -646,7 +658,7 @@ void learn_attributes_bagging()
     }
 }
 
-Mat cvSVM(const Mat& featsTrain, const float* labelsTrain, const Mat& featsVal, const float* labelsVal)
+Mat EmbAttSpotter::cvSVM(const Mat& featsTrain, const float* labelsTrain, const Mat& featsVal, const float* labelsVal)
 {
     assert(featsTrain.isContinuous());
     assert(featsVal.isContinuous());
@@ -686,7 +698,7 @@ Mat cvSVM(const Mat& featsTrain, const float* labelsTrain, const Mat& featsVal, 
     return ret;
 }
 
-double modelMap(VlSvm * svm, const Mat& featsVal, const float* labelsVal)
+double EmbAttSpotter::modelMap(VlSvm * svm, const Mat& featsVal, const float* labelsVal)
 {
     vector< pair<int,float> > scores(featsVal.rows);
     for (int r=0; r<featsVal.rows; r++)
@@ -710,7 +722,7 @@ double modelMap(VlSvm * svm, const Mat& featsVal, const float* labelsVal)
     return map/N;
 }
 
-Mat select_rows(const Mat& m, vector<int> idx)
+Mat EmbAttSpotter::select_rows(const Mat& m, vector<int> idx)
 {
     Mat ret(idx.size(); m.cols, m.type());
     for (int i=0; i<idx.size(); i++)
@@ -720,12 +732,12 @@ Mat select_rows(const Mat& m, vector<int> idx)
     return ret;
 }
 
-const struct AttributesModels& EmbAttSpotter::attModels()
+const struct AttributesModels& EmbAttSpotter::EmbAttSpotter::attModels()
 {
     if (_attModels==NULL)
     {
         string name = saveAs+"_attModels.dat";
-        ifstream in(name)
+        ifstream in(name);
         if (!retrain && in)
         {
             //load
@@ -759,14 +771,14 @@ const struct Embedding& EmbAttSpotter::embedding()
     if (_embedding==NULL)
     {
         string name = saveAs+"_embedding.dat";
-        ifstream in(name)
+        ifstream in(name);
         if (!retrain && in)
         {
             //load
             _embedding = new Embedding();
             _embedding->rndmatx = readFloatMat(in);
             _embedding->rndmaty = readFloatMat(in);
-            _embedding->M = readFloatMat(in);
+            in >> _embedding->M;
             _embedding->matt = readFloatMat(in);
             _embedding->mphoc = readFloatMat(in);
             _embedding->Wx = readFloatMat(in);
@@ -781,7 +793,7 @@ const struct Embedding& EmbAttSpotter::embedding()
             ofstream out(name);
             writeFloatMat(out,_embedding->rndmatx);
             writeFloatMat(out,_embedding->rndmaty);
-            writeFloatMat(out,_embedding->M);
+            out << _embedding->M;
             writeFloatMat(out,_embedding->matt);
             writeFloatMat(out,_embedding->mphoc);
             writeFloatMat(out,_embedding->Wx);
@@ -793,7 +805,7 @@ const struct Embedding& EmbAttSpotter::embedding()
     return *_embedding;
 }
 
-void learn_common_subspace()
+void EmbAttSpotter::learn_common_subspace()
 {
     assert(_embedding==NULL);
     _embedding = new Embedding();
@@ -859,11 +871,19 @@ void learn_common_subspace()
     }
 
     // Learn CCA
-    [Wx,Wy] = cca2(attReprTr_emb.t(), phocsTr_emb.t(),reg,K);
-    //TODO
+    Mat Wx, Wy;
+    cca2(attReprTr_emb.t(), phocsTr_emb.t(),reg,K,Wx,Wy);
+    
+    _embedding->rndmatx=rndmatx;
+    _embedding->rndmaty=rndmaty;
+    _embedding->M=M;
+    _embedding->matt=ma;
+    _embedding->mphoc=mh;
+    _embedding->Wx=Wx;
+    _embedding->Wy=Wy;
 }
 
-void cca2(Mat X, Mat Y, float reg, int d)
+void EmbAttSpotter::cca2(Mat X, Mat Y, float reg, int d, Mat& Wx, Mat& Wy)
 {
     // CCA calculate canonical correlations
     
@@ -891,29 +911,23 @@ void cca2(Mat X, Mat Y, float reg, int d)
     Mat Cyx = Cxy.t();
 
     // --- Calcualte Wx and r ---
-    Mat M =  ((Cxx\Cxy)/Cyy)*Cyx;
-    [Wx,r] = eigs(double(M),d); // Basis in X
-    eigen(M, eigenvalues);
-    Wx = single(Wx);
-    r = sqrt(real(r));      // Canonical correlations
+    Mat tmp;
+    solve(Cxx,Cxy,tmp);
+    Mat M =  (tmp/Cyy)*Cyx;
+    //[Wx,r] = eigs(double(M),d); // Basis in X
+    Mat r;
+    eigen(M, r, Wx);
+    assert(r.rows >= d);
+    //r = r(Rect(0,0,d,1)).t();//only use top d
+    Wx = Wx(Rect(0,0,d,Wx.cols)).t();
+    //r = sqrt(r);      // Canonical correlations
 
-    % --- Sort correlations ---
-        
-    V = fliplr(Wx);		% reverse order of eigenvectors
-    r = flipud(diag(r));	% extract eigenvalues anr reverse their orrer
-    [r,I]= sort((real(r)));	% sort reversed eigenvalues in ascending order
-    r = flipud(r);		% restore sorted eigenvalues into descending order
-    for j = 1:length(I)
-      Wx(:,j) = V(:,I(j));  % sort reversed eigenvectors in ascending order
-    end
-    Wx = fliplr(Wx);	% restore sorted eigenvectors into descending order
+    // already sorted
 
-
-
-    % --- Calcualte Wy  ---
-
-    Wy = (Cyy\Cyx)*Wx;     % Basis in Y
-    Wy = Wy./repmat(sqrt(sum(abs(Wy).^2)),Dy,1); % Normalize Wy
+    // --- Calcualte Wy  ---
+    solve(Cyy,Cyx,tmp);
+    Wy = (tmp)*Wx;     // Basis in Y
+    normalizeColumns(Wy);
 }
 
 const Mat& EmbAttSpotter::attReprTr()//correct orientation
@@ -921,7 +935,7 @@ const Mat& EmbAttSpotter::attReprTr()//correct orientation
     if (_attReprTr==NULL)
     {
         string name = saveAs+"_attModels.dat";
-        ifstream in(name)
+        ifstream in(name);
         if (!retrain && in)
         {
             //load
@@ -996,29 +1010,29 @@ Mat EmbAttSpotter::scores_sw(const Mat& query, const vector<Mat>& corpus_batch)
     }
 }
 
-void train(string gtFile, string imageDir, string saveAs)
+void EmbAttSpotter::train(string gtFile, string imageDir, string saveAs)
 {
     
     
-    int numWordsTrainGMM = ?;//TODO
+    int numWordsTrainGMM = 0;//TODO
     compute_GMM_PCA(numWordsTrainGMM,imageDir,saveAs);
 }
 
 
 //We compute the GMM and PCA together as they are relient on the same data.
-void get_GMM_PCA(int numWordsTrain, string imageDir, string saveAs, bool retrain)
+void EmbAttSpotter::get_GMM_PCA(int numWordsTrain, string imageDir, string saveAs, bool retrain)
 {   
     
     
     string name = saveAs+"_GMM_PCA_"+to_string(minH)+"_"+to_string(numGMMClusters)+"_"+to_string(PCA_dim)+".dat";
-    ifstream in(name)
+    ifstream in(name);
     if (!retrain && in)
     {
          //cout << name << " file already exists. Not retraining GMM and PCA." << endl;
          //load
         assert(_GMM.means==NULL);
         
-        _PCA.mean = readFloatMat(in);
+        in >> _PCA.mean;// = readFloatMat(in);
         _PCA.eigvec = readFloatMat(in);
         int size;
         _GMM.means = readFloatArray(in,&size);
@@ -1100,8 +1114,8 @@ void get_GMM_PCA(int numWordsTrain, string imageDir, string saveAs, bool retrain
             //save
             ofstream out;
             out.open(name);
-            writeFloatMat(out,PCA().mean);
-            writeFloatMat(out,PCA().eigvec);
+            out<<PCA_().mean;
+            writeFloatMat(out,PCA_().eigvec);
             writeFloatArray(out,GMM().means,numGMMClusters*DESC_DIM*numSpatialX*numSpatialY);
             writeFloatArray(out,GMM().covariances,numGMMClusters*DESC_DIM*numSpatialX*numSpatialY);
             writeFloatArray(out,GMM().priors,numGMMClusters*numSpatialX*numSpatialY);
@@ -1116,7 +1130,7 @@ void get_GMM_PCA(int numWordsTrain, string imageDir, string saveAs, bool retrain
     
 }
 
-void writeFloatMat(ofstream& dst, const Mat& m)
+void EmbAttSpotter::writeFloatMat(ofstream& dst, const Mat& m)
 {
     assert(m.type==CV_32F);
     dst << m.rows<<" "<<m.cols<<" ";
@@ -1125,7 +1139,7 @@ void writeFloatMat(ofstream& dst, const Mat& m)
             dst << m.at<float>(r,c) << " ";
 }
 
-Mat readFloatMat(ifstream& src)
+Mat EmbAttSpotter::readFloatMat(ifstream& src)
 {
     int rows, cols;
     src >> rows >> cols;
@@ -1136,26 +1150,30 @@ Mat readFloatMat(ifstream& src)
     return ret;
 }
 
-void writeFloatArray(ofstream& dst, const float* a, int size)
+void EmbAttSpotter::writeFloatArray(ofstream& dst, const float* a, int size)
 {
     dst << size<<" ";
     for (int i=0; i<size; i++)=
            dst << a[i] << " ";
 }
 
-float* readFloatArray(ifstream& src, int* sizeO)
+float* EmbAttSpotter::readFloatArray(ifstream& src, int* sizeO)
 {
     int size;
     src >> size;
     float* ret = new float[size];
+    double tmp;
     for (int i=0; r<size; i++)
-        src >> ret[i];
+    {
+        src >> tmp;
+        ret[i]=tmp;
+    }
     if (sizeO!=NULL)
         *sizeO = size;
     return ret;
 }
 
-const struct PCA& PCA()
+const struct PCA_struct & EmbAttSpotter::PCA_()
 {
     if (_PCA.eigvec.rows==0)
         get_GMM_PCA(numWordsTrain, imageDir, saveAs, retrainGMM_PCA);
@@ -1163,7 +1181,7 @@ const struct PCA& PCA()
     return _PCA;
 }
 
-const struct GMM& GMM()
+const struct GMM_struct & EmbAttSpotter::GMM()
 {
     if (_GMM.means==NULL)
         get_GMM_PCA(numWordsTrain, imageDir, saveAs, retrainGMM_PCA);
@@ -1171,7 +1189,7 @@ const struct GMM& GMM()
     return _GMM;
 }
 
-void compute_PCA(const Mat& data, int PCA_dim)
+void EmbAttSpotter::compute_PCA(const Mat& data, int PCA_dim)
 {
     assert(_PCA.eigvec.rows==0);
     //Mat mean;
@@ -1191,7 +1209,7 @@ void compute_PCA(const Mat& data, int PCA_dim)
     
 }
 
-void compute_GMM(const Mat& bins, int numSpatialX, int numSpatialY, int numGMMClusters)
+void EmbAttSpotter::compute_GMM(const Mat& bins, int numSpatialX, int numSpatialY, int numGMMClusters)
 {
     assert(_GMM.means==NULL);
     _GMM.means = new float[numGMMClusters*DESC_DIM*numSpatialX*numSpatialY];
@@ -1199,13 +1217,15 @@ void compute_GMM(const Mat& bins, int numSpatialX, int numSpatialY, int numGMMCl
     _GMM.priors = new float[numGMMClusters*numSpatialX*numSpatialY];
     for (int i=0; i<numSpatialX*numSpatialY; i++)
     {
+        int xBin = i%numSpatialX;
+        int yBin = i/numSpatialX;
         Mat d = bins[xBin+yBin*numSpatialX](Rect(0,0,bins[xBin+yBin*numSpatialX].rows,SIFT_DIM));
         Mat xy = bins[xBin+yBin*numSpatialX](Rect(0,SIFdim,bins[xBin+yBin*numSpatialX].rows,2));
-        Mat d -= PCA().mean;
-        d = (PCA().eigvec.t()*d.t()).t();
+        Mat d = d.minus(PCA_().mean);
+        d = (PCA_().eigvec.t()*d.t()).t();
         hconcat(d,xy,d);
         assert(d.type() == CV_32F);
-        VlGMM* gmm = vl_gmm_new (VL_TYPE_FLOAT, SIFTdim+2, numGMMClusters) ;
+        VlGMM* gmm = vl_gmm_new (VL_TYPE_FLOAT, DESC_DIM, numGMMClusters) ;
         vl_gmm_set_max_num_iterations (gmm, 30);
         vl_gmm_set_initialization (gmm,VlGMMRand);
         vl_gmm_cluster (gmm, d, d.rows);
@@ -1224,7 +1244,7 @@ void compute_GMM(const Mat& bins, int numSpatialX, int numSpatialY, int numGMMCl
 
 
 
-Mat* embed_labels_PHOC(vector<string> labels)
+Mat* EmbAttSpotter::embed_labels_PHOC(vector<string> labels)
 {
     /* Prepare dict */
     map<char,int> vocUni2pos;
@@ -1273,9 +1293,9 @@ Mat* embed_labels_PHOC(vector<string> labels)
 
 #define HARD 0
 
-void computePhoc(string str, map<char,int> vocUni2pos, map<string,int> vocBi2pos, int Nvoc, vector<int> levels, int descSize, Mat *out, int instance;)
+void EmbAttSpotter::computePhoc(string str, map<char,int> vocUni2pos, map<string,int> vocBi2pos, int Nvoc, vector<int> levels, int descSize, Mat *out, int instance)
 {
-    int strl = str.length;
+    int strl = str.length();
     
     int doUnigrams = vocUni2pos.size()!=0;
     int doBigrams = vocBi2pos.size()!=0;
@@ -1316,7 +1336,8 @@ void computePhoc(string str, map<char,int> vocUni2pos, map<string,int> vocBi2pos
                         out->at<float>(posOff,instance)+=1;
                     }
                     #else
-                    p[posOff] = max(ov, p[posOff]);
+                    //p[posOff] = max(ov, p[posOff]);
+                    out->at<float>(posOff,instance)=max(ov, out->at<float>(posOff,instance));
                     #endif
                 }
             }
@@ -1346,13 +1367,13 @@ void computePhoc(string str, map<char,int> vocUni2pos, map<string,int> vocBi2pos
                     }
                 }
             }
-            p+=Nvoc;
+            //p+=Nvoc;
         }
     }
     return;
 }
 
-const Mat* phocsTr()//correct orientation
+const Mat* EmbAttSpotter::phocsTr()//correct orientation
 {
     if (_phocsTr==NULL)
     {
