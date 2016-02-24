@@ -29,5 +29,5 @@ $(PROGRAM_NAME):  $(OBJECTS)
 obj/main.o: main.cpp
 	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/main.o main.cpp
 
-obj/embattspotter.o: embattspotter.h embattspotter.cpp
+obj/embattspotter.o: embattspotter.h embattspotter.cpp embattspotter_test.cpp
 	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/embattspotter.o embattspotter.cpp
