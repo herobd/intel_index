@@ -83,6 +83,7 @@ void mexFunction (int nlhs, mxArray *plhs[],
     NRelevantsPerQuery = (int*)mxGetData(prhs[3]);
     queriesIdx =  (int*)mxGetData(prhs[4]);
     float thresholdAtPrec =  (float)mxGetScalar(prhs[5]);
+    float thresholdAtRecall =  (float)mxGetScalar(prhs[6]);
     
 	mwSize total_num_of_cells;
 	mwIndex index;
@@ -129,6 +130,8 @@ void mexFunction (int nlhs, mxArray *plhs[],
     /* for each query */
     //pragma omp parallel  for
     double sumThresh=0;
+    double sumThreshR=0;
+    double sumPrecAtRecall=0;
     for (int i=0; i < Nqueries; i++)
     {
     	//mexPrintf("on query %d\n",i);
@@ -213,11 +216,16 @@ void mexFunction (int nlhs, mxArray *plhs[],
         double scoreAtPrec;
         double distFromPrec=5;
         
+        double scoreAtRecall;
+        double precAtRecall;
+        double distFromRecall=5;
+        
         /* Get mAP and store it */
         for(int j=0;j<Nrelevants;j++){
             /* if rank[i] >=k it was not on the topk. Since they are sorted, that means bail out already */
             
             float prec_at_k =  ((float)(j+1))/(rank[j]+1);
+            float recall_at_k = (1.0+j)/(float)Nrelevants;
             
             //mexPrintf("prec_at_k: %f\n", prec_at_k);
             pMap[i] += prec_at_k;            
@@ -230,12 +238,21 @@ void mexFunction (int nlhs, mxArray *plhs[],
                 distFromPrec=fabs(thresholdAtPrec-prec_at_k);
                 scoreAtPrec=rank_with_scores[j].score;
             }
+            
+            if (fabs(thresholdAtRecall-recall_at_k)<distFromRecall)
+            {
+                distFromRecall=fabs(thresholdAtRecall-recall_at_k);
+                scoreAtRecall=rank_with_scores[j].score;
+                precAtRecall=prec_at_k;
+            }
         }
         if (distFromPrec==5)
             mexPrintf("error, dist isn't right\n");
         if (scoreAtPrec<0)
             mexPrintf("error, scoreAtPrec<0,  %f\n",scoreAtPrec);
         sumThresh += scoreAtPrec;
+        sumThreshR += scoreAtRecall;
+        sumPrecAtRecall += precAtRecall;
         
         pMap[i]/=Nrelevants;
         
@@ -249,10 +266,17 @@ void mexFunction (int nlhs, mxArray *plhs[],
     if (sumThresh<0)
         mexPrintf("error, sumThresh<0\n");
     double thresh = sumThresh/Nqueries;
+    double threshR = sumThreshR/Nqueries;
+    double precAtRecall = sumPrecAtRecall/Nqueries;
     if (thresh<0)
         mexPrintf("error, thresh<0\n");
     mexPrintf("avg threshold for prec %f = %f\n",thresholdAtPrec,thresh);
     plhs[3]=mxCreateDoubleScalar(thresh);
+    
+    mexPrintf("avg threshold for recall %f = %f\n",thresholdAtRecall,threshR);
+    mexPrintf("avg prec for recall %f = %f\n",thresholdAtRecall,precAtRecall);
+    plhs[4]=mxCreateDoubleScalar(threshR);
+    plhs[5]=mxCreateDoubleScalar(precAtRecall);
     
     muntrace ();
     return;

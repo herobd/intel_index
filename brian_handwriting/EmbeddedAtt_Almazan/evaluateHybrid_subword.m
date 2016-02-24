@@ -5,6 +5,8 @@ disp('**************************************');
 disp('*******  Hybrid KCSR _subword  ******');
 disp('**************************************');
 
+%data.attReprTe_slidingwindow
+
 matx = embedding.rndmatx(1:embedding.M,:);
 maty = embedding.rndmaty(1:embedding.M,:);
 
@@ -63,28 +65,37 @@ phocsQu_cca_subword = (bsxfun(@rdivide, phocsQu_cca_subword, sqrt(sum(phocsQu_cc
 alpha = 0:0.1:1;
 hybrid_map = zeros(length(alpha),1);
 hybrid_p1 = zeros(length(alpha),1);
-hybrid_thresh = zeros(length(alpha),1);
+hybrid_threshPrec = zeros(length(alpha),1);
+hybrid_threshRecall = zeros(length(alpha),1);
+hybrid_precAtRecall = zeros(length(alpha),1);
 for i=1:length(alpha)
 % 	disp('looping s');
     attReprQu_hybrid_subword = attReprQu_cca_subword*alpha(i) + phocsQu_cca_subword*(1-alpha(i));
 %     disp(['eval ', num2str(i)]);
-    [p1,mAPEucl,thresh] = eval_dp_asymm_subword(alpha(i),DATA, opts, attReprQu_hybrid_subword, attReprTe_cca_slidingwindow, DATA.wordClsTe_subword, DATA.wordClsQu_subword, DATA.ngramIdx);
+    [p1,mAPEucl,threshPrec,threshRecall,precAtRecall] = eval_dp_asymm_subword(alpha(i),DATA, opts, attReprQu_hybrid_subword, attReprTe_cca_slidingwindow, DATA.wordClsTe_subword, DATA.wordClsQu_subword, DATA.ngramIdx);
 %     disp('exit eval');
     hybrid_map(i) = mean(mAPEucl)*100;
     hybrid_p1(i) = mean(p1)*100;
-    hybrid_thresh(i) = thresh;
+    hybrid_threshPrec(i) = threshPrec;
+    hybrid_threshRecall(i) = threshRecall;
+    hybrid_precAtRecall(i) = precAtRecall;
 %     disp('looping e');
 end
 % disp('finished alpha eval');
 [best_map,idx] = max(hybrid_map);
 best_p1 = hybrid_p1(idx);
 best_alpha = alpha(idx);
-best_thresh = hybrid_thresh(idx);
+best_threshPrec = hybrid_threshPrec(idx);
+best_threshRecall = hybrid_threshRecall(idx);
+best_precAtRecall = hybrid_precAtRecall(idx);
 
 % Display info
 disp('------------------------------------');
 fprintf('alpha: %.2f reg: %.8f. k: %d\n', best_alpha, embedding.reg, embedding.K);
-fprintf('hybrid --   test: (map: %.2f. p@1: %.2f) thresh=%.8f\n',  best_map, best_p1,best_thresh);
+fprintf('hybrid --   test: (map: %.2f. p@1: %.2f)\n',  best_map, best_p1);
+fprintf('thresh at %.3f prec is %.8f\n', opts.precForThresh, best_threshPrec);
+fprintf('thresh at %.3f recall is %.8f\n', opts.recallForThresh, best_threshRecall);
+fprintf('prec at %.3f recall is %.8f\n', opts.recallForThresh, best_precAtRecall);
 disp('------------------------------------');
 
 plot(alpha,hybrid_map,'.-','MarkerSize',16)

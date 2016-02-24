@@ -17,6 +17,7 @@ if ~exist(opts.fileAttModels,'file') || ~exist(opts.fileAttRepresQu_subword,'fil
             
             %data.feats_training = readMatBig(opts.fileFeatures,[find(data.idxTrain); find(data.idxValidation)]);
             %data.phocs_training = [data.phocsTr data.phocsVa];
+            disp('reading fileFeatures');
             data.feats_training = readMatBig(opts.fileFeatures,[find(data.idxTrain)]);
             data.phocs_training = [data.phocsTr];
             
@@ -24,6 +25,7 @@ if ~exist(opts.fileAttModels,'file') || ~exist(opts.fileAttRepresQu_subword,'fil
             
             
             %clear features;
+            disp('bagging');
             [attModels,attReprTr] = learn_attributes_bagging(opts,data);
         end
     else
@@ -36,6 +38,7 @@ if ~exist(opts.fileAttModels,'file') || ~exist(opts.fileAttRepresQu_subword,'fil
     
     % FV representations of the images are projected into the attribute
     % space
+    disp('projecting va and subwords');
     W = [attModels(:).W];
     if ~exist('features','var');
         features = readMat(opts.fileFeatures);
@@ -49,11 +52,13 @@ if ~exist(opts.fileAttModels,'file') || ~exist(opts.fileAttRepresQu_subword,'fil
     feats_qu_subword = features_subword(:,:);
     attReprQu_subword = W'*feats_qu_subword;
     
+    disp('writing attModels');
     writeMat(single([[attModels.W];[attModels.B]]), opts.fileAttModels);
     writeMat(single(attReprTr), opts.fileAttRepresTr);
     writeMat(single(attReprVa), opts.fileAttRepresVal);
     writeMat(single(attReprQu_subword), opts.fileAttRepresQu_subword); 
 else
+   disp('reading attModels');
    attModels = readMat(opts.fileAttModels);    
 end
 end

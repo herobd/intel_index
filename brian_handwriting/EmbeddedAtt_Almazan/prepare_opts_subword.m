@@ -14,8 +14,9 @@ end
 opts.dataset = dataset;
 
 opts.precForThresh = 0.5;
-opts.threshold = 0.4504;
-opts.saveSpottings = true;
+opts.recallForThresh = 0.5;
+opts.threshold = 000;%??0.4504;
+opts.saveSpottings = false;
 
 
 
@@ -171,11 +172,11 @@ elseif strcmp(opts.dataset,'IAM')
     if strcmp(typegrams, 'bigrams')
         opts.ngrams = {'TH', 'HE', 'ER', 'AN', 'RE', 'ON', 'AT', 'OR', 'ES', 'EN', 'TE', 'ND', 'ED', 'AR', 'TO', 'TI', 'ST', 'NG', 'NT', 'IT'};
         opts.ngramCountPer=10;
-        opts.windowWidth=150;
+        opts.windowWidth=90;
     else
         opts.ngrams = {'THE', 'AND', 'ING', 'ION', 'ENT', 'HER', 'FOR', 'HAT', 'HIS', 'THA'};
         opts.ngramCountPer=5;
-        opts.windowWidth=210;
+        opts.windowWidth=170;
     end
 elseif strcmp(opts.dataset,'IIIT5K')
     opts.minH = 80;
@@ -251,13 +252,16 @@ opts.filePCA = sprintf('%s/%s%s.bin',opts.dataFolder,opts.dataset,tagPCA);
 opts.filePHOCs = sprintf('%s/%s%s.bin',opts.dataFolder,opts.dataset,opts.tagPHOC);
 opts.filePHOCs_subword = sprintf('%s/%s%s_subword_%s.bin',opts.dataFolder,opts.dataset,opts.tagPHOC,typegrams);
 opts.fileFeatures = sprintf('%s/%s%s.bin',opts.dataFolder,opts.dataset,opts.tagFeatures);
-opts.fileFeatures_slidingwindow = sprintf('%s/%s%s_slidingwindow.mat',opts.dataFolder,opts.dataset,opts.tagFeatures);
+opts.fileFeatures_slidingwindow_meta = sprintf('%s/%s%s_slidingwindow_meta.mat',opts.dataFolder,opts.dataset,opts.tagFeatures);
+opts.fileFeatures_slidingwindow = sprintf('%s/%s%s_slidingwindow_',opts.dataFolder,opts.dataset,opts.tagFeatures);
 opts.fileFeatures_subword = sprintf('%s/%s%s_subword.bin',opts.dataFolder,opts.dataset,opts.tagFeatures);
 opts.fileAttModels = sprintf('%s/%s_attModels%s%s%s.bin',opts.dataFolder,opts.dataset,opts.tagPHOC,opts.tagFeatures,tagBagging);
 opts.fileAttRepresTr = sprintf('%s/%s_attRepresTr%s%s%s.bin',opts.dataFolder,opts.dataset,opts.tagPHOC,opts.tagFeatures,tagBagging);
 opts.fileAttRepresVal = sprintf('%s/%s_attRepresVal%s%s%s.bin',opts.dataFolder,opts.dataset,opts.tagPHOC,opts.tagFeatures,tagBagging);
 opts.fileAttRepresTe = sprintf('%s/%s_attRepresTe%s%s%s.bin',opts.dataFolder,opts.dataset,opts.tagPHOC,opts.tagFeatures,tagBagging);
-opts.fileAttRepresTe_slidingwindow = sprintf('%s/%s_attRepresTe_slidingwindow%s%s%s.mat',opts.dataFolder,opts.dataset,opts.tagPHOC,opts.tagFeatures,tagBagging);
+opts.fileAttRepresTe_slidingwindow = sprintf('%s/%s_attRepresTe_slidingwindow%s%s%s_',opts.dataFolder,opts.dataset,opts.tagPHOC,opts.tagFeatures,tagBagging);
+opts.fileAttRepresTe_slidingwindow_meta = sprintf('%s/%s_attRepresTe_slidingwindow%s%s%s_meta.mat',opts.dataFolder,opts.dataset,opts.tagPHOC,opts.tagFeatures,tagBagging);
+opts.fileAttRepresTe_cca_slidingwindow = sprintf('%s/%s_attRepresTe_cca_slidingwindow%s%s%s_',opts.dataFolder,opts.dataset,opts.tagPHOC,opts.tagFeatures,tagBagging);
 opts.fileAttRepresQu_subword = sprintf('%s/%s_attRepresQu_subword%s%s%s.bin',opts.dataFolder,opts.dataset,opts.tagPHOC,opts.tagFeatures,tagBagging);
 opts.folderModels = sprintf('%s/models%s/',opts.dataFolder,tagBagging);
 opts.modelsLog = sprintf('%s/learning.log',opts.folderModels);
