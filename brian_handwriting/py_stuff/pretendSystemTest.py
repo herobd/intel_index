@@ -142,15 +142,16 @@ fC = open(pathCorpus, 'r')
 words = []
 for line in fC.xreadlines():
    wordfixed=re.sub(r'\W','',line.strip()).lower()
-   words.append(Word(wordfixed))
+   
    found=False
    for d in dictionary:
 	if d == wordfixed:
 		found=True
+		words.append(Word(wordfixed))
 		break
-   if not found:
+   #if not found:
 	#print wordfixed
-  	OoV+=1
+  	#OoV+=1
 fC.close()
 
 stats=[]

@@ -19,12 +19,14 @@ void EmbAttSpotter::test()
     string tempsaveName=saveName;
     saveName="test/tmp_saveTest";
     // delete files
-    system("rm "+saveName+"*");
+    system(("rm "+saveName+"*").c_str());
     
     int tempgenericBatchSize=genericBatchSize;
     genericBatchSize=2;
     
-    //TODO, tests go here   
+    //TODO, tests go here  
+    sinMat_cosMat_test(); 
+    normalizeL2Columns_test();
     loadCorpus_test();
     spot_test();
     extract_feats_test();
@@ -34,6 +36,7 @@ void EmbAttSpotter::test()
     phow_test();
     getImageDescriptorFV_test();
     batches_cca_att_test();
+    
     
     delete _features_corpus;
     _features_corpus=temp_features_corpus;
@@ -71,19 +74,19 @@ void EmbAttSpotter::extract_feats_test()
 void EmbAttSpotter::extract_FV_feats_fast_and_batch_test()
 {
     
-    vector<Mat>* res = extract_FV_feats_fast_and_batch(&testImages,NULL,NULL,4);
+    vector<Mat>* res = extract_FV_feats_fast_and_batch(testImages,NULL,NULL,4);
     assert(res->size()==1);
     assert(res->at(0).rows==4);
     delete res;
     vector<int> start, end;
-    res = extract_FV_feats_fast_and_batch(&testImages,&start,&end,2);
+    res = extract_FV_feats_fast_and_batch(testImages,&start,&end,2);
     assert(res->size()==2 && start.size()==2 && end.size()==2);
     assert(res->at(0).rows==2);
     assert(res->at(1).rows==2);
     assert(start[0]==0 && end[0]==2);
     assert(start[1]==2 && end[1]==4);
     delete res;
-    res = extract_FV_feats_fast_and_batch(&testImages,&start,&end,1);
+    res = extract_FV_feats_fast_and_batch(testImages,&start,&end,1);
     assert(res->size()==4 && start.size()==4 && end.size()==4);
     assert(res->at(0).rows==1);
     assert(res->at(1).rows==1);
@@ -93,7 +96,7 @@ void EmbAttSpotter::extract_FV_feats_fast_and_batch_test()
     assert(start[1]==1 && end[1]==2);
     assert(start[3]==3 && end[1]==4);
     delete res;
-    res = extract_FV_feats_fast_and_batch(&testImages,&start,&end,3);
+    res = extract_FV_feats_fast_and_batch(testImages,&start,&end,3);
     assert(res->size()==2 && start.size()==2 && end.size()==2);
     assert(res->at(0).rows==3);
     assert(res->at(1).rows==1);
@@ -170,3 +173,45 @@ void EmbAttSpotter::batches_cca_att_test()
     }
 }
 
+
+void EmbAttSpotter::sinMat_cosMat_test()
+{
+    Mat v = Mat_<float>(2,2, { 0.0, 0.123, 1.89, -0.33});
+    
+    t=sinMat(v);
+    assert(abs(t.at<float>(0,0)-(0))<.00001);
+    assert(abs(t.at<float>(0,1)-(-0.45990349))<.00001);
+    assert(abs(t.at<float>(1,0)-(0.9494856148))<.00001);
+    assert(abs(t.at<float>(1,1)-(-0.324043028))<.00001);
+    
+    t=cosMat(v);
+    assert(abs(t.at<float>(0,0)-(1))<.00001);
+    assert(abs(t.at<float>(0,1)-(.9924450321))<.00001);
+    assert(abs(t.at<float>(1,0)-(-0.312810559))<.00001);
+    assert(abs(t.at<float>(1,1)-(0.9460423435))<.00001);
+}
+
+void EmbAttSpotter::normalizeL2Columns_test()
+{
+    Mat v = Mat_<float>(1,2, { 2.0, 1.0});
+    normalizeL2Columns(v);
+    assert(v.at<float>(0,0)==1.0 && v.at<float>(0,1)==1.0);
+    
+    v = Mat_<float>(2,2, { 4.0, 1.0,
+                           3.0, 0.0 });
+    normalizeL2Columns(v);
+    assert(v.at<float>(0,1)==1.0);
+    assert(v.at<float>(1,1)==0.0);
+    assert(v.at<float>(0,0)==0.8);
+    assert(v.at<float>(1,0)==0.6);
+    
+}
+
+void EmbAttSpotter::embed_labels_PHOC_test()
+{
+    vector<string> t = {"aaaa","bbbb","aabb","abab","abcdefgh"};
+    Mat* res = embed_labels_PHOC(t);
+    //TODO
+    
+    delete res;
+}
