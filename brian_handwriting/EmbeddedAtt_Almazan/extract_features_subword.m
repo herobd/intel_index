@@ -23,7 +23,7 @@ if  ~exist(opts.fileFeatures,'file')
     
 end
 
-if  ~exist(opts.fileFeatures_slidingwindow,'file')
+if  ~exist(opts.fileFeatures_slidingwindow_meta,'file')
     extract_FV_features_fast_slidingwindow(opts);
 end
 

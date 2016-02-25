@@ -3,12 +3,14 @@ function extract_FV_features_fast_slidingwindow(opts)
 GMM = readGMM(opts.fileGMM);
 PCA = readPCA(opts.filePCA);
 imagesTOC = readImagesToc(opts.fileImages);
-
-nWords = length(imagesTOC);
+meta={};
+meta.nWords = length(imagesTOC);
 
 %imagesPerBatch = 256;
-imagesPerBatch = nWords;
-nBatches = int32(ceil(nWords/imagesPerBatch));
+%imagesPerBatch = nWords;
+meta.imagesPerBatch = 5000;
+meta.nBatches = int32(ceil(meta.nWords/meta.imagesPerBatch));
+meta.nInBatch=[];
 %featsBatch = zeros(opts.FVdim,imagesPerBatch,'single');
 featsBatch = {};
 
@@ -18,14 +20,14 @@ featsBatch = {};
 % fwrite(fid, opts.FVdim, 'int32');
 % fclose(fid);
 tic;
-for cb=1:nBatches    
-    sp = (cb-1)*imagesPerBatch + 1;
-    ep = sp + imagesPerBatch -1;
-    if ep > nWords
-        ep = nWords;
+for cb=1:meta.nBatches    
+    sp = (cb-1)*meta.imagesPerBatch + 1;
+    ep = sp + meta.imagesPerBatch -1;
+    if ep > meta.nWords
+        ep = meta.nWords;
     end
-    nInBatch = ep-sp+1;
-    fprintf('Extracting FV batch %d/%d (%d images)\n',cb,nBatches,nInBatch);        
+    meta.nInBatch(cb) = ep-sp+1;
+    fprintf('Extracting FV batch %d/%d (%d images)\n',cb,meta.nBatches,meta.nInBatch(cb));        
     % Read image batch
     [fid,msg] = fopen(opts.fileImages, 'r');
     readIm = @(x) readImage(fid, imagesTOC, x);
@@ -67,8 +69,9 @@ for cb=1:nBatches
 %     fid = fopen(opts.fileFeatures_slidingwindow, 'r+');    
 %     fseek(fid, 2*4  + (int64(cb)-1)*imagesPerBatch*opts.FVdim * 4, 'bof');
 %     fwrite(fid, featsBatch(:,1:nInBatch,:), 'single');        
-    save(opts.fileFeatures_slidingwindow,'featsBatch','-v7.3');
+    save(strcat(opts.fileFeatures_slidingwindow,num2str(cb)),'featsBatch','-v7.3');
 end
+save(opts.fileFeatures_slidingwindow_meta,'meta','-v7.3');
 disp(toc);
 
 end

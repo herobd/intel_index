@@ -1,4 +1,4 @@
-function [p1, mAP, thresh] = eval_dp_asymm_subword(alpha, DATA, opts, queries, dataset_slidingwindow, allClasses, queriesClasses, queriesIdx, doqbs)
+function [p1, mAP, threshPrec,threshRecall,precAtRecall] = eval_dp_asymm_subword(alpha, DATA, opts, queries, dataset_slidingwindow, allClasses, queriesClasses, queriesIdx, doqbs)
 if nargin < 9
     doqbs = 0;
 end
@@ -148,10 +148,10 @@ end
 % [-1,-1,...,-1];
 disp('Running MEX');
 if doqbs==0
-[p1, mAP,bestIdx,thresh] = computeStats_c_subword(single(S'),int32([queriesClasses{:}]'), allClasses, int32(NRelevantsPerQuery'), int32(queriesIdx'-1), opts.precForThresh);
+[p1, mAP,bestIdx,threshPrec,threshRecall,precAtRecall] = computeStats_c_subword(single(S'),int32([queriesClasses{:}]'), allClasses, int32(NRelevantsPerQuery'), int32(queriesIdx'-1), opts.precForThresh,opts.recallForThresh);
 else
     v = ones(N)*-1;
-[p1, mAP,bestIdx,thresh] = computeStats_c_subword(single(S'),int32([queriesClasses{:}]'), allClasses, int32(NRelevantsPerQuery'), int32(v), opts.precForThresh);
+[p1, mAP,bestIdx,threshPrec,threshRecall,precAtRecall] = computeStats_c_subword(single(S'),int32([queriesClasses{:}]'), allClasses, int32(NRelevantsPerQuery'), int32(v), opts.precForThresh,opts.recallForThresh);
 end
 disp('Done with MEX');
 disp(mean(mAP));
