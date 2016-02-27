@@ -5,7 +5,12 @@
 
 #include "embattspotter_global.h"
 #include "opencv2/core/core.hpp"
+#include "opencv2/highgui/highgui.hpp"
+#include "opencv2/imgproc/imgproc.hpp"
+#include "opencv2/features2d/features2d.hpp"
+#include "opencv2/nonfree/nonfree.hpp"
 #include <vector>
+#include <fstream>
 
 extern "C" {
   #include <vl/generic.h>
@@ -65,6 +70,8 @@ private:
     };
     struct Embedding* _embedding;
     
+    vector<Mat>* _batches_cca_att;
+    
     //vector<Mat>* _batches_features;
     vector<Mat>* _features_corpus;
     vector<Mat>* _feats_training;
@@ -86,6 +93,7 @@ private:
     int numBatches; 
     vector<int> batches_index;//vector of size numBatches, containing the starting index of each batch
     vector<int> batches_indexEnd;
+    int genericBatchSize;
     
     vector<string>* corpus_imgfiles;
     
@@ -103,6 +111,10 @@ private:
     vector<int> phoc_levels_bi;
     vector<char> unigrams;
     vector<string> bigrams;
+    map<char,int> vocUni2pos;
+    map<std::string,int> vocBi2pos; 
+    int phocSize, phocSize_bi;
+    
     
     #if TEST_MODE
         vector<string> testImages;
@@ -113,10 +125,10 @@ private:
 
     vector<Mat>* extract_FV_feats_fast_and_batch(const vector<string>& imageLocations,vector<int>* batches_index,vector<int>* batches_indexEnd, int batchSize);
 
-    const vector<Mat>& features_corpus();
-    const Mat& feats_training();
+    const vector<Mat>& features_corpus(bool retrain=false);
+    const Mat& feats_training(bool retrain=false);
 
-    Mat phow(const Mat& im, const struct PCA* PCA_pt);
+    Mat phow(const Mat& im, const struct PCA_struct* PCA_pt);
     Mat getImageDescriptorFV(const Mat& feats_m);
 
     const vector<Mat>& batches_cca_att();
@@ -129,13 +141,13 @@ private:
     
     Mat select_rows(const Mat& m, vector<int> idx);
 
-    const struct AttributesModels& attModels();
-    const struct Embedding& embedding();
+    const struct AttributesModels& attModels(bool train=false);
+    const struct Embedding& embedding(bool retrain=false);
 
     void learn_common_subspace();
     void cca2(Mat X, Mat Y, float reg, int d, Mat& Wx, Mat& Wy);
 
-    const Mat& attReprTr();//correct orientation
+    const Mat& attReprTr(bool retrain=false);//correct orientation
 
 
     
@@ -164,7 +176,15 @@ private:
 
     const Mat* phocsTr();//correct orientation
     
+    void DoBB(const Mat& im, int* bb_x1, int* bb_x2, int* bb_y1, int* bb_y2);
+    
+    Mat sinMat(const Mat& x);
+    Mat cosMat(const Mat& x);
+    Mat& normalizeL2Columns(Mat& m);
+    
     #if TEST_MODE
+        void sinMat_cosMat_test();
+        void normalizeL2Columns_test();
         void loadCorpus_test();
         void spot_test();
         void extract_feats_test();
@@ -177,7 +197,8 @@ private:
     #endif
     
 public:
-    EmbAttSpotter(string saveName="embAttSpotter");
+    EmbAttSpotter(string saveName="embAttSpotter",bool useNumbers=false);
+    ~EmbAttSpotter();
     void loadCorpus(string dir);
     void train(string gtFile, string imageDir, string saveAs="embAtt");
     vector<float> spot(const Mat& exemplar) {return spot(exemplar,"",1);}
