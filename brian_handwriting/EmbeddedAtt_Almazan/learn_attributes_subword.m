@@ -21,7 +21,7 @@ if ~exist(opts.fileAttModels,'file') || ~exist(opts.fileAttRepresQu_subword,'fil
             data.feats_training = readMatBig(opts.fileFeatures,[find(data.idxTrain)]);
             data.phocs_training = [data.phocsTr];
             
-            features_subword = readMat(opts.fileFeatures_subword);
+            %features_subword = readMat(opts.fileFeatures_subword);
             
             
             %clear features;

@@ -74,8 +74,7 @@ opts.pathQueries = sprintf('%s/%s/queries/',opts.path_datasets,opts.dataset);
 opts.pathNgrams = sprintf('%s/%s/%s/',opts.path_datasets,opts.dataset,typegrams);
 
 if strcmp(typegrams,'bigrams')
-    opts.pathNgramLocationsTop = sprintf('%s/%s/bigramLocationsTop10.csv',opts.path_datasets,opts.dataset);
-    
+    opts.pathNgramLocationsTop = sprintf('%s/%s/bigramLocationsTop10.csv',opts.path_datasets,opts.dataset);    
 else
     opts.pathNgramLocationsTop = sprintf('%s/%s/trigramLocationsTop5.csv',opts.path_datasets,opts.dataset);
 end
@@ -156,6 +155,17 @@ if strcmp(opts.dataset,'GW')
         opts.ngramCountPer=10;
         %opts.windowWidth=135;%should be wide
         opts.windowWidth=75;%modified 66?
+    elseif strcmp(typegrams, 'bigrams_100')
+        opts.TestHybrid = 0;
+        opts.ngrams = {'th', 'he', 'in', 'er', 'an', 're', 'on', 'at', 'en', 'nd', 'ti', 'es', 'or', 'te', 'of', 'ed', 'is', 'it', 'al', 'ar', 'st', 'to', 'nt', 'ng', 'se', 'ha', 'as', 'ou', 'io', 'le', 've', 'co', 'me', 'de', 'hi', 'ri', 'ro', 'ic', 'ne', 'ea', 'ra', 'ce', 'li', 'ch', 'll', 'be', 'ma', 'si', 'om', 'ur', 'ca', 'el', 'ta', 'la', 'ns', 'di', 'fo', 'ho', 'pe', 'ec', 'pr', 'no', 'ct', 'us', 'ac', 'ot', 'il', 'tr', 'ly', 'nc', 'et', 'ut', 'ss', 'so', 'rs', 'un', 'lo', 'wa', 'ge', 'ie', 'wh', 'ee', 'wi', 'em', 'ad', 'ol', 'rt', 'po', 'we', 'na', 'ul', 'ni', 'ts', 'mo', 'ow', 'pa', 'im', 'mi', 'ai', 'sh'};
+        
+        opts.ngramCountPer=1;
+        opts.windowWidth=75;%modified 66?
+    elseif strcmp(typegrams, 'bigrams_20')
+        opts.TestHybrid = 0;
+        opts.ngrams = {'th' 'he', 'er', 'an', 're', 'on', 'at', 'or', 'es', 'en', 'te', 'nd', 'ed', 'ar', 'to', 'ti', 'st', 'ng', 'nt', 'it'};
+        opts.ngramCountPer=1;
+        opts.windowWidth=75;%modified 66?
     else
         opts.ngrams = {'the', 'and', 'ing', 'ion', 'ent', 'her', 'for', 'hat', 'his', 'tha'};
         opts.ngramCountPer=5;
@@ -172,6 +182,11 @@ elseif strcmp(opts.dataset,'IAM')
     if strcmp(typegrams, 'bigrams')
         opts.ngrams = {'TH', 'HE', 'ER', 'AN', 'RE', 'ON', 'AT', 'OR', 'ES', 'EN', 'TE', 'ND', 'ED', 'AR', 'TO', 'TI', 'ST', 'NG', 'NT', 'IT'};
         opts.ngramCountPer=10;
+        opts.windowWidth=90;
+    elseif strcmp(typegrams, 'bigrams_100')
+        opts.TestHybrid = 0;
+        opts.ngrams = {'TH', 'HE', 'IN', 'ER', 'AN', 'RE', 'ON', 'AT', 'EN', 'ND', 'TI', 'ES', 'OR', 'TE', 'OF', 'ED', 'IS', 'IT', 'AL', 'AR', 'ST', 'TO', 'NT', 'NG', 'SE', 'HA', 'AS', 'OU', 'IO', 'LE', 'VE', 'CO', 'ME', 'DE', 'HI', 'RI', 'RO', 'IC', 'NE', 'EA', 'RA', 'CE', 'LI', 'CH', 'LL', 'BE', 'MA', 'SI', 'OM', 'UR', 'CA', 'EL', 'TA', 'LA', 'NS', 'DI', 'FO', 'HO', 'PE', 'EC', 'PR', 'NO', 'CT', 'US', 'AC', 'OT', 'IL', 'TR', 'LY', 'NC', 'ET', 'UT', 'SS', 'SO', 'RS', 'UN', 'LO', 'WA', 'GE', 'IE', 'WH', 'EE', 'WI', 'EM', 'AD', 'OL', 'RT', 'PO', 'WE', 'NA', 'UL', 'NI', 'TS', 'MO', 'OW', 'PA', 'IM', 'MI', 'AI', 'SH'};
+        opts.ngramCountPer=1;
         opts.windowWidth=90;
     else
         opts.ngrams = {'THE', 'AND', 'ING', 'ION', 'ENT', 'HER', 'FOR', 'HAT', 'HIS', 'THA'};

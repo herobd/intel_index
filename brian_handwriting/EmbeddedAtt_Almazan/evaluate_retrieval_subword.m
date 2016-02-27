@@ -34,6 +34,8 @@ mAP.hybrid = [];
 
 if opts.TestHybrid
     mAP.hybrid = evaluateHybrid_subword(opts, data, embedding.kcca);
+else
+    mAP.kcca = evaluateKCCA_string_subword(opts, data, embedding.kcca);
 end
 
 end

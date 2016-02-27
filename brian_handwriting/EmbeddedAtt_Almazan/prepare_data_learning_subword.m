@@ -34,4 +34,30 @@ data.phocsTr = data.phocs(:,idxTrain);
 data.phocsVa = data.phocs(:,idxValidation);
 data.phocsTe = data.phocs(:,idxTest);
 data.phocsQu_subword = data.phocs_subword(:,:);
+
+i=0
+sumAll=0
+sum20=0
+sum80=0
+for ngram = opts.ngrams
+    ngramOccCount=0;
+    r=regexpi(data.labelsTr,ngram);
+    for rr = r
+        if size(rr{1},1)>0
+            ngramOccCount=ngramOccCount+1;
+        end
+    end
+    disp([ngram ' (t): ' num2str(ngramOccCount)]);
+    sumAll = sumAll+ngramOccCount;
+    if i<20
+        sum20 = sum20 +ngramOccCount;
+    else
+        sum80 = sum80 +ngramOccCount;
+    end
+    
+    i=i+1;
+end
+disp(['avg all: ' num2str(sumAll/100.0)]);
+disp(['avg 20: ' num2str(sum20/20.0)]);
+disp(['avg 80: ' num2str(sum80/80.0)]);
 end
