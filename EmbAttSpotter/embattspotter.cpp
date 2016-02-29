@@ -1414,6 +1414,7 @@ void EmbAttSpotter::computePhoc(string str, map<char,int> vocUni2pos, map<string
     
     /* For each block */
     //float *p = out;
+    int p=0;
     for (int level : levels)
     {
         /* For each split in that level */
@@ -1432,7 +1433,7 @@ void EmbAttSpotter::computePhoc(string str, map<char,int> vocUni2pos, map<string
                         /* Character not included in dictionary. Skipping.*/
                         continue;
                     }
-                    int posOff = vocUni2pos[str[c]];
+                    int posOff = vocUni2pos[str[c]]+p;
                     float startc = c/(float)strl;
                     float endc = (c+1)/(float)strl;
                     
@@ -1463,7 +1464,7 @@ void EmbAttSpotter::computePhoc(string str, map<char,int> vocUni2pos, map<string
                         /* Character not included in dictionary. Skipping.*/
                         continue;
                     }
-                    int posOff = vocBi2pos[sstr];
+                    int posOff = vocBi2pos[sstr]+p;
                     float startc = c/(float)strl;
                     float endc = (c+2)/(float)strl;
                     
@@ -1479,7 +1480,7 @@ void EmbAttSpotter::computePhoc(string str, map<char,int> vocUni2pos, map<string
                     }
                 }
             }
-            //p+=Nvoc;
+            p+=Nvoc;
         }
     }
     return;
