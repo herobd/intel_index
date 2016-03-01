@@ -6,7 +6,7 @@ SOURCES += main.cpp
 INCLUDE += -I/urs/local/include/opencv -Ivlfeat-0.9.20
 LIBS += -L/urs/local/include/opencv -lopencv_imgproc -lopencv_core -lopencv_highgui -lopencv_features2d -lopencv_nonfree
 LIBS += -L/home/brian/robert_stuff/documentproject/lib -ldocumentproject
-LIBS += -Lvlfeat-0.9.20/bin/a64/ -lvl
+LIBS += -Lvlfeat-0.9.20/bin/glnxa64/ -lvl
 LIBS += -lpng -ltiff -ljpeg -pthread
 PROGRAM_NAME = embattspotter
 

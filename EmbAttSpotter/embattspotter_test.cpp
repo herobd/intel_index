@@ -2,6 +2,7 @@
 
 void EmbAttSpotter::test()
 {
+    testImages = {"test/testImages/small0.png","test/testImages/small1.png","test/testImages/small2.png","test/testImages/small3.png","test/testImages/small4.png"};
     vector<Mat>* temp_features_corpus = _features_corpus;
     _features_corpus=NULL;
     vector<Mat>* temp_feats_training = _feats_training;
@@ -23,10 +24,13 @@ void EmbAttSpotter::test()
     
     int tempgenericBatchSize=genericBatchSize;
     genericBatchSize=2;
+    int tempnumWordsTrain=numWordsTrain;
+    numWordsTrain=testImages.size();
     
     //TODO, tests go here  
     sinMat_cosMat_test(); 
     normalizeL2Columns_test();
+    otsuBinarization_test();
     loadCorpus_test();
     spot_test();
     extract_feats_test();
@@ -36,6 +40,7 @@ void EmbAttSpotter::test()
     phow_test();
     getImageDescriptorFV_test();
     batches_cca_att_test();
+    embed_labels_PHOC_test();
     
     
     delete _features_corpus;
@@ -51,6 +56,7 @@ void EmbAttSpotter::test()
     batches_indexEnd=tempbatches_indexEnd;
     saveName=tempsaveName;
     genericBatchSize=tempgenericBatchSize;
+    numWordsTrain=tempnumWordsTrain;
 }
 
 
@@ -176,34 +182,35 @@ void EmbAttSpotter::batches_cca_att_test()
 
 void EmbAttSpotter::sinMat_cosMat_test()
 {
-    Mat v = Mat_<float>(2,2, { 0.0, 0.123, 1.89, -0.33});
+    Mat v = (Mat_<float>(2,2)<< 0.0, 0.123, 
+                                1.89, -0.33);
     
-    t=sinMat(v);
+    Mat t=sinMat(v);
     assert(abs(t.at<float>(0,0)-(0))<.00001);
-    assert(abs(t.at<float>(0,1)-(-0.45990349))<.00001);
+    assert(abs(t.at<float>(0,1)-(.1226900900))<.00001);
     assert(abs(t.at<float>(1,0)-(0.9494856148))<.00001);
     assert(abs(t.at<float>(1,1)-(-0.324043028))<.00001);
     
     t=cosMat(v);
     assert(abs(t.at<float>(0,0)-(1))<.00001);
     assert(abs(t.at<float>(0,1)-(.9924450321))<.00001);
-    assert(abs(t.at<float>(1,0)-(-0.312810559))<.00001);
+    assert(abs(t.at<float>(1,0)-(-0.313810559))<.00001);
     assert(abs(t.at<float>(1,1)-(0.9460423435))<.00001);
 }
 
 void EmbAttSpotter::normalizeL2Columns_test()
 {
-    Mat v = Mat_<float>(1,2, { 2.0, 1.0});
+    Mat v = (Mat_<float>(1,2)<<  2.0, 1.0);
     normalizeL2Columns(v);
     assert(v.at<float>(0,0)==1.0 && v.at<float>(0,1)==1.0);
     
-    v = Mat_<float>(2,2, { 4.0, 1.0,
-                           3.0, 0.0 });
+    v = (Mat_<float>(2,2)<<4.0, 1.0,
+                           3.0, 0.0 );
     normalizeL2Columns(v);
     assert(v.at<float>(0,1)==1.0);
     assert(v.at<float>(1,1)==0.0);
-    assert(v.at<float>(0,0)==0.8);
-    assert(v.at<float>(1,0)==0.6);
+    assert(abs(v.at<float>(0,0)-0.8)<.00001);
+    assert(abs(v.at<float>(1,0)-0.6)<.00001);
     
 }
 
@@ -381,4 +388,36 @@ void EmbAttSpotter::embed_labels_PHOC_test()
     
     
     delete res;
+}
+
+void EmbAttSpotter::otsuBinarization_test()
+{
+    Mat testimg = imread("test/testImages/gray.png",CV_LOAD_IMAGE_GRAYSCALE);
+    Mat res=otsuBinarization(testimg);
+    /*imshow("test",testimg);
+    //waitKey();
+    
+    Mat dst = res.clone();
+    for (int r=0; r<dst.rows; r++)
+        for (int c=0; c<dst.cols; c++)
+        {
+            if (dst.at<unsigned char>(r,c)==1)
+                dst.at<unsigned char>(r,c)=0;
+            else
+                dst.at<unsigned char>(r,c)=255;
+        }
+    imshow("test",dst);
+    //imshowB("res",res,255,0);
+    waitKey();*/
+    assert(res.at<unsigned char>(3,4)==0);
+    assert(res.at<unsigned char>(4,10)==1);
+    assert(res.at<unsigned char>(4,15)==0);
+    assert(res.at<unsigned char>(4,79)==0);
+    assert(res.at<unsigned char>(3,84)==1);
+    assert(res.at<unsigned char>(4,89)==0);
+    assert(res.at<unsigned char>(20,72)==0);
+    assert(res.at<unsigned char>(12,72)==0);
+    assert(res.at<unsigned char>(9,38)==1);
+    assert(res.at<unsigned char>(24,53)==1);
+    assert(res.at<unsigned char>(15,129)==0);
 }

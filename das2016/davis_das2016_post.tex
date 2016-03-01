@@ -20,15 +20,10 @@
 %%*************************************************************************
 
 
-
-
-
-
-
 % *** Authors should verify (and, if needed, correct) their LaTeX system  ***
 % *** with the testflow diagnostic prior to trusting their LaTeX platform ***
 % *** with production work. The IEEE's font choices and paper sizes can   ***
-% *** trigger bugs that do not appear when using other class files.       ***
+% *** trigger bugs that do not appear when using other class files.       ***                          ***
 % The testflow support page is at:
 % http://www.michaelshell.org/tex/testflow/
 
@@ -420,7 +415,8 @@ The system we propose will begin by spotting a particular n-gram (the bigram ``e
 User oversight of less confident spottings will remove most of the false-positives. 
 The n-grams spotted in a particular word are compiled into a regular expression that is used to query the lexicon, as seen in Fig.~\ref{fig:list}. 
 If the returned list of possible trascriptions is short enough, a user can then select the correct transcription for the word with very little effort. 
-We will now walk you through a simulation of the system we have done.
+Our simulation of the system follows.
+
 If the 100 most frequent bigrams in the English language are spotted in the GW dataset with 50\% recall, 54\% of the words in the corpus can be narrowed down to 10 or fewer possible transcriptions, assuming (a) that we can correctly guess the correct number of characters we haven't spotted in the words, (b) that user oversight removing false-positives gives us 100\% precision, and (c) that we are using a 115,000 word lexicon. 
 %From this list of 10 or fewer words a user can easily select the correct transcription. 
 %This would be done by spotting a bigram (Fig.~\ref{fig:spotting_ex}) and passing its less confident results to users in batches, to discard the incorrect spottings.
@@ -437,23 +433,23 @@ Some of our assumptions in our simulation are optimistic. In practice, an uncert
     \centering
     \begin{subfigure}[t]{0.23\textwidth}
     		\centering
-    		\includegraphics[width=\textwidth]{er}
+    		\includegraphics[height=2.7cm]{er}
     		\caption{}%Example spotting results for the bigram ``ER.'' The first word containing one true positive, the second a false positive and true positive, and the third a false positive and a false negative.}
     		\label{fig:spotting_ex}
     	\end{subfigure}
     	~
     	\begin{subfigure}[t]{0.23\textwidth}
     		\centering
-    		\includegraphics[width=\textwidth]{regex}
+    		\includegraphics[height=2.7cm]{regex}
     		\caption{}%From knowing the location of the bigrams ``DE'' and ``RE,'' a regular expression can be constructed which narrows down the possible transcriptions to two words in a 32,000 word lexicon.}
     		\label{fig:list}
     	\end{subfigure}
-    	\caption{(a) shows results of spotting the bigram ``er'' with our adaption of \cite{Almazan2014}. The false positive (``ur'' in ``your'') could be removed with user oversight. (b) shows that from the bigrams ``or'' and ``er,'' a regular expression can be constructed that returns only three possible transcriptions from a 115,000 word lexicon.}
+    	\caption{(a) shows results of spotting the bigram ``er'' with our adaptation of \cite{Almazan2014}. The false positive (``ur'' in ``your'') could be removed with user oversight. (b) shows that from the bigrams ``or'' and ``er,'' a regular expression can be constructed that returns only three possible transcriptions from a 115,000 word lexicon.}
     	\label{fig:spotting}
 \end{figure}
 
 \section{Character N-Gram Spotting Experiment}
-Spotting subword character n-grams is a largely unexplored area. We have run some initial tests using some word spotting techniques in the application of subword spotting to demonstrate that this is feasible. We evaluated two spotting methods: a part-structured inkball method by Howe \cite{Howe2013} and an attribute embedding method presented by Almaz\'{a}n et al.~\cite{Almazan2014}. Because these are whole word spotting methods, they are not suited to perform subword spotting without some modification. We modified the code provided by Almaz\'{a}n\footnote{\url{http://github.com/almazan/watts}} and Howe\footnote{\url{http://cs.smith.edu/~nhowe/research/code/index.html#psm}}.
+Spotting subword character n-grams is a largely unexplored area. We have run some initial tests using some word spotting techniques in the application of subword spotting to demonstrate that this is feasible. We evaluated two spotting methods: a part-structured inkball method by Howe \cite{Howe2013} and an attribute embedding method presented by Almaz\'{a}n et al.~\cite{Almazan2014}. Because these are whole word spotting methods, they are not suited to perform subword spotting without some modification. We therefore modified the code provided by Almaz\'{a}n\footnote{\url{http://github.com/almazan/watts}} and Howe\footnote{\url{http://cs.smith.edu/~nhowe/research/code/index.html#psm}}.
 %\footnote{Found at \url{http://github.com/almazan/watts} and \url{http://cs.smith.edu/~nhowe/research/code/index.html#psm} respectively.}.
 
 We used two datasets to evaluate the subword spotting performance of these methods: the George Washington dataset \cite{GW} and the IAM off-line dataset \cite{IAM}. The testing queries consisted of 10 images of each of the 20 most frequent bigrams in the English language and 5 images of each of the 10 most frequent trigrams. Query images were manually cropped from word images of the datasets. 
@@ -523,11 +519,11 @@ Almaz\'{a}n et al.~hybrid query       & 64.32\% & 33.04\%   & 72.38\% & 49.81\%
 Table \ref{table:bigrams} shows the results of the experiment. The method by Almaz\'{a}n et al.~achieved a mean-average-precision that is acceptable for a CAT system as a user can discard incorrect spotting results.
 %The difference between the results of spotting the top 20 versus top 100 bigrams is likely because there were fewer instances of the less common bigrams in the training set. For the GW dataset there are on average 98 training instances for each of the top 20 most frequent bigrams and only 33 training instances for the next 80 bigrams; in query by string, the spotting is wholly dependent on these.
 %It may also indicates certain n-grams might be easier to spot than others due to the shape of the bigram.
-The 50\% recall rate used in the previous section was drawn from these results; it will roughly correspond to 66\% precision. This is an acceptable level as users will be discarding less than half of the bigram spotting results, however, it would be desirable to relieve the user burden more by having a more accurate spotting method.
+The 50\% recall rate used in the simulation was drawn from these results (Almaz\'{a}n et al.~hybrid query of bigrams on GW dataset); it will roughly correspond to 66\% precision. This is an acceptable rate as users will be discarding less than half of the bigram spotting results; however, it would be desirable to relieve more of the user burden by having an improved spotting method.
 %The success of the the query by string mode of the method by Almaz\'{a}n et al.~may be attributed to there being many training instances of
-We are confident better subword spotting accuracy will be able to be achieved with further work given we have used only a na\"{i}ve adaptation of whole-word spotting approaches.
+We are confident better subword spotting accuracy than we report will be able to be achieved with further work as we have used only na\"{i}ve adaptations of whole-word spotting approaches.
 
-Clawson and Zagoris et al.~show that word spotting can create effective CAT systems that are reliant high word repetition. We argue, and our preliminary results indicate, that character n-gram spotting can be used to construct a CAT system able to perform well independent of high word repetition. A user's oversight will allow precise n-gram spotting results. As more n-grams are spotted in a particular word, its list of possible transcriptions is constrained so that a user can easily select the correct one. As spotting results are harvested to create more queries, more n-grams will be spotted, and more of the document will be transcribed.
+Clawson and Zagoris et al.~have shown that word spotting can create CAT systems that leverage word repetition to outperform manual transcription. We argue, and our preliminary results indicate, that character n-gram spotting can be used to construct a CAT system able to perform well independent of word repetition. A user's oversight will allow precise n-gram spotting results. As more n-grams are spotted in a particular word, its list of possible transcriptions is constrained so that a user can easily select the correct one. As spotting results are harvested to create more queries, more n-grams will be spotted, and more of the document will be transcribed.
 
 
 
