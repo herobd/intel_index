@@ -15,8 +15,8 @@ opts.dataset = dataset;
 
 opts.precForThresh = 0.5;
 opts.recallForThresh = 0.5;
-opts.threshold = 000;%??0.4504;
-opts.saveSpottings = false;
+opts.threshold = 0.52284769;%??0.4504;
+opts.saveSpottings = true;
 
 
 
