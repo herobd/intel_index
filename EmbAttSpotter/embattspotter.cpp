@@ -1,10 +1,11 @@
 #include "embattspotter.h"
 
+
 #if TEST_MODE
     #include "embattspotter_test.cpp"
 #endif
 
-EmbAttSpotter::EmbAttSpotter(string saveName)
+EmbAttSpotter::EmbAttSpotter(string saveName, bool useNumbers)
 {
     
     _GMM.means=NULL;
@@ -13,12 +14,13 @@ EmbAttSpotter::EmbAttSpotter(string saveName)
     
     _embedding=NULL;
     
-    SIFT_sizes=[2,4,6,8,10,12];
+    SIFT_sizes={2,4,6,8,10,12};
     stride=3;
     magnif=6.0;
     windowsize=1.5;   
     contrastthreshold=0.005; 
     
+    numWordsTrain=500;
     minH = -1;//?
     PCA_dim = 62;
     num_samples_PCA = 200000;
@@ -26,19 +28,48 @@ EmbAttSpotter::EmbAttSpotter(string saveName)
     numSpatialX = 6;//num of bins for spatail pyr
     numSpatialY = 2;
     
-    phoc_levels = [2, 3, 4, 5];
-    unigrams = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z'];
+    sgdparams_lbds = {1e-3,1e-4,1e-5};
+    
+    phoc_levels = {2, 3, 4, 5};
+    unigrams = {'a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z'};
     if (useNumbers)
     {
         for (char n : "0123456789")
             unigrams.push_back(n);
     }
-    phoc_levels_bi = [2];
+    phoc_levels_bi = {2};
     ifstream bFile("bigrams.txt");
     string bigram;
     while (getline(bFile,bigram))
     {
         bigrams.push_back(bigram);
+    }
+    
+    /* Prepare dict */
+    
+    for (int i=0; i<unigrams.size(); i++)
+    {
+        vocUni2pos[unigrams[i]] = i;
+    }
+    
+    for (int i=0; i<bigrams.size(); i++)
+    {
+        vocBi2pos[bigrams[i]] = i;
+    }
+    
+    
+    int totalLevels = 0;
+    for (int level : phoc_levels)
+    {
+        totalLevels+=level;
+    }
+    
+    phocSize = totalLevels*unigrams.size();
+    
+    phocSize_bi=0;
+    for (int level : phoc_levels_bi)
+    {
+        phocSize_bi+=level*bigrams.size();
     }
     
     this->saveName = saveName;//+"_sp"+to_string(numSpatialX)+"x"+to_string(numSpatialY);
@@ -48,13 +79,13 @@ EmbAttSpotter::EmbAttSpotter(string saveName)
     corpusSize=-1;
     corpus_imgfiles=NULL;
     training_imgfiles=NULL;
+    training_labels=NULL;
+    training_dataset=NULL;
+    genericBatchSize=5000;
     
     
     
     
-    #if TEST_MODE
-        testImages = ["test/testImages/small0.png","test/testImages/small1.png","test/testImages/small2.png","test/testImages/small3.png","test/testImages/small4.png"];
-    #endif
 }
 
 EmbAttSpotter::~EmbAttSpotter()
@@ -67,24 +98,26 @@ EmbAttSpotter::~EmbAttSpotter()
     }
     if (_attModels!=NULL)
     {
-        _attModels->W.release();
-        _attModels->M.release();
+        //_attModels->W.release();
+        //_attModels->numPosSamples.release();
         delete _attModels;
     }
     if (_embedding!=NULL)
     {
-        _embedding->rndmatx.release();
-        _embedding->rndmaty.release();
-        _embedding->M.release();
-        _embedding->matt.release();
-        _embedding->mphoc.release();
-        _embedding->Wx.release();
-        _embedding->Wy.release();
+        //_embedding->rndmatx.release();
+       // _embedding->rndmaty.release();
+        //_embedding->M.release();
+        //_embedding->matt.release();
+        //_embedding->mphoc.release();
+        //_embedding->Wx.release();
+        //_embedding->Wy.release();
         delete _embedding;
     }
     if (_features_corpus!=NULL)
     {
         //_features_corpus->release();
+        for (Mat& m : *_features_corpus)
+            m.release();
         delete _features_corpus;
     }
     if (_feats_training!=NULL)
@@ -102,9 +135,9 @@ EmbAttSpotter::~EmbAttSpotter()
         _phocs->release();
         delete _phocs;
     }*/
-    if (_phocsrT!=NULL)
+    if (_phocsTr!=NULL)
     {
-        _phocsTr->release();
+        //_phocsTr->release();
         delete _phocsTr;
     }
 }
@@ -117,7 +150,7 @@ void EmbAttSpotter::loadCorpus(string dir)
     //
 }
 
-vector<float> EmbAttSpotter::spot(const Mat& exemplar, string word, float alpha=0.5)
+vector<float> EmbAttSpotter::spot(const Mat& exemplar, string word, float alpha)
 {
     assert(alpha>=0 && alpha<=1);
     assert(word.length()>0 || alpha==1);
@@ -127,30 +160,38 @@ vector<float> EmbAttSpotter::spot(const Mat& exemplar, string word, float alpha=
     
     Mat im;
     exemplar.convertTo(im, CV_32FC1);
-    query_feats = extract_feats(im);
+    Mat query_feats = extract_feats(im);
     
-    query_att = attModels().W*query_feats.t();
+    Mat query_att = attModels().W*query_feats.t();
+    Mat query_phoc(phocSize+phocSize_bi,1,CV_32F);
+    if (alpha < 1)
+    {
+        computePhoc(word, vocUni2pos, map<string,int>(),unigrams.size(), phoc_levels, phocSize, &query_phoc,0);
+        computePhoc(word, map<char,int>(), vocBi2pos,bigrams.size(), phoc_levels_bi, phocSize_bi, &query_phoc,0);
+    }
     
-    Mat matx = embedding().rndmatx(Rect(0,0,embedding().M,embedding().rndmatx.cols));
-    Mat maty = embedding().rndmaty(Rect(0,0,embedding().M,embedding().rndmatx.cols));
+    Mat matx = embedding().rndmatx;//(Rect(0,0,embedding().M,embedding().rndmatx.cols));
+    Mat maty = embedding().rndmaty;//(Rect(0,0,embedding().M,embedding().rndmatx.cols));
+    assert(matx.rows==embedding().M);
+    assert(maty.rows==embedding().M);
     
     Mat tmp = matx*query_att;
-    vconcat(cos(tmp),sin(tmp),tmp);
+    vconcat(cosMat(tmp),sinMat(tmp),tmp);
     Mat query_emb_att = (1/sqrt(embedding().M)) * tmp - embedding().matt;
     tmp = maty*query_phoc;
-    vconcat(cos(tmp),sin(tmp),tmp);
+    vconcat(cosMat(tmp),sinMat(tmp),tmp);
     Mat query_emb_phoc = (1/sqrt(embedding().M)) * tmp - embedding().mphoc;
     
     
     Mat query_cca_att = embedding().Wx.t()*query_emb_att;
     Mat query_cca_phoc = embedding().Wy.t()*query_emb_phoc;
     
-    normalizeColumns(query_cca_att);
-    normalizeColumns(query_cca_phoc);
+    normalizeL2Columns(query_cca_att);
+    normalizeL2Columns(query_cca_phoc);
     Mat query_cca_hy = query_cca_att*alpha + query_cca_phoc*(1-alpha);
     
     //Mat s;//scores
-    vector<float> scores(corpusSize);
+    vector<float> scores(corpus_imgfiles->size());
     
     #pragma parallel for
     for (int i=0; i<numBatches; i++)
@@ -158,7 +199,7 @@ vector<float> EmbAttSpotter::spot(const Mat& exemplar, string word, float alpha=
         Mat s_batch = query_cca_hy*batches_cca_att()[i].t();
         //s.push_back(s_batch);
         assert(s_batch.cols==1);
-        copy(s_batch.data(),s_batch.data()+s_batch.rows,scores.begin()+batches_index[i]);
+        copy(s_batch.data,s_batch.data+s_batch.rows,scores.begin()+batches_index[i]);
     }
     //return s.toVector();
     return scores;
@@ -169,7 +210,7 @@ Mat EmbAttSpotter::extract_feats(const Mat& im)
     
     Mat feats_m=phow(im,&PCA_());
     
-    Mat feats_FV = getImageDescriptorFV(feats_m.t());
+    Mat feats_FV = getImageDescriptorFV(feats_m);
     
     
     
@@ -215,9 +256,11 @@ vector<Mat>* EmbAttSpotter::extract_FV_feats_fast_and_batch(const vector<string>
     
     
     int numBatches = imageLocations.size()/batchSize;
+    if (imageLocations.size()%batchSize > batchSize/3)
+        numBatches+=1;
     vector<Mat>* ret = new vector<Mat>(numBatches);
     
-    int batchSize = imageLocations.size()/numBatches;
+    //int batchSize = imageLocations.size()/numBatches;
     batches_index->clear();
     batches_indexEnd->clear();
     
@@ -227,7 +270,7 @@ vector<Mat>* EmbAttSpotter::extract_FV_feats_fast_and_batch(const vector<string>
         batches_indexEnd->push_back(i*batchSize);
         batches_index->push_back(i*batchSize);
     }
-    batches_indexEnd->push_back(corpusSize);
+    batches_indexEnd->push_back(imageLocations.size());
     
     
     for (int i=0; i<numBatches; i++)
@@ -239,13 +282,18 @@ vector<Mat>* EmbAttSpotter::extract_FV_feats_fast_and_batch(const vector<string>
         #pragma omp parallel for
         for (int j=start; j<end; j++)
         {
-            Mat im = imread(imageLocations[j],CV_GRAYSCALE);
+            Mat im = imread(imageLocations[j],CV_LOAD_IMAGE_GRAYSCALE);
             Mat feats=phow(im,&PCA_());
             //ret->at(i).row(j-batches_index[i]) = getImageDescriptorFV(feats.t());
-            Mat r = getImageDescriptorFV(feats.t());
+            Mat r = getImageDescriptorFV(feats);
+            assert(r.cols==FV_DIM);
             #pragma omp critical //?
-            tmp.row(j-start) = r;
+            r.copyTo(tmp.row(j-start));
         }
+        
+        for (int r=0; r<tmp.rows; r++)
+            for (int c=0; c<tmp.cols; c++)
+                assert(tmp.at<float>(r,c)==tmp.at<float>(r,c));
         
         ret->at(i)=tmp;
         
@@ -259,7 +307,7 @@ vector<Mat>* EmbAttSpotter::extract_FV_feats_fast_and_batch(const vector<string>
     return ret;
 }
 
-const vector<Mat>& EmbAttSpotter::features_corpus()
+const vector<Mat>& EmbAttSpotter::features_corpus(bool retrain)
 {
     string name = saveName+"_features_corpus.dat";
     if (_features_corpus==NULL)
@@ -302,7 +350,7 @@ const vector<Mat>& EmbAttSpotter::features_corpus()
             numBatches = _features_corpus->size();
             //save
             ofstream out(name);
-            out << numBatches;
+            out << numBatches << " ";
             for (int i=0; i<numBatches; i++)
             {      
                 writeFloatMat(out,_features_corpus->at(i));
@@ -330,7 +378,7 @@ const vector<Mat>& EmbAttSpotter::features_corpus()
 }*/
 
 
-const Mat& EmbAttSpotter::feats_training()
+const Mat& EmbAttSpotter::feats_training(bool retrain)
 {
     string name = saveName+"_feats_training.dat";
     if (_feats_training==NULL)
@@ -354,7 +402,7 @@ const Mat& EmbAttSpotter::feats_training()
             assert(_feats_training->size()==1);
             //save
             ofstream out(name);
-            out << 1;
+            out << 1 << " ";
             writeFloatMat(out,_feats_training->at(0));
             
             out.close();
@@ -399,47 +447,56 @@ const Mat& EmbAttSpotter::feats_training()
 }*/
 
 
-Mat EmbAttSpotter::phow(const Mat& im, const struct PCA* PCA_pt)
+Mat EmbAttSpotter::phow(const Mat& im, const struct PCA_struct* PCA_pt)
 {
     int bb_x1, bb_x2, bb_y1, bb_y2;
     DoBB(im,&bb_x1,&bb_x2,&bb_y1,&bb_y2);
     int bb_w=bb_x2-bb_x1 + 1;
     int bb_h=bb_y2-bb_y1 + 1;
-    int cx = bb_x1+w/2;
-    int cy = bb_y1+h/2;
+    int cx = bb_x1+bb_w/2;
+    int cy = bb_y1+bb_h/2;
 
     Mat feats_m;
     //for all sizes, extract SIFT features
+    int maxSize=-1;
+    for (int size : SIFT_sizes)
+        if (size>maxSize)
+            maxSize=size;
     for (int size : SIFT_sizes)
     {
-        int off = floor(1 + 3/2 * (maxSize - size));
+        int off = floor(1 + (3.0/2.0) * (maxSize - size));
         double sigma = size/magnif;
+        int gSize = 5*sigma;
+        if (gSize%2==0)
+            gSize++;
         Mat ims; 
-        GaussianBlur( im, ims, Size( 5*sigma, 5*sigma ), sigma, sigma );
+        GaussianBlur( im, ims, Size( gSize, gSize ), sigma, sigma );
         
         //describe dense points
         vector<KeyPoint> keyPoints;
-        for (int x=off; x<img.cols; x+=stride)
-            for (int y=off; y<img.rows; y+=stride)
+        for (int x=off; x<ims.cols; x+=stride)
+            for (int y=off; y<ims.rows; y+=stride)
                 keyPoints.push_back(KeyPoint(x,y,size));
         
-        int nfeaturePoints=keyPoints->size();
+        int nfeaturePoints=keyPoints.size();
         int nOctivesPerLayer=3;
         SIFT detector(nfeaturePoints,nOctivesPerLayer,contrastthreshold);
         Mat desc;
         detector(ims,noArray(),keyPoints,desc,true);
         vector<int> toKeep;
         Mat summed;
-        desc.convertTo(desc, CV_32FC1)
+        desc.convertTo(desc, CV_32FC1);
         reduce(desc,summed,1,CV_REDUCE_SUM);
-        for (int r=0; r<keyPoint.size(); r++)
+        for (int r=0; r<keyPoints.size(); r++)
         {
             if (summed.at<float>(r,0)>0 && norm(desc.row(r))>=contrastthreshold)
                 toKeep.push_back(r);
         }
-        if (toKeep.size<keyPoint.size())
+        if (toKeep.size()<keyPoints.size())
             desc = select_rows(desc,toKeep);
         desc /= 255.0;
+        
+        assert(desc.cols==SIFT_DIM);
         
         //normalize, subtract mean 
         for (unsigned int i=0; i<desc.rows; i++)
@@ -456,43 +513,161 @@ Mat EmbAttSpotter::phow(const Mat& im, const struct PCA* PCA_pt)
             {
                 desc.at<float>(i,j) = desc.at<float>(i,j)*X;
             }
-            if (PCA_pt!=null)
-                desc.row(i) -= PCA_pt->mean;
+            if (PCA_pt!=NULL)
+                desc.row(i) = desc.row(i) - PCA_pt->mean;
         }
         //trans with eigen vectors (desc is tranposed in relation to ALmazan's code, flip back at end)
-        if (PCA_pt!=null)
-            desc = (PCA_pt->eigvec.t()*desc.t()).t();
+        if (PCA_pt!=NULL)
+            desc = (PCA_pt->eigvec*desc.t()).t();
         
         
         //append x,y information
-        augmented.create(desc.rows+2, desc.cols, desc.type());
+        Mat augmented(desc.rows, desc.cols+2, desc.type());
         desc.copyTo(augmented(Rect(0, 0, desc.cols, desc.rows)));
-        for (unsigned int j=0; j<desc.cols; j++)
+        for (unsigned int j=0; j<desc.rows; j++)
         {
-            augmented.at<float>(desc.rows,j) = ((*keyPoints)[j].x-cx)/w;
-            augmented.at<float>(desc.rows+1,j) = ((*keyPoints)[j].y-cy)/h;
+            augmented.at<float>(j,desc.cols) = (keyPoints[j].pt.x-cx)/(float)bb_w;
+            augmented.at<float>(j,desc.cols+1) = (keyPoints[j].pt.y-cy)/(float)bb_h;
         }
         
         //vconcat(feats,augmented,feats);
         feats_m.push_back(augmented);
     }
+    //for (int r=0; r<feats_m.rows; r++)
+    //    for (int c=0; c<feats_m.cols; c++)
+    //        assert(feats_m.at<float>(r,c)==feats_m.at<float>(r,c));
     return feats_m;
+}
+
+void EmbAttSpotter::DoBB(const Mat& im, int* bb_x1, int* bb_x2, int* bb_y1, int* bb_y2)
+{
+    float px = 0.975; //% Goal is to center. Be conservative
+    float py = 0.8; //% Goal is to remove ascenders/descenders. Free for all.
+    
+    //does this mean on (1) for stroke pixels?
+    //imbw = 1-im2bw(im,graythresh(im));
+    Mat imbw= otsuBinarization(im);
+    /*Mat dst = imbw.clone();
+    for (int r=0; r<dst.rows; r++)
+        for (int c=0; c<dst.cols; c++)
+        {
+            if (dst.at<unsigned char>(r,c)==1)
+                dst.at<unsigned char>(r,c)=0;
+            else
+                dst.at<unsigned char>(r,c)=255;
+        }
+    imshow("test",dst);
+    waitKey();*/
+    
+    Mat horzProf;
+    reduce(imbw,horzProf,0,CV_REDUCE_SUM,CV_32F);
+    Mat vertProf;
+    reduce(imbw,vertProf,1,CV_REDUCE_SUM,CV_32F);
+    Mat total;
+    reduce(horzProf,total,1,CV_REDUCE_SUM,CV_32F);
+    //sh = (sum(imbw)/sum(sum(imbw)));
+    //sv = (sum(imbw,2)/sum(sum(imbw)));
+    horzProf = horzProf/total.at<float>(0,0);
+    //divide(horzProf,total,horzProf);
+    vertProf = vertProf/total.at<float>(0,0);
+    //divide(vertProf,total,vertProf);
+    //shc = [0 cumsum(sh)];
+    //svc = [0 cumsum(sv)'];
+    vector<float> shc(horzProf.cols+1);
+    for (int c=0; c<horzProf.cols; c++)
+    {
+        shc[c+1]=horzProf.at<float>(0,c)+shc[c];
+    }
+    vector<float> svc(vertProf.rows+1);
+    for (int r=0; r<vertProf.rows; r++)
+    {
+        svc[r+1]=vertProf.at<float>(r,0)+svc[r];
+    }
+    assert(abs(shc[horzProf.cols]-1)<.0001);
+    assert(abs(svc[vertProf.rows]-1)<.0001);
+    //dh = bsxfun(@minus,shc,shc') > px;
+    //dv = bsxfun(@minus,svc,svc') > py;
+    //[p1h,p2h] = find(dh);
+    
+    //vector<int> p1h, p2h, pdh;
+    int p1h, p2h;
+    int min_pdv=1000;
+    for (int i=0; i< shc.size(); i++)
+    {
+        for (int j=0; j< shc.size(); j++)
+        {
+            if (shc[i]-shc[j]>px)
+            {
+                //p1h.push_back(j);
+                //p2h.push_back(i);
+                //pdh.push_back(abs(i-j+1));
+                int pdv = abs(i-j+1);
+                if (pdv<min_pdv)
+                {
+                    min_pdv=pdv;
+                    p1h=j;
+                    p2h=i;
+                }
+            }
+        }
+    }
+    //vector<int> p1v, p2v;//, pdv;
+    int p1v, p2v;
+    min_pdv=1000;
+    //int idx_min_pdv=-1;
+    for (int i=0; i< svc.size(); i++)
+    {
+        for (int j=0; j< svc.size(); j++)
+        {
+            if (svc[i]-svc[j]>py)
+            {
+                //p1v.push_back(j);
+                //p2v.push_back(i);
+                int pdv = abs(i-j+1);
+                if (pdv<min_pdv)
+                {
+                    min_pdv=pdv;
+                    p1v=j;
+                    p2v=i;
+                }
+            }
+        }
+    }
+   
+    //why the random perm?
+    //a= randperm(length(p1h)); p1h = p1h(a);p2h = p2h(a);
+    //[p1v,p2v] = find(dv);
+    //a= randperm(length(p1v)); p1v = p1v(a);p2v = p2v(a);
+
+    //[vh,idxh] = sort(abs(p2h-p1h+1));
+    //[vv,idxv] = sort(abs(p2v-p1v+1));
+
+    //ph=[p1h(idxh(1)),p2h(idxh(1))];
+    //pv=[p1v(idxv(1)),p2v(idxv(1))];
+
+    //bbox = [min(ph),max(ph),min(pv),max(pv)];
+    *bb_x1 = min(p2h, p1h);
+    *bb_x2 = max(p2h, p1h);
+    *bb_y1 = min(p2v, p1v);
+    *bb_y2 = max(p2v, p1v);
 }
 
 Mat EmbAttSpotter::getImageDescriptorFV(const Mat& feats_m)
 {
-    assert(feats_m.cols==DESC_DIM);
-    int dimension = DESC_DIM;
+    assert(feats_m.cols==AUG_PCA_DIM);
+    int dimension = AUG_PCA_DIM;
     int numClusters = numGMMClusters;
     assert(feats_m.isContinuous());
-    float* dataToEncode = (float*)feats_m.data();//VL expects column major order, but we have our featvecs on the rows
+    float* dataToEncode = (float*)feats_m.data;//VL expects column major order, but we have our featvecs on the rows
     int numDataToEncode = feats_m.rows;
     //float* enc = vl_malloc(sizeof(float) * 2 * dimension * numClusters);
-    Mat ret(FV_DIM,1);
+    Mat ret(1,FV_DIM,CV_32F);
     assert(ret.isContinuous());
     float* enc = (float*)ret.data;
     //float f2 = enc[rowIdx*ret.step1() + colIdx];
     // run fisher encoding
+    
+    
     vl_fisher_encode
         (enc, VL_TYPE_FLOAT,
          GMM().means, dimension, numClusters,
@@ -501,6 +676,11 @@ Mat EmbAttSpotter::getImageDescriptorFV(const Mat& feats_m)
          dataToEncode, numDataToEncode,
          VL_FISHER_FLAG_IMPROVED
          ) ;
+         
+     //assert(ret.cols
+     for (int r=0; r<ret.rows; r++)
+        for (int c=0; c<ret.cols; c++)
+            assert(ret.at<float>(r,c)==ret.at<float>(r,c));
      return ret;
 }
 
@@ -531,12 +711,13 @@ const vector<Mat>& EmbAttSpotter::batches_cca_att()
         _batches_cca_att->clear();
         
         //const Embedding& embedding = get_embedding();
-        Mat matx = embedding().rndmatx(Rect(0,0,embedding().M,embedding().rndmatx.cols));
+        Mat matx = embedding().rndmatx;//(Rect(0,0,embedding().rndmatx.cols,embedding().M));
+        assert(matx.rows==embedding().M);
         for (int i=0; i<numBatches; i++)
         {
             // load batch_att
             Mat tmp = matx*batch_att(i);
-            vconcat(cos(tmp),sin(tmp),tmp);
+            vconcat(cosMat(tmp),sinMat(tmp),tmp);
             Mat batch_emb_att = (1/sqrt(embedding().M)) * tmp - embedding().matt;
             Mat batch_cca_att = embedding().Wx.t()*batch_emb_att;
             _batches_cca_att->push_back(batch_cca_att);
@@ -561,24 +742,24 @@ Mat EmbAttSpotter::batch_att(int batchNum)
 void EmbAttSpotter::learn_attributes_bagging()
 {
     int dimFeats=feats_training().cols;
-    int numAtt = phoc_training().cols;
-    int numSamples = phoc_training().rows;
-    _attModels =  = new AttributeModels();
-    _attModels->W=zeros(dimFeats,numAtt,CV_32F);
+    int numAtt = phocsTr().rows;
+    int numSamples = phocsTr().cols;
+    _attModels = new AttributesModels;
+    _attModels->W=Mat::zeros(dimFeats,numAtt,CV_32F);
     //_attModels->B=zeros(1,numAtt,CV_32F);
-    _attModels->numPosSamples=zeros(1,numAtt,CV_32F);
-    _attReprTr = new Mat(zeros(numAtt,numSamples,CV_32F)); //attFeatsTr, attFeatsBag
+    _attModels->numPosSamples=Mat::zeros(1,numAtt,CV_32F);
+    _attReprTr = new Mat(Mat::zeros(numAtt,numSamples,CV_32F)); //attFeatsTr, attFeatsBag
     
     Mat threshed;
-    threshold(phoc_training(),threshed, 0.47999, 1, THRESH_BINARY);
-    assert(threshed.type()==CV_8U);
+    threshold(phocsTr(),threshed, 0.47999, 1, THRESH_BINARY);
+    assert(threshed.type()==CV_32F);
     for (int idxAtt=0; idxAtt<numAtt; idxAtt++)
     {
         vector<int> idxPos;
         vector<int> idxNeg;
-        for (int r=0; r<threshed.rows; r++)
+        for (int r=0; r<threshed.cols; r++)
         {
-            if (threshed.at<unsigned char>(r,idxAtt)==1)
+            if (threshed.at<float>(idxAtt,r)==1)
                 idxPos.push_back(r);
             else
                 idxNeg.push_back(r);
@@ -622,18 +803,19 @@ void EmbAttSpotter::learn_attributes_bagging()
                     
                     numPosSamples = numPosSamples + nTrainPos;
                     
-                    float* labelsTrain[featsTrain.rows];//binary vector, 1 where idxAtt is not zero, -1 where it is zero
+                    double labelsTrain[featsTrain.rows];//binary vector, 1 where idxAtt is not zero, -1 where it is zero
                     for (int r=0; r<featsTrain.rows; r++)
                     {
-                        labelsTrain[r] = phocs_training().at<float>(idxTrain[r],idxAtt)!=0?1:-1;
+                        labelsTrain[r] = phocsTr().at<float>(idxAtt,idxTrain[r])!=0?1:-1;
                     }
-                    float* labelsVal[featsVal.rows];//binary vector, 1 where idxAtt is not zero, -1 where it is zero
+                    float labelsVal[featsVal.rows];//binary vector, 1 where idxAtt is not zero, -1 where it is zero
                     for (int r=0; r<featsVal.rows; r++)
                     {
-                        labelsVal[r] = phocs_training().at<float>(idxVal[r],idxAtt)!=0?1:-1;
+                        labelsVal[r] = phocsTr().at<float>(idxAtt,idxVal[r])!=0?1:-1;
                     }
                     
-                    _attModels->W += cvSVM(featsTrain,labelsTrain,featsVal,labelsVal);
+                    VlSvm * svm=NULL;
+                    _attModels->W += cvSVM(featsTrain,labelsTrain,featsVal,labelsVal,svm);
                     
                     N++;
                     for (int idx : idxVal)
@@ -642,9 +824,10 @@ void EmbAttSpotter::learn_attributes_bagging()
                     {
                         float s=0;
                         for (int c=0; c<featsVal.cols; c++)
-                            s += featsVal.at<flaot>(r,c)*vl_svm_get_model(svm)[c];
+                            s += featsVal.at<float>(r,c)*vl_svm_get_model(svm)[c];
                         _attReprTr->at<float>(idxAtt,r)+=s;
                     }
+                    delete svm;
                 }
             }
             
@@ -658,18 +841,17 @@ void EmbAttSpotter::learn_attributes_bagging()
     }
 }
 
-Mat EmbAttSpotter::cvSVM(const Mat& featsTrain, const float* labelsTrain, const Mat& featsVal, const float* labelsVal)
+Mat EmbAttSpotter::cvSVM(const Mat& featsTrain, const double* labelsTrain, const Mat& featsVal, const float* labelsVal, VlSvm * bestsvm)
 {
-    assert(featsTrain.isContinuous());
-    assert(featsVal.isContinuous());
+    Mat double_featsTrain;
+    featsTrain.convertTo(double_featsTrain, CV_64F);
+    assert(double_featsTrain.isContinuous());
     double bestmap=0;
     double bestlambda=0;
-    double best
-    VlSvm * bestsvm=NULL;
     for (double lambda : sgdparams_lbds)
     {
         VlSvm * svm = vl_svm_new(VlSvmSolverSdca,
-                               featsTrain.data, featsTrain.cols, featsTrain.rows,
+                               (double*)double_featsTrain.data, featsTrain.cols, featsTrain.rows,
                                labelsTrain,
                                lambda) ;
         vl_svm_set_bias_multiplier (svm, 0.1);
@@ -694,7 +876,7 @@ Mat EmbAttSpotter::cvSVM(const Mat& featsTrain, const float* labelsTrain, const 
     {
         ret.at<float>(1,c)=vl_svm_get_model(bestsvm)[c];
     }
-    delete bestsvm;
+    
     return ret;
 }
 
@@ -705,7 +887,7 @@ double EmbAttSpotter::modelMap(VlSvm * svm, const Mat& featsVal, const float* la
     {
         float s=0;
         for (int c=0; c<featsVal.cols; c++)
-            s += featsVal.at<flaot>(r,c)*vl_svm_get_model(svm)[c];
+            s += featsVal.at<float>(r,c)*vl_svm_get_model(svm)[c];
         scores[r]=make_pair(labelsVal[r],s);
     }
     sort(scores.begin(), scores.end(),[](const pair<int,float>& lh, const pair<int,float>& rh) {return lh.second>rh.second;}); 
@@ -724,7 +906,7 @@ double EmbAttSpotter::modelMap(VlSvm * svm, const Mat& featsVal, const float* la
 
 Mat EmbAttSpotter::select_rows(const Mat& m, vector<int> idx)
 {
-    Mat ret(idx.size(); m.cols, m.type());
+    Mat ret(idx.size(), m.cols, m.type());
     for (int i=0; i<idx.size(); i++)
     {
         m.row(idx[i]).copyTo(ret.row(i));
@@ -732,18 +914,18 @@ Mat EmbAttSpotter::select_rows(const Mat& m, vector<int> idx)
     return ret;
 }
 
-const struct AttributesModels& EmbAttSpotter::EmbAttSpotter::attModels()
+const EmbAttSpotter::AttributesModels& EmbAttSpotter::attModels(bool retrain)
 {
     if (_attModels==NULL)
     {
-        string name = saveAs+"_attModels.dat";
+        string name = saveName+"_attModels.dat";
         ifstream in(name);
         if (!retrain && in)
         {
             //load
-            _attModels = new AttributeModels();
+            _attModels = new AttributesModels();
             _attModels->W = readFloatMat(in);
-            _attModels->B = readFloatMat(in);
+            //_attModels->B = readFloatMat(in);
             _attModels->numPosSamples = readFloatMat(in);
             _attReprTr = new Mat();
             *_attReprTr = readFloatMat(in);
@@ -756,9 +938,9 @@ const struct AttributesModels& EmbAttSpotter::EmbAttSpotter::attModels()
             //save
             ofstream out(name);
             writeFloatMat(out,_attModels->W);
-            writeFloatMat(out,_attModels->B);
+            //writeFloatMat(out,_attModels->B);
             writeFloatMat(out,_attModels->numPosSamples);
-            writeFloatMat(out,_attReprTr);
+            writeFloatMat(out,*_attReprTr);
             out.close();
         }
         
@@ -766,11 +948,11 @@ const struct AttributesModels& EmbAttSpotter::EmbAttSpotter::attModels()
     return *_attModels;
 }
 
-const struct Embedding& EmbAttSpotter::embedding()
+const EmbAttSpotter::Embedding& EmbAttSpotter::embedding(bool retrain)
 {
     if (_embedding==NULL)
     {
-        string name = saveAs+"_embedding.dat";
+        string name = saveName+"_embedding.dat";
         ifstream in(name);
         if (!retrain && in)
         {
@@ -793,7 +975,7 @@ const struct Embedding& EmbAttSpotter::embedding()
             ofstream out(name);
             writeFloatMat(out,_embedding->rndmatx);
             writeFloatMat(out,_embedding->rndmaty);
-            out << _embedding->M;
+            out << _embedding->M << " ";
             writeFloatMat(out,_embedding->matt);
             writeFloatMat(out,_embedding->mphoc);
             writeFloatMat(out,_embedding->Wx);
@@ -840,10 +1022,10 @@ void EmbAttSpotter::learn_common_subspace()
     //learnKCCA
     int M = 2500;
     float G = 40;
-    int Dims = 160;
+    int Dims = 160;//or K
     float reg = 1e-5;
-    int Dx = attReprTr_lcs.rows;
-    int Dy = phocsTr_lcs.rows;
+    int Dx = attReprTr().rows;
+    int Dy = phocsTr().rows;
     Mat rndmatx(M,Dx,CV_32F);
     Mat rndmaty(M,Dy,CV_32F);
     RNG rng(12345);
@@ -851,28 +1033,28 @@ void EmbAttSpotter::learn_common_subspace()
     rng.fill(rndmaty,RNG::NORMAL,Scalar(0),Scalar(1/G));
     
     Mat tmp = rndmatx*attReprTr();
-    vconcat(cos(tmp),sin(tmp),tmp);
-    Mat attReprTr_emb = 1/sqrt(M) * tmp;
+    vconcat(cosMat(tmp),sinMat(tmp),tmp);
+    Mat attReprTr_emb = (1/sqrt(M)) * tmp;
     tmp = rndmaty*phocsTr();
-    vconcat(cos(tmp),sin(tmp),tmp);
-    Mat phocsTr_emb = 1/sqrt(bestM) * [ cos(tmp); sin(tmp)];
+    vconcat(cosMat(tmp),sinMat(tmp),tmp);
+    Mat phocsTr_emb = (1/sqrt(M)) * tmp;
 
     // Mean center
     Mat ma;// = mean(attReprTr_emb,2);
     reduce(attReprTr_emb, ma, 1, CV_REDUCE_AVG);
     for (int c = 0; c < attReprTr_emb.cols; ++c) {
-        attReprTr_emb.col(c) = attReprTr_emb.col(r) - ma;
+        attReprTr_emb.col(c) = attReprTr_emb.col(c) - ma;
     }
 
     Mat mh;// = mean(attReprTr_emb,2);
     reduce(phocsTr_emb, mh, 1, CV_REDUCE_AVG);
     for (int c = 0; c < phocsTr_emb.cols; ++c) {
-        phocsTr_emb.col(c) = phocsTr_emb.col(r) - mh;
+        phocsTr_emb.col(c) = phocsTr_emb.col(c) - mh;
     }
 
     // Learn CCA
     Mat Wx, Wy;
-    cca2(attReprTr_emb.t(), phocsTr_emb.t(),reg,K,Wx,Wy);
+    cca2(attReprTr_emb.t(), phocsTr_emb.t(),reg,Dims,Wx,Wy);
     
     _embedding->rndmatx=rndmatx;
     _embedding->rndmaty=rndmaty;
@@ -905,8 +1087,8 @@ void EmbAttSpotter::cca2(Mat X, Mat Y, float reg, int d, Mat& Wx, Mat& Wy)
     int Dy = Y.cols;    
 
 
-    Mat Cxx = X.t()*X / N + reg*eye(Dx);
-    Mat Cyy = Y.t()*Y/N + reg*eye(Dy);
+    Mat Cxx = X.t()*X / N + reg*Mat::eye(Dx,Dx,CV_32F);
+    Mat Cyy = Y.t()*Y/N + reg*Mat::eye(Dy,Dy,CV_32F);
     Mat Cxy = X.t()*Y / N;
     Mat Cyx = Cxy.t();
 
@@ -919,7 +1101,7 @@ void EmbAttSpotter::cca2(Mat X, Mat Y, float reg, int d, Mat& Wx, Mat& Wy)
     eigen(M, r, Wx);
     assert(r.rows >= d);
     //r = r(Rect(0,0,d,1)).t();//only use top d
-    Wx = Wx(Rect(0,0,d,Wx.cols)).t();
+    Wx = Wx(Rect(0,0,Wx.cols,d)).t();
     //r = sqrt(r);      // Canonical correlations
 
     // already sorted
@@ -927,19 +1109,19 @@ void EmbAttSpotter::cca2(Mat X, Mat Y, float reg, int d, Mat& Wx, Mat& Wy)
     // --- Calcualte Wy  ---
     solve(Cyy,Cyx,tmp);
     Wy = (tmp)*Wx;     // Basis in Y
-    normalizeColumns(Wy);
+    normalizeL2Columns(Wy);
 }
 
-const Mat& EmbAttSpotter::attReprTr()//correct orientation
+const Mat& EmbAttSpotter::attReprTr(bool retrain)//correct orientation
 {
     if (_attReprTr==NULL)
     {
-        string name = saveAs+"_attModels.dat";
+        string name = saveName+"_attModels.dat";
         ifstream in(name);
         if (!retrain && in)
         {
             //load
-            _attModels = new AttributeModels();
+            _attModels = new AttributesModels();
             _attModels->W = readFloatMat(in);
             //_attModels->B = readFloatMat(in);
             _attModels->numPosSamples = readFloatMat(in);
@@ -956,7 +1138,7 @@ const Mat& EmbAttSpotter::attReprTr()//correct orientation
             writeFloatMat(out,_attModels->W);
             //writeFloatMat(out,_attModels->B);
             writeFloatMat(out,_attModels->numPosSamples);
-            writeFloatMat(out,_attReprTr);
+            writeFloatMat(out,*_attReprTr);
             out.close();
         }
         
@@ -968,7 +1150,7 @@ const Mat& EmbAttSpotter::attReprTr()//correct orientation
 {
     if (_attReprVa==NULL)
     {
-        string name = saveAs+"_attReprVa.dat";
+        string name = saveName+"_attReprVa.dat";
         ifstream in(name)
         if (!retrain && in)
         {
@@ -992,14 +1174,14 @@ const Mat& EmbAttSpotter::attReprTr()//correct orientation
     return *_attReprVa;
 }*/
 
-vector<struct spotting_sw> EmbAttSpotter::spot_sw(const Mat& exemplar, string ngram, float alpha=0.5)
+vector<struct spotting_sw> EmbAttSpotter::spot_sw(const Mat& exemplar, string ngram, float alpha)
 {
     
 }
 
-Mat EmbAttSpotter::scores(const Mat& query, const Mat& corpus_batch)
+/*Mat EmbAttSpotter::scores(const Mat& query, const Mat& corpus_batch)
 {
-    return queries*dataset.t();
+    return query*dataset.t();
 }
 
 Mat EmbAttSpotter::scores_sw(const Mat& query, const vector<Mat>& corpus_batch)
@@ -1008,19 +1190,33 @@ Mat EmbAttSpotter::scores_sw(const Mat& query, const vector<Mat>& corpus_batch)
     {
         //TODO
     }
-}
+}*/
 
-void EmbAttSpotter::train(string gtFile, string imageDir, string saveAs)
+void EmbAttSpotter::setTrainData(string gtFile, string imageDir, string saveAs)
 {
-    
-    
-    int numWordsTrainGMM = 0;//TODO
-    compute_GMM_PCA(numWordsTrainGMM,imageDir,saveAs);
+    if (saveAs.size()>0)
+        saveName=saveAs;
+    /*if (in)
+        in.close();
+    DIR *dir;
+    struct dirent *ent;
+    if ((dir = opendir (imageDir.c_str())) != NULL)
+    {
+        //cout << "reading images and obtaining descriptors" << endl;
+        
+        //get all filenames
+        vector<string> fileNames;
+        while ((ent = readdir (dir)) != NULL) {
+            string fileName(ent->d_name);
+            if (fileName[0] == '.' || (fileName[fileName.size()-1]!='G' && fileName[fileName.size()-1]!='g' &&  fileName[fileName.size()-1]!='f'))
+                continue;
+            fileNames.push_back(fileName);
+        }*/
 }
 
 
 //We compute the GMM and PCA together as they are relient on the same data.
-void EmbAttSpotter::get_GMM_PCA(int numWordsTrain, string imageDir, string saveAs, bool retrain)
+void EmbAttSpotter::get_GMM_PCA(int numWordsTrain, string saveAs, bool retrain)
 {   
     
     
@@ -1032,24 +1228,27 @@ void EmbAttSpotter::get_GMM_PCA(int numWordsTrain, string imageDir, string saveA
          //load
         assert(_GMM.means==NULL);
         
-        in >> _PCA.mean;// = readFloatMat(in);
+        _PCA.mean= readFloatMat(in);
         _PCA.eigvec = readFloatMat(in);
-        int size;
-        _GMM.means = readFloatArray(in,&size);
-        numGMMClusters = size/DESC_DIM;
+        int size, sizeFull;
+        _GMM.means = readFloatArray(in,&sizeFull);
+        //numGMMClusters = size/AUG_PCA_DIM;
         _GMM.covariances = readFloatArray(in,&size);
-        assert(numGMMClusters==size/DESC_DIM);
+        //assert(numGMMClusters==size/AUG_PCA_DIM);
         _GMM.priors = readFloatArray(in,&size);
-        assert(numGMMClusters==size);
+        numGMMClusters=size;
+        PCA_dim = (sizeFull/numGMMClusters)-2;
+        
         in.close();
     }
     else
     {
-        if (in)
+        assert(training_imgfiles!=NULL);
+        /*if (in)
             in.close();
         DIR *dir;
         struct dirent *ent;
-        if ((dir = opendir (directory.c_str())) != NULL)
+        if ((dir = opendir (imageDir.c_str())) != NULL)
         {
             //cout << "reading images and obtaining descriptors" << endl;
             
@@ -1060,83 +1259,106 @@ void EmbAttSpotter::get_GMM_PCA(int numWordsTrain, string imageDir, string saveA
                 if (fileName[0] == '.' || (fileName[fileName.size()-1]!='G' && fileName[fileName.size()-1]!='g' &&  fileName[fileName.size()-1]!='f'))
                     continue;
                 fileNames.push_back(fileName);
+            }*/
+            
+        assert(training_imgfiles->size()>=numWordsTrain);
+        
+        Mat for_PCA(num_samples_PCA,SIFT_DIM,CV_32F);
+        int sample_per_for_PCA = num_samples_PCA/numWordsTrain;
+        int on_sample=0;
+        
+        vector<Mat> bins(numSpatialX*numSpatialY);
+        /*for (int i=0; i<numSpatialX*numSpatialY; i++)
+        {
+            bins[i] = Mat::zeros(0,SIFT_DIM+2,CV_32F);
+        }*/
+        vector<bool> used(training_imgfiles->size());
+        for (int i=0; i<numWordsTrain; i++)
+        {
+            int imageIndex = rand()%training_imgfiles->size();
+            int initIndex=imageIndex;
+            while (used[imageIndex])
+            {
+                imageIndex = (imageIndex+1)%training_imgfiles->size();
+                assert(imageIndex!=initIndex);
             }
             
-            Mat for_PCA(SIFT_DIM,num_samples_PCA,CV_32F);
-            int sample_per_for_PCA = num_samples_PCA/numWordsTrain;
-            int on_sample=0;
-            
-            vector<Mat> bins(numSpatialX*numSpatialY);
-            for (int i=0; i<numSpatialX*numSpatialY; i++)
+            Mat im = imread(training_imgfiles->at(imageIndex),CV_LOAD_IMAGE_GRAYSCALE);
+            used[imageIndex]=true;
+            //resize to minimum height
+            if (im.rows<minH)
             {
-                bins[xBin+yBin*numSpatialX] = zeros(0,SIFT_DIM+2,descType)
+                double ar = im.rows/(double)im.cols;
+                int newWidth=minH/ar;
+                resize(im, im, Size(minH, newWidth), 0, 0, INTER_CUBIC);
+            }
+             
+            Mat desc = phow(im);//includes xy's, normalization
+            assert(desc.type() == CV_32F);
+            assert(desc.cols == DESC_DIM);
+            
+            //sample for PCA, discard x,y
+            for (int sample=0; sample<sample_per_for_PCA; sample++)
+            {
+                int randIndex = rand()%desc.rows;
+                desc(Rect(0,randIndex,SIFT_DIM,1)).copyTo(for_PCA.row(on_sample++));
             }
             
-            for (int i=0; i<numWordsTrain; i++)
+            //place in bins
+            for (int r=0; r<desc.rows; r++)
             {
-                int imageIndex = rand()%fileNames.size();
-                Mat im = readim(imageIndex,CV_GRAYSCALE);
-                //resize to minimum height
-                if (im.rows<minH)
-                {
-                    double ar = im.rows/(double)im.cols;
-                    int newWidth=minH/ar;
-                    resize(im, im, Size(minH, newWidth), 0, 0, INTER_CUBIC);
-                }
-                 
-                Mat desc = phow(im);//includes xy's, normalization
-                
-                
-                //sample for PCA, discard x,y
-                for (int sample=0; sample<sample_per_for_PCA; sample++)
-                {
-                    int randIndex = rand()%desc.rows;
-                    for_PCA.row(num_samples_PCA++).copyTo(desc(Rect(0,randIndex,SIFT_DIM,1)));
-                }
-                
-                //place in bins
-                for (int r=0; r<desc.rows; r++)
-                {
-                    int xBin = (desc.at<descType>(r,desc.cols-2)/(double)im.cols)*numSpatialX;
-                    int yBin = (desc.at<descType>(r,desc.cols-1)/(double)im.rows)*numSpatialY;
+                int xBin = ((desc.at<float>(r,desc.cols-2)+0.5)/1.0)*numSpatialX;
+                if (xBin<0) xBin=0;
+                if (xBin>=numSpatialX) xBin=numSpatialX-1;
+                int yBin = ((desc.at<float>(r,desc.cols-1)+0.5)/1.0)*numSpatialY;
+                if (yBin<0) yBin=0;
+                if (yBin>=numSpatialY) yBin=numSpatialY-1;
+                //cout << "added desc to bin ["<<xBin<<","<<yBin<<"]"<<endl;
+                if (bins[xBin+yBin*numSpatialX].rows!=0)
                     bins[xBin+yBin*numSpatialX].push_back(desc.row(r));
-                }
+                else if (r!=62)
+                    bins[xBin+yBin*numSpatialX]=desc.row(r).clone();
             }
-            
-            //compute PCA
-            compute_PCA(for_PCA,PCA_dim);
-                
-            
-            //GMM
-            compute_GMM(bins,numSpatialX,numSpatialY,numGMMClusters)
-            
-            
-            //save
-            ofstream out;
-            out.open(name);
-            out<<PCA_().mean;
-            writeFloatMat(out,PCA_().eigvec);
-            writeFloatArray(out,GMM().means,numGMMClusters*DESC_DIM*numSpatialX*numSpatialY);
-            writeFloatArray(out,GMM().covariances,numGMMClusters*DESC_DIM*numSpatialX*numSpatialY);
-            writeFloatArray(out,GMM().priors,numGMMClusters*numSpatialX*numSpatialY);
-            out.close();
         }
+        
+        //compute PCA
+        compute_PCA(for_PCA,PCA_dim);
+            
+        
+        //GMM
+        compute_GMM(bins,numSpatialX,numSpatialY,numGMMClusters);
+        
+        
+        //save
+        ofstream out;
+        out.open(name);
+        writeFloatMat(out,_PCA.mean);
+        writeFloatMat(out,_PCA.eigvec);
+        writeFloatArray(out,_GMM.means,numGMMClusters*DESC_DIM*numSpatialX*numSpatialY);
+        writeFloatArray(out,_GMM.covariances,numGMMClusters*DESC_DIM*numSpatialX*numSpatialY);
+        writeFloatArray(out,_GMM.priors,numGMMClusters*numSpatialX*numSpatialY);
+        out.close();
+        /*}
         else
         {
             cout << "Error, could not open imageDir: "<<imageDir << endl;
             assert(false);
-        }
+        }*/
     }
     
 }
 
 void EmbAttSpotter::writeFloatMat(ofstream& dst, const Mat& m)
 {
-    assert(m.type==CV_32F);
+    assert(m.type()==CV_32F);
     dst << m.rows<<" "<<m.cols<<" ";
+    dst << setprecision(9);
     for (int r=0; r<m.rows; r++)
         for (int c=0; c<m.cols; c++)
+        {
+            assert(m.at<float>(r,c)==m.at<float>(r,c));
             dst << m.at<float>(r,c) << " ";
+        }
 }
 
 Mat EmbAttSpotter::readFloatMat(ifstream& src)
@@ -1153,7 +1375,8 @@ Mat EmbAttSpotter::readFloatMat(ifstream& src)
 void EmbAttSpotter::writeFloatArray(ofstream& dst, const float* a, int size)
 {
     dst << size<<" ";
-    for (int i=0; i<size; i++)=
+    dst << setprecision(9);
+    for (int i=0; i<size; i++)
            dst << a[i] << " ";
 }
 
@@ -1163,7 +1386,7 @@ float* EmbAttSpotter::readFloatArray(ifstream& src, int* sizeO)
     src >> size;
     float* ret = new float[size];
     double tmp;
-    for (int i=0; r<size; i++)
+    for (int i=0; i<size; i++)
     {
         src >> tmp;
         ret[i]=tmp;
@@ -1173,18 +1396,18 @@ float* EmbAttSpotter::readFloatArray(ifstream& src, int* sizeO)
     return ret;
 }
 
-const struct PCA_struct & EmbAttSpotter::PCA_()
+const EmbAttSpotter::PCA_struct & EmbAttSpotter::PCA_(bool retrain)
 {
     if (_PCA.eigvec.rows==0)
-        get_GMM_PCA(numWordsTrain, imageDir, saveAs, retrainGMM_PCA);
+        get_GMM_PCA(numWordsTrain, saveName, retrain);
     
     return _PCA;
 }
 
-const struct GMM_struct & EmbAttSpotter::GMM()
+const EmbAttSpotter::GMM_struct & EmbAttSpotter::GMM(bool retrain)
 {
     if (_GMM.means==NULL)
-        get_GMM_PCA(numWordsTrain, imageDir, saveAs, retrainGMM_PCA);
+        get_GMM_PCA(numWordsTrain, saveName, retrain);
     
     return _GMM;
 }
@@ -1198,18 +1421,19 @@ void EmbAttSpotter::compute_PCA(const Mat& data, int PCA_dim)
     //Mat covar;
     //calcCovarMatrix(data, covar, mean, cv::COVAR_ROWS | CV_COVAR_NORMAL );
     PCA pt_pca(data, cv::Mat(), CV_PCA_DATA_AS_ROW, 0);//? I'm unsure if this is the correct usage
+    //assert(pt_pca.mean.rows==1 && pt_pca.mean.cols==1);
+    assert(pt_pca.mean.type()==CV_32F);
     _PCA.mean = pt_pca.mean;
-    assert(mean.rows==1);
-    Mat eig_vals = pt_pca.eigenvalues;
+    //Mat eig_vals = pt_pca.eigenvalues;
     Mat eig_vecs = pt_pca.eigenvectors;
     
-    Mat idxs;
-    sortIdx(eig_vals, idxs, CV_SORT_EVERY_ROW + CV_SORT_DESCENDING);
-    _PCA.eigvec = eig_vals(Rect(0,0,PCA_dim,eig_vecs.cols));//Mat(PCA_dim,eig_vecs.cols,eig_vals.type());
+    //Mat idxs;
+    //sortIdx(eig_vals, idxs, CV_SORT_EVERY_ROW + CV_SORT_DESCENDING);
+    _PCA.eigvec = eig_vecs(Rect(0,0,eig_vecs.cols,PCA_dim));
     
 }
 
-void EmbAttSpotter::compute_GMM(const Mat& bins, int numSpatialX, int numSpatialY, int numGMMClusters)
+void EmbAttSpotter::compute_GMM(const vector<Mat>& bins, int numSpatialX, int numSpatialY, int numGMMClusters)
 {
     assert(_GMM.means==NULL);
     _GMM.means = new float[numGMMClusters*DESC_DIM*numSpatialX*numSpatialY];
@@ -1217,72 +1441,68 @@ void EmbAttSpotter::compute_GMM(const Mat& bins, int numSpatialX, int numSpatial
     _GMM.priors = new float[numGMMClusters*numSpatialX*numSpatialY];
     for (int i=0; i<numSpatialX*numSpatialY; i++)
     {
-        int xBin = i%numSpatialX;
-        int yBin = i/numSpatialX;
-        Mat d = bins[xBin+yBin*numSpatialX](Rect(0,0,bins[xBin+yBin*numSpatialX].rows,SIFT_DIM));
-        Mat xy = bins[xBin+yBin*numSpatialX](Rect(0,SIFdim,bins[xBin+yBin*numSpatialX].rows,2));
-        Mat d = d.minus(PCA_().mean);
-        d = (PCA_().eigvec.t()*d.t()).t();
+        //int xBin = i%numSpatialX;
+        //int yBin = i/numSpatialX;
+        Mat d = bins[i](Rect(0,0,SIFT_DIM,bins[i].rows));
+        Mat xy = bins[i](Rect(SIFT_DIM,0,2,bins[i].rows));
+        for (int r = 0; r < d.rows; ++r)
+            d.row(r) = d.row(r) - PCA_().mean;
+        //subtract(d,PCA_().mean,d);
+        d = (PCA_().eigvec*d.t()).t();
         hconcat(d,xy,d);
         assert(d.type() == CV_32F);
-        VlGMM* gmm = vl_gmm_new (VL_TYPE_FLOAT, DESC_DIM, numGMMClusters) ;
+        assert(d.cols==AUG_PCA_DIM);
+        assert(d.isContinuous());
+        for (int r=0; r<d.rows; r++)
+            for (int c=0; c<d.cols; c++)
+                assert(d.at<float>(r,c)==d.at<float>(r,c));
+        VlGMM* gmm = vl_gmm_new (VL_TYPE_FLOAT, AUG_PCA_DIM, numGMMClusters) ;
         vl_gmm_set_max_num_iterations (gmm, 30);
         vl_gmm_set_initialization (gmm,VlGMMRand);
-        vl_gmm_cluster (gmm, d, d.rows);
+        vl_gmm_cluster (gmm, d.data, d.rows);
         
-        float* means = vl_gmm_get_means(gmm)
-        copy(means,means+numGMMClusters*DESC_DIM,_GMM.means+numGMMClusters*i);
+        float* means = (float*) vl_gmm_get_means(gmm);
+        copy(means,means+numGMMClusters*AUG_PCA_DIM,_GMM.means+numGMMClusters*i);
         
-        float* covariances = vl_gmm_get_covariances(gmm);
-        copy(covariances,covariances+numGMMClusters*DESC_DIM,_GMM.covariances+numGMMClusters*i);
+        float* covariances = (float*) vl_gmm_get_covariances(gmm);
+        /*for (int ttt=0; ttt<numGMMClusters*AUG_PCA_DIM; ttt++)
+        {
+            assert(covariances[ttt]==covariances[ttt]);
+        }*/
+        copy(covariances,covariances+numGMMClusters*AUG_PCA_DIM,_GMM.covariances+numGMMClusters*i);
 
-        float* priors = vl_gmm_get_priors(gmm);
+        float* priors = (float*) vl_gmm_get_priors(gmm);
         copy(priors,priors+numGMMClusters,_GMM.priors+numGMMClusters*i);
     }
+    
+    /*for (int ttt=0; ttt<numGMMClusters*AUG_PCA_DIM*numSpatialX*numSpatialY; ttt++)
+    {
+        assert(_GMM.means[ttt]==_GMM.means[ttt]);
+        assert(_GMM.covariances[ttt]==_GMM.covariances[ttt]);
+    }
+    for (int ttt=0; ttt<numGMMClusters*numSpatialX*numSpatialY; ttt++)
+    {
+        assert(_GMM.priors[ttt]==_GMM.priors[ttt]);
+    }*/
 }
 
 
 
 
-Mat* EmbAttSpotter::embed_labels_PHOC(vector<string> labels)
+Mat* EmbAttSpotter::embed_labels_PHOC(const vector<string>& labels)
 {
-    /* Prepare dict */
-    map<char,int> vocUni2pos;
-    for (int i=0; i<unigrams.size(); i++)
-    {
-        vocUni2pos[unigrams[i]] = i;
-    }
-    map<std::string,int> vocBi2pos;
-    for (int i=0; i<bigrams.size(); i++)
-    {
-        vocBi2pos[bigrams[i]] = i;
-    }
     
-    
-    int totalLevels = 0;
-    for (int level : phoc_levels)
-    {
-        totalLevels+=level;
-    }
-    
-    int phocSize = totalLevels*unigrams.size();
-    
-    int phocSize_bi=0;
-    for (int level : phoc_levels_bi)
-    {
-        phocSize_bi+=level*bigrams.size();
-    }
     
     /* Prepare output */
     //float *phocs = new float[phocSize*corpusSize+phocSize_bi*corpusSize];
-    Mat* phocs = new Mat(phocSize+phocSize_bi,,labels.size()CV_32F);
+    Mat* phocs = new Mat(Mat::zeros(phocSize+phocSize_bi,labels.size(),CV_32F));
     /* Compute */
     for (int i=0; i < labels.size();i++)
     {
         computePhoc(labels[i], vocUni2pos, map<string,int>(),unigrams.size(), phoc_levels, phocSize, phocs,i);
     }
     
-    for (int i=0; i < corpusSize;i++)
+    for (int i=0; i < labels.size();i++)
     {
         computePhoc(labels[i], map<char,int>(), vocBi2pos,bigrams.size(), phoc_levels_bi, phocSize_bi, phocs,i);
     }
@@ -1302,6 +1522,7 @@ void EmbAttSpotter::computePhoc(string str, map<char,int> vocUni2pos, map<string
     
     /* For each block */
     //float *p = out;
+    int p=0;
     for (int level : levels)
     {
         /* For each split in that level */
@@ -1320,7 +1541,7 @@ void EmbAttSpotter::computePhoc(string str, map<char,int> vocUni2pos, map<string
                         /* Character not included in dictionary. Skipping.*/
                         continue;
                     }
-                    int posOff = vocUni2pos[str[c]];
+                    int posOff = vocUni2pos[str[c]]+p;
                     float startc = c/(float)strl;
                     float endc = (c+1)/(float)strl;
                     
@@ -1351,7 +1572,7 @@ void EmbAttSpotter::computePhoc(string str, map<char,int> vocUni2pos, map<string
                         /* Character not included in dictionary. Skipping.*/
                         continue;
                     }
-                    int posOff = vocBi2pos[sstr];
+                    int posOff = vocBi2pos[sstr]+p;
                     float startc = c/(float)strl;
                     float endc = (c+2)/(float)strl;
                     
@@ -1367,17 +1588,22 @@ void EmbAttSpotter::computePhoc(string str, map<char,int> vocUni2pos, map<string
                     }
                 }
             }
-            //p+=Nvoc;
+            p+=Nvoc;
         }
     }
     return;
 }
 
-const Mat* EmbAttSpotter::phocsTr()//correct orientation
+const Mat& EmbAttSpotter::phocsTr()//correct orientation
 {
     if (_phocsTr==NULL)
     {
-        _phocsTr = embed_labels_PHOC(training_labels);
+        if (training_labels!=NULL)
+            _phocsTr = embed_labels_PHOC(*training_labels);
+        else if (training_dataset!=NULL)
+            _phocsTr = embed_labels_PHOC(training_dataset->labels());
+        else
+            assert(false && "No training data specified");
     }
     return *_phocsTr;
 }
@@ -1399,3 +1625,130 @@ const Mat* EmbAttSpotter::phocsTr()//correct orientation
     }
     return *_phocs_training;
 }*/
+
+Mat EmbAttSpotter::sinMat(const Mat& x)
+{
+    //x-(x^3/3!)+(x^5/5!)-(x^7/7!) +.... 
+    /*Mat p3;
+    pow(x,3,p3);
+    Mat p5;
+    pow(x,5,p5);
+    Mat p7;
+    pow(x,7,p7);
+    Mat p9;
+    pow(x,9,p9);
+    Mat p11;
+    pow(x,11,p11);
+    Mat p13;
+    pow(x,13,p13);
+    Mat p15;
+    pow(x,15,p15);
+    Mat p17;
+    pow(x,17,p17);
+    
+    return x-(p3/(2*3))+(p5/(2*3*4*5))-(p7/(2*3*4*5*6*7))-(p9/(2*3*4*5*6*7*8*9))-(p11/(2*3*4*5*6*7*8*9*10*11))-(p13/(2*3*4*5*6*7*8*9*10*11*12*13))-(p15/(2*3*4*5*6*7*8*9*10*11*12*13*14*15))-(p17/(2*3*4*5*6*7*8*9*10*11*12*13*14*15*16*17));*/
+    assert(x.type()==CV_32F);
+    Mat ret(x.rows,x.cols,CV_32F);
+    for (int r=0; r<x.rows; r++)
+        for (int c=0; c<x.cols; c++)
+            ret.at<float>(r,c) = sin(x.at<float>(r,c));
+    return ret;
+}
+
+Mat EmbAttSpotter::cosMat(const Mat& x)
+{
+    //return sinMat((-1*x)+(CV_PI/2));
+    assert(x.type()==CV_32F);
+    Mat ret(x.rows,x.cols,CV_32F);
+    for (int r=0; r<x.rows; r++)
+        for (int c=0; c<x.cols; c++)
+            ret.at<float>(r,c) = cos(x.at<float>(r,c));
+    return ret;
+}
+
+Mat& EmbAttSpotter::normalizeL2Columns(Mat& m)
+{
+    assert(m.type()==CV_32F);
+    Mat tmp;
+    multiply(m,m,tmp);
+    reduce(tmp,tmp,0,CV_REDUCE_SUM);
+    sqrt(tmp,tmp);
+    for (int c=0; c<m.cols; c++)
+    {
+        m.col(c) /=tmp.at<float>(0,c);
+    }
+    
+    return m;
+}
+
+Mat EmbAttSpotter::otsuBinarization(const Mat& src)
+{
+    //make histogram
+    vector<int> histogram(256);
+    for (int x=0; x<src.cols; x++)
+    {
+        for (int y=0; y<src.rows; y++)
+        {
+            int bin = src.at<unsigned char>(y,x);
+            histogram[bin]++;
+        }
+    }
+    
+    //otsu
+    int total = src.rows*src.cols;
+    double sum =0;
+    for (int i = 1; i < 256; ++i)
+            sum += i * histogram[i];
+    double sumB = 0;
+    double wB = 0;
+    double wF = 0;
+    double mB;
+    double mF;
+    double max = 0.0;
+    double between = 0.0;
+    double threshold1 = 0.0;
+    double threshold2 = 0.0;
+    for (int i = 0; i < 256; ++i)
+    {
+        wB += histogram[i];
+        if (wB == 0)
+            continue;
+        wF = total - wB;
+        if (wF == 0)
+            break;
+        sumB += i * histogram[i];
+        mB = sumB / (wB*1.0);
+        mF = (sum - sumB) / (wF*1.0);
+        between = wB * wF * pow(mB - mF, 2);
+        if ( between >= max )
+        {
+            threshold1 = i;
+            if ( between > max )
+            {
+                threshold2 = i;
+            }
+            max = between; 
+//            printf("1:%f\t 2:%f\tmax:%f\twB:%d\twF:%d\tmB:%f\tmf:%f\n",threshold1,threshold2,max,wB,wF,mB,mF);
+        }
+    }
+//    printf("1:%f\t 2:%f\tmax:%f\n",threshold1,threshold2,max);
+    
+    double thresh = ( threshold1 + threshold2 ) / 2.0;
+    //cout <<"thresh: "<<thresh<<" th1: "<<threshold1<<" th2: "<<threshold2<<" max: "<<max<<endl;
+    
+    //thresh
+    Mat ret(src.rows,src.cols,CV_8U);
+    for (int x=0; x<ret.cols; x++)
+    {
+        for (int y=0; y<ret.rows; y++)
+        {
+            if (src.at<unsigned char>(y,x) <= thresh)
+                ret.at<unsigned char>(y,x)=1;
+            else
+                ret.at<unsigned char>(y,x)=0;
+        }
+    }
+    return ret;
+}
+
+//}}}//?

@@ -66,6 +66,7 @@ for i=1:size(queriesClasses,2)
     end
     NRelevantsPerQuery(i)=count;
 end
+%NRelevantsPerQuery
 
 
 if doqbs

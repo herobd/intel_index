@@ -124,7 +124,7 @@ void mexFunction (int nlhs, mxArray *plhs[],
     float *pMap = (float*)mxGetData(plhs[1]);
     int *bestIdx = (int*)mxGetData(plhs[2]);
     
-    
+    // mexPrintf("\tFinished preparing output\n");
     
     /* one query per row, scores in each column */
     /* for each query */
@@ -134,7 +134,7 @@ void mexFunction (int nlhs, mxArray *plhs[],
     double sumPrecAtRecall=0;
     for (int i=0; i < Nqueries; i++)
     {
-    	//mexPrintf("on query %d\n",i);
+    	//mexPrintf("\tOn query %d.   NRelevantsPerQuery[i]=%d\n",i,NRelevantsPerQuery[i]);
         pMap[i]=0;
         pP1[i]=0;
         /* Create a private list of relevants. */
@@ -147,21 +147,38 @@ void mexFunction (int nlhs, mxArray *plhs[],
         float bestS=-99999;
         int p1=0;
         
-        //if (i==9) mexPrintf("start loop\n");
+        //mexPrintf("\t\tstart loop\n");
         
         for (int j=0; j < Ndataset; j++)
         {            
         	
-        	//if (i==9) mexPrintf(" in loop %d\n",j);
+        	//mexPrintf("\t\t\tin loop %d\n",j);
         	
             float s = S[i*Ndataset + j];
+            //mexPrintf("\t\t\taccessed score\n");
+            bool testtt=contains(&datasetCls[j],qclass);
+            //mexPrintf("\t\t\tcontrains test\n");
+            int testttt=queriesIdx[i];
+            //mexPrintf("\t\t\tqueries test\n");
+            int testtttt=bestIdx[i];
+            //mexPrintf("\t\t\tbest test\n");
+            bestIdx[i]=testtttt;
+            //mexPrintf("\t\t\tbest test2\n");
+            
+            bool testcomp= s > bestS;
+            //mexPrintf("\t\t\tcomp test\n");
+            
             /* Precision at 1 part */
-            if (queriesIdx[i]!=j && s > bestS)
+            if (testttt!=j && testcomp)
             {
+                //mexPrintf("\t\t\t1\n");
                 bestS = s;
+                //mexPrintf("\t\t\t2\n");
                 p1 = contains(&datasetCls[j],qclass);
+                //mexPrintf("\t\t\t3\n");
                 bestIdx[i] = j+1; /* Matlab style */
             }
+            //mexPrintf("\t\t\tp1 passed\n");
             /* If it is from the same class and it is not the query idx, it is a relevant one. */
             /* Compute how many on the dataset get a better score and how many get an equal one, excluding itself and the query.*/
             if (contains(&datasetCls[j],qclass) && queriesIdx[i]!=j)
@@ -169,7 +186,7 @@ void mexFunction (int nlhs, mxArray *plhs[],
                 int better=0;
                 int equal = 0;
                 
-                //if (i==9) mexPrintf(" other loop start\n",j);
+                //mexPrintf("\t\t\tother loop start\n",j);
                 for (int k=0; k < Ndataset; k++)
                 {
                     if (k!=j && queriesIdx[i]!=k)
@@ -179,7 +196,7 @@ void mexFunction (int nlhs, mxArray *plhs[],
                         else if (s2==s) equal++;
                     }
                 }
-                //if (i==9) mexPrintf(" other loop done\n",j);
+                //mexPrintf("\t\t\tother loop done\n",j);
                 
                 rank[Nrelevants]=better+floor(equal/2.0);
                 rank_with_scores[Nrelevants].rank=better+floor(equal/2.0);
@@ -206,6 +223,7 @@ void mexFunction (int nlhs, mxArray *plhs[],
             
             
         }
+         //mexPrintf("\t\tFinished processing\n");
         
         /* Sort the ranked positions) */
         qsort(rank, Nrelevants, sizeof(int), sort);
@@ -220,6 +238,7 @@ void mexFunction (int nlhs, mxArray *plhs[],
         double precAtRecall;
         double distFromRecall=5;
         
+         //mexPrintf("\t\tCalculating mAP\n");
         /* Get mAP and store it */
         for(int j=0;j<Nrelevants;j++){
             /* if rank[i] >=k it was not on the topk. Since they are sorted, that means bail out already */
@@ -260,9 +279,9 @@ void mexFunction (int nlhs, mxArray *plhs[],
         free(rank_with_scores);
     }
     
-    mexPrintf("before free\n");
+    //mexPrintf("before free\n");
     free(datasetCls);
-    mexPrintf("computin' done!\n");
+    //mexPrintf("computin' done!\n");
     if (sumThresh<0)
         mexPrintf("error, sumThresh<0\n");
     double thresh = sumThresh/Nqueries;

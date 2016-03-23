@@ -27,8 +27,8 @@ if  ~exist(opts.fileFeatures_slidingwindow_meta,'file')
     extract_FV_features_fast_slidingwindow(opts);
 end
 
-if  ~exist(opts.fileFeatures_subword,'file')
-    extract_FV_features_fast_subword(opts);
-end
+%if  ~exist(opts.fileFeatures_subword,'file')
+%    extract_FV_features_fast_subword(opts);
+%end
 
 end

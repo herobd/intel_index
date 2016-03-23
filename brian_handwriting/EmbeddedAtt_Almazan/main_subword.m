@@ -10,13 +10,15 @@
 % vl_setup('verbose');
 
 %% Prepare options and read dataset
-opts = prepare_opts_subword('GW','bigrams');
+opts = prepare_opts_subword('GW','unigrams_26');
 data = load_dataset(opts);
 data = load_subword(opts,data);
 disp('[main] loaded');
 %% Prepare images
 prepare_images(opts,data);
-prepare_images_subword(opts,data);
+if opts.TestHybrid
+    prepare_images_subword(opts,data);
+end
 disp('[main] prepared');
 %% Embed text labels with PHOC
 data.phocs = embed_labels_PHOC(opts,data);
