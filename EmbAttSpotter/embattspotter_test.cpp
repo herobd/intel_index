@@ -1,7 +1,13 @@
 #include "embattspotter.h"
-///extern "C" {
-///#include "matio.h"
-///}
+//extern "C" {
+//#include "matio.h"
+//}
+extern "C" 
+{
+#include <mat.h>
+#include <matrix.h>
+}
+//#include <unistr.h>
 #include "gwdataset.h"
 
 void EmbAttSpotter::test()
@@ -24,7 +30,12 @@ void EmbAttSpotter::test()
     vector<int> tempbatches_indexEnd=batches_indexEnd;
     string tempsaveName=saveName;
     saveName="test/tmp_saveTest";
-    Mat* temp_phocsTr = _phocsTr;
+    Mat temp_phocsTr = _phocsTr;
+    PCA_struct tmp_PCA;
+    tmp_PCA.mean = _PCA.mean;
+    _PCA.mean=Mat();
+    tmp_PCA.eigvec = _PCA.eigvec;
+    _PCA.eigvec=Mat();
     
     
     // delete files
@@ -38,7 +49,7 @@ void EmbAttSpotter::test()
     num_samples_PCA = 5000;
     
     //TODO, tests go here  
-    sinMat_cosMat_test(); 
+    /*sinMat_cosMat_test(); 
     normalizeL2Columns_test();
     otsuBinarization_test();
     embed_labels_PHOC_test();
@@ -51,7 +62,7 @@ void EmbAttSpotter::test()
     feats_training_test();
     phow_test();
     getImageDescriptorFV_test();
-    batches_cca_att_test();
+    batches_cca_att_test();*/
     
     //Compare to mat files
     training_imgfiles=NULL;
@@ -59,6 +70,7 @@ void EmbAttSpotter::test()
     training_dataset = new GWDataset("/home/brian/intel_index/brian_handwriting/EmbeddedAtt_Almazan/datasets/GW/queries/queries.gtp","/home/brian/intel_index/brian_handwriting/EmbeddedAtt_Almazan/datasets/GW/images/");
     
     phocsTr_test();
+    get_GMM_PCA_test()
     
     delete _features_corpus;
     _features_corpus=temp_features_corpus;
@@ -76,8 +88,10 @@ void EmbAttSpotter::test()
     genericBatchSize=tempgenericBatchSize;
     numWordsTrain=tempnumWordsTrain;
     num_samples_PCA=tempnum_samples_PCA;
-    delete _phocsTr;
+    //delete _phocsTr;
     _phocsTr = temp_phocsTr;
+    _PCA.eigvec = tmp_PCA.eigvec;
+    _PCA.mean = tmp_PCA.mean;
 }
 
 
@@ -240,177 +254,172 @@ void EmbAttSpotter::normalizeL2Columns_test()
 void EmbAttSpotter::embed_labels_PHOC_test()
 {
     vector<string> t = {"aaaa","bbbb","aabb","abab","abcdefgh"};
-    Mat* res = embed_labels_PHOC(t);
+    Mat res = embed_labels_PHOC(t);
     
-    assert(res->cols==t.size());
+    assert(res.cols==t.size());
     int sizeShould=0;
     for (int c : phoc_levels)
         sizeShould+=c*unigrams.size();
     for (int c : phoc_levels_bi)
         sizeShould+=c*bigrams.size();
-    assert(res->rows==sizeShould);
+    assert(res.rows==sizeShould);
     
     //aaaa
-    assert(res->at<float>(0*unigrams.size()+0,0)==1);
-    assert(res->at<float>(1*unigrams.size()+0,0)==1);
+    assert(res.at<float>(0*unigrams.size()+0,0)==1);
+    assert(res.at<float>(1*unigrams.size()+0,0)==1);
     for (int i=1; i<unigrams.size(); i++)
     {
-        assert(res->at<float>(0*unigrams.size()+i,0)==0);
-        assert(res->at<float>(1*unigrams.size()+i,0)==0);
+        assert(res.at<float>(0*unigrams.size()+i,0)==0);
+        assert(res.at<float>(1*unigrams.size()+i,0)==0);
     } 
-    assert(res->at<float>(2*unigrams.size()+0,0)==1);
-    assert(abs(res->at<float>(3*unigrams.size()+0,0)-.66666666)<.00001);
-    assert(res->at<float>(4*unigrams.size()+0,0)==1);
+    assert(res.at<float>(2*unigrams.size()+0,0)==1);
+    assert(abs(res.at<float>(3*unigrams.size()+0,0)-.66666666)<.00001);
+    assert(res.at<float>(4*unigrams.size()+0,0)==1);
     for (int i=1; i<unigrams.size(); i++)
     {
-        assert(res->at<float>(2*unigrams.size()+i,0)==0);
-        assert(res->at<float>(3*unigrams.size()+i,0)==0);
-        assert(res->at<float>(4*unigrams.size()+i,0)==0);
+        assert(res.at<float>(2*unigrams.size()+i,0)==0);
+        assert(res.at<float>(3*unigrams.size()+i,0)==0);
+        assert(res.at<float>(4*unigrams.size()+i,0)==0);
     }  
-    assert(res->at<float>(5*unigrams.size()+0,0)==1);
-    assert(res->at<float>(6*unigrams.size()+0,0)==1);
-    assert(res->at<float>(7*unigrams.size()+0,0)==1);
-    assert(res->at<float>(8*unigrams.size()+0,0)==1);
+    assert(res.at<float>(5*unigrams.size()+0,0)==1);
+    assert(res.at<float>(6*unigrams.size()+0,0)==1);
+    assert(res.at<float>(7*unigrams.size()+0,0)==1);
+    assert(res.at<float>(8*unigrams.size()+0,0)==1);
     for (int i=1; i<unigrams.size(); i++)
     {
-        assert(res->at<float>(5*unigrams.size()+i,0)==0);
-        assert(res->at<float>(6*unigrams.size()+i,0)==0);
-        assert(res->at<float>(7*unigrams.size()+i,0)==0);
-        assert(res->at<float>(8*unigrams.size()+i,0)==0);
+        assert(res.at<float>(5*unigrams.size()+i,0)==0);
+        assert(res.at<float>(6*unigrams.size()+i,0)==0);
+        assert(res.at<float>(7*unigrams.size()+i,0)==0);
+        assert(res.at<float>(8*unigrams.size()+i,0)==0);
     }
     
     //bbbb
-    assert(res->at<float>(0*unigrams.size()+1,1)==1);
-    assert(res->at<float>(1*unigrams.size()+1,1)==1);
+    assert(res.at<float>(0*unigrams.size()+1,1)==1);
+    assert(res.at<float>(1*unigrams.size()+1,1)==1);
     for (int i=0; i<unigrams.size(); i++)
     {
-        assert(i==1 || res->at<float>(0*unigrams.size()+i,1)==0);
-        assert(i==1 || res->at<float>(1*unigrams.size()+i,1)==0);
+        assert(i==1 || res.at<float>(0*unigrams.size()+i,1)==0);
+        assert(i==1 || res.at<float>(1*unigrams.size()+i,1)==0);
     } 
-    assert(res->at<float>(2*unigrams.size()+1,1)==1);
-    assert(abs(res->at<float>(3*unigrams.size()+1,1)-.66666666)<.00001);
-    assert(res->at<float>(4*unigrams.size()+1,1)==1);
+    assert(res.at<float>(2*unigrams.size()+1,1)==1);
+    assert(abs(res.at<float>(3*unigrams.size()+1,1)-.66666666)<.00001);
+    assert(res.at<float>(4*unigrams.size()+1,1)==1);
     for (int i=0; i<unigrams.size(); i++)
     {
-        assert(i==1 || res->at<float>(2*unigrams.size()+i,1)==0);
-        assert(i==1 || res->at<float>(3*unigrams.size()+i,1)==0);
-        assert(i==1 || res->at<float>(4*unigrams.size()+i,1)==0);
+        assert(i==1 || res.at<float>(2*unigrams.size()+i,1)==0);
+        assert(i==1 || res.at<float>(3*unigrams.size()+i,1)==0);
+        assert(i==1 || res.at<float>(4*unigrams.size()+i,1)==0);
     }  
-    assert(res->at<float>(5*unigrams.size()+1,1)==1);
-    assert(res->at<float>(6*unigrams.size()+1,1)==1);
-    assert(res->at<float>(7*unigrams.size()+1,1)==1);
-    assert(res->at<float>(8*unigrams.size()+1,1)==1);
+    assert(res.at<float>(5*unigrams.size()+1,1)==1);
+    assert(res.at<float>(6*unigrams.size()+1,1)==1);
+    assert(res.at<float>(7*unigrams.size()+1,1)==1);
+    assert(res.at<float>(8*unigrams.size()+1,1)==1);
     for (int i=0; i<unigrams.size(); i++)
     {
-        assert(i==1 || res->at<float>(5*unigrams.size()+i,1)==0);
-        assert(i==1 || res->at<float>(6*unigrams.size()+i,1)==0);
-        assert(i==1 || res->at<float>(7*unigrams.size()+i,1)==0);
-        assert(i==1 || res->at<float>(8*unigrams.size()+i,1)==0);
+        assert(i==1 || res.at<float>(5*unigrams.size()+i,1)==0);
+        assert(i==1 || res.at<float>(6*unigrams.size()+i,1)==0);
+        assert(i==1 || res.at<float>(7*unigrams.size()+i,1)==0);
+        assert(i==1 || res.at<float>(8*unigrams.size()+i,1)==0);
     } 
     
     //aabb
-    assert(res->at<float>(0*unigrams.size()+0,2)==1);
-    assert(res->at<float>(1*unigrams.size()+1,2)==1);
+    assert(res.at<float>(0*unigrams.size()+0,2)==1);
+    assert(res.at<float>(1*unigrams.size()+1,2)==1);
     for (int i=0; i<unigrams.size(); i++)
     {
-        assert(i==0 || res->at<float>(0*unigrams.size()+i,2)==0);
-        assert(i==1 || res->at<float>(1*unigrams.size()+i,2)==0);
+        assert(i==0 || res.at<float>(0*unigrams.size()+i,2)==0);
+        assert(i==1 || res.at<float>(1*unigrams.size()+i,2)==0);
     } 
-    assert(res->at<float>(2*unigrams.size()+0,2)==1);
-    assert(abs(res->at<float>(3*unigrams.size()+0,2)-.66666666)<.00001);
-    assert(abs(res->at<float>(3*unigrams.size()+1,2)-.66666666)<.00001);
-    assert(res->at<float>(4*unigrams.size()+1,2)==1);
+    assert(res.at<float>(2*unigrams.size()+0,2)==1);
+    assert(abs(res.at<float>(3*unigrams.size()+0,2)-.66666666)<.00001);
+    assert(abs(res.at<float>(3*unigrams.size()+1,2)-.66666666)<.00001);
+    assert(res.at<float>(4*unigrams.size()+1,2)==1);
     for (int i=0; i<unigrams.size(); i++)
     {
-        assert(i==0 || res->at<float>(2*unigrams.size()+i,2)==0);
-        assert(i==1 || i==0 || res->at<float>(3*unigrams.size()+i,2)==0);
-        assert(i==1 || res->at<float>(4*unigrams.size()+i,2)==0);
+        assert(i==0 || res.at<float>(2*unigrams.size()+i,2)==0);
+        assert(i==1 || i==0 || res.at<float>(3*unigrams.size()+i,2)==0);
+        assert(i==1 || res.at<float>(4*unigrams.size()+i,2)==0);
     }  
-    assert(res->at<float>(5*unigrams.size()+0,2)==1);
-    assert(res->at<float>(6*unigrams.size()+0,2)==1);
-    assert(res->at<float>(7*unigrams.size()+1,2)==1);
-    assert(res->at<float>(8*unigrams.size()+1,2)==1);
+    assert(res.at<float>(5*unigrams.size()+0,2)==1);
+    assert(res.at<float>(6*unigrams.size()+0,2)==1);
+    assert(res.at<float>(7*unigrams.size()+1,2)==1);
+    assert(res.at<float>(8*unigrams.size()+1,2)==1);
     for (int i=0; i<unigrams.size(); i++)
     {
-        assert(i==0 || res->at<float>(5*unigrams.size()+i,2)==0);
-        assert(i==0 || res->at<float>(6*unigrams.size()+i,2)==0);
-        assert(i==1 || res->at<float>(7*unigrams.size()+i,2)==0);
-        assert(i==1 || res->at<float>(8*unigrams.size()+i,2)==0);
+        assert(i==0 || res.at<float>(5*unigrams.size()+i,2)==0);
+        assert(i==0 || res.at<float>(6*unigrams.size()+i,2)==0);
+        assert(i==1 || res.at<float>(7*unigrams.size()+i,2)==0);
+        assert(i==1 || res.at<float>(8*unigrams.size()+i,2)==0);
     }  
     
     //abab
-    assert(res->at<float>(0*unigrams.size()+0,3)==1);
-    assert(res->at<float>(0*unigrams.size()+1,3)==1);
-    assert(res->at<float>(1*unigrams.size()+0,3)==1);
-    assert(res->at<float>(1*unigrams.size()+1,3)==1);
+    assert(res.at<float>(0*unigrams.size()+0,3)==1);
+    assert(res.at<float>(0*unigrams.size()+1,3)==1);
+    assert(res.at<float>(1*unigrams.size()+0,3)==1);
+    assert(res.at<float>(1*unigrams.size()+1,3)==1);
     for (int i=0; i<unigrams.size(); i++)
     {
-        assert(i==0||i==1 || res->at<float>(0*unigrams.size()+i,3)==0);
-        assert(i==0||i==1 || res->at<float>(1*unigrams.size()+i,3)==0);
+        assert(i==0||i==1 || res.at<float>(0*unigrams.size()+i,3)==0);
+        assert(i==0||i==1 || res.at<float>(1*unigrams.size()+i,3)==0);
     } 
-    assert(res->at<float>(2*unigrams.size()+0,3)==1);
-    assert(abs(res->at<float>(3*unigrams.size()+0,3)-.66666666)<.00001);
-    assert(abs(res->at<float>(3*unigrams.size()+1,3)-.66666666)<.00001);
-    assert(res->at<float>(4*unigrams.size()+1,3)==1);
+    assert(res.at<float>(2*unigrams.size()+0,3)==1);
+    assert(abs(res.at<float>(3*unigrams.size()+0,3)-.66666666)<.00001);
+    assert(abs(res.at<float>(3*unigrams.size()+1,3)-.66666666)<.00001);
+    assert(res.at<float>(4*unigrams.size()+1,3)==1);
     for (int i=0; i<unigrams.size(); i++)
     {
-        assert(i==0 || i==1 || res->at<float>(2*unigrams.size()+i,3)==0);
-        assert(i==1 || i==0 || res->at<float>(3*unigrams.size()+i,3)==0);
-        assert(i==1 || i==0 || res->at<float>(4*unigrams.size()+i,3)==0);
+        assert(i==0 || i==1 || res.at<float>(2*unigrams.size()+i,3)==0);
+        assert(i==1 || i==0 || res.at<float>(3*unigrams.size()+i,3)==0);
+        assert(i==1 || i==0 || res.at<float>(4*unigrams.size()+i,3)==0);
     }  
-    assert(res->at<float>(5*unigrams.size()+0,3)==1);
-    assert(res->at<float>(6*unigrams.size()+1,3)==1);
-    assert(res->at<float>(7*unigrams.size()+0,3)==1);
-    assert(res->at<float>(8*unigrams.size()+1,3)==1);
+    assert(res.at<float>(5*unigrams.size()+0,3)==1);
+    assert(res.at<float>(6*unigrams.size()+1,3)==1);
+    assert(res.at<float>(7*unigrams.size()+0,3)==1);
+    assert(res.at<float>(8*unigrams.size()+1,3)==1);
     for (int i=0; i<unigrams.size(); i++)
     {
-        assert(i==0 || res->at<float>(5*unigrams.size()+i,3)==0);
-        assert(i==1 || res->at<float>(6*unigrams.size()+i,3)==0);
-        assert(i==0 || res->at<float>(7*unigrams.size()+i,3)==0);
-        assert(i==1 || res->at<float>(8*unigrams.size()+i,3)==0);
+        assert(i==0 || res.at<float>(5*unigrams.size()+i,3)==0);
+        assert(i==1 || res.at<float>(6*unigrams.size()+i,3)==0);
+        assert(i==0 || res.at<float>(7*unigrams.size()+i,3)==0);
+        assert(i==1 || res.at<float>(8*unigrams.size()+i,3)==0);
     }  
     
     //abcdefgh
     for (int i=0; i<4; i++)
     {
-        assert(res->at<float>(0*unigrams.size()+i,4)==1);
-        assert(res->at<float>(1*unigrams.size()+i,4)==0);
+        assert(res.at<float>(0*unigrams.size()+i,4)==1);
+        assert(res.at<float>(1*unigrams.size()+i,4)==0);
     } 
     for (int i=4; i<8; i++)
     {
-        assert(res->at<float>(0*unigrams.size()+i,4)==0);
-        assert(res->at<float>(1*unigrams.size()+i,4)==1);
+        assert(res.at<float>(0*unigrams.size()+i,4)==0);
+        assert(res.at<float>(1*unigrams.size()+i,4)==1);
     } 
     for (int i=8; i<unigrams.size(); i++)
     {
-        assert(res->at<float>(0*unigrams.size()+i,4)==0);
-        assert(res->at<float>(1*unigrams.size()+i,4)==0);
+        assert(res.at<float>(0*unigrams.size()+i,4)==0);
+        assert(res.at<float>(1*unigrams.size()+i,4)==0);
     } 
     
      
-    assert(res->at<float>(5*unigrams.size()+0,4)==1);
-    assert(res->at<float>(5*unigrams.size()+1,4)==1);
-    assert(res->at<float>(6*unigrams.size()+2,4)==1);
-    assert(res->at<float>(6*unigrams.size()+3,4)==1);
-    assert(res->at<float>(7*unigrams.size()+4,4)==1);
-    assert(res->at<float>(7*unigrams.size()+5,4)==1);
-    assert(res->at<float>(8*unigrams.size()+6,4)==1);
-    assert(res->at<float>(8*unigrams.size()+7,4)==1);
+    assert(res.at<float>(5*unigrams.size()+0,4)==1);
+    assert(res.at<float>(5*unigrams.size()+1,4)==1);
+    assert(res.at<float>(6*unigrams.size()+2,4)==1);
+    assert(res.at<float>(6*unigrams.size()+3,4)==1);
+    assert(res.at<float>(7*unigrams.size()+4,4)==1);
+    assert(res.at<float>(7*unigrams.size()+5,4)==1);
+    assert(res.at<float>(8*unigrams.size()+6,4)==1);
+    assert(res.at<float>(8*unigrams.size()+7,4)==1);
     
     for (int i=0; i<unigrams.size(); i++)
     {
-        assert(i==0||i==1 || res->at<float>(5*unigrams.size()+i,4)==0);
-        assert(i==2||i==3 || res->at<float>(6*unigrams.size()+i,4)==0);
-        assert(i==4||i==5 || res->at<float>(7*unigrams.size()+i,4)==0);
-        assert(i==6||i==7 || res->at<float>(8*unigrams.size()+i,4)==0);
+        assert(i==0||i==1 || res.at<float>(5*unigrams.size()+i,4)==0);
+        assert(i==2||i==3 || res.at<float>(6*unigrams.size()+i,4)==0);
+        assert(i==4||i==5 || res.at<float>(7*unigrams.size()+i,4)==0);
+        assert(i==6||i==7 || res.at<float>(8*unigrams.size()+i,4)==0);
     }   
     
     
-    
-    
-    
-    
-    delete res;
 }
 
 void EmbAttSpotter::otsuBinarization_test()
@@ -463,29 +472,86 @@ void EmbAttSpotter::DoBB_test()
     assert(60<=y2 && y2<=70);
 }
 
-/*void EmbAttSpotter::phocsTr_test()
-{
-    mat_t    *matfp;
-    matvar_t *matvar;
-
-    matfp = Mat_Open("test/phocs.mat",MAT_ACC_RDONLY);
-    assert( NULL != matfp );
-
-    matvar = Mat_VarReadInfo(matfp,"phocs");
-    if ( NULL == matvar ) {
-        fprintf(stderr,"Variable 'phocs' not found, or error "
-                       "reading MAT file\n");
-    } else {
-        assert(matvar->data_type==MAT_T_SINGLE);
-        assert(matvar->rank==2);
-        assert(phocsTr().rows==matvar->dims[0] && phocsTr().cols==matvar->dims[1]);
-        for (int r=0; r<phocsTr().rows; r++)
-            for (int c=0; c<phocsTr().cols; c++)
-            {//I'm assuming column major ordering for the mat
-                assert(abs(phocsTr().at<float>(r,c)-((float*)matvar->data)[c+r*phocsTr().cols])<0.0001);
-            }
-        
-        Mat_VarFree(matvar);
+//From: http://stackoverflow.com/a/236803/1018830
+std::vector<std::string> &split(const std::string &s, char delim, std::vector<std::string> &elems) {
+    std::stringstream ss(s);
+    std::string item;
+    while (std::getline(ss, item, delim)) {
+        elems.push_back(item);
     }
-    Mat_Close(matfp);
-}*/
+    return elems;
+}
+
+void readCSV(string fileName, vector< vector<float> >& out)
+{
+    ifstream in(fileName);
+    string line;
+    while(std::getline(in,line))
+    {
+        vector<string> strV;
+        split(line,',',strV);
+        vector<float> row;
+        for (string s : strV)
+            row.push_back(stof(s));
+        
+        out.push_back(row);
+    }
+}
+
+void EmbAttSpotter::phocsTr_test()//dlmwrite('phocs.csv',phocs,'precision',5) 
+{
+    assert(phocSize_bi+phocSize==604);    
+
+    
+    vector<vector<float> > phocs;
+    readCSV("test/phocs.csv",phocs);
+    
+    assert(phocsTr().rows==phocs.size() && phocsTr().cols==phocs[0].size());
+    for (int r=0; r<phocsTr().rows; r++)
+        for (int c=0; c<phocsTr().cols; c++)
+        {
+            assert(abs(phocsTr().at<float>(r,c)-phocs[r][c])<0.0001);
+        }
+    
+}
+
+void EmbAttSpotter::get_GMM_PCA_test()
+{
+    vector<vector<float> > GMM_mean;
+    readCSV("GMM_mean_test.csv",GMM_mean);
+    vector<vector<float> > GMM_covariances;
+    readCSV("GMM_covariances_test.csv",GMM_covariances);
+    vector<vector<float> > GMM_priors;
+    readCSV("GMM_priors_test.csv",GMM_priors);
+    
+    for (int r=0; r<GMM_mean.size(); r++)
+        for (int c=0; c<GMM_mean[0].size(); c++)
+            assert(abs(GMM().mean[r*GMM_mean[0].size()+c]-GMM_mean[r][c])<0.0001);
+    for (int r=0; r<GMM_covariances.size(); r++)
+        for (int c=0; c<GMM_covariances[0].size(); c++)
+            assert(abs(GMM().covariances[r*GMM_covariances[0].size()+c]-GMM_covariances[r][c])<0.0001);
+    for (int r=0; r<GMM_priors.size(); r++)
+        for (int c=0; c<GMM_priors[0].size(); c++)
+            assert(abs(GMM().priors[r*GMM_priors[0].size()+c]-GMM_priors[r][c])<0.0001);
+    
+    vector<vector<float> > PCA_mean;
+    readCSV("PCA_mean_test.csv",PCA_mean);
+    vector<vector<float> > PCA_eigvec;
+    readCSV("PCA_eigvec_test.csv",PCA_eigvec);
+    for (int r=0; r<PCA_mean.size(); r++)
+        for (int c=0; c<PCA_mean[0].size(); c++)
+            assert(abs(PCA().mean[r*PCA_mean[0].size()+c]-PCA_mean[r][c])<0.0001);
+    for (int r=0; r<PCA_eigvec.size(); r++)
+        for (int c=0; c<PCA_eigvec[0].size(); c++)
+            assert(abs(PCA().eigvec[r*PCA_eigvec[0].size()+c]-PCA_eigvec[r][c])<0.0001);
+}
+
+void EmbAttSpotter::feats_training_test()
+{
+    vector<vector<float> > fileFeatures;
+    readCSV("fileFeatures_test.csv",fileFeatures);
+    assert(feats_training().rows==fileFeatures.size() && feats_training.cols==fileFeatures[0]size());
+    for (int r=0; r<fileFeatures.size(); r++)
+        for (int c=0; c<fileFeatures[0].size(); c++)
+            assert(abs(feats_training().at<float>(r,c)-fileFeatures[r][c])<0.0001);
+}
