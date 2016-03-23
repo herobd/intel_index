@@ -8,7 +8,7 @@
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/features2d/features2d.hpp"
-#include "opencv2/nonfree/nonfree.hpp"
+#include "opencv2/nonfree/features2d.hpp"
 #include <vector>
 #include <fstream>
 #include <iostream>
@@ -83,20 +83,20 @@ private:
     };
     Embedding* _embedding;
     
-    Mat* _attReprTr;
+    Mat _attReprTr;
     
     vector<Mat>* _batches_cca_att;
     
     vector<Mat>* _features_corpus;
-    vector<Mat>* _feats_training;
+    Mat _feats_training;
     
-    Mat* _phocsTr;
+    Mat _phocsTr;
     
     ////
     ////End lazy elements
     ////
     
-    Dataset* training_dataset;
+    
     
     string saveName;
     vector<int> SIFT_sizes;
@@ -113,12 +113,13 @@ private:
     vector<int> batches_indexEnd;
     int genericBatchSize;//This gets set to detirmine how many iamges go into a batch
     
-    //These are paths to the images.
+    Dataset* training_dataset;
+    //Or, these are paths to the images.
     vector<string>* corpus_imgfiles;
     vector<string>* training_imgfiles;//when training files are "loaded" this becomes poulated
     vector<string>* training_labels;//when training files are "loaded" this becomes poulated
     
-    int numWordsTrain;//GMM
+    int numWordsTrainGMM;
     int minH;//?
     int PCA_dim;
     int num_samples_PCA;
@@ -196,10 +197,10 @@ private:
 
 
     //creates the PHOC for each given string, stores in the columns of the returned Mat 
-    Mat* embed_labels_PHOC(const vector<string>& labels);
+    Mat embed_labels_PHOC(const vector<string>& labels);
     
     //This does EITHER unigrams or bigrams, but fills them into the right spot (you call it twice).
-    void computePhoc(string str, map<char,int> vocUni2pos, map<string,int> vocBi2pos, int Nvoc, vector<int> levels, int descSize, Mat *out, int instance);
+    void computePhoc(string str, map<char,int> vocUni2pos, map<string,int> vocBi2pos, int Nvoc, vector<int> levels, int descSize, Mat &out, int instance);
     
     //The PHOCs of the training set. Lazy
     const Mat& phocsTr();//correct orientation
@@ -232,10 +233,11 @@ private:
         void batches_cca_att_test();
         void embed_labels_PHOC_test();
         void phocsTr_test();
+        void get_GMM_PCA_test();
     #endif
     
 public:
-    EmbAttSpotter(string saveName="embAttSpotter",bool useNumbers=false);
+    EmbAttSpotter(string saveName="embAttSpotter",bool useNumbers=true);
     ~EmbAttSpotter();
     void loadCorpus(string dir);
     void setTrainData(string gtFile, string imageDir, string saveAs="");

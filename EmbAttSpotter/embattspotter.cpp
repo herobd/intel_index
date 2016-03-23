@@ -12,7 +12,11 @@ EmbAttSpotter::EmbAttSpotter(string saveName, bool useNumbers)
     _GMM.covariances=NULL;
     _GMM.priors=NULL;
     
+    _attModels=NULL;
     _embedding=NULL;
+    _batches_cca_att=NULL;
+    _features_corpus=NULL;
+    _feats_training=NULL;
     
     SIFT_sizes={2,4,6,8,10,12};
     stride=3;
@@ -20,10 +24,14 @@ EmbAttSpotter::EmbAttSpotter(string saveName, bool useNumbers)
     windowsize=1.5;   
     contrastthreshold=0.005; 
     
-    numWordsTrain=500;
+    numWordsTrainGMM=500;
     minH = -1;//?
     PCA_dim = 62;
+    #if TEST_MODE
+    num_samples_PCA = 2000;
+    #else
     num_samples_PCA = 200000;
+    #endif
     numGMMClusters = 16;
     numSpatialX = 6;//num of bins for spatail pyr
     numSpatialY = 2;
@@ -34,16 +42,20 @@ EmbAttSpotter::EmbAttSpotter(string saveName, bool useNumbers)
     unigrams = {'a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z'};
     if (useNumbers)
     {
-        for (char n : "0123456789")
-            unigrams.push_back(n);
+        for (char n : "0123456789") {
+            //cout << "added numeral "<<n<<endl;
+            if (n!=0x00)
+                unigrams.push_back(n);
+        }
     }
     phoc_levels_bi = {2};
-    ifstream bFile("bigrams.txt");
+    ifstream bFile("test/bigrams.txt");
     string bigram;
-    while (getline(bFile,bigram))
+    while (getline(bFile,bigram) && bigrams.size()<50)
     {
         bigrams.push_back(bigram);
     }
+    bFile.close();
     
     /* Prepare dict */
     
@@ -71,6 +83,8 @@ EmbAttSpotter::EmbAttSpotter(string saveName, bool useNumbers)
     {
         phocSize_bi+=level*bigrams.size();
     }
+
+    
     
     this->saveName = saveName;//+"_sp"+to_string(numSpatialX)+"x"+to_string(numSpatialY);
     
@@ -120,25 +134,9 @@ EmbAttSpotter::~EmbAttSpotter()
             m.release();
         delete _features_corpus;
     }
-    if (_feats_training!=NULL)
+    if (_batches_cca_att!=NULL)
     {
-        //_feats_training.release();
-        delete _feats_training;
-    }
-    /*if (_phocs_training!=NULL)
-    {
-        _phocs_training->release();
-        delete _phocs_training;
-    }
-    if (_phocs!=NULL)
-    {
-        _phocs->release();
-        delete _phocs;
-    }*/
-    if (_phocsTr!=NULL)
-    {
-        //_phocsTr->release();
-        delete _phocsTr;
+        delete _batches_cca_att;
     }
 }
 
@@ -166,8 +164,8 @@ vector<float> EmbAttSpotter::spot(const Mat& exemplar, string word, float alpha)
     Mat query_phoc(phocSize+phocSize_bi,1,CV_32F);
     if (alpha < 1)
     {
-        computePhoc(word, vocUni2pos, map<string,int>(),unigrams.size(), phoc_levels, phocSize, &query_phoc,0);
-        computePhoc(word, map<char,int>(), vocBi2pos,bigrams.size(), phoc_levels_bi, phocSize_bi, &query_phoc,0);
+        computePhoc(word, vocUni2pos, map<string,int>(),unigrams.size(), phoc_levels, phocSize, query_phoc,0);
+        computePhoc(word, map<char,int>(), vocBi2pos,bigrams.size(), phoc_levels_bi, phocSize_bi, query_phoc,0);
     }
     
     Mat matx = embedding().rndmatx;//(Rect(0,0,embedding().M,embedding().rndmatx.cols));
@@ -287,7 +285,7 @@ vector<Mat>* EmbAttSpotter::extract_FV_feats_fast_and_batch(const vector<string>
             //ret->at(i).row(j-batches_index[i]) = getImageDescriptorFV(feats.t());
             Mat r = getImageDescriptorFV(feats);
             assert(r.cols==FV_DIM);
-            #pragma omp critical //?
+            #pragma omp critical (copyToBatch)//do we need this?
             r.copyTo(tmp.row(j-start));
         }
         
@@ -304,6 +302,33 @@ vector<Mat>* EmbAttSpotter::extract_FV_feats_fast_and_batch(const vector<string>
         delete batches_index;
         delete batches_indexEnd;
     }
+    return ret;
+}
+
+Mat get_FV_feats(Dataset* dataset)
+{
+    #if TEST_MODE
+    int size=256;
+    #else
+    int size=dataset->size();
+    #endif
+    Mat ret = Mat_<float>(size,FV_DIM);
+    #pragma omp parallel for
+    for (int j=0; j<size; j++)
+    {
+        Mat im = imread(dataset->image(j),CV_LOAD_IMAGE_GRAYSCALE);
+        Mat feats=phow(im,&PCA_());
+        //ret->at(i).row(j-batches_index[i]) = getImageDescriptorFV(feats.t());
+        Mat r = getImageDescriptorFV(feats);
+        assert(r.cols==FV_DIM);
+        #pragma omp critical (copyToBatch)//do we need this?
+        r.copyTo(tmp.row(j));
+    }
+    
+    for (int r=0; r<tmp.rows; r++)
+        for (int c=0; c<tmp.cols; c++)
+            assert(tmp.at<float>(r,c)==tmp.at<float>(r,c));
+    
     return ret;
 }
 
@@ -381,35 +406,45 @@ const vector<Mat>& EmbAttSpotter::features_corpus(bool retrain)
 const Mat& EmbAttSpotter::feats_training(bool retrain)
 {
     string name = saveName+"_feats_training.dat";
-    if (_feats_training==NULL)
+    if (_feats_training.rows==0)
     {
-        ifstream in(name);
-        if (in && !retrain)
+        #pragma omp  critical (feats_training)
         {
-            //load
-            int num;
-            in >> num;
-            assert(num==1);
-            _feats_training = new vector<Mat>(1);
-            _feats_training->at(0)=readFloatMat(in);
-            in.close();
+            if (_feats_training==0)
+            {
+                ifstream in(name);
+                if (in && !retrain)
+                {
+                    //load
+                    int num;
+                    in >> num;
+                    assert(num==1);
+                    _feats_training=readFloatMat(in);
+                    in.close();
+                }
+                else
+                {
+                    in.close();
+                    if (training_imgfiles!=NULL);
+                        vector<Mat>* oo = extract_FV_feats_fast_and_batch(*training_imgfiles,NULL,NULL,training_imgfiles->size());
+                        _feats_training = oo->at(0);
+                        delete oo;
+                    else
+                    {
+                        _feats_training=get_FV_feats(training_dataset);
+                    }
+                    
+                    //save
+                    ofstream out(name);
+                    out << 1 << " ";
+                    writeFloatMat(out,_feats_training);
+                    
+                    out.close();
+                }
+            }
         }
-        else
-        {
-            in.close();
-            assert(training_imgfiles!=NULL);
-            _feats_training = extract_FV_feats_fast_and_batch(*training_imgfiles,NULL,NULL,training_imgfiles->size());
-            assert(_feats_training->size()==1);
-            //save
-            ofstream out(name);
-            out << 1 << " ";
-            writeFloatMat(out,_feats_training->at(0));
-            
-            out.close();
-        }
-        
     }
-    return _feats_training->at(0);
+    return _feats_training;
 }
 
 /*const Mat& feats_validation()
@@ -689,46 +724,58 @@ const vector<Mat>& EmbAttSpotter::batches_cca_att()
     string name = saveName+"_batches_cca_att_"+to_string(numBatches)+".dat";
     if (_batches_cca_att == NULL)
     {
-        //init
-        _batches_cca_att = new vector<Mat>(numBatches);
-        
-        //load
-        ifstream in(name);
-        if (in)
+        #pragma omp  critical (batches_cca_att)
         {
-            int numBatchesRead;
-            in >> numBatchesRead;
-            if (numBatchesRead==numBatches)
+            if (_batches_cca_att == NULL)
             {
-                for (int i=0; i<numBatches; i++)
-                    _batches_cca_att->at(i) = readFloatMat(in);
+                //init
+                _batches_cca_att = new vector<Mat>(numBatches);
+                
+                //load
+                ifstream in(name);
+                if (in)
+                {
+                    int numBatchesRead;
+                    in >> numBatchesRead;
+                    if (numBatchesRead==numBatches)
+                    {
+                        for (int i=0; i<numBatches; i++)
+                            _batches_cca_att->at(i) = readFloatMat(in);
+                    }
+                    in.close();
+                }
             }
-            in.close();
         }
     }
     if (_batches_cca_att->size() != numBatches)
     {
-        _batches_cca_att->clear();
-        
-        //const Embedding& embedding = get_embedding();
-        Mat matx = embedding().rndmatx;//(Rect(0,0,embedding().rndmatx.cols,embedding().M));
-        assert(matx.rows==embedding().M);
-        for (int i=0; i<numBatches; i++)
+        #pragma omp  critical (batches_cca_att)
         {
-            // load batch_att
-            Mat tmp = matx*batch_att(i);
-            vconcat(cosMat(tmp),sinMat(tmp),tmp);
-            Mat batch_emb_att = (1/sqrt(embedding().M)) * tmp - embedding().matt;
-            Mat batch_cca_att = embedding().Wx.t()*batch_emb_att;
-            _batches_cca_att->push_back(batch_cca_att);
+            if (_batches_cca_att->size() != numBatches)
+            {
+                _batches_cca_att->clear();
+                
+                //const Embedding& embedding = get_embedding();
+                Mat matx = embedding().rndmatx;//(Rect(0,0,embedding().rndmatx.cols,embedding().M));
+                assert(matx.rows==embedding().M);
+                for (int i=0; i<numBatches; i++)
+                {
+                    // load batch_att
+                    Mat tmp = matx*batch_att(i);
+                    vconcat(cosMat(tmp),sinMat(tmp),tmp);
+                    Mat batch_emb_att = (1/sqrt(embedding().M)) * tmp - embedding().matt;
+                    Mat batch_cca_att = embedding().Wx.t()*batch_emb_att;
+                    _batches_cca_att->push_back(batch_cca_att);
+                }
+                
+                //save
+                ofstream out(name);
+                out << numBatches << " ";
+                for (int i=0; i<numBatches; i++)
+                    writeFloatMat(out,_batches_cca_att->at(i));
+                out.close();
+            }
         }
-        
-        //save
-        ofstream out(name);
-        out << numBatches << " ";
-        for (int i=0; i<numBatches; i++)
-            writeFloatMat(out,_batches_cca_att->at(i));
-        out.close();
     }
     return *_batches_cca_att;
 }
@@ -748,7 +795,7 @@ void EmbAttSpotter::learn_attributes_bagging()
     _attModels->W=Mat::zeros(dimFeats,numAtt,CV_32F);
     //_attModels->B=zeros(1,numAtt,CV_32F);
     _attModels->numPosSamples=Mat::zeros(1,numAtt,CV_32F);
-    _attReprTr = new Mat(Mat::zeros(numAtt,numSamples,CV_32F)); //attFeatsTr, attFeatsBag
+    _attReprTr = Mat::zeros(numAtt,numSamples,CV_32F); //attFeatsTr, attFeatsBag
     
     Mat threshed;
     threshold(phocsTr(),threshed, 0.47999, 1, THRESH_BINARY);
@@ -825,7 +872,7 @@ void EmbAttSpotter::learn_attributes_bagging()
                         float s=0;
                         for (int c=0; c<featsVal.cols; c++)
                             s += featsVal.at<float>(r,c)*vl_svm_get_model(svm)[c];
-                        _attReprTr->at<float>(idxAtt,r)+=s;
+                        _attReprTr.at<float>(idxAtt,r)+=s;
                     }
                     delete svm;
                 }
@@ -834,7 +881,7 @@ void EmbAttSpotter::learn_attributes_bagging()
             if (N!=0)
             {
                 _attModels->W /= (float)N;
-                divide((*_attReprTr)(Rect(0,idxAtt,numSamples,1)),Np,(*_attReprTr)(Rect(0,idxAtt,numSamples,1)));
+                divide(_attReprTr(Rect(0,idxAtt,numSamples,1)),Np,_attReprTr(Rect(0,idxAtt,numSamples,1)));
                 _attModels->numPosSamples.at<float>(0,idxAtt) = ceil(numPosSamples/(double)N);
             }
         }
@@ -918,32 +965,37 @@ const EmbAttSpotter::AttributesModels& EmbAttSpotter::attModels(bool retrain)
 {
     if (_attModels==NULL)
     {
-        string name = saveName+"_attModels.dat";
-        ifstream in(name);
-        if (!retrain && in)
+        #pragma omp  critical (learn_attributes_bagging)
         {
-            //load
-            _attModels = new AttributesModels();
-            _attModels->W = readFloatMat(in);
-            //_attModels->B = readFloatMat(in);
-            _attModels->numPosSamples = readFloatMat(in);
-            _attReprTr = new Mat();
-            *_attReprTr = readFloatMat(in);
-            in.close();
+            if (_attModels==NULL)
+            {
+                string name = saveName+"_attModels.dat";
+                ifstream in(name);
+                if (!retrain && in)
+                {
+                    //load
+                    _attModels = new AttributesModels();
+                    _attModels->W = readFloatMat(in);
+                    //_attModels->B = readFloatMat(in);
+                    _attModels->numPosSamples = readFloatMat(in);
+                    //_attReprTr = new Mat();
+                    _attReprTr = readFloatMat(in);
+                    in.close();
+                }
+                else
+                {
+                    in.close();
+                    learn_attributes_bagging();
+                    //save
+                    ofstream out(name);
+                    writeFloatMat(out,_attModels->W);
+                    //writeFloatMat(out,_attModels->B);
+                    writeFloatMat(out,_attModels->numPosSamples);
+                    writeFloatMat(out,_attReprTr);
+                    out.close();
+                }
+            }
         }
-        else
-        {
-            in.close();
-            learn_attributes_bagging();
-            //save
-            ofstream out(name);
-            writeFloatMat(out,_attModels->W);
-            //writeFloatMat(out,_attModels->B);
-            writeFloatMat(out,_attModels->numPosSamples);
-            writeFloatMat(out,*_attReprTr);
-            out.close();
-        }
-        
     }
     return *_attModels;
 }
@@ -952,37 +1004,42 @@ const EmbAttSpotter::Embedding& EmbAttSpotter::embedding(bool retrain)
 {
     if (_embedding==NULL)
     {
-        string name = saveName+"_embedding.dat";
-        ifstream in(name);
-        if (!retrain && in)
+        #pragma omp  critical (embedding)
         {
-            //load
-            _embedding = new Embedding();
-            _embedding->rndmatx = readFloatMat(in);
-            _embedding->rndmaty = readFloatMat(in);
-            in >> _embedding->M;
-            _embedding->matt = readFloatMat(in);
-            _embedding->mphoc = readFloatMat(in);
-            _embedding->Wx = readFloatMat(in);
-            _embedding->Wy = readFloatMat(in);
-            in.close();
+            if (_embedding==NULL)
+            {
+                string name = saveName+"_embedding.dat";
+                ifstream in(name);
+                if (!retrain && in)
+                {
+                    //load
+                    _embedding = new Embedding();
+                    _embedding->rndmatx = readFloatMat(in);
+                    _embedding->rndmaty = readFloatMat(in);
+                    in >> _embedding->M;
+                    _embedding->matt = readFloatMat(in);
+                    _embedding->mphoc = readFloatMat(in);
+                    _embedding->Wx = readFloatMat(in);
+                    _embedding->Wy = readFloatMat(in);
+                    in.close();
+                }
+                else
+                {
+                    in.close();
+                    learn_common_subspace();
+                    //save
+                    ofstream out(name);
+                    writeFloatMat(out,_embedding->rndmatx);
+                    writeFloatMat(out,_embedding->rndmaty);
+                    out << _embedding->M << " ";
+                    writeFloatMat(out,_embedding->matt);
+                    writeFloatMat(out,_embedding->mphoc);
+                    writeFloatMat(out,_embedding->Wx);
+                    writeFloatMat(out,_embedding->Wy);
+                    out.close();
+                }
+            }
         }
-        else
-        {
-            in.close();
-            learn_common_subspace();
-            //save
-            ofstream out(name);
-            writeFloatMat(out,_embedding->rndmatx);
-            writeFloatMat(out,_embedding->rndmaty);
-            out << _embedding->M << " ";
-            writeFloatMat(out,_embedding->matt);
-            writeFloatMat(out,_embedding->mphoc);
-            writeFloatMat(out,_embedding->Wx);
-            writeFloatMat(out,_embedding->Wy);
-            out.close();
-        }
-        
     }
     return *_embedding;
 }
@@ -1114,36 +1171,41 @@ void EmbAttSpotter::cca2(Mat X, Mat Y, float reg, int d, Mat& Wx, Mat& Wy)
 
 const Mat& EmbAttSpotter::attReprTr(bool retrain)//correct orientation
 {
-    if (_attReprTr==NULL)
+    if (_attReprTr.rows==0)
     {
-        string name = saveName+"_attModels.dat";
-        ifstream in(name);
-        if (!retrain && in)
+        #pragma omp  critical (learn_attributes_bagging)
         {
-            //load
-            _attModels = new AttributesModels();
-            _attModels->W = readFloatMat(in);
-            //_attModels->B = readFloatMat(in);
-            _attModels->numPosSamples = readFloatMat(in);
-            _attReprTr = new Mat();
-            *_attReprTr = readFloatMat(in);;
-            in.close();
+            if (_attReprTr.rows==0)
+            {
+                string name = saveName+"_attModels.dat";
+                ifstream in(name);
+                if (!retrain && in)
+                {
+                    //load
+                    _attModels = new AttributesModels();
+                    _attModels->W = readFloatMat(in);
+                    //_attModels->B = readFloatMat(in);
+                    _attModels->numPosSamples = readFloatMat(in);
+                    //_attReprTr = new Mat();
+                    _attReprTr = readFloatMat(in);
+                    in.close();
+                }
+                else
+                {
+                    in.close();
+                    learn_attributes_bagging();
+                    //save
+                    ofstream out(name);
+                    writeFloatMat(out,_attModels->W);
+                    //writeFloatMat(out,_attModels->B);
+                    writeFloatMat(out,_attModels->numPosSamples);
+                    writeFloatMat(out,_attReprTr);
+                    out.close();
+                }
+            }
         }
-        else
-        {
-            in.close();
-            learn_attributes_bagging();
-            //save
-            ofstream out(name);
-            writeFloatMat(out,_attModels->W);
-            //writeFloatMat(out,_attModels->B);
-            writeFloatMat(out,_attModels->numPosSamples);
-            writeFloatMat(out,*_attReprTr);
-            out.close();
-        }
-        
     }
-    return *_attReprTr;
+    return _attReprTr;
 }
 
 /*const Mat& EmbAttSpotter::attReprVa()
@@ -1216,7 +1278,7 @@ void EmbAttSpotter::setTrainData(string gtFile, string imageDir, string saveAs)
 
 
 //We compute the GMM and PCA together as they are relient on the same data.
-void EmbAttSpotter::get_GMM_PCA(int numWordsTrain, string saveAs, bool retrain)
+void EmbAttSpotter::get_GMM_PCA(int numWordsTrainGMM, string saveAs, bool retrain)
 {   
     
     
@@ -1261,10 +1323,10 @@ void EmbAttSpotter::get_GMM_PCA(int numWordsTrain, string saveAs, bool retrain)
                 fileNames.push_back(fileName);
             }*/
             
-        assert(training_imgfiles->size()>=numWordsTrain);
+        assert(training_imgfiles->size()>=numWordsTrainGMM);
         
         Mat for_PCA(num_samples_PCA,SIFT_DIM,CV_32F);
-        int sample_per_for_PCA = num_samples_PCA/numWordsTrain;
+        int sample_per_for_PCA = num_samples_PCA/numWordsTrainGMM;
         int on_sample=0;
         
         vector<Mat> bins(numSpatialX*numSpatialY);
@@ -1273,15 +1335,20 @@ void EmbAttSpotter::get_GMM_PCA(int numWordsTrain, string saveAs, bool retrain)
             bins[i] = Mat::zeros(0,SIFT_DIM+2,CV_32F);
         }*/
         vector<bool> used(training_imgfiles->size());
-        for (int i=0; i<numWordsTrain; i++)
+        for (int i=0; i<numWordsTrainGMM; i++)
         {
+            #if TEST_MODE
+            int imageIndex = i;
+            #else
             int imageIndex = rand()%training_imgfiles->size();
+            
             int initIndex=imageIndex;
             while (used[imageIndex])
             {
                 imageIndex = (imageIndex+1)%training_imgfiles->size();
                 assert(imageIndex!=initIndex);
             }
+            #endif
             
             Mat im = imread(training_imgfiles->at(imageIndex),CV_LOAD_IMAGE_GRAYSCALE);
             used[imageIndex]=true;
@@ -1296,13 +1363,17 @@ void EmbAttSpotter::get_GMM_PCA(int numWordsTrain, string saveAs, bool retrain)
             Mat desc = phow(im);//includes xy's, normalization
             assert(desc.type() == CV_32F);
             assert(desc.cols == DESC_DIM);
-            
+            #if TEST_MODE
+            for (int sample=0; sample<desc.rows && on_sample<num_samples_PCA; sample++)
+                desc(Rect(0,sample,SIFT_DIM,1)).copyTo(for_PCA.row(on_sample++));
+            #else
             //sample for PCA, discard x,y
             for (int sample=0; sample<sample_per_for_PCA; sample++)
             {
                 int randIndex = rand()%desc.rows;
                 desc(Rect(0,randIndex,SIFT_DIM,1)).copyTo(for_PCA.row(on_sample++));
             }
+            #endif
             
             //place in bins
             for (int r=0; r<desc.rows; r++)
@@ -1399,7 +1470,13 @@ float* EmbAttSpotter::readFloatArray(ifstream& src, int* sizeO)
 const EmbAttSpotter::PCA_struct & EmbAttSpotter::PCA_(bool retrain)
 {
     if (_PCA.eigvec.rows==0)
-        get_GMM_PCA(numWordsTrain, saveName, retrain);
+    {
+        #pragma omp  critical (get_GMM_PCA)
+        {
+            if (_PCA.eigvec.rows==0)
+                get_GMM_PCA(numWordsTrainGMM, saveName, retrain);
+        }
+    }
     
     return _PCA;
 }
@@ -1407,7 +1484,13 @@ const EmbAttSpotter::PCA_struct & EmbAttSpotter::PCA_(bool retrain)
 const EmbAttSpotter::GMM_struct & EmbAttSpotter::GMM(bool retrain)
 {
     if (_GMM.means==NULL)
-        get_GMM_PCA(numWordsTrain, saveName, retrain);
+    {
+        #pragma omp  critical (get_GMM_PCA)
+        {
+            if (_GMM.means==NULL)
+                get_GMM_PCA(numWordsTrainGMM, saveName, retrain);
+        }
+    }
     
     return _GMM;
 }
@@ -1489,13 +1572,13 @@ void EmbAttSpotter::compute_GMM(const vector<Mat>& bins, int numSpatialX, int nu
 
 
 
-Mat* EmbAttSpotter::embed_labels_PHOC(const vector<string>& labels)
+Mat EmbAttSpotter::embed_labels_PHOC(const vector<string>& labels)
 {
     
     
     /* Prepare output */
     //float *phocs = new float[phocSize*corpusSize+phocSize_bi*corpusSize];
-    Mat* phocs = new Mat(Mat::zeros(phocSize+phocSize_bi,labels.size(),CV_32F));
+    Mat phocs = Mat::zeros(phocSize+phocSize_bi,labels.size(),CV_32F);
     /* Compute */
     for (int i=0; i < labels.size();i++)
     {
@@ -1513,7 +1596,7 @@ Mat* EmbAttSpotter::embed_labels_PHOC(const vector<string>& labels)
 
 #define HARD 0
 
-void EmbAttSpotter::computePhoc(string str, map<char,int> vocUni2pos, map<string,int> vocBi2pos, int Nvoc, vector<int> levels, int descSize, Mat *out, int instance)
+void EmbAttSpotter::computePhoc(string str, map<char,int> vocUni2pos, map<string,int> vocBi2pos, int Nvoc, vector<int> levels, int descSize, Mat& out, int instance)
 {
     int strl = str.length();
     
@@ -1554,11 +1637,11 @@ void EmbAttSpotter::computePhoc(string str, map<char,int> vocUni2pos, map<string
                     if (ov >=0.48)
                     {
                         //p[posOff]+=1;
-                        out->at<float>(posOff,instance)+=1;
+                        out.at<float>(posOff,instance)+=1;
                     }
                     #else
                     //p[posOff] = max(ov, p[posOff]);
-                    out->at<float>(posOff,instance)=max(ov, out->at<float>(posOff,instance));
+                    out.at<float>(posOff,instance)=max(ov, out.at<float>(posOff,instance));
                     #endif
                 }
             }
@@ -1584,7 +1667,7 @@ void EmbAttSpotter::computePhoc(string str, map<char,int> vocUni2pos, map<string
                     if (ov >=0.48)
                     {
                         //p[posOff]+=1;
-                        out->at<float>((out->rows-descSize)+posOff,instance)+=1;
+                        out.at<float>((out.rows-descSize)+posOff,instance)+=1;
                     }
                 }
             }
@@ -1596,16 +1679,22 @@ void EmbAttSpotter::computePhoc(string str, map<char,int> vocUni2pos, map<string
 
 const Mat& EmbAttSpotter::phocsTr()//correct orientation
 {
-    if (_phocsTr==NULL)
+    if (_phocsTr.rows==0)
     {
-        if (training_labels!=NULL)
-            _phocsTr = embed_labels_PHOC(*training_labels);
-        else if (training_dataset!=NULL)
-            _phocsTr = embed_labels_PHOC(training_dataset->labels());
-        else
-            assert(false && "No training data specified");
+        #pragma omp  critical (phocsTr)
+        {
+            if (_phocsTr.rows==0)
+            {
+                if (training_labels!=NULL)
+                    _phocsTr = embed_labels_PHOC(*training_labels);
+                else if (training_dataset!=NULL)
+                    _phocsTr = embed_labels_PHOC(training_dataset->labels());
+                else
+                    assert(false && "No training data specified");
+            }
+        }
     }
-    return *_phocsTr;
+    return _phocsTr;
 }
 
 /*const Mat& phocs_training()
