@@ -1,4 +1,4 @@
-function extract_FV_features_fast_test(opts)
+function extract_FV_features_fast_test(opts,data)
 
 GMM = readGMM(opts.fileGMM);
 PCA = readPCA(opts.filePCA);
@@ -66,7 +66,8 @@ for cb=1:nBatches
     %fid = fopen(opts.fileFeatures, 'r+');    
     %fseek(fid, 2*4  + (int64(cb)-1)*imagesPerBatch*opts.FVdim * 4, 'bof');
     %fwrite(fid, featsBatch(:,1:nInBatch), 'single');    
-    dlmwrite('fileFeatures_test.csv',PCA,'precision',8);
+    dlmwrite('fileFeatures_test.csv',featsBatch,'precision',8);
+    data.test_features=featsBatch
 end
 disp(toc);
 end

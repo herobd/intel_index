@@ -1,10 +1,10 @@
-function extract_features_test(opts)
+function extract_features_test(opts,data)
 disp('* Extracting FV features *');
 % Extracts the FV representation for every image in the dataset
 
-if  ~exist(opts.fileFeatures,'file')
+%if  ~exist(opts.fileFeatures,'file')
       
-    if ~exist(opts.fileGMM,'file')
+%    if ~exist(opts.fileGMM,'file')
         toc = readImagesToc(opts.fileImages);
         % Computes GMM and PCA models
         %idxTrainGMM = sort(randperm(length(toc),opts.numWordsTrainGMM));
@@ -22,10 +22,10 @@ if  ~exist(opts.fileFeatures,'file')
         dlmwrite('PCA_mean_test.csv',PCA.mean,'precision',8);
         dlmwrite('PCA_eigvec_test.csv',PCA.eigvec,'precision',8);
         clear images;
-    end
+%    end
         
-    extract_FV_features_fast_test(opts);
-    
-end
+    extract_FV_features_fast_test(opts,data);
+
+%end
 
 end

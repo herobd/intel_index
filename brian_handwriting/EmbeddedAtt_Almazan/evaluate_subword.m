@@ -5,10 +5,10 @@ function results = evaluate_subword(opts,data,embedding)
 load(opts.fileAttRepresTe_slidingwindow,'attReprTe_slidingwindow');
 if opts.TestHybrid
   attReprQu_subword = readMat(opts.fileAttRepresQu_subword);
+  data.attReprQu_subword = single(attReprQu_subword);
 end
 %data.attReprTe = single(attReprTe);
 data.attReprTe_slidingwindow=attReprTe_slidingwindow;
-data.attReprQu_subword = single(attReprQu_subword);
 data.phocsTe = single(data.phocsTe);
 data.phocsQu_subword = single(data.phocsQu_subword);
 %data.wordClsTe = single(data.wordClsTe);
