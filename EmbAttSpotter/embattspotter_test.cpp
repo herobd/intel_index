@@ -15,8 +15,7 @@ void EmbAttSpotter::test()
     testImages = {"test/testImages/small0.png","test/testImages/small1.png","test/testImages/small2.png","test/testImages/small3.png","test/testImages/small4.png"};
     vector<Mat>* temp_features_corpus = _features_corpus;
     _features_corpus=NULL;
-    vector<Mat>* temp_feats_training = _feats_training;
-    _feats_training=NULL;
+    Mat temp_feats_training = _feats_training;
     vector<Mat>* temp_batches_cca_att = _batches_cca_att;
     _batches_cca_att=NULL;
     vector<string>* tempcorpus_imgfiles = corpus_imgfiles;
@@ -43,8 +42,8 @@ void EmbAttSpotter::test()
     
     int tempgenericBatchSize=genericBatchSize;
     genericBatchSize=2;
-    int tempnumWordsTrain=numWordsTrain;
-    numWordsTrain=testImages.size();
+    int tempnumWordsTrainGMM=numWordsTrainGMM;
+    numWordsTrainGMM=testImages.size();
     int tempnum_samples_PCA = num_samples_PCA;
     num_samples_PCA = 5000;
     
@@ -65,16 +64,24 @@ void EmbAttSpotter::test()
     batches_cca_att_test();*/
     
     //Compare to mat files
+    numWordsTrainGMM=tempnumWordsTrainGMM;
     training_imgfiles=NULL;
     training_labels=NULL;
     training_dataset = new GWDataset("/home/brian/intel_index/brian_handwriting/EmbeddedAtt_Almazan/datasets/GW/queries/queries.gtp","/home/brian/intel_index/brian_handwriting/EmbeddedAtt_Almazan/datasets/GW/images/");
     
-    phocsTr_test();
-    get_GMM_PCA_test()
+    phocsTr_testM();
+    get_GMM_PCA_testM();
+    feats_training_testM();
+    learn_attributes_bagging();
+    compareToCSV(embedding().rndmatx,"test/embedding_rndmatx_test.csv");
+    compareToCSV(embedding().rndmaty,"test/embedding_rndmaty_test.csv");
+    compareToCSV(embedding().matt,"test/embedding_matt_test.csv");
+    compareToCSV(embedding().mphoc,"test/embedding_mphoc_test.csv");
+    compareToCSV(embedding().Wx,"test/embedding_Wx_test.csv");
+    compareToCSV(embedding().Wy,"test/embedding_Wy_test.csv");
     
     delete _features_corpus;
     _features_corpus=temp_features_corpus;
-    delete _feats_training;
     _feats_training=temp_feats_training;
     delete _batches_cca_att;
     _batches_cca_att=temp_batches_cca_att;
@@ -86,7 +93,7 @@ void EmbAttSpotter::test()
     batches_indexEnd=tempbatches_indexEnd;
     saveName=tempsaveName;
     genericBatchSize=tempgenericBatchSize;
-    numWordsTrain=tempnumWordsTrain;
+    
     num_samples_PCA=tempnum_samples_PCA;
     //delete _phocsTr;
     _phocsTr = temp_phocsTr;
@@ -171,8 +178,7 @@ void EmbAttSpotter::features_corpus_test()
 void EmbAttSpotter::feats_training_test()
 {
     Mat res1 = feats_training();//create
-    delete _feats_training;
-    _feats_training=NULL;//clear
+    _feats_training=Mat();//clear
     Mat res2 = feats_training();//load
     //assert(res1.size()==1);
     //assert(res1.size() == res2.size());
@@ -482,7 +488,7 @@ std::vector<std::string> &split(const std::string &s, char delim, std::vector<st
     return elems;
 }
 
-void readCSV(string fileName, vector< vector<float> >& out)
+void EmbAttSpotter::readCSV(string fileName, vector< vector<float> >& out)
 {
     ifstream in(fileName);
     string line;
@@ -498,12 +504,12 @@ void readCSV(string fileName, vector< vector<float> >& out)
     }
 }
 
-void EmbAttSpotter::phocsTr_test()//dlmwrite('phocs.csv',phocs,'precision',5) 
+void EmbAttSpotter::phocsTr_testM()//dlmwrite('phocs.csv',phocs,'precision',5) 
 {
     assert(phocSize_bi+phocSize==604);    
-
+    compareToCSV(phocsTr(),"test/phocs.csv");
     
-    vector<vector<float> > phocs;
+    /*vector<vector<float> > phocs;
     readCSV("test/phocs.csv",phocs);
     
     assert(phocsTr().rows==phocs.size() && phocsTr().cols==phocs[0].size());
@@ -511,22 +517,33 @@ void EmbAttSpotter::phocsTr_test()//dlmwrite('phocs.csv',phocs,'precision',5)
         for (int c=0; c<phocsTr().cols; c++)
         {
             assert(abs(phocsTr().at<float>(r,c)-phocs[r][c])<0.0001);
-        }
+        }*/
     
 }
 
-void EmbAttSpotter::get_GMM_PCA_test()
+void EmbAttSpotter::compareToCSV(Mat mine, string csvloc)
+{
+    vector<vector<float> > csv;
+    readCSV(csvloc,csv);
+    assert(mine.rows>0 && mine.cols>0);
+    assert(mine.rows==csv.size() && mine.cols==csv[0].size());
+    for (int r=0; r<csv.size(); r++)
+        for (int c=0; c<csv[0].size(); c++)
+            assert(abs(mine.at<float>(r,c)-csv[r][c])<0.0001);
+}
+
+void EmbAttSpotter::get_GMM_PCA_testM()
 {
     vector<vector<float> > GMM_mean;
-    readCSV("GMM_mean_test.csv",GMM_mean);
+    readCSV("test/GMM_mean_test.csv",GMM_mean);
     vector<vector<float> > GMM_covariances;
-    readCSV("GMM_covariances_test.csv",GMM_covariances);
+    readCSV("test/GMM_covariances_test.csv",GMM_covariances);
     vector<vector<float> > GMM_priors;
-    readCSV("GMM_priors_test.csv",GMM_priors);
-    
+    readCSV("test/GMM_priors_test.csv",GMM_priors);
+    assert(GMM_mean.size()>0);
     for (int r=0; r<GMM_mean.size(); r++)
         for (int c=0; c<GMM_mean[0].size(); c++)
-            assert(abs(GMM().mean[r*GMM_mean[0].size()+c]-GMM_mean[r][c])<0.0001);
+            assert(abs(GMM().means[r*GMM_mean[0].size()+c]-GMM_mean[r][c])<0.0001);
     for (int r=0; r<GMM_covariances.size(); r++)
         for (int c=0; c<GMM_covariances[0].size(); c++)
             assert(abs(GMM().covariances[r*GMM_covariances[0].size()+c]-GMM_covariances[r][c])<0.0001);
@@ -534,24 +551,44 @@ void EmbAttSpotter::get_GMM_PCA_test()
         for (int c=0; c<GMM_priors[0].size(); c++)
             assert(abs(GMM().priors[r*GMM_priors[0].size()+c]-GMM_priors[r][c])<0.0001);
     
+    compareToCSV(PCA_().mean,"test/PCA_mean_test.csv");
+    compareToCSV(PCA_().eigvec,"test/PCA_eigvec_test.csv");
+    /*
     vector<vector<float> > PCA_mean;
-    readCSV("PCA_mean_test.csv",PCA_mean);
+    readCSV("test/PCA_mean_test.csv",PCA_mean);
     vector<vector<float> > PCA_eigvec;
-    readCSV("PCA_eigvec_test.csv",PCA_eigvec);
+    readCSV("test/PCA_eigvec_test.csv",PCA_eigvec);
+    assert(PCA_mean.size()>0);
+    assert(PCA_().mean.rows==PCA_mean.size() && PCA_().mean.cols==PCA_mean[0].size());
     for (int r=0; r<PCA_mean.size(); r++)
         for (int c=0; c<PCA_mean[0].size(); c++)
-            assert(abs(PCA().mean[r*PCA_mean[0].size()+c]-PCA_mean[r][c])<0.0001);
+            assert(abs(PCA_().mean.at<float>(r,c)-PCA_mean[r][c])<0.0001);
+    assert(PCA_().eigvec.rows==PCA_eigvec.size() && PCA_().eigvec.cols==PCA_eigvec[0].size());
     for (int r=0; r<PCA_eigvec.size(); r++)
         for (int c=0; c<PCA_eigvec[0].size(); c++)
-            assert(abs(PCA().eigvec[r*PCA_eigvec[0].size()+c]-PCA_eigvec[r][c])<0.0001);
+            assert(abs(PCA_().eigvec.at<float>(r,c)-PCA_eigvec[r][c])<0.0001);*/
 }
 
-void EmbAttSpotter::feats_training_test()
+void EmbAttSpotter::feats_training_testM()
 {
-    vector<vector<float> > fileFeatures;
-    readCSV("fileFeatures_test.csv",fileFeatures);
-    assert(feats_training().rows==fileFeatures.size() && feats_training.cols==fileFeatures[0]size());
+    compareToCSV(feats_training(),"test/fileFeatures_test.csv");
+    /*vector<vector<float> > fileFeatures;
+    readCSV("test/fileFeatures_test.csv",fileFeatures);
+    assert(feats_training().rows>0);
+    assert(feats_training().rows==fileFeatures.size() && feats_training().cols==fileFeatures[0].size());
     for (int r=0; r<fileFeatures.size(); r++)
         for (int c=0; c<fileFeatures[0].size(); c++)
-            assert(abs(feats_training().at<float>(r,c)-fileFeatures[r][c])<0.0001);
+            assert(abs(feats_training().at<float>(r,c)-fileFeatures[r][c])<0.0001);*/
+}
+
+void EmbAttSpotter::learn_attributes_bagging()
+{
+    compareToCSV(attModels().W,"test/attModels_W_test.csv");
+    compareToCSV(attReprTr(),"test/attReprTr_test.csv");
+    /*vector<vector<float> > attModels_Wt;
+    readCSV("test/attModels_W_test.csv",attModels_Wt);
+    assert(attModels().W.rows==attModels_Wt.size() && attModels().W.cols==attModels_Wt[0].size());
+    for (int r=0; r<attModels().W.rows; r++)
+        for (int c=0; c<attModels().W.cols; c++)
+            assert(abs(attModels().W.at<float>(r,c)-attModels_Wt[r][c])<0.0001);*/
 }

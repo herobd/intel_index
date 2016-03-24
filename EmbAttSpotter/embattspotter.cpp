@@ -16,7 +16,6 @@ EmbAttSpotter::EmbAttSpotter(string saveName, bool useNumbers)
     _embedding=NULL;
     _batches_cca_att=NULL;
     _features_corpus=NULL;
-    _feats_training=NULL;
     
     SIFT_sizes={2,4,6,8,10,12};
     stride=3;
@@ -305,7 +304,7 @@ vector<Mat>* EmbAttSpotter::extract_FV_feats_fast_and_batch(const vector<string>
     return ret;
 }
 
-Mat get_FV_feats(Dataset* dataset)
+Mat EmbAttSpotter::get_FV_feats(Dataset* dataset)
 {
     #if TEST_MODE
     int size=256;
@@ -316,18 +315,18 @@ Mat get_FV_feats(Dataset* dataset)
     #pragma omp parallel for
     for (int j=0; j<size; j++)
     {
-        Mat im = imread(dataset->image(j),CV_LOAD_IMAGE_GRAYSCALE);
+        Mat im = dataset->image(j);
         Mat feats=phow(im,&PCA_());
         //ret->at(i).row(j-batches_index[i]) = getImageDescriptorFV(feats.t());
         Mat r = getImageDescriptorFV(feats);
         assert(r.cols==FV_DIM);
         #pragma omp critical (copyToBatch)//do we need this?
-        r.copyTo(tmp.row(j));
+        r.copyTo(ret.row(j));
     }
     
-    for (int r=0; r<tmp.rows; r++)
-        for (int c=0; c<tmp.cols; c++)
-            assert(tmp.at<float>(r,c)==tmp.at<float>(r,c));
+    for (int r=0; r<ret.rows; r++)
+        for (int c=0; c<ret.cols; c++)
+            assert(ret.at<float>(r,c)==ret.at<float>(r,c));
     
     return ret;
 }
@@ -410,7 +409,7 @@ const Mat& EmbAttSpotter::feats_training(bool retrain)
     {
         #pragma omp  critical (feats_training)
         {
-            if (_feats_training==0)
+            if (_feats_training.rows==0)
             {
                 ifstream in(name);
                 if (in && !retrain)
@@ -425,10 +424,12 @@ const Mat& EmbAttSpotter::feats_training(bool retrain)
                 else
                 {
                     in.close();
-                    if (training_imgfiles!=NULL);
+                    if (training_imgfiles!=NULL)
+                    {
                         vector<Mat>* oo = extract_FV_feats_fast_and_batch(*training_imgfiles,NULL,NULL,training_imgfiles->size());
                         _feats_training = oo->at(0);
                         delete oo;
+                    }
                     else
                     {
                         _feats_training=get_FV_feats(training_dataset);
@@ -790,6 +791,9 @@ void EmbAttSpotter::learn_attributes_bagging()
 {
     int dimFeats=feats_training().cols;
     int numAtt = phocsTr().rows;
+    #if TEST_MODE
+    numAtt=100;
+    #endif
     int numSamples = phocsTr().cols;
     _attModels = new AttributesModels;
     _attModels->W=Mat::zeros(dimFeats,numAtt,CV_32F);
@@ -800,6 +804,8 @@ void EmbAttSpotter::learn_attributes_bagging()
     Mat threshed;
     threshold(phocsTr(),threshed, 0.47999, 1, THRESH_BINARY);
     assert(threshed.type()==CV_32F);
+    
+    
     for (int idxAtt=0; idxAtt<numAtt; idxAtt++)
     {
         vector<int> idxPos;
@@ -822,17 +828,25 @@ void EmbAttSpotter::learn_attributes_bagging()
             Mat Np(numSamples,1,CV_32F);
             int N=0;
             int numPosSamples=0;
-            
-            for (int cPass=0; cPass<2; cPass++)
+            #if TEST_MODE
+            int numPass=1;
+            int numIters=1;
+            #else
+            int numPass=2;
+            int numIters=5;
+            #endif
+            for (int cPass=0; cPass<numPass; cPass++)
             {
+                #if !TEST_MODE
                 random_shuffle ( idxPos.begin(), idxPos.end() );
                 random_shuffle ( idxNeg.begin(), idxNeg.end() );
+                #endif
                 int nTrainPos = .8*idxPos.size();
                 int nValPos = idxPos.size()-nTrainPos;
                 int nTrainNeg = .8*idxNeg.size();
                 int nValNeg = idxNeg.size()-nTrainNeg;
                 
-                for (int it=0; it<5; it++)
+                for (int it=0; it<numIters; it++)
                 {
                     vector<int> idxTrain;
                     idxTrain.insert(idxTrain.end(), idxPos.begin(), idxPos.begin()+nTrainPos);
@@ -897,7 +911,10 @@ Mat EmbAttSpotter::cvSVM(const Mat& featsTrain, const double* labelsTrain, const
     double bestlambda=0;
     for (double lambda : sgdparams_lbds)
     {
-        VlSvm * svm = vl_svm_new(VlSvmSolverSdca,
+        #if TEST_MODE
+        vl_rand_seed (vl_get_rand(), 0) ;
+        #endif
+        VlSvm * svm = vl_svm_new(VlSvmSolverSdca,//stochastic dual cord ascent
                                (double*)double_featsTrain.data, featsTrain.cols, featsTrain.rows,
                                labelsTrain,
                                lambda) ;
@@ -1085,9 +1102,14 @@ void EmbAttSpotter::learn_common_subspace()
     int Dy = phocsTr().rows;
     Mat rndmatx(M,Dx,CV_32F);
     Mat rndmaty(M,Dy,CV_32F);
+    #if TEST_MODE
+    rndmatx = Mat::ones(M,Dx,CV_32F)*(1.0/(2.0*G));
+    rndmaty = Mat::ones(M,Dy,CV_32F)*(1.0/(2.0*G));
+    #else
     RNG rng(12345);
     rng.fill(rndmatx,RNG::NORMAL,Scalar(0),Scalar(1/G));
     rng.fill(rndmaty,RNG::NORMAL,Scalar(0),Scalar(1/G));
+    #endif
     
     Mat tmp = rndmatx*attReprTr();
     vconcat(cosMat(tmp),sinMat(tmp),tmp);
@@ -1305,7 +1327,7 @@ void EmbAttSpotter::get_GMM_PCA(int numWordsTrainGMM, string saveAs, bool retrai
     }
     else
     {
-        assert(training_imgfiles!=NULL);
+        assert(training_imgfiles!=NULL || training_dataset!=NULL);
         /*if (in)
             in.close();
         DIR *dir;
@@ -1322,8 +1344,12 @@ void EmbAttSpotter::get_GMM_PCA(int numWordsTrainGMM, string saveAs, bool retrai
                     continue;
                 fileNames.push_back(fileName);
             }*/
-            
-        assert(training_imgfiles->size()>=numWordsTrainGMM);
+        int training_size;
+        if (training_dataset!=NULL)
+            training_size=training_dataset->size();
+        else
+            training_size=training_imgfiles->size();
+        assert(training_size>=numWordsTrainGMM);
         
         Mat for_PCA(num_samples_PCA,SIFT_DIM,CV_32F);
         int sample_per_for_PCA = num_samples_PCA/numWordsTrainGMM;
@@ -1334,23 +1360,27 @@ void EmbAttSpotter::get_GMM_PCA(int numWordsTrainGMM, string saveAs, bool retrai
         {
             bins[i] = Mat::zeros(0,SIFT_DIM+2,CV_32F);
         }*/
-        vector<bool> used(training_imgfiles->size());
+        vector<bool> used(training_size);
         for (int i=0; i<numWordsTrainGMM; i++)
         {
             #if TEST_MODE
             int imageIndex = i;
             #else
-            int imageIndex = rand()%training_imgfiles->size();
+            int imageIndex = rand()%training_size;
             
             int initIndex=imageIndex;
             while (used[imageIndex])
             {
-                imageIndex = (imageIndex+1)%training_imgfiles->size();
+                imageIndex = (imageIndex+1)%training_size;
                 assert(imageIndex!=initIndex);
             }
             #endif
             
-            Mat im = imread(training_imgfiles->at(imageIndex),CV_LOAD_IMAGE_GRAYSCALE);
+            Mat im;
+            if (training_dataset!=NULL)
+                im = training_dataset->image(imageIndex);
+            else
+                im = imread(training_imgfiles->at(imageIndex),CV_LOAD_IMAGE_GRAYSCALE);
             used[imageIndex]=true;
             //resize to minimum height
             if (im.rows<minH)

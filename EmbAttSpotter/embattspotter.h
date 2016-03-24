@@ -146,6 +146,7 @@ private:
     Mat extract_feats(const Mat& im);
 
     vector<Mat>* extract_FV_feats_fast_and_batch(const vector<string>& imageLocations,vector<int>* batches_index,vector<int>* batches_indexEnd, int batchSize);
+    Mat get_FV_feats(Dataset* dataset);
 
     const vector<Mat>& features_corpus(bool retrain=false);
     const Mat& feats_training(bool retrain=false);
@@ -232,8 +233,13 @@ private:
         void getImageDescriptorFV_test();
         void batches_cca_att_test();
         void embed_labels_PHOC_test();
-        void phocsTr_test();
-        void get_GMM_PCA_test();
+        void phocsTr_testM();
+        void get_GMM_PCA_testM();
+        void feats_training_testM();
+        void learn_attributes_bagging();
+        
+        void readCSV(string fileName, vector< vector<float> >& out);
+        void compareToCSV(Mat mine, string csvloc);
     #endif
     
 public:
