@@ -72,9 +72,9 @@ void EmbAttSpotter::test()
     phocsTr_testM();
     get_GMM_PCA_testM();
     feats_training_testM();
-    learn_attributes_bagging();
-    compareToCSV(embedding().rndmatx,"test/embedding_rndmatx_test.csv");
-    compareToCSV(embedding().rndmaty,"test/embedding_rndmaty_test.csv");
+    learn_attributes_bagging_test();
+    //compareToCSV(embedding().rndmatx,"test/embedding_rndmatx_test.csv");
+    //compareToCSV(embedding().rndmaty,"test/embedding_rndmaty_test.csv");
     compareToCSV(embedding().matt,"test/embedding_matt_test.csv");
     compareToCSV(embedding().mphoc,"test/embedding_mphoc_test.csv");
     compareToCSV(embedding().Wx,"test/embedding_Wx_test.csv");
@@ -581,7 +581,7 @@ void EmbAttSpotter::feats_training_testM()
             assert(abs(feats_training().at<float>(r,c)-fileFeatures[r][c])<0.0001);*/
 }
 
-void EmbAttSpotter::learn_attributes_bagging()
+void EmbAttSpotter::learn_attributes_bagging_test()
 {
     compareToCSV(attModels().W,"test/attModels_W_test.csv");
     compareToCSV(attReprTr(),"test/attReprTr_test.csv");
