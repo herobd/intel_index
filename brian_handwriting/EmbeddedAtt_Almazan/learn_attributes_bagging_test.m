@@ -1,4 +1,4 @@
-function [att_models,attFeatsTr] = learn_attributes_bagging(opts,data)
+function [att_models,attFeatsTr] = learn_attributes_bagging_test(opts,data)
 % Learns models using several folds of the training data.
 % Also produces the scores of the training samples with an unbiased model.
 % For each training sample, we get its score using a model constructed as
@@ -14,6 +14,7 @@ params = opts.sgdparams;
 %phocs = data.phocs_training;
 
 [numAtt,numSamples] = size(data.phocs_training);
+numAtt=200;
 dimFeats = size(data.feats_training,1);
 
 % Output encoded
@@ -26,12 +27,13 @@ for idxAtt = 1:numAtt
     att_models(idxAtt) = model;
     attFeatsTr(idxAtt,:) = encodedTr;
 end
+
 end
 
 
 function [model, attFeatsBag] = learn_att(idxAtt,feats, phocs,dimFeats, numSamples, opts, params)
-    fileModel = sprintf('%smodel_%.3d.mat',opts.folderModels,idxAtt);
-    if ~exist(fileModel,'file')
+    %fileModel = sprintf('%smodel_%.3d.mat',opts.folderModels,idxAtt);
+    %if ~exist(fileModel,'file')
         % Separate positives and negatives
         idxPos = find(phocs(idxAtt,:) >= 0.48);
         idxNeg = find(phocs(idxAtt,:) < 0.48);
@@ -48,7 +50,7 @@ function [model, attFeatsBag] = learn_att(idxAtt,feats, phocs,dimFeats, numSampl
             model.B = 0;
             model.numPosSamples = 0;
             attFeatsBag = single(zeros(1, numSamples));
-            save(fileModel,'model','attFeatsBag');
+            %save(fileModel,'model','attFeatsBag');
             return;
         end
         
@@ -62,12 +64,12 @@ function [model, attFeatsBag] = learn_att(idxAtt,feats, phocs,dimFeats, numSampl
         numPosSamples = 0;
         
         % Do two passes through the data so every sample gets scored at least twice
-        numPasses = 2;
-        numIters = 5;
+        numPasses = 1;
+        numIters = 1;
         for cpass = 1:numPasses
             % Randomize data
-            idxPos = idxPos(randperm(nPos));
-            idxNeg = idxNeg(randperm(nNeg));
+            %idxPos = idxPos(randperm(nPos));
+            %idxNeg = idxNeg(randperm(nNeg));
             % Get number of samples per group. Since we use floor and we
             % enforce at least two positive samples, there should always be
             % at least one sample in train and val for the positives. The
@@ -123,21 +125,19 @@ function [model, attFeatsBag] = learn_att(idxAtt,feats, phocs,dimFeats, numSampl
         model.W = W;
         model.B = B;
         model.numPosSamples = 0;
-
         if N~=0
             model.W = model.W/N;
             model.B = model.B/N;
             attFeatsBag = attFeatsBag ./ Np';
             model.numPosSamples = ceil(numPosSamples / N);
         end
-
         
-        save(fileModel,'model','attFeatsBag');
+        %save(fileModel,'model','attFeatsBag');
         
-    else
-        fprintf('\nAttribute %d already computed. Loaded. %s\n',idxAtt,fileModel);
-        load(fileModel); % Contains the variables to return.
-    end
+    %else
+    %    fprintf('\nAttribute %d already computed. Loaded.\n',idxAtt);
+    %    load(fileModel); % Contains the variables to return.
+    %end
 end
 
 
@@ -158,6 +158,7 @@ function model = cvSVM(featsTrain, labelsTrain, featsVal, labelsVal,   params)
             %if any(weightsTrain~=1)
            %     [Wv,Bv,info, scores] = vl_svmtrain(featsTrain, double(2*labelsTrain-1), double(lbd),'BiasMultiplier', 0.1, 'weights', double(weightsTrain));
             %else
+                vl_twister('state',0);
                 [Wv,Bv,info, scores] = vl_svmtrain(featsTrain, double(2*labelsTrain-1), double(lbd),'BiasMultiplier', 0.1);
             %end
             cmap = modelMap(Wv'*featsVal, labelsVal);

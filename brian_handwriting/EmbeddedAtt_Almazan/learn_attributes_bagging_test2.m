@@ -1,4 +1,4 @@
-function [att_models,attFeatsTr] = learn_attributes_bagging(opts,data)
+function [att_models,attFeatsTr] = learn_attributes_bagging_test2(opts,data)
 % Learns models using several folds of the training data.
 % Also produces the scores of the training samples with an unbiased model.
 % For each training sample, we get its score using a model constructed as
@@ -30,7 +30,7 @@ end
 
 
 function [model, attFeatsBag] = learn_att(idxAtt,feats, phocs,dimFeats, numSamples, opts, params)
-    fileModel = sprintf('%smodel_%.3d.mat',opts.folderModels,idxAtt);
+    fileModel = sprintf('%smodel_%.3d_test2.mat',opts.folderModels,idxAtt);
     if ~exist(fileModel,'file')
         % Separate positives and negatives
         idxPos = find(phocs(idxAtt,:) >= 0.48);
@@ -66,8 +66,8 @@ function [model, attFeatsBag] = learn_att(idxAtt,feats, phocs,dimFeats, numSampl
         numIters = 5;
         for cpass = 1:numPasses
             % Randomize data
-            idxPos = idxPos(randperm(nPos));
-            idxNeg = idxNeg(randperm(nNeg));
+            %idxPos = idxPos(randperm(nPos));
+            %idxNeg = idxNeg(randperm(nNeg));
             % Get number of samples per group. Since we use floor and we
             % enforce at least two positive samples, there should always be
             % at least one sample in train and val for the positives. The
@@ -158,6 +158,7 @@ function model = cvSVM(featsTrain, labelsTrain, featsVal, labelsVal,   params)
             %if any(weightsTrain~=1)
            %     [Wv,Bv,info, scores] = vl_svmtrain(featsTrain, double(2*labelsTrain-1), double(lbd),'BiasMultiplier', 0.1, 'weights', double(weightsTrain));
             %else
+                vl_twister('state',0);
                 [Wv,Bv,info, scores] = vl_svmtrain(featsTrain, double(2*labelsTrain-1), double(lbd),'BiasMultiplier', 0.1);
             %end
             cmap = modelMap(Wv'*featsVal, labelsVal);

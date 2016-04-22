@@ -76,6 +76,6 @@ fprintf('thresh at %.3f recall is %.8f\n', opts.recallForThresh, threshRecall);
 fprintf('prec at %.3f recall is %.8f\n', opts.recallForThresh, precAtRecall);
 disp('------------------------------------');
 
-mAP.qbe = 100*qbe_test_map;
+mAP.qbe = -1 %100*qbe_test_map;
 mAP.qbs = 100*qbs_test_map;
 end

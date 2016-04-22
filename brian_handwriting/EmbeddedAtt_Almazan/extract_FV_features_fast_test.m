@@ -1,12 +1,12 @@
-function extract_FV_features_fast_test(opts,data)
+function data=extract_FV_features_fast_test(opts,data)
 
 GMM = readGMM(opts.fileGMM);
 PCA = readPCA(opts.filePCA);
 imagesTOC = readImagesToc(opts.fileImages);
 
-nWords = 256; %length(imagesTOC);
+nWords = 456; %length(imagesTOC);
 
-imagesPerBatch = 256;
+imagesPerBatch = 456;
 nBatches = int32(ceil(nWords/imagesPerBatch));
 featsBatch = zeros(opts.FVdim,imagesPerBatch,'single');
 
@@ -67,7 +67,7 @@ for cb=1:nBatches
     %fseek(fid, 2*4  + (int64(cb)-1)*imagesPerBatch*opts.FVdim * 4, 'bof');
     %fwrite(fid, featsBatch(:,1:nInBatch), 'single');    
     dlmwrite('fileFeatures_test.csv',featsBatch,'precision',8);
-    data.test_features=featsBatch
+    data.features_test=featsBatch
 end
 disp(toc);
 end
