@@ -33,10 +33,10 @@ $(PROGRAM_NAME):  $(OBJECTS)
 	$(LINK) $(CXX_FLAGS) -o $(PROGRAM_NAME) $(OBJECTS) $(LIBS)
 
 	
-obj/main.o: main.cpp
+obj/main.o: main.cpp gwdataset.h
 	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/main.o main.cpp $(LIBS)
 
-obj/embattspotter.o: embattspotter.h embattspotter.cpp embattspotter_eval.cpp embattspotter_test.cpp
+obj/embattspotter.o: embattspotter.h embattspotter.cpp embattspotter_eval.cpp embattspotter_test.cpp gwdataset.h
 	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/embattspotter.o embattspotter.cpp $(LIBS)
 	
 obj/gwdataset.o: dataset.h gwdataset.h gwdataset.cpp

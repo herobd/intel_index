@@ -24,6 +24,8 @@ extern "C" {
   #include <vl/svm.h>
   #include <vl/gmm.h>
   #include <vl/fisher.h>
+  #include <vl/dsift.h>
+  #include <vl/imopv.h>
 }
 
 #define SIFT_DIM 128
@@ -207,7 +209,7 @@ private:
     void computePhoc(string str, map<char,int> vocUni2pos, map<string,int> vocBi2pos, int Nvoc, vector<int> levels, int descSize, Mat &out, int instance);
     
     //The PHOCs of the training set. Lazy
-    const Mat& phocsTr();//correct orientation
+    const Mat& phocsTr(bool retrain=false);//correct orientation
     
     //Computes a bounding box roughly capturing the word lengthwise and the baselines
     void DoBB(const Mat& im, int* bb_x1, int* bb_x2, int* bb_y1, int* bb_y2);
@@ -221,7 +223,7 @@ private:
     
     Mat otsuBinarization(const Mat& src);
     
-    bool test_mode;
+    int test_mode;
     
     #if TEST_MODE
         void sinMat_cosMat_test();
@@ -251,7 +253,7 @@ public:
     const Mat& attReprTr(bool retrain=false);//correct orientation
     const Embedding& embedding(bool retrain=false);
 
-    EmbAttSpotter(string saveName="embAttSpotter",bool useNumbers=true, bool test_mode=false);
+    EmbAttSpotter(string saveName="embAttSpotter",bool useNumbers=true, int test_mode=0);
     ~EmbAttSpotter();
     void loadCorpus(string dir);
     void setTrainData(string gtFile, string imageDir, string saveAs="");

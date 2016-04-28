@@ -67,18 +67,26 @@ void EmbAttSpotter::test()
     numWordsTrainGMM=tempnumWordsTrainGMM;
     training_imgfiles=NULL;
     training_labels=NULL;
-    training_dataset = new GWDataset("/home/brian/intel_index/brian_handwriting/EmbeddedAtt_Almazan/datasets/GW/queries/queries.gtp","/home/brian/intel_index/brian_handwriting/EmbeddedAtt_Almazan/datasets/GW/images/");
     
+    
+    training_dataset = new GWDataset("/home/brian/intel_index/brian_handwriting/EmbeddedAtt_Almazan/datasets/GW/queries/queries.gtp","/home/brian/intel_index/brian_handwriting/EmbeddedAtt_Almazan/datasets/GW/images/");
     phocsTr_testM();
     get_GMM_PCA_testM();
     feats_training_testM();
+    delete training_dataset;
+    
+    training_dataset = new GWDataset("test/queries_train.gtp","/home/brian/intel_index/brian_handwriting/EmbeddedAtt_Almazan/datasets/GW/images/");
+    phocsTr(true);
+    PCA_(true);
+    feats_training(true);
+    
     learn_attributes_bagging_test();
-    //compareToCSV(embedding().rndmatx,"test/embedding_rndmatx_test.csv");
-    //compareToCSV(embedding().rndmaty,"test/embedding_rndmaty_test.csv");
-    compareToCSV(embedding().matt,"test/embedding_matt_test.csv");
-    compareToCSV(embedding().mphoc,"test/embedding_mphoc_test.csv");
-    compareToCSV(embedding().Wx,"test/embedding_Wx_test.csv");
-    compareToCSV(embedding().Wy,"test/embedding_Wy_test.csv");
+    compareToCSV(embedding().rndmatx,"test/embedding_rndmatx_test2.csv");
+    compareToCSV(embedding().rndmaty,"test/embedding_rndmaty_test2.csv");
+    compareToCSV(embedding().matt,"test/embedding_matt_test2.csv");
+    compareToCSV(embedding().mphoc,"test/embedding_mphoc_test2.csv");
+    compareToCSV(embedding().Wx,"test/embedding_Wx_test2.csv");
+    compareToCSV(embedding().Wy,"test/embedding_Wy_test2.csv");
     
     delete _features_corpus;
     _features_corpus=temp_features_corpus;
@@ -99,6 +107,8 @@ void EmbAttSpotter::test()
     _phocsTr = temp_phocsTr;
     _PCA.eigvec = tmp_PCA.eigvec;
     _PCA.mean = tmp_PCA.mean;
+    delete training_dataset;
+    training_dataset=NULL;
 }
 
 

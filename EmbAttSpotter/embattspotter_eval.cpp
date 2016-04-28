@@ -22,7 +22,7 @@ void EmbAttSpotter::eval(const Dataset* data)
             string text = data->labels()[inst];
             for (int inst2=0; inst2<data->size(); inst2++)
             {
-                if (inst!=inst2 && text.compare(data->labels()[inst2]))
+                if (inst!=inst2 && text.compare(data->labels()[inst2])==0)
                 {
                     other++;
                 }
@@ -39,6 +39,7 @@ void EmbAttSpotter::eval(const Dataset* data)
             for (int j=0; j < data->size(); j++)
             {            
                 float s = scores[j];
+                //cout <<"score for "<<j<<" is "<<s<<". It is ["<<data->labels()[j]<<"], we are looking for ["<<text<<"]"<<endl;
                 /* Precision at 1 part */
                 /*if (inst!=j && s > bestS)
                 {
@@ -48,7 +49,7 @@ void EmbAttSpotter::eval(const Dataset* data)
                 }*/
                 /* If it is from the same class and it is not the query idx, it is a relevant one. */
                 /* Compute how many on the dataset get a better score and how many get an equal one, excluding itself and the query.*/
-                if (text==data->labels()[j] && inst!=j)
+                if (text.compare(data->labels()[j])==0 && inst!=j)
                 {
                     int better=0;
                     int equal = 0;
@@ -83,7 +84,7 @@ void EmbAttSpotter::eval(const Dataset* data)
             }
             ap/=Nrelevants;
             
-            //T#pragma omp critical
+            //T#pragma omp critical (storeMAP)
             {
                 queryCount++;
                 map+=ap;

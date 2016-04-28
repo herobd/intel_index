@@ -22,7 +22,7 @@ int main(int argc, char** argv)
 	 
 	if ( testF.getValue() )
 	{
-	    EmbAttSpotter spotter("testing",true,true);
+	    EmbAttSpotter spotter("testing",true,1);
 	    
 		spotter.test();
 	}
