@@ -607,12 +607,30 @@ void showImage(float * im, int h, int w)
 {
     Mat m(h,w,CV_32F);
     for (int r=0; r<h; r++)
-        for (int c=0; c<w; c++)
+        for (int c=0; c<w; c++) 
+        {
             m.at<float>(r,c)=256*im[(r)*w+(c)];
+            assert(im[(r)*w+(c)]>=0 && im[(r)*w+(c)]<=1);
+        }
     m.convertTo(m,CV_8U);
     imshow("image",m);
-    waitKey();
+    waitKey(1);
 }
+
+Mat createColorMat(float * im, int h, int w)
+{
+    Mat m(h,w,CV_32F);
+    for (int r=0; r<h; r++)
+        for (int c=0; c<w; c++) 
+        {
+            m.at<float>(r,c)=256*im[(r)*w+(c)];
+            assert(im[(r)*w+(c)]>=0 && im[(r)*w+(c)]<=1);
+        }
+    m.convertTo(m,CV_8U);
+    cvtColor(m,m,CV_GRAY2RGB);
+    return m;
+}
+
 
 Mat EmbAttSpotter::phow(const Mat& im, const struct PCA_struct* PCA_pt)
 {
@@ -631,66 +649,75 @@ Mat EmbAttSpotter::phow(const Mat& im, const struct PCA_struct* PCA_pt)
             maxSize=size;
     
     //convert im to vl style
+    //imshow("image Origin",im);
+    //waitKey();
+    #if USE_VL
+    /**VL*/
+    
     Mat imf;
     im.convertTo(imf,CV_32F);
-    imf/=255;
-    cout <<"canary "<<imf.at<float>(0,0)<<endl;
+    imf/=255; //??
+    //cout <<"canary "<<imf.at<float>(0,0)<<endl;
+    
     assert(im.isContinuous());
     assert(im.rows>0 && im.cols>0);
-    imf=imf.t();
+    //imf=imf.t(); //nope
+    assert(imf.isContinuous());
     float* im_vl = (float*)imf.data;
+    
+    /*VL**/
+    #endif
     for (int size : SIFT_sizes)
     {
-        int off = floor(1 + (3.0/2.0) * (maxSize - size));
+        
         double sigma = size/magnif;  //sqrt(pow(size/magnif,2) - .25);
-        /*int gSize = 5*sigma;
+        int gSize = 5*sigma;
         if (gSize%2==0)
             gSize++;
         
-        Mat ims; 
-        GaussianBlur( im, ims, Size( gSize, gSize ), sigma, sigma );
-        ims.convertTo(ims,CV_8U);
-        
-        //describe dense points
-        vector<KeyPoint> keyPoints;
-        for (int x=off; x<ims.cols; x+=stride)
-            for (int y=off; y<ims.rows; y+=stride)
-            {
-                keyPoints.push_back(KeyPoint(x,y,size));
-                cout<<x<<", "<<y<<" : "<<size<<endl;
-            }
-        
-        int nfeaturePoints=keyPoints.size();
-        int nOctivesPerLayer=3;
-        SIFT detector(nfeaturePoints,nOctivesPerLayer,contrastthreshold);
-        Mat desc;
-        detector(ims,noArray(),keyPoints,desc,true);
-        desc.convertTo(desc, CV_32FC1);*/
+        #if USE_VL
+        /**VL*/
+        int off = floor(1 + (3.0/2.0) * (maxSize - size)); //MATALB, for DSIFT
+        float* ims = im_vl;//new float[imf.rows*imf.cols];
         
         
-        float* ims = new float[imf.rows*imf.cols];
-        
-        
-        //vl_imsmooth_f(ims,imf.cols,im_vl,imf.cols,imf.rows,imf.cols,sigma,sigma);
         
         int newW, newH;
-        //vl_matlab_smooth_f(im_vl,imf.rows,imf.cols,sigma,ims,&newH,&newW);
-        vl_matlab_smooth_f(im_vl,imf.cols,imf.rows,sigma,ims,&newH,&newW);
+        
+        //vl_matlab_smooth_f(im_vl,imf.cols,imf.rows,sigma,ims,&newH,&newW);
         //cout << "new size ["<<newH<<", "<<newW<<"]"<<endl;
+        
+        /*Mat imsMat; 
+        GaussianBlur( imf, imsMat, Size( gSize, gSize ), sigma, sigma );
+        assert(imsMat.isContinuous());
+        ims = (float*)imsMat.data;*/
         showImage(im_vl,imf.rows,imf.cols);
-        showImage(ims,imf.cols,imf.rows);
+        //showImage(ims,imf.rows,imf.cols);
         
         
-        //VlDsiftFilter* dsift = vl_dsift_new_basic (imf.cols,imf.rows,stride,size);
-        //vl_dsift_set_bounds (dsift,off,off,imf.cols,imf.rows);
-        VlDsiftFilter* dsift = vl_dsift_new_basic (imf.rows,imf.cols,stride,size);
-        vl_dsift_set_bounds (dsift,off,off,imf.rows,imf.cols);
         
-        cout <<"Data into dsift: "<<ims[0]<<" "<<ims[1]<<" "<<ims[2]<<" "<<ims[3]<<" "<<ims[4]<<endl;
+        VlDsiftFilter* dsift;// = vl_dsift_new_basic (imf.cols,imf.rows,stride,size);
+        dsift = vl_dsift_new (imf.cols,imf.rows) ;
+        
+        VlDsiftDescriptorGeometry geom ;
+        geom.numBinX = 4 ;
+        geom.numBinY = 4 ;
+        geom.numBinT = 8 ;
+        geom.binSizeX = size ;
+        geom.binSizeY = size ;
+        vl_dsift_set_geometry(dsift, &geom) ;
+        
+        int step [2] = {stride,stride} ;
+        vl_dsift_set_steps(dsift, step[0], step[1]) ;
+        vl_dsift_set_bounds (dsift,off,off,imf.cols,imf.rows );
+        vl_dsift_set_flat_window(dsift, 1) ;
+        vl_dsift_set_window_size(dsift, 1.5) ;
+        
+        //cout <<"Data into dsift: "<<ims[0]<<" "<<ims[1]<<" "<<ims[2]<<" "<<ims[3]<<" "<<ims[4]<<endl;
         vl_dsift_process(dsift,ims);
-        delete ims;
+        
         int num = vl_dsift_get_keypoint_num(dsift);
-        cout << "Total :"<<num<<endl;
+        //cout << "Total :"<<num<<endl;
         
         VlDsiftKeypoint const * kps = vl_dsift_get_keypoints(dsift);
         float const * descArr = vl_dsift_get_descriptors(dsift);
@@ -701,27 +728,85 @@ Mat EmbAttSpotter::phow(const Mat& im, const struct PCA_struct* PCA_pt)
             for (int f=0; f<SIFT_DIM; f++)
                 desc.at<float>(i,f)=descArr[i*SIFT_DIM+f];
             
-            if (i==0 || i==num-1)
-                cout<<kps[i].y<<", "<<kps[i].x<<" : "<<size<<" = "<<kps[i].norm<<endl;
+            //if (i==0 || i==num-1)
+                //cout<<kps[i].y<<", "<<kps[i].x<<" : "<<size<<" = "<<kps[i].norm<<endl;
         }
+        /*VL**/
+        #else
+        /**CV**/
+        int off = floor((3.0/2.0) * maxSize);
+        Mat ims; 
+        GaussianBlur( im, ims, Size( gSize, gSize ), sigma, sigma );
+        ims.convertTo(ims,CV_8U);
+        
+        
+        
+        //describe dense points
+        vector<KeyPoint> keyPoints;
+        for (int x=off; x<ims.cols-off; x+=stride)
+            for (int y=off; y<ims.rows-off; y+=stride)
+            {
+                keyPoints.push_back(KeyPoint(x,y,size));
+                //cout<<x<<", "<<y<<" : "<<size<<endl;
+                
+            }
+        
+        int nfeaturePoints=keyPoints.size();
+        int nOctivesPerLayer=3;
+        SIFT detector(0,nOctivesPerLayer,contrastthreshold);
+        Mat desc;
+        detector(ims,noArray(),keyPoints,desc,true);
+        desc.convertTo(desc, CV_32FC1);
+        
+        cout << "there are "<<keyPoints.size()<<" key points. we got "<<desc.rows<<" descriptors"<<endl;
+        
+        /*CV**/
+        #endif
+        
         
         vector<int> toKeep;
         Mat summed;
         
         reduce(desc,summed,1,CV_REDUCE_SUM);
+        #if USE_VL
+        /**VL*/
         for (int r=0; r<num; r++)
         {
+            cout << kps[r].x<<", "<<kps[r].y<<" = "<<kps[r].norm<<endl;
             if (summed.at<float>(r,0)>0 && kps[r].norm>=contrastthreshold)
                 toKeep.push_back(r);
         }
-        /*for (int r=0; r<keyPoints.size(); r++)
+        /*VL**/
+        cout <<"Start "<<num<< ", Removed "<<num-toKeep.size()<<endl;
+        if (toKeep.size()<num) {
+        #else
+        /**CV*/
+        for (int r=0; r<keyPoints.size(); r++)
         {
-            if (summed.at<float>(r,0)>0 && norm(desc.row(r))>=contrastthreshold)
-                toKeep.push_back(r);
+            if (summed.at<float>(r,0)>0)
+            {
+                //except the mass is calculated before the normalizations....
+                //Do I not need to normaliz this sum?
+                //int frameSizeX = self->geom.binSizeX * (self->geom.numBinX - 1) + 1 ;
+                //int frameSizeY = self->geom.binSizeY * (self->geom.numBinY - 1) + 1 ;
+                //float normConstant = frameSizeX * frameSizeY ;
+                float mass = 0 ;
+                for (int bint = 0 ; bint < desc.cols ; ++ bint)
+                    mass += desc.at<float>(r,bint) ;
+                //mass /= normConstant ;
+                float norm = mass ;
+                cout << keyPoints[r].pt.x<<", "<<keyPoints[r].pt.y<<" = "<<norm<< "\t"<<keyPoints[r].response<<endl;
+                if (norm>=contrastthreshold)
+                    toKeep.push_back(r);
+            }
         }
-        if (toKeep.size()<keyPoints.size())*/
-        if (toKeep.size()<num)
+        /*CV**/
+        cout <<"Start "<<keyPoints.size()<< ", Removed "<<keyPoints.size()-toKeep.size()<<endl;
+        if (toKeep.size()<keyPoints.size()) {
+        #endif
             desc = select_rows(desc,toKeep);
+        }
+        
         desc /= 255.0;
         
         assert(desc.cols==SIFT_DIM);
@@ -747,6 +832,18 @@ Mat EmbAttSpotter::phow(const Mat& im, const struct PCA_struct* PCA_pt)
         //trans with eigen vectors (desc is tranposed in relation to ALmazan's code, flip back at end)
         if (PCA_pt!=NULL)
             desc = (PCA_pt->eigvec*desc.t()).t();
+        #if USE_VL
+        /**VL*/
+        Mat draw = createColorMat(ims,imf.rows,imf.cols);
+        //draw=draw.t();
+        //delete ims;
+        /*VL**/
+        #else
+        /**CV*/
+        Mat draw;
+        cvtColor(ims,draw,CV_GRAY2RGB);
+        /*CV**/
+        #endif
         
         
         //append x,y information
@@ -754,13 +851,40 @@ Mat EmbAttSpotter::phow(const Mat& im, const struct PCA_struct* PCA_pt)
         desc.copyTo(augmented(Rect(0, 0, desc.cols, desc.rows)));
         for (unsigned int j=0; j<desc.rows; j++)
         {
-            //augmented.at<float>(j,desc.cols) = (keyPoints[j].pt.x-cx)/(float)bb_w;
-            //augmented.at<float>(j,desc.cols+1) = (keyPoints[j].pt.y-cy)/(float)bb_h;
-            augmented.at<float>(j,desc.cols) = (kps[j].y-cx)/(float)bb_w;
-            augmented.at<float>(j,desc.cols+1) = (kps[j].x-cy)/(float)bb_h;
+            #if USE_VL
+            /**VL*/
+            
+            int kpx=kps[j].x;
+            int kpy=kps[j].y;
+            assert(kpx<im.cols);
+            assert(kpy<im.rows);
+            /*VL**/
+            #else
+            /**CV*/
+            int kpx=keyPoints.at(toKeep.at(j)).pt.x;
+            int kpy=keyPoints.at(toKeep.at(j)).pt.y;
+            /*CV**/
+            #endif
+            
+            
+            augmented.at<float>(j,desc.cols) = (kpx-cx)/(float)bb_w;
+            augmented.at<float>(j,desc.cols+1) = (kpy-cy)/(float)bb_h;
+            
+            size=1;
+            Vec3b c(100+rand()%156,100+rand()%156,100+rand()%156);
+            for (int xx=kpx-size; xx<kpx+size; xx++)
+                for (int yy=kpy-size; yy<kpy+size; yy++)
+                    if (xx>=0 && xx<draw.cols && yy>=0 && yy<draw.rows)
+                    {
+                        draw.at<Vec3b>(yy,xx)=c;
+                    }
         }
+        imshow("SIFT",draw);
+        waitKey();
         
+        #if USE_VL
         vl_dsift_delete(dsift);
+        #endif
         
         //vconcat(feats,augmented,feats);
         feats_m.push_back(augmented);
@@ -1684,10 +1808,10 @@ void EmbAttSpotter::get_GMM_PCA(int numWordsTrainGMM, string saveAs, bool retrai
             if (test_mode!=0)
             {   
                 
-                cout <<"size "<<desc.rows<<" "<<desc.cols<<endl;
+                //cout <<"size "<<desc.rows<<" "<<desc.cols<<endl;
                 /*for (int ii=0; ii<desc.cols; ii++)
                     cout << desc.at<float>(0,ii) << endl;*/
-                exit(1);
+                //exit(1);
                 
                 int numSamp = min(num_samples_PCA,desc.rows);
                 for (int sample=0; sample<desc.rows && on_sample<numSamp; sample++)

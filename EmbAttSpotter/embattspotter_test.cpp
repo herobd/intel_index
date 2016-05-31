@@ -37,6 +37,11 @@ void EmbAttSpotter::test()
     _PCA.eigvec=Mat();
     
     
+    ///
+    Mat smoothed = imread("test/smoothed.pgm",CV_LOAD_IMAGE_GRAYSCALE);
+    phow(smoothed);
+    ///
+    
     // delete files
     system(("rm "+saveName+"*").c_str());
     
@@ -87,6 +92,8 @@ void EmbAttSpotter::test()
     compareToCSV(embedding().mphoc,"test/embedding_mphoc_test2.csv");
     compareToCSV(embedding().Wx,"test/embedding_Wx_test2.csv");
     compareToCSV(embedding().Wy,"test/embedding_Wy_test2.csv");
+    
+    cout <<"tests passed"<<endl;
     
     delete _features_corpus;
     _features_corpus=temp_features_corpus;

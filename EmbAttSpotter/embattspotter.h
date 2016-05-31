@@ -18,7 +18,9 @@
 
 #include "dataset.h"
 
+#define USE_VL 1
 
+#if USE_VL
 extern "C" {
   #include <vl/generic.h>
   #include <vl/svm.h>
@@ -27,6 +29,9 @@ extern "C" {
   #include <vl/dsift.h>
   #include <vl/imopv.h>
 }
+#endif
+
+
 
 #define SIFT_DIM 128
 #define DESC_DIM (SIFT_DIM+2)
