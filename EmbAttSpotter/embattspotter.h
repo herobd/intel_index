@@ -2,6 +2,9 @@
 #define EMBATTSPOTTER_H
 
 #define TEST_MODE 1
+#define DRAW 0
+
+#define USE_VL 1
 
 #include "embattspotter_global.h"
 #include "opencv2/core/core.hpp"
@@ -18,7 +21,7 @@
 
 #include "dataset.h"
 
-#define USE_VL 1
+
 
 #if USE_VL
 extern "C" {
@@ -251,7 +254,8 @@ private:
         void learn_attributes_bagging_test();
         
         void readCSV(string fileName, vector< vector<float> >& out);
-        void compareToCSV(Mat mine, string csvloc);
+        void compareToCSV(Mat mine, string csvloc, bool transpose=false);
+        void compareToCSVAbs(Mat mine, string csvloc, bool transpose=false);
     #endif
     
 public:

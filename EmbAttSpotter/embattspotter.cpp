@@ -33,9 +33,9 @@ EmbAttSpotter::EmbAttSpotter(string saveName, bool useNumbers, int test_mode)
     #endif
     
     if (test_mode==1)
-        num_samples_PCA = 2000;
+        num_samples_PCA = 5000;
     else
-        num_samples_PCA = 200000;
+        num_samples_PCA = 2000000;
     
     numGMMClusters = 16;
     numSpatialX = 6;//num of bins for spatail pyr
@@ -649,22 +649,28 @@ Mat EmbAttSpotter::phow(const Mat& im, const struct PCA_struct* PCA_pt)
             maxSize=size;
     
     //convert im to vl style
-    //imshow("image Origin",im);
-    //waitKey();
+    
     #if USE_VL
     /**VL*/
-    
+    //imshow("image Origin",im);
+    //waitKey(1);
     Mat imf;
     im.convertTo(imf,CV_32F);
     imf/=255; //??
+    
     //cout <<"canary "<<imf.at<float>(0,0)<<endl;
     
     assert(im.isContinuous());
     assert(im.rows>0 && im.cols>0);
     //imf=imf.t(); //nope
-    assert(imf.isContinuous());
-    float* im_vl = (float*)imf.data;
     
+    /*vector<float> im_v;
+    for (int i = 0; i < imf.rows; ++i)
+      for (int j = 0; j < imf.cols; ++j)
+        im_v.push_back(imf.at<float>(i, j));
+    //assert(imf.isContinuous());
+    float* im_vl = &im_v[0];//(float*)imf.data;
+    showImage(im_vl,imf.rows,imf.cols);*/
     /*VL**/
     #endif
     for (int size : SIFT_sizes)
@@ -678,7 +684,7 @@ Mat EmbAttSpotter::phow(const Mat& im, const struct PCA_struct* PCA_pt)
         #if USE_VL
         /**VL*/
         int off = floor(1 + (3.0/2.0) * (maxSize - size)); //MATALB, for DSIFT
-        float* ims = im_vl;//new float[imf.rows*imf.cols];
+        float* ims;// = new float[imf.rows*imf.cols];
         
         
         
@@ -687,16 +693,16 @@ Mat EmbAttSpotter::phow(const Mat& im, const struct PCA_struct* PCA_pt)
         //vl_matlab_smooth_f(im_vl,imf.cols,imf.rows,sigma,ims,&newH,&newW);
         //cout << "new size ["<<newH<<", "<<newW<<"]"<<endl;
         
-        /*Mat imsMat; 
+        Mat imsMat; 
         GaussianBlur( imf, imsMat, Size( gSize, gSize ), sigma, sigma );
         assert(imsMat.isContinuous());
-        ims = (float*)imsMat.data;*/
-        showImage(im_vl,imf.rows,imf.cols);
+        ims = (float*)imsMat.data;/**/
+        //
         //showImage(ims,imf.rows,imf.cols);
         
         
         
-        VlDsiftFilter* dsift;// = vl_dsift_new_basic (imf.cols,imf.rows,stride,size);
+        VlDsiftFilter* dsift;
         dsift = vl_dsift_new (imf.cols,imf.rows) ;
         
         VlDsiftDescriptorGeometry geom ;
@@ -758,7 +764,7 @@ Mat EmbAttSpotter::phow(const Mat& im, const struct PCA_struct* PCA_pt)
         detector(ims,noArray(),keyPoints,desc,true);
         desc.convertTo(desc, CV_32FC1);
         
-        cout << "there are "<<keyPoints.size()<<" key points. we got "<<desc.rows<<" descriptors"<<endl;
+        //cout << "there are "<<keyPoints.size()<<" key points. we got "<<desc.rows<<" descriptors"<<endl;
         
         /*CV**/
         #endif
@@ -772,12 +778,12 @@ Mat EmbAttSpotter::phow(const Mat& im, const struct PCA_struct* PCA_pt)
         /**VL*/
         for (int r=0; r<num; r++)
         {
-            cout << kps[r].x<<", "<<kps[r].y<<" = "<<kps[r].norm<<endl;
+            //cout << kps[r].x<<", "<<kps[r].y<<" = "<<kps[r].norm<<endl;
             if (summed.at<float>(r,0)>0 && kps[r].norm>=contrastthreshold)
                 toKeep.push_back(r);
         }
         /*VL**/
-        cout <<"Start "<<num<< ", Removed "<<num-toKeep.size()<<endl;
+        //cout <<"Start "<<num<< ", Removed "<<num-toKeep.size()<<endl;
         if (toKeep.size()<num) {
         #else
         /**CV*/
@@ -795,13 +801,13 @@ Mat EmbAttSpotter::phow(const Mat& im, const struct PCA_struct* PCA_pt)
                     mass += desc.at<float>(r,bint) ;
                 //mass /= normConstant ;
                 float norm = mass ;
-                cout << keyPoints[r].pt.x<<", "<<keyPoints[r].pt.y<<" = "<<norm<< "\t"<<keyPoints[r].response<<endl;
+                //cout << keyPoints[r].pt.x<<", "<<keyPoints[r].pt.y<<" = "<<norm<< "\t"<<keyPoints[r].response<<endl;
                 if (norm>=contrastthreshold)
                     toKeep.push_back(r);
             }
         }
         /*CV**/
-        cout <<"Start "<<keyPoints.size()<< ", Removed "<<keyPoints.size()-toKeep.size()<<endl;
+        //cout <<"Start "<<keyPoints.size()<< ", Removed "<<keyPoints.size()-toKeep.size()<<endl;
         if (toKeep.size()<keyPoints.size()) {
         #endif
             desc = select_rows(desc,toKeep);
@@ -832,6 +838,7 @@ Mat EmbAttSpotter::phow(const Mat& im, const struct PCA_struct* PCA_pt)
         //trans with eigen vectors (desc is tranposed in relation to ALmazan's code, flip back at end)
         if (PCA_pt!=NULL)
             desc = (PCA_pt->eigvec*desc.t()).t();
+        #if DRAW
         #if USE_VL
         /**VL*/
         Mat draw = createColorMat(ims,imf.rows,imf.cols);
@@ -845,6 +852,30 @@ Mat EmbAttSpotter::phow(const Mat& im, const struct PCA_struct* PCA_pt)
         /*CV**/
         #endif
         
+        #if USE_VL
+        for (unsigned int i=0; i<num; i++)
+        {
+            
+            int kpx=kps[i].x;
+            int kpy=kps[i].y;
+            assert(kpx<im.cols);
+            assert(kpy<im.rows);
+            
+            
+            
+            
+            
+            size=1;
+            Vec3b c(0,0,255);
+            for (int xx=kpx-size; xx<kpx+size; xx++)
+                for (int yy=kpy-size; yy<kpy+size; yy++)
+                    if (xx>=0 && xx<draw.cols && yy>=0 && yy<draw.rows)
+                    {
+                        draw.at<Vec3b>(yy,xx)=c;
+                    }
+        }
+        #endif
+        #endif
         
         //append x,y information
         Mat augmented(desc.rows, desc.cols+2, desc.type());
@@ -854,8 +885,8 @@ Mat EmbAttSpotter::phow(const Mat& im, const struct PCA_struct* PCA_pt)
             #if USE_VL
             /**VL*/
             
-            int kpx=kps[j].x;
-            int kpy=kps[j].y;
+            int kpx=kps[toKeep.at(j)].x;
+            int kpy=kps[toKeep.at(j)].y;
             assert(kpx<im.cols);
             assert(kpy<im.rows);
             /*VL**/
@@ -870,6 +901,7 @@ Mat EmbAttSpotter::phow(const Mat& im, const struct PCA_struct* PCA_pt)
             augmented.at<float>(j,desc.cols) = (kpx-cx)/(float)bb_w;
             augmented.at<float>(j,desc.cols+1) = (kpy-cy)/(float)bb_h;
             
+            #if DRAW
             size=1;
             Vec3b c(100+rand()%156,100+rand()%156,100+rand()%156);
             for (int xx=kpx-size; xx<kpx+size; xx++)
@@ -878,9 +910,12 @@ Mat EmbAttSpotter::phow(const Mat& im, const struct PCA_struct* PCA_pt)
                     {
                         draw.at<Vec3b>(yy,xx)=c;
                     }
+            #endif
         }
+        #if DRAW
         imshow("SIFT",draw);
         waitKey();
+        #endif
         
         #if USE_VL
         vl_dsift_delete(dsift);
@@ -1760,6 +1795,25 @@ void EmbAttSpotter::get_GMM_PCA(int numWordsTrainGMM, string saveAs, bool retrai
         {
             bins[i] = Mat::zeros(0,SIFT_DIM+2,CV_32F);
         }*/
+        
+        #if TEST_MODE
+        Mat newFor_PCA;
+        #endif
+        if (test_mode)
+        {
+            //Read in for_PCA from MATLAB's results
+            vector<vector<float> > csv;
+            readCSV("test/GMM_PCA_descs_all_test.csv",csv);
+            newFor_PCA = Mat(csv[0].size(),csv.size(),CV_32F);
+            for (int r=0; r<csv.at(0).size(); r++)
+                for (int c=0; c<csv.size(); c++)
+                {
+                    newFor_PCA.at<float>(r,c) = csv[c][r];
+                }
+        }
+        
+        
+        
         vector<bool> used(training_size);
         for (int i=0; i<numWordsTrainGMM; i++)
         {
@@ -1795,27 +1849,39 @@ void EmbAttSpotter::get_GMM_PCA(int numWordsTrainGMM, string saveAs, bool retrai
             
             if (test_mode)
             {
-            cout <<"image "<<imageIndex<<" size ["<<im.rows<<" "<<im.cols<<"]"<<endl;
-            cout << training_dataset->labels()[imageIndex] << endl;
-            cout <<"image "<<imageIndex+1<<" size ["<<training_dataset->image(imageIndex+1).rows<<" "<<training_dataset->image(imageIndex+1).cols<<"]"<<endl;
-            cout << training_dataset->labels()[imageIndex+1] << endl;
-            cout << "canary "<<im.at<unsigned char>(0,0)<<endl;
+            //cout <<"image "<<imageIndex<<" size ["<<im.rows<<" "<<im.cols<<"]"<<endl;
+            //cout << training_dataset->labels()[imageIndex] << endl;
+            //cout <<"image "<<imageIndex+1<<" size ["<<training_dataset->image(imageIndex+1).rows<<" "<<training_dataset->image(imageIndex+1).cols<<"]"<<endl;
+            //cout << training_dataset->labels()[imageIndex+1] << endl;
+            //cout << "canary "<<im.at<unsigned char>(0,0)<<endl;
             }
             
-            Mat desc = phow(im);//includes xy's, normalization
+            
+            
+            Mat desc = phow(im);//includes xy's, normalization //TODO A possible improvment, include more meta-data like scale
             assert(desc.type() == CV_32F);
             assert(desc.cols == DESC_DIM);
-            if (test_mode!=0)
+            /*if (test_mode!=0)
             {   
-                
-                //cout <<"size "<<desc.rows<<" "<<desc.cols<<endl;
+                vector<vector<float> > csv;
+                readCSV("test/GMM_PCA_descs/GMM_PCA_desc_"+to_string(i)+"_test.csv",csv);
+                assert(csv.size() == desc.cols);
+                //cout <<"size dif "<<((int)desc.rows-(int)csv.at(0).size())<<endl;
+                assert((int)desc.rows-(int)csv.at(0).size()<500);
                 /*for (int ii=0; ii<desc.cols; ii++)
-                    cout << desc.at<float>(0,ii) << endl;*/
+                    cout << desc.at<float>(0,ii) << endl;* /
                 //exit(1);
                 
-                int numSamp = min(num_samples_PCA,desc.rows);
-                for (int sample=0; sample<desc.rows && on_sample<numSamp; sample++)
+                Mat newDesc(csv[0].size(),csv.size(),CV_32F);
+                for (int r=0; r<csv[0].size(); r++)
+                    for (int c=0; c<csv.size(); c++)
+                        newDesc.at<float>(r,c)=csv[c][r];
+                desc=newDesc;
+                
+                ///int numSamp = min(num_samples_PCA,desc.rows);
+                for (int sample=0; sample<desc.rows && on_sample<num_samples_PCA; sample++)
                     desc(Rect(0,sample,SIFT_DIM,1)).copyTo(for_PCA.row(on_sample++));
+                
             }
             else
                 for (int sample=0; sample<sample_per_for_PCA; sample++)
@@ -1835,18 +1901,67 @@ void EmbAttSpotter::get_GMM_PCA(int numWordsTrainGMM, string saveAs, bool retrai
                 if (yBin<0) yBin=0;
                 if (yBin>=numSpatialY) yBin=numSpatialY-1;
                 //cout << "added desc to bin ["<<xBin<<","<<yBin<<"]"<<endl;
-                if (bins[xBin+yBin*numSpatialX].rows!=0)
-                    bins[xBin+yBin*numSpatialX].push_back(desc.row(r));
+                if (bins[xBin*numSpatialY+yBin].rows!=0)
+                    bins[xBin*numSpatialY+yBin].push_back(desc.row(r));
                 else if (r!=62)
-                    bins[xBin+yBin*numSpatialX]=desc.row(r).clone();
+                    bins[xBin*numSpatialY+yBin]=desc.row(r).clone();
             }
         }
         
         //compute PCA
+        if (num_samples_PCA>on_sample)
+        {
+            cout<<"Resizing for_PCA "<<on_sample<<endl;
+            for_PCA = for_PCA(Rect(0,0,SIFT_DIM,on_sample));
+        }
+        else
+            cout <<"for_PCA is fullsized. "<<num_samples_PCA<<endl;
+        if (test_mode)
+        {
+            if (newFor_PCA.rows != for_PCA.rows || newFor_PCA.cols != for_PCA.cols)
+            {
+                cout << "for_PCA size mismatch, matlab: "<<newFor_PCA.rows<<","<< newFor_PCA.cols<<" mine: "<<for_PCA.rows<<","<<for_PCA.cols<<endl;
+            }
+            /*for (int r=0; r<newFor_PCA.rows; r++)
+                for (int c=0; c<newFor_PCA.cols; c++)
+                {
+                    if (fabs(for_PCA.at<float>(r,c) - newFor_PCA.at<float>(r,c) > 0.01))
+                        cout <<"sig dif at ["<<r<<","<<c<<"]: "<<for_PCA.at<float>(r,c) - newFor_PCA.at<float>(r,c)<<endl;
+                }*/
+            for_PCA=newFor_PCA;
+        }
         compute_PCA(for_PCA,PCA_dim);
             
         
         //GMM
+        if (test_mode)
+        {
+            vector<Mat> newBins(numSpatialX*numSpatialY);
+            for (int i=0; i<numSpatialX*numSpatialY; i++)
+            {
+                vector<vector<float> > csv;
+                readCSV("test/GMM_vecs/GMM_descs_"+to_string(i)+".csv",csv);
+                newBins[i] = Mat(csv[0].size(),csv.size(),CV_32F);
+                for (int r=0; r<csv.at(0).size(); r++)
+                    for (int c=0; c<csv.size(); c++)
+                    {
+                        newBins[i].at<float>(r,c) = csv[c][r];
+                    }
+                if (newBins[i].rows!=bins[i].rows || newBins[i].cols!=bins[i].cols)
+                    cout <<"Desc Size dif for bin "<<i<<", mine: "<<bins[i].rows<<", "<<bins[i].cols<<",  MATLAB: "<<newBins[i].rows<<", "<<newBins[i].cols<<endl;
+                else
+                    for (int r=0; r<csv.at(0).size(); r++)
+                        for (int c=0; c<csv.size(); c++)
+                        {
+                            if (fabs(newBins[i].at<float>(r,c)-bins[i].at<float>(r,c))>0.001)
+                            {
+                                cout <<"Desc Large dif bin "<<i<<" ["<<r<<","<<c<<"] "<<newBins[i].at<float>(r,c)-bins[i].at<float>(r,c)<<endl;
+                            }
+                        }
+            }
+            
+            bins=newBins;
+        }
         compute_GMM(bins,numSpatialX,numSpatialY,numGMMClusters);
         
         
@@ -1948,62 +2063,113 @@ const EmbAttSpotter::GMM_struct & EmbAttSpotter::GMM(bool retrain)
 void EmbAttSpotter::compute_PCA(const Mat& data, int PCA_dim)
 {
     assert(_PCA.eigvec.rows==0);
-    //Mat mean;
-    //reduce(data,mean, 1, CV_REDUCE_AVG);
-    //assert(mean.cols==SIFT_DIM);
-    //Mat covar;
-    //calcCovarMatrix(data, covar, mean, cv::COVAR_ROWS | CV_COVAR_NORMAL );
-    PCA pt_pca(data, cv::Mat(), CV_PCA_DATA_AS_ROW, 0);//? I'm unsure if this is the correct usage
-    //assert(pt_pca.mean.rows==1 && pt_pca.mean.cols==1);
+    PCA pt_pca(data, cv::Mat(), CV_PCA_DATA_AS_ROW, PCA_dim);
     assert(pt_pca.mean.type()==CV_32F);
     _PCA.mean = pt_pca.mean;
-    //Mat eig_vals = pt_pca.eigenvalues;
-    Mat eig_vecs = pt_pca.eigenvectors;
     
-    //Mat idxs;
-    //sortIdx(eig_vals, idxs, CV_SORT_EVERY_ROW + CV_SORT_DESCENDING);
-    _PCA.eigvec = eig_vecs(Rect(0,0,eig_vecs.cols,PCA_dim));
+    if (test_mode)
+    {
+        //test
+        Mat testMean(1,128,CV_32F);
+        for (int r=0; r<data.rows; r++)
+            testMean += data.row(r);
+        testMean /= data.rows;
+        
+        for (int c=0; c<data.cols; c++)
+            assert(fabs( testMean.at<float>(0,c) - _PCA.mean.at<float>(0,c) )<0.0001);
+        //test
+    }
     
+    ////Mat eig_vals = pt_pca.eigenvalues;
+    //Mat eig_vecs = pt_pca.eigenvectors;
+    
+    ////Mat idxs;
+    ////sortIdx(eig_vals, idxs, CV_SORT_EVERY_ROW + CV_SORT_DESCENDING);
+    _PCA.eigvec = -1*pt_pca.eigenvectors;//(Rect(0,0,eig_vecs.cols,PCA_dim));
+    
+    /*for (int r=0; r<PCA_dim; r++)//I'm not sure how needed this is, but it makes it match the MATLAB data.
+    {
+        if (_PCA.eigvec.at<float>(r,0)<0)
+            _PCA.eigvec.row(r) *= -1;
+    }*/
 }
 
 void EmbAttSpotter::compute_GMM(const vector<Mat>& bins, int numSpatialX, int numSpatialY, int numGMMClusters)
 {
+    
     assert(_GMM.means==NULL);
-    _GMM.means = new float[numGMMClusters*DESC_DIM*numSpatialX*numSpatialY];
-    _GMM.covariances = new float[numGMMClusters*DESC_DIM*numSpatialX*numSpatialY];
+    _GMM.means = new float[numGMMClusters*AUG_PCA_DIM*numSpatialX*numSpatialY];
+    _GMM.covariances = new float[numGMMClusters*AUG_PCA_DIM*numSpatialX*numSpatialY];
     _GMM.priors = new float[numGMMClusters*numSpatialX*numSpatialY];
-    for (int i=0; i<numSpatialX*numSpatialY; i++)
+    //for (int i=0; i<numSpatialX*numSpatialY; i++)
+    for (int xBin=0; xBin<numSpatialX; xBin++)
+        for (int yBin=0; yBin<numSpatialY; yBin++)
     {
         //int xBin = i%numSpatialX;
         //int yBin = i/numSpatialX;
+        int i = xBin*numSpatialY+yBin;
         Mat d = bins[i](Rect(0,0,SIFT_DIM,bins[i].rows));
         Mat xy = bins[i](Rect(SIFT_DIM,0,2,bins[i].rows));
         for (int r = 0; r < d.rows; ++r)
             d.row(r) = d.row(r) - PCA_().mean;
         //subtract(d,PCA_().mean,d);
-        d = (PCA_().eigvec*d.t()).t();
-        hconcat(d,xy,d);
+        d = (PCA_().eigvec*d.t());//transposed to fit VL format  .t(); //is this last transpose right? No
+        //hconcat(d,xy,d);
+        vconcat(d,xy.t(),d);
         assert(d.type() == CV_32F);
-        assert(d.cols==AUG_PCA_DIM);
+        assert(d.rows==AUG_PCA_DIM);
         assert(d.isContinuous());
         for (int r=0; r<d.rows; r++)
             for (int c=0; c<d.cols; c++)
                 assert(d.at<float>(r,c)==d.at<float>(r,c));
+        
+        if (test_mode)
+        {
+            vector<vector<float> > csv;
+            readCSV("test/GMM_vecs/GMM_vec_"+to_string(i)+".csv",csv);
+            Mat newD = Mat(csv.size(),csv[0].size(),CV_32F);
+            for (int r=0; r<csv.size(); r++)
+                for (int c=0; c<csv[0].size(); c++)
+                {
+                    newD.at<float>(r,c) = csv[r][c];
+                }
+            if (newD.rows!=d.rows || newD.cols!=d.cols)
+                cout <<"Vector Size dif for bin "<<i<<", mine: "<<d.rows<<", "<<d.cols<<",  MATLAB: "<<newD.rows<<", "<<newD.cols<<endl;
+            else
+                for (int r=0; r<d.rows; r++)
+                    for (int c=0; c<d.cols; c++)
+                    {
+                        if (fabs(fabs(newD.at<float>(r,c))-fabs(d.at<float>(r,c)))>0.001)
+                        {
+                            cout <<"Vector Large dif bin "<<i<<" ["<<r<<","<<c<<"] "<<newD.at<float>(r,c)<<"  "<<d.at<float>(r,c)<<endl;
+                        }
+                    }
+            
+            d=newD;
+            
+            
+            vl_rand_seed (vl_get_rand(), 0) ;
+        }
+        
         VlGMM* gmm = vl_gmm_new (VL_TYPE_FLOAT, AUG_PCA_DIM, numGMMClusters) ;
         vl_gmm_set_max_num_iterations (gmm, 30);
         vl_gmm_set_num_repetitions (gmm, 2);
         vl_gmm_set_initialization (gmm,VlGMMRand);
-        vl_gmm_cluster (gmm, d.data, d.rows);
+        
+        
+        
+        
+        vl_gmm_cluster (gmm, d.data, d.cols);
         
         float* means = (float*) vl_gmm_get_means(gmm);
-        copy(means,means+numGMMClusters*AUG_PCA_DIM,_GMM.means+numGMMClusters*i);
+        copy(means,means+numGMMClusters*AUG_PCA_DIM,_GMM.means+numGMMClusters*AUG_PCA_DIM*i);
         
         float* covariances = (float*) vl_gmm_get_covariances(gmm);
         /*for (int ttt=0; ttt<numGMMClusters*AUG_PCA_DIM; ttt++)
         {
             assert(covariances[ttt]==covariances[ttt]);
         }*/
-        copy(covariances,covariances+numGMMClusters*AUG_PCA_DIM,_GMM.covariances+numGMMClusters*i);
+        copy(covariances,covariances+numGMMClusters*AUG_PCA_DIM,_GMM.covariances+numGMMClusters*AUG_PCA_DIM*i);
 
         float* priors = (float*) vl_gmm_get_priors(gmm);
         copy(priors,priors+numGMMClusters,_GMM.priors+numGMMClusters*i);

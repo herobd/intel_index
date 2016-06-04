@@ -38,8 +38,8 @@ void EmbAttSpotter::test()
     
     
     ///
-    Mat smoothed = imread("test/smoothed.pgm",CV_LOAD_IMAGE_GRAYSCALE);
-    phow(smoothed);
+    //Mat smoothed = imread("test/smoothed.pgm",CV_LOAD_IMAGE_GRAYSCALE);
+    //phow(smoothed);
     ///
     
     // delete files
@@ -538,19 +538,63 @@ void EmbAttSpotter::phocsTr_testM()//dlmwrite('phocs.csv',phocs,'precision',5)
     
 }
 
-void EmbAttSpotter::compareToCSV(Mat mine, string csvloc)
+void EmbAttSpotter::compareToCSV(Mat mine, string csvloc, bool transpose)
 {
     vector<vector<float> > csv;
     readCSV(csvloc,csv);
     assert(mine.rows>0 && mine.cols>0);
-    assert(mine.rows==csv.size() && mine.cols==csv[0].size());
-    for (int r=0; r<csv.size(); r++)
-        for (int c=0; c<csv[0].size(); c++)
-            assert(abs(mine.at<float>(r,c)-csv[r][c])<0.0001);
+    int csvRows;
+    int csvCols;
+    if (transpose)
+    {
+        csvCols=csv.size();
+        csvRows=csv[0].size();
+    }
+    else
+    {
+        csvRows=csv.size();
+        csvCols=csv[0].size();
+    }
+    assert(mine.rows==csvRows && mine.cols==csvCols);
+    for (int r=0; r<csvRows; r++)
+        for (int c=0; c<csvCols; c++)
+            if (transpose)
+                assert(fabs(mine.at<float>(r,c)-csv[c][r])<0.001);
+            else
+                assert(fabs(mine.at<float>(r,c)-csv[r][c])<0.001);
+}
+
+void EmbAttSpotter::compareToCSVAbs(Mat mine, string csvloc, bool transpose)
+{
+    vector<vector<float> > csv;
+    readCSV(csvloc,csv);
+    assert(mine.rows>0 && mine.cols>0);
+    int csvRows;
+    int csvCols;
+    if (transpose)
+    {
+        csvCols=csv.size();
+        csvRows=csv[0].size();
+    }
+    else
+    {
+        csvRows=csv.size();
+        csvCols=csv[0].size();
+    }
+    assert(mine.rows==csvRows && mine.cols==csvCols);
+    for (int r=0; r<csvRows; r++)
+        for (int c=0; c<csvCols; c++)
+            if (transpose)
+                assert(fabs(fabs(mine.at<float>(r,c))-fabs(csv[c][r]))<0.001);
+            else
+                assert(fabs(fabs(mine.at<float>(r,c))-fabs(csv[r][c]))<0.001);
 }
 
 void EmbAttSpotter::get_GMM_PCA_testM()
 {
+    compareToCSV(PCA_().mean,"test/PCA_mean_test.csv",true);
+    compareToCSVAbs(PCA_().eigvec,"test/PCA_eigvec_test.csv",true);
+
     vector<vector<float> > GMM_mean;
     readCSV("test/GMM_mean_test.csv",GMM_mean);
     vector<vector<float> > GMM_covariances;
@@ -560,16 +604,15 @@ void EmbAttSpotter::get_GMM_PCA_testM()
     assert(GMM_mean.size()>0);
     for (int r=0; r<GMM_mean.size(); r++)
         for (int c=0; c<GMM_mean[0].size(); c++)
-            assert(abs(GMM().means[r*GMM_mean[0].size()+c]-GMM_mean[r][c])<0.0001);
+            assert(abs(GMM().means[r*GMM_mean[0].size()+c]-GMM_mean[r][c])<0.001);
     for (int r=0; r<GMM_covariances.size(); r++)
         for (int c=0; c<GMM_covariances[0].size(); c++)
-            assert(abs(GMM().covariances[r*GMM_covariances[0].size()+c]-GMM_covariances[r][c])<0.0001);
+            assert(abs(GMM().covariances[r*GMM_covariances[0].size()+c]-GMM_covariances[r][c])<0.001);
     for (int r=0; r<GMM_priors.size(); r++)
         for (int c=0; c<GMM_priors[0].size(); c++)
-            assert(abs(GMM().priors[r*GMM_priors[0].size()+c]-GMM_priors[r][c])<0.0001);
+            assert(abs(GMM().priors[r*GMM_priors[0].size()+c]-GMM_priors[r][c])<0.001);
     
-    compareToCSV(PCA_().mean,"test/PCA_mean_test.csv");
-    compareToCSV(PCA_().eigvec,"test/PCA_eigvec_test.csv");
+    
     /*
     vector<vector<float> > PCA_mean;
     readCSV("test/PCA_mean_test.csv",PCA_mean);

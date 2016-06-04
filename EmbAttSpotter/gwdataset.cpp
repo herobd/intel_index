@@ -35,8 +35,10 @@ GWDataset::GWDataset(const string& queries, const string& imDir, int minH, int m
         Mat patch = curIm(loc);
         patch.convertTo(patch,CV_32F);
         patch/=255;
+        #if TEST_MODE
         if (wordImages.size()==0)
             cout << "pre canary "<<patch.at<float>(0,0)<<endl;
+        #endif
         
         double m;
         minMaxIdx(patch,NULL,&m);
@@ -54,13 +56,18 @@ GWDataset::GWDataset(const string& queries, const string& imDir, int minH, int m
             resize(patch,patch,Size(),ratio,ratio,INTER_CUBIC);
         }
         
+        #if TEST_MODE
         if (wordImages.size()==0)
             cout << "pre canary "<<patch.at<float>(0,0)<<endl;
+        #endif
         
         patch*=255;
         patch.convertTo(patch,CV_8U);
+        
+        #if TEST_MODE
         if (wordImages.size()==0)
             cout << "pre canary "<<(int)patch.at<unsigned char>(0,0)<<endl;
+        #endif
         wordImages.push_back(patch);
         _labels.push_back(sm[6]);
     }
@@ -77,7 +84,7 @@ int GWDataset::size() const
 }
 const Mat GWDataset::image(unsigned int i) const
 {
-    return wordImages[i];
+    return wordImages.at(i);
 }
 /*
 int xa=min(stoi(sm[2]),stoi(sm[3]));
