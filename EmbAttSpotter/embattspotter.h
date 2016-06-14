@@ -2,6 +2,9 @@
 #define EMBATTSPOTTER_H
 
 #define TEST_MODE 1
+#define DRAW 0
+
+#define USE_VL 1
 
 #include "embattspotter_global.h"
 #include "opencv2/core/core.hpp"
@@ -10,6 +13,7 @@
 #include "opencv2/features2d/features2d.hpp"
 #include "opencv2/nonfree/features2d.hpp"
 #include <vector>
+#include <deque>
 #include <fstream>
 #include <iostream>
 #include <dirent.h>
@@ -18,12 +22,19 @@
 #include "dataset.h"
 
 
+
+#if USE_VL
 extern "C" {
   #include <vl/generic.h>
   #include <vl/svm.h>
   #include <vl/gmm.h>
   #include <vl/fisher.h>
+  #include <vl/dsift.h>
+  #include <vl/imopv.h>
 }
+#endif
+
+
 
 #define SIFT_DIM 128
 #define DESC_DIM (SIFT_DIM+2)
@@ -113,7 +124,8 @@ private:
     vector<int> batches_indexEnd;
     int genericBatchSize;//This gets set to detirmine how many iamges go into a batch
     
-    Dataset* training_dataset;
+    const Dataset* training_dataset;
+    const Dataset* corpus_dataset;
     //Or, these are paths to the images.
     vector<string>* corpus_imgfiles;
     vector<string>* training_imgfiles;//when training files are "loaded" this becomes poulated
@@ -146,7 +158,8 @@ private:
     Mat extract_feats(const Mat& im);
 
     vector<Mat>* extract_FV_feats_fast_and_batch(const vector<string>& imageLocations,vector<int>* batches_index,vector<int>* batches_indexEnd, int batchSize);
-    Mat get_FV_feats(Dataset* dataset);
+    vector<Mat>* extract_FV_feats_fast_and_batch(const Dataset* dataset,vector<int>* batches_index,vector<int>* batches_indexEnd, int batchSize);
+    Mat get_FV_feats(const Dataset* dataset);
 
     const vector<Mat>& features_corpus(bool retrain=false);
     const Mat& feats_training(bool retrain=false);
@@ -159,18 +172,18 @@ private:
     Mat batch_att(int batchNum);
 
     void learn_attributes_bagging();
-    Mat cvSVM(const Mat& featsTrain, const double* labelsTrain, const Mat& featsVal, const float* labelsVal, VlSvm * bestsvm);
+    Mat cvSVM(const Mat& featsTrain, const double* labelsTrain, const Mat& featsVal, const float* labelsVal, VlSvm * &bestsvm);
     double modelMap(VlSvm * svm, const Mat& featsVal, const float* labelsVal);
     
     Mat select_rows(const Mat& m, vector<int> idx);
 
     const AttributesModels& attModels(bool retrain=false);
-    const Embedding& embedding(bool retrain=false);
+    
 
     void learn_common_subspace();
     void cca2(Mat X, Mat Y, float reg, int d, Mat& Wx, Mat& Wy);
 
-    const Mat& attReprTr(bool retrain=false);//correct orientation
+    
 
 
     
@@ -185,7 +198,7 @@ private:
     void writeFloatMat(ofstream& dst, const Mat& m);
     Mat readFloatMat(ifstream& src);
     void writeFloatArray(ofstream& dst, const float* a, int size);
-    float* readFloatArray(ifstream& src, int* sizeO);
+    float* readFloatArray(ifstream& src, int* sizeO=NULL);
 
     //PCA, but this is only used to compute GMM. Lazy
     const PCA_struct & PCA_(bool retrain=false);
@@ -204,7 +217,7 @@ private:
     void computePhoc(string str, map<char,int> vocUni2pos, map<string,int> vocBi2pos, int Nvoc, vector<int> levels, int descSize, Mat &out, int instance);
     
     //The PHOCs of the training set. Lazy
-    const Mat& phocsTr();//correct orientation
+    const Mat& phocsTr(bool retrain=false);//correct orientation
     
     //Computes a bounding box roughly capturing the word lengthwise and the baselines
     void DoBB(const Mat& im, int* bb_x1, int* bb_x2, int* bb_y1, int* bb_y2);
@@ -217,6 +230,8 @@ private:
     Mat& normalizeL2Columns(Mat& m);
     
     Mat otsuBinarization(const Mat& src);
+    
+    int test_mode;
     
     #if TEST_MODE
         void sinMat_cosMat_test();
@@ -236,14 +251,18 @@ private:
         void phocsTr_testM();
         void get_GMM_PCA_testM();
         void feats_training_testM();
-        void learn_attributes_bagging();
+        void learn_attributes_bagging_test();
         
         void readCSV(string fileName, vector< vector<float> >& out);
-        void compareToCSV(Mat mine, string csvloc);
+        void compareToCSV(Mat mine, string csvloc, bool transpose=false);
+        void compareToCSVAbs(Mat mine, string csvloc, bool transpose=false);
     #endif
     
 public:
-    EmbAttSpotter(string saveName="embAttSpotter",bool useNumbers=true);
+    const Mat& attReprTr(bool retrain=false);//correct orientation
+    const Embedding& embedding(bool retrain=false);
+
+    EmbAttSpotter(string saveName="embAttSpotter",bool useNumbers=true, int test_mode=0);
     ~EmbAttSpotter();
     void loadCorpus(string dir);
     void setTrainData(string gtFile, string imageDir, string saveAs="");
@@ -252,9 +271,21 @@ public:
     vector<float> spot(const Mat& exemplar, string word, float alpha=0.5);
     vector<struct spotting_sw> spot_sw(const Mat& exemplar, string ngram, float alpha=0.5);
     
+    void setTraining_dataset(const Dataset* d);
+    void setCorpus_dataset(const Dataset* d);
+    
+    void eval(const Dataset* data);
+    
     #if TEST_MODE
         void test();
+    #else
+        void test() {}
     #endif
+    
+    void retrain()
+    {
+        system(("rm "+saveName+"*.dat").c_str());
+    }
 };
 
 #endif // EMBATTSPOTTER_H
