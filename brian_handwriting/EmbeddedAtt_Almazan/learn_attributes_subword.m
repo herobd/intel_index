@@ -49,14 +49,17 @@ if ~exist(opts.fileAttModels,'file') || ~exist(opts.fileAttRepresQu_subword,'fil
     else
         attReprVa = [];
     end
-    feats_qu_subword = features_subword(:,:);
-    attReprQu_subword = W'*feats_qu_subword;
-    
+
+    if opts.TestHybrid
+       feats_qu_subword = features_subword(:,:);
+       attReprQu_subword = W'*feats_qu_subword;
+       writeMat(single(attReprQu_subword), opts.fileAttRepresQu_subword); 
+    end   
+
     disp('writing attModels');
     writeMat(single([[attModels.W];[attModels.B]]), opts.fileAttModels);
     writeMat(single(attReprTr), opts.fileAttRepresTr);
     writeMat(single(attReprVa), opts.fileAttRepresVal);
-    writeMat(single(attReprQu_subword), opts.fileAttRepresQu_subword); 
 else
    disp('reading attModels');
    attModels = readMat(opts.fileAttModels);    

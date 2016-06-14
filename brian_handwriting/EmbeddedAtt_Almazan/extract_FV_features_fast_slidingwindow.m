@@ -1,4 +1,4 @@
-function extract_FV_features_fast_slidingwindow(opts)
+function extract_FV_features_fast_slidingwindow(opts,DATA)
 
 GMM = readGMM(opts.fileGMM);
 PCA = readPCA(opts.filePCA);
@@ -43,6 +43,8 @@ for cb=1:meta.nBatches
         %%%Do sliding window
         %We will assume we can just take a horizontal sliding window
 %         window=1;
+        %gt = DATA.words(i).gttext;
+        %low_gt=lower(gt);
         if size(full_im,2)>windowWidth
             for window_lx = 1:windowStride:size(full_im,2)-windowWidth
                 %extract sub-image
@@ -57,6 +59,8 @@ for cb=1:meta.nBatches
                 fv=computeFV(opts, im, GMM, PCA);
                 featsBatch{i} = [featsBatch{i} fv]; 
     %             window=window+1;
+                
+                %check what ngrams this window overlaps
             end
         else
             fv=computeFV(opts, full_im, GMM, PCA);

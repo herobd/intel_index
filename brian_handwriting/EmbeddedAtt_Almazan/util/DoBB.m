@@ -31,13 +31,18 @@ a= randperm(length(p1h)); p1h = p1h(a);p2h = p2h(a);
 [p1v,p2v] = find(dv);
 a= randperm(length(p1v)); p1v = p1v(a);p2v = p2v(a);
 
-[vh,idxh] = sort(abs(p2h-p1h+1));
-[vv,idxv] = sort(abs(p2v-p1v+1));
+if size(p1h,1) ~=0 && size(p2h,1) ~= 0 && size(p1v,1) ~=0 && size(p2v,1) ~= 0
 
-ph=[p1h(idxh(1)),p2h(idxh(1))];
-pv=[p1v(idxv(1)),p2v(idxv(1))];
+	[vh,idxh] = sort(abs(p2h-p1h+1));
+	[vv,idxv] = sort(abs(p2v-p1v+1));
 
-bbox = [min(ph),max(ph),min(pv),max(pv)];
+	ph=[p1h(idxh(1)),p2h(idxh(1))];
+	pv=[p1v(idxv(1)),p2v(idxv(1))];
+
+	bbox = [min(ph),max(ph),min(pv),max(pv)];
+else
+	bbox = [floor(size(im,2)*0.2),floor(size(im,2)*0.8),floor(size(im,1)*0.2),floor(size(im,1)*0.8)];
+end
 
 if show
     imshow(im);

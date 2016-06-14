@@ -31,6 +31,7 @@ for cb=1:nBatches
     fclose(fid);
     
     parfor i=1:length(imagesBatch)        
+    %for i=1:length(imagesBatch)        
         im = imagesBatch{i};        
         [height,width] = size(im);
         im = im2single(im);
@@ -58,7 +59,7 @@ for cb=1:nBatches
         
         
         [descrs,frames] = normalizeSift(opts,descrs,frames);
-        
+        %imshow(imagesBatch{i});
         featsBatch(:,i) = single(getImageDescriptorFV(opts, GMM, PCA, descrs));        
     end
     featsBatch(isnan(featsBatch)) = 0;
@@ -101,7 +102,9 @@ descrs_normalized = descrs_normalized(1:opts.SIFTDIM,:);
 
 % Remove empty ones
 idx = find(sum(descrs_normalized)==0);
-disp(['Removed ' num2str(size(descrs_normalized,2))-size(idx)])
+%disp(['Removed ' num2str(size(descrs_normalized,2))-size(idx)])
+%disp(['start ' num2str(size(descrs_normalized,2)) ', removed ' num2str(size(idx,2))])
+%disp(['Removed ' num2str(size(descrs_normalized,2)-size(idx,2))])
 descrs_normalized(:,idx)=[];
 if nargin < 3
     frames_normalized = [];

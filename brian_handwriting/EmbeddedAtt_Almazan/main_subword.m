@@ -10,7 +10,7 @@
 % vl_setup('verbose');
 
 %% Prepare options and read dataset
-opts = prepare_opts_subword('GW','bigrams_100');
+opts = prepare_opts_subword('IAM_lines','bigrams');
 data = load_dataset(opts);
 data = load_subword(opts,data);
 disp('[main] loaded');

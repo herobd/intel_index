@@ -12,12 +12,15 @@ if nargin < 1
     dataset = 'IAM';
 end
 opts.dataset = dataset;
-
+opts.saveLineSpottings = false;
+if strcmp(dataset, 'IAM_lines')
+    dataset='IAM'
+    opts.saveLineSpottings = true;
+end
 opts.precForThresh = 0.5;
 opts.recallForThresh = 0.5;
-opts.threshold = 000;%??0.4504;
-opts.saveSpottings = false;
-
+opts.threshold = 0.52284769;%??0.4504;
+opts.saveSpottings = true;
 
 
 % Adding all the necessary libraries and paths
@@ -66,17 +69,17 @@ run('util/vlfeat-0.9.20/toolbox/vl_setup')
 % Set random seed to default
 rng('default');
 
-opts.pathDataset = sprintf('%s/%s/',opts.path_datasets,opts.dataset);
-opts.pathImages = sprintf('%s/%s/images/',opts.path_datasets,opts.dataset);
-opts.pathDocuments = sprintf('%s/%s/documents/',opts.path_datasets,opts.dataset);
+opts.pathDataset = sprintf('%s/%s/',opts.path_datasets,dataset);
+opts.pathImages = sprintf('%s/%s/images/',opts.path_datasets,dataset);
+opts.pathDocuments = sprintf('%s/%s/documents/',opts.path_datasets,dataset);
 opts.pathQueries = sprintf('%s/%s/queries/',opts.path_datasets,opts.dataset);
 
-opts.pathNgrams = sprintf('%s/%s/%s/',opts.path_datasets,opts.dataset,typegrams);
+opts.pathNgrams = sprintf('%s/%s/%s/',opts.path_datasets,dataset,typegrams);
 
 if strcmp(typegrams,'bigrams')
-    opts.pathNgramLocationsTop = sprintf('%s/%s/bigramLocationsTop10.csv',opts.path_datasets,opts.dataset);    
+    opts.pathNgramLocationsTop = sprintf('%s/%s/bigramLocationsTop10.csv',opts.path_datasets,dataset);    
 else
-    opts.pathNgramLocationsTop = sprintf('%s/%s/trigramLocationsTop5.csv',opts.path_datasets,opts.dataset);
+    opts.pathNgramLocationsTop = sprintf('%s/%s/trigramLocationsTop5.csv',opts.path_datasets,dataset);
 end
 
 % Options FV features
@@ -161,6 +164,12 @@ if strcmp(opts.dataset,'GW')
         
         opts.ngramCountPer=1;
         opts.windowWidth=75;%modified 66?
+    elseif strcmp(typegrams, 'unigrams_26')
+        opts.TestHybrid = 0;
+        opts.ngrams = {'a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z'};
+        
+        opts.ngramCountPer=1;
+        opts.windowWidth=35;
     elseif strcmp(typegrams, 'bigrams_20')
         opts.TestHybrid = 0;
         opts.ngrams = {'th' 'he', 'er', 'an', 're', 'on', 'at', 'or', 'es', 'en', 'te', 'nd', 'ed', 'ar', 'to', 'ti', 'st', 'ng', 'nt', 'it'};
@@ -172,26 +181,26 @@ if strcmp(opts.dataset,'GW')
         %opts.windowWidth=187;
         opts.windowWidth=120;
     end
-elseif strcmp(opts.dataset,'IAM')
+elseif strcmp(dataset,'IAM')
     opts.PCADIM = 30;
     opts.RemoveStopWords = 0;
     opts.swFile = 'data/swIAM.txt';
     opts.minH = 80;
     opts.maxH = 80;
-    opts.windowStride=15;
+    opts.windowStride=5;
     if strcmp(typegrams, 'bigrams')
         opts.ngrams = {'TH', 'HE', 'ER', 'AN', 'RE', 'ON', 'AT', 'OR', 'ES', 'EN', 'TE', 'ND', 'ED', 'AR', 'TO', 'TI', 'ST', 'NG', 'NT', 'IT'};
         opts.ngramCountPer=10;
-        opts.windowWidth=90;
+        opts.windowWidth=60;%90;
     elseif strcmp(typegrams, 'bigrams_100')
         opts.TestHybrid = 0;
         opts.ngrams = {'TH', 'HE', 'IN', 'ER', 'AN', 'RE', 'ON', 'AT', 'EN', 'ND', 'TI', 'ES', 'OR', 'TE', 'OF', 'ED', 'IS', 'IT', 'AL', 'AR', 'ST', 'TO', 'NT', 'NG', 'SE', 'HA', 'AS', 'OU', 'IO', 'LE', 'VE', 'CO', 'ME', 'DE', 'HI', 'RI', 'RO', 'IC', 'NE', 'EA', 'RA', 'CE', 'LI', 'CH', 'LL', 'BE', 'MA', 'SI', 'OM', 'UR', 'CA', 'EL', 'TA', 'LA', 'NS', 'DI', 'FO', 'HO', 'PE', 'EC', 'PR', 'NO', 'CT', 'US', 'AC', 'OT', 'IL', 'TR', 'LY', 'NC', 'ET', 'UT', 'SS', 'SO', 'RS', 'UN', 'LO', 'WA', 'GE', 'IE', 'WH', 'EE', 'WI', 'EM', 'AD', 'OL', 'RT', 'PO', 'WE', 'NA', 'UL', 'NI', 'TS', 'MO', 'OW', 'PA', 'IM', 'MI', 'AI', 'SH'};
         opts.ngramCountPer=1;
-        opts.windowWidth=90;
+        opts.windowWidth=60;%90;
     else
         opts.ngrams = {'THE', 'AND', 'ING', 'ION', 'ENT', 'HER', 'FOR', 'HAT', 'HIS', 'THA'};
         opts.ngramCountPer=5;
-        opts.windowWidth=170;
+        opts.windowWidth=115;%170;
     end
 elseif strcmp(opts.dataset,'IIIT5K')
     opts.minH = 80;
@@ -281,7 +290,9 @@ opts.fileAttRepresQu_subword = sprintf('%s/%s_attRepresQu_subword%s%s%s.bin',opt
 opts.folderModels = sprintf('%s/models%s/',opts.dataFolder,tagBagging);
 opts.modelsLog = sprintf('%s/learning.log',opts.folderModels);
 
-
+opts.spottingsFile = [sprintf('data/%s_spottings%s_',opts.dataset,tagFold) '%f.csv'];
+opts.agSpottingsFile = [sprintf('data/%s_agSpottings%s_',opts.dataset,tagFold) '%f.csv'];
+opts.lineSpottingsFile = [sprintf('data/%s_lineSpottings%s_',opts.dataset,tagFold) '%f.csv'];
 
 if ~exist(opts.folderModels,'dir')
     mkdir(opts.folderModels);

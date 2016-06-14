@@ -3,7 +3,7 @@ disp('* Loading dataset *');
 
 if ~exist(opts.fileData, 'file')
     % Loading dataset images and GT
-    if strcmpi(opts.dataset,'IAM')        
+    if strcmpi(opts.dataset,'IAM') || strcmpi(opts.dataset,'IAM_lines')       
         data = load_IAM(opts);
     elseif strcmpi(opts.dataset,'IIIT5K')
         data = load_IIIT5K(opts);

@@ -1,4 +1,4 @@
-function opts = prepare_opts(dataset) %#codegen
+function opts = prepare_opts_test2(dataset) %#codegen
 
 % Adjustable paths
 % Select the disk location of your datasets
@@ -198,14 +198,14 @@ end
 opts.fileData = sprintf('%s/%s_data.mat',opts.pathFiles,opts.dataset);
 opts.fileImages = sprintf('%s/%s_images%s.bin',opts.pathFiles,opts.dataset,tagminH);
 opts.fileWriters = sprintf('%s/%s_writers.mat',opts.pathFiles,opts.dataset);
-opts.fileGMM = sprintf('%s/%s%s.bin',opts.dataFolder,opts.dataset,tagGMM);
-opts.filePCA = sprintf('%s/%s%s.bin',opts.dataFolder,opts.dataset,tagPCA);
+opts.fileGMM = sprintf('%s/%s%s_test2.bin',opts.dataFolder,opts.dataset,tagGMM);
+opts.filePCA = sprintf('%s/%s%s_test2.bin',opts.dataFolder,opts.dataset,tagPCA);
 opts.filePHOCs = sprintf('%s/%s%s.bin',opts.dataFolder,opts.dataset,opts.tagPHOC);
-opts.fileFeatures = sprintf('%s/%s%s.bin',opts.dataFolder,opts.dataset,opts.tagFeatures);
-opts.fileAttModels = sprintf('%s/%s_attModels%s%s%s.bin',opts.dataFolder,opts.dataset,opts.tagPHOC,opts.tagFeatures,tagBagging);
-opts.fileAttRepresTr = sprintf('%s/%s_attRepresTr%s%s%s.bin',opts.dataFolder,opts.dataset,opts.tagPHOC,opts.tagFeatures,tagBagging);
-opts.fileAttRepresVal = sprintf('%s/%s_attRepresVal%s%s%s.bin',opts.dataFolder,opts.dataset,opts.tagPHOC,opts.tagFeatures,tagBagging);
-opts.fileAttRepresTe = sprintf('%s/%s_attRepresTe%s%s%s.bin',opts.dataFolder,opts.dataset,opts.tagPHOC,opts.tagFeatures,tagBagging);
+opts.fileFeatures = sprintf('%s/%s%s_test2.bin',opts.dataFolder,opts.dataset,opts.tagFeatures);
+opts.fileAttModels = sprintf('%s/%s_attModels%s%s%s_test2.bin',opts.dataFolder,opts.dataset,opts.tagPHOC,opts.tagFeatures,tagBagging);
+opts.fileAttRepresTr = sprintf('%s/%s_attRepresTr%s%s%s_test2.bin',opts.dataFolder,opts.dataset,opts.tagPHOC,opts.tagFeatures,tagBagging);
+opts.fileAttRepresVal = sprintf('%s/%s_attRepresVal%s%s%s_test2.bin',opts.dataFolder,opts.dataset,opts.tagPHOC,opts.tagFeatures,tagBagging);
+opts.fileAttRepresTe = sprintf('%s/%s_attRepresTe%s%s%s_test2.bin',opts.dataFolder,opts.dataset,opts.tagPHOC,opts.tagFeatures,tagBagging);
 opts.folderModels = sprintf('%s/models%s/',opts.dataFolder,tagBagging);
 opts.modelsLog = sprintf('%s/learning.log',opts.folderModels);
 if ~exist(opts.folderModels,'dir')
