@@ -1,14 +1,16 @@
-function [GMM,PCA] = compute_GMM_PCA_models_test(opts,images)
+function [GMM,PCA] = compute_GMM_PCA_models_test(opts,data,images)
 
 descrs = {};
 for i=1:length(images)
     fprintf('Word %d\n', i);
     im = images{i};
     
+    %disp(['canary ' num2str(im(1,1))]);    
     % Resizes the image to a minimum height without modifying the aspect
     % ratio
     [height,width] = size(im);
     if height<opts.minH
+        disp(['this shouldn;t be called, right? ' num2str(height)]);
         ar = height/width;
         height = opts.minH;
         width = round(height/ar);
@@ -16,12 +18,32 @@ for i=1:length(images)
     end
     
     im = im2single(im);
-    
+    %disp(['canary ' num2str(im(1,1))]);    
     % Densely extracts SIFTs at different levels
     [f,d] = vl_phow(im, opts.phowOpts{:});
     d = d/255;
     
-    
+    if i==1 && 0
+     disp(['image ' num2str(i) ' size [' num2str(size(im,1)) ' ' num2str(size(im,2))]); 
+     disp(data.words(i).gttext)
+     disp(['image ' num2str(i+1) ' size [' num2str(size(images{i+1},1)) ' ' num2str(size(images{i+1},2))]); 
+     disp(data.words(i+1).gttext)
+     size(d)
+     disp([num2str(f(1,1)) ', ' num2str(f(2,1)) ' : ' num2str(f(4,1)) ' = ' num2str(f(3,1))]);
+     lasttt=2;
+     for ii = 1:size(f,2)
+       %disp(num2str(d(ii)))    
+       %d(ii)    
+       if (f(4,ii) ~= lasttt)
+         lasttt=f(4,ii);
+	 disp([num2str(f(1,ii-1)) ', ' num2str(f(2,ii-1)) ' : ' num2str(f(4,ii-1)) ' = ' num2str(f(3,ii-1))]);
+         disp([num2str(f(1,ii)) ', ' num2str(f(2,ii)) ' : ' num2str(f(4,ii)) ' = ' num2str(f(3,ii))]);
+       end
+     end
+     %disp([num2str(f(1,1)) ', ' num2str(f(2,1)) ' : ' num2str(f(4,1))]);
+     disp([num2str(f(1,size(f,2))) ', ' num2str(f(2,size(f,2))) ' : ' num2str(f(4,size(f,2))) ' = ' num2str(f(3,size(f,2)))]);
+    end
+
     if opts.doMinibox == 0
         % XY at GT coordinate space
         fx = single(f(1,:)/width-0.5);
@@ -39,6 +61,12 @@ for i=1:length(images)
     xy = [fx; fy];
     d = [d; xy];
     
+    
+    %[d_norm,drop] = normalizeSift(opts,d);
+    %size(d)
+    %saved_desc
+    %dlmwrite(['descs_test/GMM_PCA_desc_' num2str(i-1) '_test.csv'],d_norm,'precision',8);
+    %stop
     % Assings each SIFT to a region of the spatial pyramid
     for s = 1:length(opts.numSpatialX)
         ax = linspace(-0.5,0.5,opts.numSpatialX(s)+1);
@@ -57,15 +85,17 @@ for i=1:length(images)
     end
 end
 
+
 %% Computing global PCA
 % Selects a subset of normalized SIFTs
 disp('* Computing PCA model *');
 d = [descrs{:}];
 d = [d{:}];
 d = [d{:}];
-numSamp = min(20e5,size(d,2));
-d = d(:,1:numSamp);%vl_colsubset(d, 20e5);
 [d,drop] = normalizeSift(opts,d);
+numSamp = min(5000,size(d,2));
+d = d(:,1:numSamp);%vl_colsubset(d, 20e5);
+dlmwrite(['GMM_PCA_descs_all_test.csv'],d(1:opts.SIFTDIM,:),'precision',8);
 [eigvec, m] = compute_PCA(d(1:opts.SIFTDIM,:),opts.PCADIM);
 PCA.eigvec = eigvec;
 PCA.mean = m;
@@ -82,11 +112,14 @@ for s = 1:length(opts.numSpatialX)
         for k=1:opts.numSpatialY(s)
             d = cat(2, descrs{s}{j,k}{:});
             [d,drop] = normalizeSift(opts,d);
+            dlmwrite(['GMM_vecs/GMM_descs_' num2str((j-1)*opts.numSpatialY(s)+(k-1)) '.csv'],d,'precision',8);
             xy = d(opts.SIFTDIM+1:end,:);
             d=bsxfun(@minus, d(1:opts.SIFTDIM,:), PCA.mean);
             d=PCA.eigvec'*d;
             
             d = [d; xy];
+            dlmwrite(['GMM_vecs/GMM_vec_' num2str((j-1)*opts.numSpatialY(s)+(k-1)) '.csv'],d,'precision',8);
+            vl_twister('state',0); 
             [mu,sigma,we] = vl_gmm(d, opts.G, 'MaxNumIterations', 30, 'NumRepetitions', 2); 
             we = we'; 
             GMM.we = [GMM.we we];

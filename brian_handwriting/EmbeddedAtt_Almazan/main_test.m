@@ -2,7 +2,7 @@
 % Authors: Jon Almazan and Albert Gordo
 % Contact: almazan@cvc.uab.es
 %% Prepare options and read dataset
-opts = prepare_opts('GW');
+opts = prepare_opts_test2('GW');
 %opts.KCCA.M=[200];
 %opts.KCCA.Dims=[50];
 data = load_dataset(opts);
