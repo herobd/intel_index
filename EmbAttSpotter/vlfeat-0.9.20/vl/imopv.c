@@ -1133,11 +1133,11 @@ VL_XCAT(_vl_imsmooth_smooth_, SFX)
     case GAUSSIAN :
     {
       
-      printf("in: %f, %f\n",inputImage[0],inputImage[1]);
-      printf("in: %f, %f\n",inputImage[numRows],inputImage[numRows+1]);
-      printf("in: %f, %f\n",inputImage[numColumns],inputImage[numColumns+1]);
-      printf("rows: %d, cols: %d, step: %d, kernel: %d\n",sigma,numRows,numColumns,step, kernel);
-      printf("orows: %d, ocols: %d, flags: %d sigma: %f\n",sigma,numOutputRows,numOutputColumns,flags,sigma);
+      //printf("in: %f, %f\n",inputImage[0],inputImage[1]);
+      //printf("in: %f, %f\n",inputImage[numRows],inputImage[numRows+1]);
+      //printf("in: %f, %f\n",inputImage[numColumns],inputImage[numColumns+1]);
+      //printf("rows: %d, cols: %d, step: %d, kernel: %d\n",sigma,numRows,numColumns,step, kernel);
+      //printf("orows: %d, ocols: %d, flags: %d sigma: %f\n",sigma,numOutputRows,numOutputColumns,flags,sigma);
       vl_size W = ceil (4.0 * sigma) ;
       T * filter = (T*) vl_malloc(sizeof(T) * (2 * W + 1)) ;
       T acc = 0 ;
@@ -1156,17 +1156,17 @@ VL_XCAT(_vl_imsmooth_smooth_, SFX)
                    inputImage, numRows, numColumns, numRows,
                    filter, -W, W, step, flags) ;
         
-        printf("in1: %f, %f\n",tempImage[0],tempImage[1]);
-        printf("in1: %f, %f\n",tempImage[numRows],tempImage[numRows+1]);
-        printf("in1: %f, %f\n",tempImage[numColumns],tempImage[numColumns+1]);
+        ///printf("in1: %f, %f\n",tempImage[0],tempImage[1]);
+        //printf("in1: %f, %f\n",tempImage[numRows],tempImage[numRows+1]);
+        //printf("in1: %f, %f\n",tempImage[numColumns],tempImage[numColumns+1]);
         
         IMCONVCOL (outputImage, numOutputRows,
                    tempImage, numOutputColumns, numRows, numOutputColumns,
                    filter, -W, W, step, flags) ;
         
-        printf("in2: %f, %f\n",outputImage[0],outputImage[1]);
-        printf("in2: %f, %f\n",outputImage[numRows],outputImage[numRows+1]);
-        printf("in2: %f, %f\n",outputImage[numColumns],outputImage[numColumns+1]);
+        //printf("in2: %f, %f\n",outputImage[0],outputImage[1]);
+        //printf("in2: %f, %f\n",outputImage[numRows],outputImage[numRows+1]);
+        //printf("in2: %f, %f\n",outputImage[numColumns],outputImage[numColumns+1]);
         
         inputImage += numRows * numColumns ;
         outputImage += numOutputRows * numOutputColumns ;

@@ -40,22 +40,17 @@ if ~exist(opts.fileImages, 'file')
         
         patch = im(data.words(i).loc(3):data.words(i).loc(4),data.words(i).loc(1):data.words(i).loc(2));
         
-<<<<<<< HEAD
-        % Move to single and equalize if necessary
-        patch = im2single(patch);
-=======
         if i==1
-            data.words(i).loc
-            disp(['pre canary ' num2str(patch(1,1))]);
+            %data.words(i).loc
+            %disp(['pre canary ' num2str(patch(1,1))]);
         end
         % Move to single and equalize if necessary
         patch = im2single(patch);
         
         if i==1
-            disp(['pre canary ' num2str(patch(1,1))]);
+            %disp(['pre canary ' num2str(patch(1,1))]);
         end
 
->>>>>>> 8b41c5b1f937f955d8596f7641687db00a167e39
         m = max(max(patch));
         if m < 0.2
             patch = patch*0.2/m;
@@ -72,12 +67,9 @@ if ~exist(opts.fileImages, 'file')
         if  (opts.maxH < data.words(i).H)
             patch = imresize(patch, [opts.maxH,nan]);
         end
-<<<<<<< HEAD
         
-        [H,W,numC] = size(patch);
-=======
         if i==1 %|| i==2
-            disp(['pre canary ' num2str(patch(1,1))]);
+            %disp(['pre canary ' num2str(patch(1,1))]);
         %   data.words(i).gttext
         %   size(patch)
         %   data.words(i).H
@@ -87,24 +79,16 @@ if ~exist(opts.fileImages, 'file')
         data.words(i).newH=H;
         data.words(i).newW=W;
 
->>>>>>> 8b41c5b1f937f955d8596f7641687db00a167e39
         % Save as uint8
         fwrite(fid, int32(W),'int32');
         fwrite(fid, int32(H), 'int32');
         fwrite(fid, im2uint8(patch), 'uint8');
-<<<<<<< HEAD
-=======
         if i==1 %|| i==2
             tmp=im2uint8(patch);
-            disp(['pre canary ' num2str(tmp(1,1))]);
+            %disp(['pre canary ' num2str(tmp(1,1))]);
         end
->>>>>>> 8b41c5b1f937f955d8596f7641687db00a167e39
     end
     fclose(fid);
 end
 
-<<<<<<< HEAD
 end
-=======
-end
->>>>>>> 8b41c5b1f937f955d8596f7641687db00a167e39

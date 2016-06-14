@@ -104,16 +104,34 @@ void EmbAttSpotter::test()
     
     training_dataset = new GWDataset("/home/brian/intel_index/brian_handwriting/EmbeddedAtt_Almazan/datasets/GW/queries/queries.gtp","/home/brian/intel_index/brian_handwriting/EmbeddedAtt_Almazan/datasets/GW/images/");
     phocsTr_testM();
-    //get_GMM_PCA_testM(); we now are copying this becuase GMM is stochastic process
-    feats_training_testM();
+    //get_GMM_PCA_testM(); //we now are copying this becuase GMM is stochastic process
+    //feats_training_testM(); This is dependent on our different phow implementation
     delete training_dataset;
+    //learn_attributes_bagging_test();
     
     training_dataset = new GWDataset("test/queries_train.gtp","/home/brian/intel_index/brian_handwriting/EmbeddedAtt_Almazan/datasets/GW/images/");
-    phocsTr(true);
-    PCA_(true);
-    feats_training(true);
+    //phocsTr(true);
+    //PCA_(true);
+    //feats_training(true);
+    //load attRepr and phocs
+    vector< vector<float> > loaded_phocs_training;
+    readCSV("test/phocs_training_test.csv",loaded_phocs_training);
+    assert(loaded_phocs_training.size()==phocSize+phocSize_bi);
+    _phocsTr=Mat(phocSize+phocSize_bi,loaded_phocs_training[0].size(),CV_32F);
+    for (int r=0; r< phocSize+phocSize_bi; r++)
+        for (int c=0; c<loaded_phocs_training[0].size(); c++)
+            _phocsTr.at<float>(r,c)=loaded_phocs_training[r][c];
     
-    learn_attributes_bagging_test();
+    int numAtt = 200;
+    vector< vector<float> > loaded_attReprTr;
+    readCSV("test/attReprTr_test.csv",loaded_attReprTr);
+    assert(loaded_attReprTr.size()==numAtt);
+    _attReprTr=Mat(numAtt,loaded_attReprTr[0].size(),CV_32F);
+    for (int r=0; r< numAtt; r++)
+        for (int c=0; c<loaded_attReprTr[0].size(); c++)
+            _attReprTr.at<float>(r,c)=loaded_attReprTr[r][c];
+
+    
     compareToCSV(embedding().rndmatx,"test/embedding_rndmatx_test2.csv");
     compareToCSV(embedding().rndmaty,"test/embedding_rndmaty_test2.csv");
     compareToCSV(embedding().matt,"test/embedding_matt_test2.csv");
@@ -566,7 +584,7 @@ void EmbAttSpotter::phocsTr_testM()//dlmwrite('phocs.csv',phocs,'precision',5)
     
 }
 
-void EmbAttSpotter::compareToCSV(Mat mine, string csvloc, bool transpose)
+void EmbAttSpotter::compareToCSV(Mat mine, string csvloc, bool transpose, float thresh)
 {
     vector<vector<float> > csv;
     readCSV(csvloc,csv);
@@ -587,9 +605,9 @@ void EmbAttSpotter::compareToCSV(Mat mine, string csvloc, bool transpose)
     for (int r=0; r<csvRows; r++)
         for (int c=0; c<csvCols; c++)
             if (transpose)
-                assert(fabs(mine.at<float>(r,c)-csv[c][r])<0.001);
+                assert(fabs(mine.at<float>(r,c)-csv[c][r])<thresh);
             else
-                assert(fabs(mine.at<float>(r,c)-csv[r][c])<0.001);
+                assert(fabs(mine.at<float>(r,c)-csv[r][c])<thresh);
 }
 
 void EmbAttSpotter::compareToCSVAbs(Mat mine, string csvloc, bool transpose)
@@ -671,8 +689,26 @@ void EmbAttSpotter::feats_training_testM()
 
 void EmbAttSpotter::learn_attributes_bagging_test()
 {
-    compareToCSV(attModels().W,"test/attModels_W_test.csv");
-    compareToCSV(attReprTr(),"test/attReprTr_test.csv");
+    //load feats_training and phocs_training
+    vector< vector<float> > loaded_feats_training;
+    readCSV("test/feats_training_test.csv",loaded_feats_training);
+    assert(loaded_feats_training.size()==FV_DIM);
+    _feats_training=Mat(loaded_feats_training[0].size(),FV_DIM,CV_32F);
+    for (int r=0; r< loaded_feats_training[0].size(); r++)
+        for (int c=0; c<FV_DIM; c++)
+            _feats_training.at<float>(r,c)=loaded_feats_training[c][r];
+
+    vector< vector<float> > loaded_phocs_training;
+    readCSV("test/phocs_training_test.csv",loaded_phocs_training);
+    assert(loaded_phocs_training.size()==phocSize+phocSize_bi);
+    _phocsTr=Mat(phocSize+phocSize_bi,loaded_feats_training[0].size(),CV_32F);
+    for (int r=0; r< phocSize+phocSize_bi; r++)
+        for (int c=0; c<loaded_phocs_training[0].size(); c++)
+            _phocsTr.at<float>(r,c)=loaded_phocs_training[r][c];
+    
+
+    compareToCSV(attModels().W,"test/attModels_W_test.csv",false,0.005);
+    compareToCSV(attReprTr(),"test/attReprTr_test.csv",false,0.005);
     /*vector<vector<float> > attModels_Wt;
     readCSV("test/attModels_W_test.csv",attModels_Wt);
     assert(attModels().W.rows==attModels_Wt.size() && attModels().W.cols==attModels_Wt[0].size());
