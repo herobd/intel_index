@@ -10,7 +10,7 @@ LIBS += -L/usr/local/MATLAB/R2015a/bin/glnxa64/ -licuuc -lmx -lmex -lmat -lm #-l
 LIBS += -L/usr/local/lib/ -lopencv_features2d -lopencv_core -lopencv_highgui -lopencv_imgproc -lopencv_ml -fopenmp -lopencv_flann -lopencv_ocl -lopencv_nonfree 
 #LIBS += -L/home/brian/robert_stuff/documentproject/lib -ldocumentproject
 
-LIBS += -L/home/brian/intel_index/EmbAttSpotter/vlfeat-0.9.20/bin/glnxa64/ -l:libvl.so
+LIBS += -L/home/brian/intel_index/EmbAttSpotter/vlfeat-0.9.20/bin/glnxa64/ -l:libvl.so -lstdc++
 #LIBS += -L/home/brian/intel_index/EmbAttSpotter/matio-1.5.6/src/.libs/ -l:libmatio.a
 #LIBS += -L/usr/local/hdf5/lib/ -l:libhdf5.a -lz -ldl
 #LIBS += -lpng -ltiff -ljpeg -pthread -lz 
@@ -30,7 +30,7 @@ clean:
 
 
 $(PROGRAM_NAME):  $(OBJECTS)  
-	$(LINK) $(CXX_FLAGS) -o $(PROGRAM_NAME) $(OBJECTS) $(LIBS)
+	$(LINK) $(CXX_FLAGS) -o $(PROGRAM_NAME) $(OBJECTS) $(LIBS) 
 
 	
 obj/main.o: main.cpp gwdataset.h

@@ -45,6 +45,32 @@ void EmbAttSpotter::test()
     // delete files
     system(("rm "+saveName+"*").c_str());
     
+    ofstream outTest;
+    outTest.open(saveName+"save.mat");
+    Mat testMat = (Mat_<float>(3,3) << 0, -1, 0, -1, 5, -1, 0, -1, 0);
+    writeFloatMat(outTest,testMat);
+    Mat testMatB = (Mat_<float>(3,2) << 0.345, -1.45346, 0.2111111, -1.000004, 5.4643, -1.5645645);
+    writeFloatMat(outTest,testMatB);
+    float testArray[5] = {1,2,3,4,5};
+    writeFloatArray(outTest,testArray,5);
+    outTest.close();
+    ifstream in(saveName+"save.mat");
+    Mat testMat2 = readFloatMat(in);
+    Mat testMatB2 = readFloatMat(in);
+    float* testArray2 = readFloatArray(in);
+    in.close();
+    assert(testMat.rows == testMat2.rows && testMat.cols==testMat2.cols);
+    for (int r=0; r<testMat.rows; r++)
+        for (int c=0; c<testMat.cols; c++)
+            assert(fabs(testMat.at<float>(r,c) - testMat2.at<float>(r,c)) <0.0001);
+    assert(testMatB.rows == testMatB2.rows && testMatB.cols==testMatB2.cols);
+    for (int r=0; r<testMatB.rows; r++)
+        for (int c=0; c<testMatB.cols; c++)
+            assert(fabs(testMatB.at<float>(r,c) - testMatB2.at<float>(r,c)) <0.0001);
+    
+    for (int i=0; i<5; i++)
+        assert(fabs(testArray[i] - testArray2[i]) <0.0001);
+    
     int tempgenericBatchSize=genericBatchSize;
     genericBatchSize=2;
     int tempnumWordsTrainGMM=numWordsTrainGMM;
@@ -53,7 +79,8 @@ void EmbAttSpotter::test()
     num_samples_PCA = 5000;
     
     //TODO, tests go here  
-    /*sinMat_cosMat_test(); 
+    /*test_mode=0;
+    sinMat_cosMat_test(); 
     normalizeL2Columns_test();
     otsuBinarization_test();
     embed_labels_PHOC_test();
@@ -66,7 +93,8 @@ void EmbAttSpotter::test()
     feats_training_test();
     phow_test();
     getImageDescriptorFV_test();
-    batches_cca_att_test();*/
+    batches_cca_att_test();
+    test_mode=1;*/
     
     //Compare to mat files
     numWordsTrainGMM=tempnumWordsTrainGMM;
@@ -76,7 +104,7 @@ void EmbAttSpotter::test()
     
     training_dataset = new GWDataset("/home/brian/intel_index/brian_handwriting/EmbeddedAtt_Almazan/datasets/GW/queries/queries.gtp","/home/brian/intel_index/brian_handwriting/EmbeddedAtt_Almazan/datasets/GW/images/");
     phocsTr_testM();
-    get_GMM_PCA_testM();
+    //get_GMM_PCA_testM(); we now are copying this becuase GMM is stochastic process
     feats_training_testM();
     delete training_dataset;
     
@@ -604,13 +632,13 @@ void EmbAttSpotter::get_GMM_PCA_testM()
     assert(GMM_mean.size()>0);
     for (int r=0; r<GMM_mean.size(); r++)
         for (int c=0; c<GMM_mean[0].size(); c++)
-            assert(abs(GMM().means[r*GMM_mean[0].size()+c]-GMM_mean[r][c])<0.001);
+            assert(fabs(GMM().means[r*GMM_mean[0].size()+c]-GMM_mean[r][c])<0.001);
     for (int r=0; r<GMM_covariances.size(); r++)
         for (int c=0; c<GMM_covariances[0].size(); c++)
-            assert(abs(GMM().covariances[r*GMM_covariances[0].size()+c]-GMM_covariances[r][c])<0.001);
+            assert(fabs(GMM().covariances[r*GMM_covariances[0].size()+c]-GMM_covariances[r][c])<0.001);
     for (int r=0; r<GMM_priors.size(); r++)
         for (int c=0; c<GMM_priors[0].size(); c++)
-            assert(abs(GMM().priors[r*GMM_priors[0].size()+c]-GMM_priors[r][c])<0.001);
+            assert(fabs(GMM().priors[r*GMM_priors[0].size()+c]-GMM_priors[r][c])<0.001);
     
     
     /*
@@ -631,7 +659,7 @@ void EmbAttSpotter::get_GMM_PCA_testM()
 
 void EmbAttSpotter::feats_training_testM()
 {
-    compareToCSV(feats_training(),"test/fileFeatures_test.csv");
+    compareToCSV(feats_training(),"test/fileFeatures_test.csv",true);
     /*vector<vector<float> > fileFeatures;
     readCSV("test/fileFeatures_test.csv",fileFeatures);
     assert(feats_training().rows>0);

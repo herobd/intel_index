@@ -38,7 +38,7 @@ extern "C" {
 
 #define SIFT_DIM 128
 #define DESC_DIM (SIFT_DIM+2)
-#define FV_DIM 2*(numGMMClusters*AUG_PCA_DIM)
+#define FV_DIM 2*(numGMMClusters*numSpatialX*numSpatialY*AUG_PCA_DIM)
 #define AUG_PCA_DIM (PCA_dim+2)
 
 using namespace std;
@@ -135,6 +135,7 @@ private:
     int minH;//?
     int PCA_dim;
     int num_samples_PCA;
+    int G;
     int numGMMClusters;
     int numSpatialX;
     int numSpatialY;
