@@ -1,4 +1,3 @@
-#include "embattspotter.h"
 
 #include "embattspotter_eval.cpp"
 #if TEST_MODE
@@ -1553,17 +1552,18 @@ void EmbAttSpotter::learn_common_subspace()
         //rndmatx = Mat::ones(M,Dx,CV_32F)*(1.0/(2.0*G));
         //rndmaty = Mat::ones(M,Dy,CV_32F)*(1.0/(2.0*G));
         #if TEST_MODE
-        vector< vector<float> > f;
-        readCSV("test/embedding_rndmatx_test.csv", f);
+        vector< vector<float> > f;///embedding_rndmatx_test2.csv
+        readCSV("test/embedding_rndmatx_test2.csv", f);
         for (int r=0; r<f.size(); r++)
             for (int c=0; c<f[0].size(); c++)
                 rndmatx.at<float>(r,c)=f[r][c];
         
         vector< vector<float> > f2;
-        readCSV("test/embedding_rndmaty_test.csv", f2);
+        readCSV("test/embedding_rndmaty_test2.csv", f2);
         for (int r=0; r<f2.size(); r++)
             for (int c=0; c<f2[0].size(); c++)
                 rndmaty.at<float>(r,c)=f2[r][c];
+        
         #endif
         
     }
@@ -1581,9 +1581,25 @@ void EmbAttSpotter::learn_common_subspace()
     vconcat(cosMat(tmp),sinMat(tmp),tmp);
     Mat phocsTr_emb = (1/sqrt(M)) * tmp;
 
+        vector< vector<float> > attReprTr_cossin;
+        readCSV("test/i_attRepTr_cossin_test2.csv", attReprTr_cossin);
+        assert(attReprTr_cossin.size()==attReprTr_emb.rows && attReprTr_cossin[0].size()==attReprTr_emb.cols);
+        for (int r=0; r<attReprTr_cossin.size(); r++)
+            for (int c=0; c<attReprTr_cossin[0].size(); c++)
+                assert(fabs(attReprTr_emb.at<float>(r,c)-attReprTr_cossin[r][c])<0.001);
+        vector< vector<float> > phocsTr_cossin;
+        readCSV("test/i_phocsTr_cossin_test2.csv", phocsTr_cossin);
+        assert(phocsTr_cossin.size()==phocsTr_emb.rows && phocsTr_cossin[0].size()==phocsTr_emb.cols);
+        for (int r=0; r<phocsTr_cossin.size(); r++)
+            for (int c=0; c<phocsTr_cossin[0].size(); c++)
+                assert(fabs(phocsTr_emb.at<float>(r,c)-phocsTr_cossin[r][c])<0.001);
     // Mean center
     Mat ma;// = mean(attReprTr_emb,2);
     reduce(attReprTr_emb, ma, 1, CV_REDUCE_AVG);
+    for (int r=0; r<ma.rows; r++)
+        for (int c=0; c<ma.cols; c++)
+            assert(ma.at<float>(r,c)==ma.at<float>(r,c));
+    
     for (int c = 0; c < attReprTr_emb.cols; ++c) {
         attReprTr_emb.col(c) = attReprTr_emb.col(c) - ma;
     }
@@ -1593,6 +1609,18 @@ void EmbAttSpotter::learn_common_subspace()
     for (int c = 0; c < phocsTr_emb.cols; ++c) {
         phocsTr_emb.col(c) = phocsTr_emb.col(c) - mh;
     }
+        vector< vector<float> > attReprTr_ma;
+        readCSV("test/i_attRepTr_ma_test2.csv", attReprTr_ma);
+        assert(attReprTr_ma.size()==attReprTr_emb.rows && attReprTr_ma[0].size()==attReprTr_emb.cols);
+        for (int r=0; r<attReprTr_ma.size(); r++)
+            for (int c=0; c<attReprTr_ma[0].size(); c++)
+                assert(fabs(attReprTr_emb.at<float>(r,c)-attReprTr_ma[r][c])<0.001);
+        vector< vector<float> > phocsTr_mh;
+        readCSV("test/i_phocsTr_mh_test2.csv", phocsTr_mh);
+        assert(phocsTr_mh.size()==phocsTr_emb.rows && phocsTr_mh[0].size()==phocsTr_emb.cols);
+        for (int r=0; r<phocsTr_mh.size(); r++)
+            for (int c=0; c<phocsTr_mh[0].size(); c++)
+                assert(fabs(phocsTr_emb.at<float>(r,c)-phocsTr_mh[r][c])<0.001);
 
     // Learn CCA
     Mat Wx, Wy;
@@ -1634,10 +1662,34 @@ void EmbAttSpotter::cca2(Mat X, Mat Y, float reg, int d, Mat& Wx, Mat& Wy)
     Mat Cxy = X.t()*Y / N;
     Mat Cyx = Cxy.t();
 
+        vector< vector<float> > loadCxx;
+        readCSV("test/i_Cxx_test2.csv", loadCxx);
+        assert(loadCxx.size()==Cxx.rows && loadCxx[0].size()==Cxx.cols);
+        for (int r=0; r<loadCxx.size(); r++)
+            for (int c=0; c<loadCxx[0].size(); c++)
+                assert(fabs(Cxx.at<float>(r,c)-loadCxx[r][c])<0.001);
+        vector< vector<float> > loadCyy;
+        readCSV("test/i_Cyy_test2.csv", loadCyy);
+        assert(loadCyy.size()==Cyy.rows && loadCyy[0].size()==Cyy.cols);
+        for (int r=0; r<loadCyy.size(); r++)
+            for (int c=0; c<loadCyy[0].size(); c++)
+                assert(fabs(Cyy.at<float>(r,c)-loadCyy[r][c])<0.001);
+        vector< vector<float> > loadCxy;
+        readCSV("test/i_Cxy_test2.csv", loadCxy);
+        assert(loadCxy.size()==Cxy.rows && loadCxy[0].size()==Cxy.cols);
+        for (int r=0; r<loadCxy.size(); r++)
+            for (int c=0; c<loadCxy[0].size(); c++)
+                assert(fabs(Cxy.at<float>(r,c)-loadCxy[r][c])<0.001);
     // --- Calcualte Wx and r ---
     Mat tmp;
     solve(Cxx,Cxy,tmp);
     Mat M =  (tmp/Cyy)*Cyx;
+        vector< vector<float> > loadM;
+        readCSV("test/i_M_test2.csv", loadM);
+        assert(loadM.size()==M.rows && loadM[0].size()==M.cols);
+        for (int r=0; r<loadM.size(); r++)
+            for (int c=0; c<loadM[0].size(); c++)
+                assert(fabs(M.at<float>(r,c)-loadM[r][c])<0.001);
     //[Wx,r] = eigs(double(M),d); // Basis in X
     Mat r;
     eigen(M, r, Wx);

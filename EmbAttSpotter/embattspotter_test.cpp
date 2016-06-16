@@ -115,16 +115,16 @@ void EmbAttSpotter::test()
     //feats_training(true);
     //load attRepr and phocs
     vector< vector<float> > loaded_phocs_training;
-    readCSV("test/phocs_training_test.csv",loaded_phocs_training);
+    readCSV("test/phocsTr_test2.csv",loaded_phocs_training);
     assert(loaded_phocs_training.size()==phocSize+phocSize_bi);
     _phocsTr=Mat(phocSize+phocSize_bi,loaded_phocs_training[0].size(),CV_32F);
     for (int r=0; r< phocSize+phocSize_bi; r++)
         for (int c=0; c<loaded_phocs_training[0].size(); c++)
             _phocsTr.at<float>(r,c)=loaded_phocs_training[r][c];
     
-    int numAtt = 200;
+    int numAtt = 604;
     vector< vector<float> > loaded_attReprTr;
-    readCSV("test/attReprTr_test.csv",loaded_attReprTr);
+    readCSV("test/attReprTr_test2.csv",loaded_attReprTr);
     assert(loaded_attReprTr.size()==numAtt);
     _attReprTr=Mat(numAtt,loaded_attReprTr[0].size(),CV_32F);
     for (int r=0; r< numAtt; r++)
@@ -561,7 +561,11 @@ void EmbAttSpotter::readCSV(string fileName, vector< vector<float> >& out)
         split(line,',',strV);
         vector<float> row;
         for (string s : strV)
-            row.push_back(stof(s));
+        {
+            float v = stof(s);
+            assert(v==v);
+            row.push_back(v);
+        }
         
         out.push_back(row);
     }

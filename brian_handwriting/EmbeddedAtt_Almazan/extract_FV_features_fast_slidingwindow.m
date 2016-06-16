@@ -8,7 +8,7 @@ meta.nWords = length(imagesTOC);
 
 %imagesPerBatch = 256;
 %imagesPerBatch = nWords;
-meta.imagesPerBatch = 5000;
+meta.imagesPerBatch = 500;
 meta.nBatches = int32(ceil(meta.nWords/meta.imagesPerBatch));
 meta.nInBatch=[];
 %featsBatch = zeros(opts.FVdim,imagesPerBatch,'single');
