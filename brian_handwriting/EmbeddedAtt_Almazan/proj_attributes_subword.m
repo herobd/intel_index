@@ -11,7 +11,7 @@ function proj_attributes_subword(opts,data,attModels)
         
         attReprTe_slidingwindow = {};
         
-        if ~exist('features_slidingwindow_meta','var');
+        if ~exist('features_slidingwindow_meta','var')
             meta = load(opts.fileFeatures_slidingwindow_meta,'meta');
             meta=meta.meta;
             nInBatch=[];
@@ -34,7 +34,7 @@ function proj_attributes_subword(opts,data,attModels)
                 %save(strcat(opts.fileAttRepresTe_slidingwindow,num2str(cb)),'attReprTe_slidingwindow_batch'); 
                 %nInBatch(cb)=size(feats_te_slidingwindow_batch,2);
                 disp(['size of batch ' num2str(cb) ' is ' num2str(size(feats_te_slidingwindow_batch,2))]);
-                clear feats_batch
+                clear featsBatch
              end
             
             %meta.nInBatch=nInBatch;
