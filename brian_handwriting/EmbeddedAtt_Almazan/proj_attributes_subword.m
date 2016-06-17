@@ -34,7 +34,8 @@ function proj_attributes_subword(opts,data,attModels)
                 %save(strcat(opts.fileAttRepresTe_slidingwindow,num2str(cb)),'attReprTe_slidingwindow_batch'); 
                 %nInBatch(cb)=size(feats_te_slidingwindow_batch,2);
                 disp(['size of batch ' num2str(cb) ' is ' num2str(size(feats_te_slidingwindow_batch,2))]);
-            end
+                clear feats_batch
+             end
             
             %meta.nInBatch=nInBatch;
             %save(opts.fileAttRepresTe_slidingwindow_meta,'meta');

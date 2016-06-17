@@ -231,7 +231,7 @@ vector<float> EmbAttSpotter::spot(const Mat& exemplar, string word, float alpha)
     batches_cca_att();
     //cout <<"numBatches "<<numBatches<<endl;
     
-    //ttt#pragma omp parallel for
+    #pragma omp parallel for
     
     for (int i=0; i<numBatches; i++)
     {
@@ -280,7 +280,7 @@ Mat EmbAttSpotter::extract_feats(const Mat& im)
             //ret->at(i).row(j-batches_index[i]) = getImageDescriptorFV(feats.t());
             tmp.row(j-batches_index[i]) = getImageDescriptorFV(feats.t());
         }
-        ////ttt#pragma omp critical
+        //#pragma omp critical
         {
             //Mat aux = ret->rowRange(batches_index[i],batches_indexEnd[i]);
             //tmp.copyTo(aux);
@@ -327,7 +327,7 @@ vector<Mat>* EmbAttSpotter::extract_FV_feats_fast_and_batch(const vector<string>
         Mat tmp = Mat_<float>(batches_indexEnd->at(i)-batches_index->at(i),FV_DIM);
         int start=batches_index->at(i);
         int end=batches_indexEnd->at(i);
-        //ttt#pragma omp parallel for
+        #pragma omp parallel for
         for (int j=start; j<end; j++)
         {
             Mat im = imread(imageLocations[j],CV_LOAD_IMAGE_GRAYSCALE);
@@ -335,7 +335,7 @@ vector<Mat>* EmbAttSpotter::extract_FV_feats_fast_and_batch(const vector<string>
             //ret->at(i).row(j-batches_index[i]) = getImageDescriptorFV(feats.t());
             Mat r = getImageDescriptorFV(feats);
             assert(r.cols==FV_DIM);
-            //ttt#pragma omp critical (copyToBatch)//do we need this?
+            #pragma omp critical (copyToBatch)//do we need this?
             r.copyTo(tmp.row(j-start));
         }
         
@@ -395,7 +395,7 @@ vector<Mat>* EmbAttSpotter::extract_FV_feats_fast_and_batch(const Dataset* datas
         Mat tmp = Mat_<float>(batches_indexEnd->at(i)-batches_index->at(i),FV_DIM);
         int start=batches_index->at(i);
         int end=batches_indexEnd->at(i);
-        //ttt#pragma omp parallel for
+        #pragma omp parallel for
         for (int j=start; j<end; j++)
         {
             Mat im = dataset->image(j);
@@ -403,7 +403,7 @@ vector<Mat>* EmbAttSpotter::extract_FV_feats_fast_and_batch(const Dataset* datas
             //ret->at(i).row(j-batches_index[i]) = getImageDescriptorFV(feats.t());
             Mat r = getImageDescriptorFV(feats);
             assert(r.cols==FV_DIM);
-            //ttt#pragma omp critical (copyToBatch)//do we need this?
+            #pragma omp critical (copyToBatch)//do we need this?
             r.copyTo(tmp.row(j-start));
         }
         
@@ -434,7 +434,7 @@ Mat EmbAttSpotter::get_FV_feats(const Dataset* dataset)
         size=dataset->size();
     
     Mat ret = Mat_<float>(size,FV_DIM);
-    //ttt#pragma omp parallel for
+    #pragma omp parallel for
     for (int j=0; j<size; j++)
     {
         const Mat im = dataset->image(j);
@@ -442,7 +442,7 @@ Mat EmbAttSpotter::get_FV_feats(const Dataset* dataset)
         //ret->at(i).row(j-batches_index[i]) = getImageDescriptorFV(feats.t());
         Mat r = getImageDescriptorFV(feats);
         assert(r.cols==FV_DIM);
-        //ttt#pragma omp critical (copyToBatch)//do we need this?
+        #pragma omp critical (copyToBatch)//do we need this?
         r.copyTo(ret.row(j));
     }
     
@@ -533,7 +533,7 @@ const Mat& EmbAttSpotter::feats_training(bool retrain)
     string name = saveName+"_feats_training.dat";
     if (_feats_training.rows==0)
     {
-        //ttt#pragma omp  critical (feats_training)
+        #pragma omp  critical (feats_training)
         {
             if (_feats_training.rows==0)
             {
@@ -1092,7 +1092,7 @@ const vector<Mat>& EmbAttSpotter::batches_cca_att()
     if (_batches_cca_att == NULL)
     {
         //cout<<"batches_cca_att is NULL"<<endl;
-        //ttt#pragma omp critical (batches_cca_att)
+        #pragma omp critical (batches_cca_att)
         {
             if (_batches_cca_att == NULL)
             {
@@ -1135,7 +1135,7 @@ const vector<Mat>& EmbAttSpotter::batches_cca_att()
     }
     if (_batches_cca_att==NULL)
     {
-        //ttt#pragma omp critical (batches_cca_att)
+        #pragma omp critical (batches_cca_att)
         {
             if (_batches_cca_att==NULL)
             {
@@ -1198,7 +1198,7 @@ void EmbAttSpotter::learn_attributes_bagging()
     threshold(phocsTr(),threshed, 0.47999, 1, THRESH_BINARY);
     assert(threshed.type()==CV_32F);
     
-    //ttt#pragma omp parallel for  num_threads(4)//I'm aumming I can read-only from Mats without worrying about thread stuff. If wrong, use data ptr
+    #pragma omp parallel for  num_threads(4)//I'm aumming I can read-only from Mats without worrying about thread stuff. If wrong, use data ptr
     for (int idxAtt=0; idxAtt<numAtt; idxAtt++)
     {
         //learn_att(...)
@@ -1281,7 +1281,7 @@ void EmbAttSpotter::learn_attributes_bagging()
                     for (int idx : idxVal)
                         Np.at<float>(0,idx)+=1;
                     
-                    //ttt#pragma omp critical (learn_attributes_bagging_inside)
+                    #pragma omp critical (learn_attributes_bagging_inside)
                     {
                         _attModels->W.col(idxAtt) += modelAtt;
                         for (int r=0; r<featsVal.rows; r++)
@@ -1321,7 +1321,7 @@ void EmbAttSpotter::learn_attributes_bagging()
             {
                 //for (int c=0; c<numSamples; c++)
                     //assert(Np.at<float>(0,c)!=0);
-                //ttt#pragma omp critical (learn_attributes_bagging_inside)
+                #pragma omp critical (learn_attributes_bagging_inside)
                 {
                     _attModels->W.col(idxAtt) /= (float)N;
                     divide(_attReprTr(Rect(0,idxAtt,numSamples,1)),Np,_attReprTr(Rect(0,idxAtt,numSamples,1)));
@@ -1420,7 +1420,7 @@ const EmbAttSpotter::AttributesModels& EmbAttSpotter::attModels(bool retrain)
 {
     if (_attModels==NULL)
     {
-        //ttt#pragma omp  critical (learn_attributes_bagging)
+        #pragma omp  critical (learn_attributes_bagging)
         {
             if (_attModels==NULL)
             {
@@ -1459,7 +1459,7 @@ const EmbAttSpotter::Embedding& EmbAttSpotter::embedding(bool retrain)
 {
     if (_embedding==NULL)
     {
-        //ttt#pragma omp  critical (embedding)
+        #pragma omp  critical (embedding)
         {
             if (_embedding==NULL)
             {
@@ -1693,7 +1693,7 @@ void EmbAttSpotter::cca2(Mat X, Mat Y, float reg, int d, Mat& Wx, Mat& Wy)
             solve(Cxx,Cxy,tmp);
     if (!solve(Cyy.t(),tmp.t(),tmp,cv::DECOMP_CHOLESKY))//mrdivide
         if (!solve(Cyy.t(),tmp.t(),tmp,cv::DECOMP_EIG))
-            solve(Cyy.t(),tmp.t());
+            solve(Cyy.t(),tmp.t(),tmp);
     Mat M =  (tmp.t())*Cyx;
 #if TEST_MODE
     if (test_mode)
@@ -1726,7 +1726,7 @@ const Mat& EmbAttSpotter::attReprTr(bool retrain)//correct orientation
 {
     if (_attReprTr.rows==0)
     {
-        //ttt#pragma omp  critical (learn_attributes_bagging)
+        #pragma omp  critical (learn_attributes_bagging)
         {
             if (_attReprTr.rows==0)
             {
@@ -2175,7 +2175,7 @@ const EmbAttSpotter::PCA_struct & EmbAttSpotter::PCA_(bool retrain)
 {
     if (_PCA.eigvec.rows==0)
     {
-        //ttt#pragma omp  critical (get_GMM_PCA)
+        #pragma omp  critical (get_GMM_PCA)
         {
             if (_PCA.eigvec.rows==0)
                 get_GMM_PCA(numWordsTrainGMM, saveName, retrain);
@@ -2189,7 +2189,7 @@ const EmbAttSpotter::GMM_struct & EmbAttSpotter::GMM(bool retrain)
 {
     if (_GMM.means==NULL)
     {
-        //ttt#pragma omp  critical (get_GMM_PCA)
+        #pragma omp  critical (get_GMM_PCA)
         {
             if (_GMM.means==NULL)
                 get_GMM_PCA(numWordsTrainGMM, saveName, retrain);
@@ -2479,7 +2479,7 @@ const Mat& EmbAttSpotter::phocsTr(bool retrain)//correct orientation
 {
     if (_phocsTr.rows==0 || retrain)
     {
-        //ttt#pragma omp  critical (phocsTr)
+        #pragma omp  critical (phocsTr)
         {
             if (_phocsTr.rows==0 || retrain)
             {
