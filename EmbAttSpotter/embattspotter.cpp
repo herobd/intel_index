@@ -1661,7 +1661,9 @@ void EmbAttSpotter::cca2(Mat X, Mat Y, float reg, int d, Mat& Wx, Mat& Wy)
     Mat Cyy = Y.t()*Y/N + reg*Mat::eye(Dy,Dy,CV_32F);
     Mat Cxy = X.t()*Y / N;
     Mat Cyx = Cxy.t();
-
+#if TEST_MODE
+    if (test_mode)
+    {
         vector< vector<float> > loadCxx;
         readCSV("test/i_Cxx_test2.csv", loadCxx);
         assert(loadCxx.size()==Cxx.rows && loadCxx[0].size()==Cxx.cols);
@@ -1680,16 +1682,30 @@ void EmbAttSpotter::cca2(Mat X, Mat Y, float reg, int d, Mat& Wx, Mat& Wy)
         for (int r=0; r<loadCxy.size(); r++)
             for (int c=0; c<loadCxy[0].size(); c++)
                 assert(fabs(Cxy.at<float>(r,c)-loadCxy[r][c])<0.001);
+    }
+#endif
+
     // --- Calcualte Wx and r ---
+    //This is a heirachical test for which method will work, I don't really know if Cholesky is better...
     Mat tmp;
-    solve(Cxx,Cxy,tmp);
-    Mat M =  (tmp/Cyy)*Cyx;
+    if (!solve(Cxx,Cxy,tmp,cv::DECOMP_CHOLESKY))//mldivide
+        if (!solve(Cxx,Cxy,tmp,cv::DECOMP_EIG))
+            solve(Cxx,Cxy,tmp);
+    if (!solve(Cyy.t(),tmp.t(),tmp,cv::DECOMP_CHOLESKY))//mrdivide
+        if (!solve(Cyy.t(),tmp.t(),tmp,cv::DECOMP_EIG))
+            solve(Cyy.t(),tmp.t());
+    Mat M =  (tmp.t())*Cyx;
+#if TEST_MODE
+    if (test_mode)
+    {
         vector< vector<float> > loadM;
         readCSV("test/i_M_test2.csv", loadM);
         assert(loadM.size()==M.rows && loadM[0].size()==M.cols);
         for (int r=0; r<loadM.size(); r++)
             for (int c=0; c<loadM[0].size(); c++)
                 assert(fabs(M.at<float>(r,c)-loadM[r][c])<0.001);
+    }
+#endif
     //[Wx,r] = eigs(double(M),d); // Basis in X
     Mat r;
     eigen(M, r, Wx);
