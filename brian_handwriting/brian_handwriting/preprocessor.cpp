@@ -37,7 +37,7 @@ Mat Preprocessor::process(const Mat& orig) const
                     if (topPix==-1)
                     {
                         topPix=r;
-                    }
+                }
                     lastSeen=r;
                 }
                 else
@@ -78,30 +78,115 @@ Mat Preprocessor::process(const Mat& orig) const
         //Mat kernel = Mat::ones( 5, 1, CV_32F )/ (float)(5);
         //filter2D(hist, hist, -1 , kernel );
         Mat edges;
-        float kernelData[11] = {1,1,1,1,0.5,0,-0.5,-1,-1,-1,-1};
+        int pad=5;
+        Mat paddedHist = Mat::ones(hist.rows+2*pad,1,hist.type());
+        double avg=0;
+        double maxHist=-99999;
+        double minHist=99999;
+        for (int r=0; r<hist.rows; r++)
+        {
+            avg+=hist.at<float>(r,0);
+            if (hist.at<float>(r,0)>maxHist)
+                maxHist=hist.at<float>(r,0);
+            if (hist.at<float>(r,0)<minHist)
+                minHist=hist.at<float>(r,0);
+        }
+        avg/=hist.rows;
+        paddedHist *= avg;
+        hist.copyTo(paddedHist(Rect(0,pad,1,hist.rows)));
+        float kernelData[11] = {1,1,1,1,.5,0,-.5,-1,-1,-1,-1};
         Mat kernel = Mat(11,1,CV_32F,kernelData);
-        filter2D(hist, edges, -1 , kernel );
+        filter2D(paddedHist, edges, -1 , kernel );//, Point(-1,-1), 0 ,BORDER_AVERAGE);
+        float kernelData2[11] = {.1,.1,.1,.1,.1,.1,.1,.1,.1,.1,.1};
+        Mat kernel2 = Mat(11,1,CV_32F,kernelData2);
+        Mat blurred;
+        filter2D(hist, blurred, -1 , kernel2 );//, Point(-1,-1), 0 ,BORDER_AVERAGE);
         int topBaseline=-1;
         float maxEdge=-9999999;
         int botBaseline=-1;
         float minEdge=9999999;
-        for (int r=0; r<ret.rows; r++)
+        float minPeak=9999999;
+        float center=-1;
+        for (int r=pad; r<ret.rows+pad; r++)
         {
             float v = edges.at<float>(r,0);
             if (v>maxEdge)
             {
                 maxEdge=v;
-                topBaseline=r;
+                topBaseline=r-pad;
             }
             if (v<minEdge)
             {
                 minEdge=v;
-                botBaseline=r;
+                botBaseline=r-pad;
+            }
+
+            if (blurred.at<float>(r-pad,0) < minPeak) {
+                center=r-pad;
+                minPeak=blurred.at<float>(r-pad,0);
             }
         }
-
+        if (topBaseline>center)
+        {
+            if (maxTop < center)
+                topBaseline=maxTop;
+            else
+            {
+                maxEdge=-999999;
+                for (int r=pad; r<center+pad; r++)
+                {
+                    float v = edges.at<float>(r,0);
+                    if (v>maxEdge)
+                    {
+                        maxEdge=v;
+                        topBaseline=r-pad;
+                    }
+                }
+            }
+        }
+        if (botBaseline<center)
+        {
+            if (maxBot > center)
+                botBaseline=maxBot;
+            else
+            {
+                minEdge=999999;
+                for (int r=center+1; r<ret.rows+pad; r++)
+                {
+                    float v = edges.at<float>(r,0);
+                    if (v<minEdge)
+                    {
+                        minEdge=v;
+                        botBaseline=r-pad;
+                    }
+                }
+            }
+        }
+                            
+        /*for (int r=0; r<ret.rows; r++)
+        {
+            for (int c=0; c<5; c++)
+            {
+                bin.at<unsigned char>(r,c) = 255*(edges.at<float>(r+pad,0)-minEdge)/maxEdge;
+            }
+            for (int c=5; c<10; c++)
+            {
+                bin.at<unsigned char>(r,c) = 255*(blurred.at<float>(r,0)-minHist)/maxHist;
+            }
+            for (int c=ret.cols-5; c<ret.cols; c++)
+            {
+                bin.at<unsigned char>(r,c) = 255*(paddedHist.at<float>(r+pad,0)-minHist)/maxHist;
+            }
+            for (int c=ret.cols-10; c<ret.cols-5; c++)
+            {
+                bin.at<unsigned char>(r,c) = 255*(hist.at<float>(r,0)-minHist)/maxHist;
+            }
+        }
+        imshow("bin",bin);
+        waitKey();
+        cout <<"Center: "<<center<<endl;
         cout << "Top: "<<maxTop<<" "<<topBaseline<<endl;
-        cout << "Bot: "<<maxBot<<" "<<botBaseline<<endl;
+        cout << "Bot: "<<maxBot<<" "<<botBaseline<<endl;*/
         if (botBaseline < topBaseline)//If they fail this drastically, the others won't be much better.
         {
             topBaseline=maxTop;
