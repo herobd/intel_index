@@ -11,7 +11,7 @@
 #include <dirent.h>
 #include "hog.h"
 #include <tuple>
-
+#include "preprocessor.h"
 //#define NO_LLC 1
 //#define NO_SP_PY 1
 //#define NO_POW_NORM 1
@@ -126,7 +126,7 @@ private:
     
     void color(Mat &heatMap, float score, float max, float min, int midI, int midJ) const;
     
-    
+    Preprocessor pre;
     //Codebook* computeCodebookFromExamples(int codebook_size,vector< vector<float> >& accum);
     
 };

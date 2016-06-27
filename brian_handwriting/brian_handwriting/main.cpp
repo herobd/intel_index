@@ -25,7 +25,7 @@
 #include "liang.h"
 #include "liangtests.h"
 #include "mog.h"
-
+#include "preprocessor.h"
 
 
 void deslant(Mat &img);
@@ -821,6 +821,14 @@ int main( int argc, char** argv )
         
         
         
+        waitKey();
+    }
+    else if (option.compare("testpreprocess")==0)
+    {
+        string imagePath = argv[2];
+        Preprocessor pre(PP_BASELINE_CENTER | PP_BASELINE_NORMALIZE);
+        Mat done = pre.process(imread(imagePath));
+        imshow("prep",done);
         waitKey();
     }
     else

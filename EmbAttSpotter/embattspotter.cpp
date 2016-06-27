@@ -1580,7 +1580,9 @@ void EmbAttSpotter::learn_common_subspace()
     tmp = rndmaty*phocsTr();
     vconcat(cosMat(tmp),sinMat(tmp),tmp);
     Mat phocsTr_emb = (1/sqrt(M)) * tmp;
-
+#if TEST_MODE
+    if (test_mode)
+    {
         vector< vector<float> > attReprTr_cossin;
         readCSV("test/i_attRepTr_cossin_test2.csv", attReprTr_cossin);
         assert(attReprTr_cossin.size()==attReprTr_emb.rows && attReprTr_cossin[0].size()==attReprTr_emb.cols);
@@ -1593,6 +1595,8 @@ void EmbAttSpotter::learn_common_subspace()
         for (int r=0; r<phocsTr_cossin.size(); r++)
             for (int c=0; c<phocsTr_cossin[0].size(); c++)
                 assert(fabs(phocsTr_emb.at<float>(r,c)-phocsTr_cossin[r][c])<0.001);
+    }
+#endif
     // Mean center
     Mat ma;// = mean(attReprTr_emb,2);
     reduce(attReprTr_emb, ma, 1, CV_REDUCE_AVG);
@@ -1609,6 +1613,9 @@ void EmbAttSpotter::learn_common_subspace()
     for (int c = 0; c < phocsTr_emb.cols; ++c) {
         phocsTr_emb.col(c) = phocsTr_emb.col(c) - mh;
     }
+#if TEST_MODE
+    if (test_mode)
+    {
         vector< vector<float> > attReprTr_ma;
         readCSV("test/i_attRepTr_ma_test2.csv", attReprTr_ma);
         assert(attReprTr_ma.size()==attReprTr_emb.rows && attReprTr_ma[0].size()==attReprTr_emb.cols);
@@ -1621,6 +1628,8 @@ void EmbAttSpotter::learn_common_subspace()
         for (int r=0; r<phocsTr_mh.size(); r++)
             for (int c=0; c<phocsTr_mh[0].size(); c++)
                 assert(fabs(phocsTr_emb.at<float>(r,c)-phocsTr_mh[r][c])<0.001);
+    }
+#endif
 
     // Learn CCA
     Mat Wx, Wy;

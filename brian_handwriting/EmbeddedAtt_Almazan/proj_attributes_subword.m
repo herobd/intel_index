@@ -53,6 +53,6 @@ function proj_attributes_subword(opts,data,attModels)
         %    attReprTe_slidingwindow{i} = W'*feats_te_slidingwindow{i};
         %end
 
-        save(opts.fileAttRepresTe_slidingwindow,'attReprTe_slidingwindow'); 
+        save(opts.fileAttRepresTe_slidingwindow,'attReprTe_slidingwindow','-v7.3'); 
     end
 end

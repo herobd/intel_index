@@ -30,10 +30,14 @@ EnhancedBoVW::EnhancedBoVW(vector<Vec2i> spatialPyramids, int desc_thresh, int L
     this->blockSize2=blockSize2;
     this->blockSize3=blockSize3;
     this->blockStride=blockStride;
+
+
+    pre = Preprocessor(PP_BASELINE_CENTER | PP_BASELINE_NORMALIZE);        
 }
 
 vector<float>* EnhancedBoVW::featurizeImage(const Mat &img) const
 {
+    
     auto samplesUncoded = getDescriptors(img);
     auto samplesCoded = codeDescriptorsIntegralImageSkip(samplesUncoded,img.size,skip);
     
@@ -515,6 +519,7 @@ void EnhancedBoVW::color(Mat &heatMap, float score, float maxV, float minV, int 
 vector< description >* EnhancedBoVW::getDescriptors(const Mat &img) const
 {   
     
+    Mat preprocessed = pre.process(img);
 
     
     
@@ -527,9 +532,9 @@ vector< description >* EnhancedBoVW::getDescriptors(const Mat &img) const
     vector< Point2i > locations1;
     vector< Point2i > locations2;
     vector< Point2i > locations3;
-    hog1.compute(img,descriptors1,locations1);
-    hog2.compute(img,descriptors2,locations2);
-    hog3.compute(img,descriptors3,locations3);
+    hog1.compute(preprocessed,descriptors1,locations1);
+    hog2.compute(preprocessed,descriptors2,locations2);
+    hog3.compute(preprocessed,descriptors3,locations3);
     
     vector< description > *descAndLoc = new vector< description >();
     
@@ -1025,7 +1030,7 @@ void EnhancedBoVW::unittests()
     
     Codebook cbTest;
     cbTest.unittest();
-    
+    pre=Preprocessor(0);//no preprocessing
     codebook = new Codebook();
     ofstream file;
     file.open ("tmp.dat435", ios::out);
