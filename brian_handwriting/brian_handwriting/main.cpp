@@ -430,6 +430,16 @@ int main( int argc, char** argv )
         Codebook *cb = bovw.makeCodebook(imgDir,1024);
         cb->save(codebookLoc);
     }
+    else if (option.compare("train_1024_codebook_noBaseNorm")==0)
+    {
+            
+        string imgDir = argv[2];
+        string codebookLoc = argv[3];
+        EnhancedBoVW bovw;
+        bovw.setPre(Preprocessor(PP_BASELINE_CENTER));
+        Codebook *cb = bovw.makeCodebook(imgDir,1024);
+        cb->save(codebookLoc);
+    }
     else if (option.compare("train_short_codebook")==0)
     {
             

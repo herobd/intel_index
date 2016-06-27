@@ -64,6 +64,7 @@ public:
         codebook_large = new Codebook();
         codebook_large->readIn(loc+"_small");
     }
+    void setPre(Preprocessor pre) {this->pre=pre;}
     void writeCodebooks(string loc)
     {
         codebook_small->save(loc+"_small");
