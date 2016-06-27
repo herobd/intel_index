@@ -228,7 +228,11 @@ void HOG::compute(const Mat &img, vector<vector<float> > &descriptors, vector< P
             {
                 
                 descriptors.push_back(bins[i][j]);
-                locations.push_back(Point2i(tlX+cellSize/2,tlY+cellSize/2));
+                int locX=tlX+cellSize/2;
+                int locY=tlY+cellSize/2;
+                assert(locX>=0 && locX<img.cols);
+                assert(locY>=0 && locY<img.rows);
+                locations.push_back(Point2i(locX,locY));
             }
 //            else
 //            {

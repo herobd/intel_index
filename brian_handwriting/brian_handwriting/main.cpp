@@ -289,6 +289,42 @@ int main( int argc, char** argv )
         
         EnhancedBoVWTests::experiment_Aldavert_dist_batched(bovw,locationCSVPath, dataDirPath, dataSize, fileExt, batchNum, numOfBatches, outfile);
     }
+    else if (option.compare("experiment_Aldavert_dist_batched_baseCenter")==0)
+    {
+        EnhancedBoVW bovw;
+        bovw.setPre(Preprocessor(PP_BASELINE_CENTER));
+        string codebookLoc = argv[2];
+        bovw.codebook = new Codebook();
+        bovw.codebook->readIn(codebookLoc);
+        
+        string locationCSVPath = argv[3];
+        string dataDirPath = argv[4];
+        int dataSize = atoi(argv[5]);
+        string fileExt = argv[6];
+        int batchNum = atoi(argv[7]);
+        int numOfBatches = atoi(argv[8]);
+        string outfile = argv[9];
+        
+        EnhancedBoVWTests::experiment_Aldavert_dist_batched(bovw,locationCSVPath, dataDirPath, dataSize, fileExt, batchNum, numOfBatches, outfile);
+    }
+    else if (option.compare("experiment_Aldavert_dist_batched_baseCenterNorm")==0)
+    {
+        EnhancedBoVW bovw;
+        bovw.setPre(Preprocessor(PP_BASELINE_CENTER | PP_BASELINE_NORMALIZE));
+        string codebookLoc = argv[2];
+        bovw.codebook = new Codebook();
+        bovw.codebook->readIn(codebookLoc);
+        
+        string locationCSVPath = argv[3];
+        string dataDirPath = argv[4];
+        int dataSize = atoi(argv[5]);
+        string fileExt = argv[6];
+        int batchNum = atoi(argv[7]);
+        int numOfBatches = atoi(argv[8]);
+        string outfile = argv[9];
+        
+        EnhancedBoVWTests::experiment_Aldavert_dist_batched(bovw,locationCSVPath, dataDirPath, dataSize, fileExt, batchNum, numOfBatches, outfile);
+    }
     else if (option.compare("experiment_Aldavert_dist_batched_noLLC")==0)
     {
         EnhancedBoVW bovw;
@@ -427,6 +463,7 @@ int main( int argc, char** argv )
         string imgDir = argv[2];
         string codebookLoc = argv[3];
         EnhancedBoVW bovw;
+        bovw.setPre(Preprocessor(PP_BASELINE_CENTER | PP_BASELINE_NORMALIZE));
         Codebook *cb = bovw.makeCodebook(imgDir,1024);
         cb->save(codebookLoc);
     }
