@@ -100,8 +100,8 @@ Mat Preprocessor::process(const Mat& orig) const
             }
         }
 
-        //cout << "Top: "<<maxTop<<" "<<topBaseline<<endl;
-        //cout << "Bot: "<<maxBot<<" "<<botBaseline<<endl;
+        cout << "Top: "<<maxTop<<" "<<topBaseline<<endl;
+        cout << "Bot: "<<maxBot<<" "<<botBaseline<<endl;
         if (botBaseline < topBaseline)//If they fail this drastically, the others won't be much better.
         {
             topBaseline=maxTop;
@@ -171,7 +171,7 @@ Mat Preprocessor::process(const Mat& orig) const
 
         if (doBaselineNormalization)
         {
-            double scale = baseLineNorm/(botBaseline-topBaseline);
+            double scale = baseLineNorm/(0.0+botBaseline-topBaseline);
             resize(ret,ret,Size(),1,scale);
         }
     }
