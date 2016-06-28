@@ -325,6 +325,38 @@ int main( int argc, char** argv )
         
         EnhancedBoVWTests::experiment_Aldavert_dist_batched(bovw,locationCSVPath, dataDirPath, dataSize, fileExt, batchNum, numOfBatches, outfile);
     }
+    else if (option.compare("experiment_Aldavert_dist_batched_pyramid")==0)
+    {
+        vector<Vec2i> spatialPyramid;//={Vec2i(2,1),Vec2i(4,1)};
+        string layers = argv[2];
+        regex getLayer("\\((\\d*),(\\d*)\\)");
+        smatch m;
+        cout <<"Pyramid: ";
+        while (regex_search (layers,m,getLayer)) 
+        {
+            Vec2i layer(stoi(m[1]),stoi(m[2]));
+            spatialPyramid.push_back(layer);
+            layers=m.suffix().str();
+            cout <<"("<<layer[0]<<", "<<layer[1]<<") ";
+        }
+        cout << endl;
+
+        EnhancedBoVW bovw(spatialPyramid);
+        bovw.setPre(Preprocessor(PP_BASELINE_CENTER | PP_BASELINE_NORMALIZE));//This is best preproessing so far
+        string codebookLoc = argv[3];
+        bovw.codebook = new Codebook();
+        bovw.codebook->readIn(codebookLoc);
+        
+        string locationCSVPath = argv[4];
+        string dataDirPath = argv[5];
+        int dataSize = atoi(argv[6]);
+        string fileExt = argv[7];
+        int batchNum = atoi(argv[8]);
+        int numOfBatches = atoi(argv[9]);
+        string outfile = argv[10];
+        
+        EnhancedBoVWTests::experiment_Aldavert_dist_batched(bovw,locationCSVPath, dataDirPath, dataSize, fileExt, batchNum, numOfBatches, outfile);
+    }
     else if (option.compare("experiment_Aldavert_dist_batched_noLLC")==0)
     {
         EnhancedBoVW bovw;

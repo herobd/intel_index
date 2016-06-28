@@ -64,28 +64,28 @@ int main(int argc, char** argv)
 	    multimap<float, int> ranked;
 	    for (int i=0; i<scores.size(); i++)
 	        ranked.emplace(scores[i],i);
-		auto iter = ranked.end();
-		for (int i=1; i<=5; i++)
-		{
-		    iter--;
-		    cout<<"I rank "<<i<<" with score "<<iter->first<<endl;
-		    imshow("I "+to_string(i),test.image(iter->second));
-		    
-		}
-		
-		scores = spotter.spot(test.image(ex), test.labels()[ex], 0);
+            auto iter = ranked.end();
+            for (int i=1; i<=5; i++)
+            {
+                iter--;
+                cout<<"I rank "<<i<<" with score "<<iter->first<<endl;
+                imshow("I "+to_string(i),test.image(iter->second));
+                
+            }
+            
+            scores = spotter.spot(test.image(ex), test.labels()[ex], 0);
 	    ranked.clear();
 	    for (int i=0; i<scores.size(); i++)
 	        ranked.emplace(scores[i],i);
-		iter = ranked.end();
-		for (int i=1; i<=5; i++)
-		{
-		    iter--;
-		    cout<<"T rank "<<i<<" with score "<<iter->first<<endl;
-		    imshow("T "+to_string(i),test.image(iter->second));
-		    
-		}
-		waitKey();
+            iter = ranked.end();
+            for (int i=1; i<=5; i++)
+            {
+                iter--;
+                cout<<"T rank "<<i<<" with score "<<iter->first<<endl;
+                imshow("T "+to_string(i),test.image(iter->second));
+                
+            }
+            waitKey();
 	}
 
 

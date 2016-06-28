@@ -926,16 +926,18 @@ vector<float>* EnhancedBoVW::getPooledDescFastSkip(vector< vector< Mat/*< float 
         compensation *= (spatialPyramids.at(l)[0]/spatialPyramids.at(l-1)[0])*(spatialPyramids.at(l)[1]/spatialPyramids.at(l-1)[1]);
     }
     
-    vector<float>* ret = new vector<float>();
-    int binWidth = window.width/spatialPyramids.at(level)[0];
-    int binHeight= window.height/spatialPyramids.at(level)[1];
+    int vectorLen = (*samplesIntegralImage)[0][0].rows;
+    vector<float>* ret = new vector<float>(vectorLen * spatialPyramids.at(level)[0]*spatialPyramids.at(level)[1]);
+    int retPos=0;
+    float binWidth = (0.0+window.width)/spatialPyramids.at(level)[0];
+    float binHeight= (0.0+window.height)/spatialPyramids.at(level)[1];
     for (int binH=0; binH<spatialPyramids.at(level)[0]; binH++)
         for (int binV=0; binV<spatialPyramids.at(level)[1]; binV++)
         {
-            Point2i recTL(max(0,(window.x + binH*binWidth)/skip),
-                          max(0,(window.y + binV*binHeight)/skip));
-            Point2i recBR(min((int)samplesIntegralImage->size()-1,(window.x + (binH+1)*binWidth )/skip -1), 
-                          min((int)samplesIntegralImage->front().size()-1,(window.y + (binV+1)*binHeight )/skip -1));
+            Point2i recTL(max(0, (int) (window.x + binH*binWidth)/skip),
+                          max(0, (int) (window.y + binV*binHeight)/skip));
+            Point2i recBR(min((int)samplesIntegralImage->size()-1, (int) (window.x + (binH+1)*binWidth )/skip -1), 
+                          min((int)samplesIntegralImage->front().size()-1, (int) (window.y + (binV+1)*binHeight )/skip -1));
             
 //            vector<float> bins(codebook->size(),0);
 //            for (int f=0; f<codebook->size(); f++)
@@ -975,12 +977,14 @@ vector<float>* EnhancedBoVW::getPooledDescFastSkip(vector< vector< Mat/*< float 
                 bins = Mat::zeros((*samplesIntegralImage)[0][0].size(),(*samplesIntegralImage)[0][0].type());
             }
             
-            int oldSize=ret->size();
-            ret->resize(oldSize+bins.size[0]);
-            for (int i=0; i<bins.size[0]; i++)
+            //int oldSize=ret->size();
+            //ret->resize(oldSize+bins.size[0]);
+            for (int i=0; i<vectorLen; i++)
             {
-                (*ret)[oldSize+i] = compensation * (bins.at<float>(i,0));
+                //(*ret)[oldSize+i] = compensation * (bins.at<float>(i,0));
+                (*ret)[retPos+i] = compensation * (bins.at<float>(i,0));
             }
+            retPos+=vectorLen;
         }
     if (spatialPyramids.size()-1>level)
     {
