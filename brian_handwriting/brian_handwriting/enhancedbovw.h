@@ -26,6 +26,8 @@ using namespace cv;
 #define SMALL 0
 #define MED 1
 #define LARGE 2
+
+#define DESC_THRESH 2700
 typedef struct description
 {
     vector<float> values;
@@ -48,11 +50,11 @@ public:
     Codebook* codebook_large;
     
 #if !NO_LLC && !NO_SP_PY
-    EnhancedBoVW(vector<Vec2i> spatialPyramids={Vec2i(3,2),Vec2i(9,2)}, int desc_thresh=3500, int LLC_numOfNN=10, int blockSize1=20, int blockSize2=30, int blockSize3=45, int blockStride=3, int hStride=8, int vStride=8, int skip=3);
+    EnhancedBoVW(vector<Vec2i> spatialPyramids={Vec2i(3,2),Vec2i(9,2)}, int desc_thresh=DESC_THRESH, int LLC_numOfNN=10, int blockSize1=20, int blockSize2=30, int blockSize3=45, int blockStride=3, int hStride=8, int vStride=8, int skip=3);
 #elif !NO_SP_PY
-    EnhancedBoVW(vector<Vec2i> spatialPyramids={Vec2i(3,2),Vec2i(9,2)}, int desc_thresh=3500, int LLC_numOfNN=1, int blockSize1=20, int blockSize2=30, int blockSize3=45, int blockStride=3, int hStride=8, int vStride=8, int skip=3);
+    EnhancedBoVW(vector<Vec2i> spatialPyramids={Vec2i(3,2),Vec2i(9,2)}, int desc_thresh=DESC_THRESH, int LLC_numOfNN=1, int blockSize1=20, int blockSize2=30, int blockSize3=45, int blockStride=3, int hStride=8, int vStride=8, int skip=3);
 #else
-    EnhancedBoVW(vector<Vec2i> spatialPyramids={Vec2i(1,1)}, int desc_thresh=3500, int LLC_numOfNN=1, int blockSize1=20, int blockSize2=30, int blockSize3=45, int blockStride=3, int hStride=8, int vStride=8, int skip=3);
+    EnhancedBoVW(vector<Vec2i> spatialPyramids={Vec2i(1,1)}, int desc_thresh=DESC_THRESH, int LLC_numOfNN=1, int blockSize1=20, int blockSize2=30, int blockSize3=45, int blockStride=3, int hStride=8, int vStride=8, int skip=3);
 #endif
     ~EnhancedBoVW(){if(codebook!=NULL) delete codebook;}
     void readCodebooks(string loc)

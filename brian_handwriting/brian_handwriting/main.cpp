@@ -228,9 +228,14 @@ int main( int argc, char** argv )
         }
         cout << "score  " << score << endl;
         cout << "score2 " << score2 << endl;
-        
-//        bovw.printDescThreshContours(find);
-//        bovw.printDescThreshContours(img);
+    }    
+    else if (option.compare("showhog")==0)
+    {
+
+        Mat img = imread(argv[2], CV_LOAD_IMAGE_GRAYSCALE);
+        EnhancedBoVW bovw(simpleSpatialPyramids,stoi(argv[3]));
+        //bovw.printDescThreshContours(find);
+        bovw.printDescThreshContours(img,stoi(argv[3]));
     }
     else if (option.compare("experiment_subword")==0)
     {
@@ -550,7 +555,7 @@ int main( int argc, char** argv )
             
         string imgDir = simple_corpus + "words_lots/";
         string codebookLoc = simple_corpus + "codebook.csv";
-        EnhancedBoVW bovw(simpleSpatialPyramids,3500,simple_LLC,6,8,10,2,2,2,2);
+        EnhancedBoVW bovw(simpleSpatialPyramids,DESC_THRESH,simple_LLC,6,8,10,2,2,2,2);
         Codebook *cb = bovw.makeCodebook(imgDir,160);
         cb->save(codebookLoc);
         //cb->print();
@@ -560,13 +565,13 @@ int main( int argc, char** argv )
             
         string imgDir = simple_corpus + "words_lots/";
         string codebookLoc = simple_corpus + "codebook.csv";
-        EnhancedBoVW bovw(simpleSpatialPyramids,3500,simple_LLC,6,8,10,2,2,2,2);
+        EnhancedBoVW bovw(simpleSpatialPyramids,DESC_THRESH,simple_LLC,6,8,10,2,2,2,2);
         bovw.make3Codebooks(imgDir,160);
         bovw.writeCodebooks(codebookLoc);
     }
     else if (option.compare("bovwscore_simple")==0)
     {
-        EnhancedBoVW bovw(simpleSpatialPyramids,3500,simple_LLC,6,8,10,2,2,2,2);
+        EnhancedBoVW bovw(simpleSpatialPyramids,DESC_THRESH,simple_LLC,6,8,10,2,2,2,2);
         
         string codebookLoc = simple_corpus + "codebook.csv";
 //        bovw.readCodebooks(codebookLoc);  
@@ -585,7 +590,7 @@ int main( int argc, char** argv )
     else if (option.compare("bovwscore_single_simple")==0)
     {
         vector<Vec2i> spatialPyramids={Vec2i(1,1)};
-        EnhancedBoVW bovw(spatialPyramids,3500,simple_LLC,6,8,10,2,2,2,2);
+        EnhancedBoVW bovw(spatialPyramids,DESC_THRESH,simple_LLC,6,8,10,2,2,2,2);
             
         string codebookLoc = simple_corpus + "codebook.csv";
 //        bovw.readCodebooks(codebookLoc);
@@ -623,7 +628,7 @@ int main( int argc, char** argv )
     }
     else if (option.compare("show_simple")==0)
     {
-        EnhancedBoVW bovw(simpleSpatialPyramids,3500,simple_LLC,6,8,10,2,2,2,2);
+        EnhancedBoVW bovw(simpleSpatialPyramids,DESC_THRESH,simple_LLC,6,8,10,2,2,2,2);
             
         string codebookLoc = simple_corpus + "codebook.csv";
         bovw.readCodebooks(codebookLoc);
@@ -637,7 +642,7 @@ int main( int argc, char** argv )
     }
     else if (option.compare("experiment_Aldavert_dist_batched_simple")==0)
     {
-        EnhancedBoVW bovw(simpleSpatialPyramids,3500,simple_LLC,6,8,10,2,2,2,2);
+        EnhancedBoVW bovw(simpleSpatialPyramids,DESC_THRESH,simple_LLC,6,8,10,2,2,2,2);
         
         string codebookLoc = simple_corpus + "codebook.csv";
 //        bovw.readCodebooks(codebookLoc);
@@ -655,7 +660,7 @@ int main( int argc, char** argv )
     }
     else if (option.compare("experiment_Aldavert_dist_batched_simple_LLC")==0)
     {
-        EnhancedBoVW bovw(simpleSpatialPyramids,3500,atoi(argv[2]),6,8,10,2,2,2,2);
+        EnhancedBoVW bovw(simpleSpatialPyramids,DESC_THRESH,atoi(argv[2]),6,8,10,2,2,2,2);
         
         string codebookLoc = simple_corpus + "codebook.csv";
 //        bovw.readCodebooks(codebookLoc);
@@ -677,7 +682,7 @@ int main( int argc, char** argv )
         string second = argv[3];
         vector<Vec2i> spatialPyramidsSingle={Vec2i(1,1)};
         
-        EnhancedBoVW bovw(simpleSpatialPyramids,3500,simple_LLC,6,8,10,2,2,2,2);
+        EnhancedBoVW bovw(simpleSpatialPyramids,DESC_THRESH,simple_LLC,6,8,10,2,2,2,2);
             
         string codebookLoc = simple_corpus + "codebook.csv";
 //        bovw.readCodebooks(codebookLoc);
@@ -909,6 +914,12 @@ int main( int argc, char** argv )
         Mat done = pre.process(imread(imagePath));
         imshow("prep",done);
         waitKey();
+    }
+    else if (option.compare("testhog")==0)
+    {
+        string imagePath = argv[2];
+        HOG hog(0,18,14,16);
+        hog.show(imread(imagePath,CV_LOAD_IMAGE_GRAYSCALE));
     }
     else
     {

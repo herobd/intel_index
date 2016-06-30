@@ -907,6 +907,7 @@ Mat EmbAttSpotter::phow(const Mat& im, const struct PCA_struct* PCA_pt)
             
             augmented.at<float>(j,desc.cols) = (kpx-cx)/(float)bb_w;
             augmented.at<float>(j,desc.cols+1) = (kpy-cy)/(float)bb_h;
+            //TODO augmented.at<float>(j,desc.cols+2) = (size);
             
             #if DRAW
             size=1;
@@ -1057,7 +1058,7 @@ Mat EmbAttSpotter::getImageDescriptorFV(const Mat& feats_m)
 {
     assert(feats_m.cols==AUG_PCA_DIM);
     int dimension = AUG_PCA_DIM;
-    int numClusters = numGMMClusters;
+    int numClusters = numGMMClusters*numSpatialX*numSpatialY;
     //Mat flipped_feats = feats_m.t();//we have our featvecs on the row and OpenCV is row major
     assert(feats_m.isContinuous());
     float* dataToEncode = (float*)feats_m.data;
@@ -1068,7 +1069,6 @@ Mat EmbAttSpotter::getImageDescriptorFV(const Mat& feats_m)
     float* enc = (float*)ret.data;
     //float f2 = enc[rowIdx*ret.step1() + colIdx];
     // run fisher encoding
-    
     
     vl_fisher_encode
         (enc, VL_TYPE_FLOAT,
@@ -2085,7 +2085,7 @@ void EmbAttSpotter::get_GMM_PCA(int numWordsTrainGMM, string saveAs, bool retrai
             cout << "Error, could not open imageDir: "<<imageDir << endl;
             assert(false);
         }*/
-    }
+     }
     
 }
 
