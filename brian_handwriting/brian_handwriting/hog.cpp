@@ -203,8 +203,8 @@ void HOG::compute(const Mat &img, vector<vector<float> > &descriptors, vector< P
     Mat grad = computeGradient(img);
     
     //init bins
-    int binsHorz=(img.cols-cellSize)/stepSize;
-    int binsVert=(img.rows-cellSize)/stepSize;
+    int binsHorz=(img.cols-(cellSize-stepSize))/stepSize;
+    int binsVert=(img.rows-(cellSize-stepSize))/stepSize;
     
     vector<float>** bins = new vector<float>*[binsHorz];
     for (int i=0; i<binsHorz; i++)
