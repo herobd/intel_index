@@ -1966,15 +1966,15 @@ void EmbAttSpotter::get_GMM_PCA(int numWordsTrainGMM, string saveAs, bool retrai
             Mat desc = phow(im);//includes xy's, normalization //TODO A possible improvment, include more meta-data like scale
             assert(desc.type() == CV_32F);
             assert(desc.cols == DESC_DIM);
-            /*if (test_mode!=0)
+            if (test_mode!=0)
             {   
                 vector<vector<float> > csv;
                 readCSV("test/GMM_PCA_descs/GMM_PCA_desc_"+to_string(i)+"_test.csv",csv);
                 assert(csv.size() == desc.cols);
-                //cout <<"size dif "<<((int)desc.rows-(int)csv.at(0).size())<<endl;
+                cout <<"size dif "<<((int)desc.rows-(int)csv.at(0).size())<<endl;
                 assert((int)desc.rows-(int)csv.at(0).size()<500);
                 /*for (int ii=0; ii<desc.cols; ii++)
-                    cout << desc.at<float>(0,ii) << endl;* /
+                    cout << desc.at<float>(0,ii) << endl;*/
                 //exit(1);
                 
                 Mat newDesc(csv[0].size(),csv.size(),CV_32F);
@@ -1988,7 +1988,7 @@ void EmbAttSpotter::get_GMM_PCA(int numWordsTrainGMM, string saveAs, bool retrai
                     desc(Rect(0,sample,SIFT_DIM,1)).copyTo(for_PCA.row(on_sample++));
                 
             }
-            else*/
+            else
                 for (int sample=0; sample<sample_per_for_PCA; sample++)
                 {
                     int randIndex = rand()%desc.rows;

@@ -104,7 +104,7 @@ void EmbAttSpotter::test()
     
     training_dataset = new GWDataset("/home/brian/intel_index/brian_handwriting/EmbeddedAtt_Almazan/datasets/GW/queries/queries.gtp","/home/brian/intel_index/brian_handwriting/EmbeddedAtt_Almazan/datasets/GW/images/");
     phocsTr_testM();
-    //get_GMM_PCA_testM(); //we now are copying this becuase GMM is stochastic process
+    get_GMM_PCA_testM(); //we now are copying this becuase GMM is stochastic process
     //feats_training_testM(); This is dependent on our different phow implementation
     delete training_dataset;
     //learn_attributes_bagging_test();
@@ -654,13 +654,13 @@ void EmbAttSpotter::get_GMM_PCA_testM()
     assert(GMM_mean.size()>0);
     for (int r=0; r<GMM_mean.size(); r++)
         for (int c=0; c<GMM_mean[0].size(); c++)
-            assert(fabs(GMM().means[r*GMM_mean[0].size()+c]-GMM_mean[r][c])<0.001);
+            assert(fabs(GMM().means[c*GMM_mean.size()+r]-GMM_mean[r][c])<0.001);
     for (int r=0; r<GMM_covariances.size(); r++)
         for (int c=0; c<GMM_covariances[0].size(); c++)
-            assert(fabs(GMM().covariances[r*GMM_covariances[0].size()+c]-GMM_covariances[r][c])<0.001);
+            assert(fabs(GMM().covariances[c*GMM_covariances.size()+r]-GMM_covariances[r][c])<0.001);
     for (int r=0; r<GMM_priors.size(); r++)
         for (int c=0; c<GMM_priors[0].size(); c++)
-            assert(fabs(GMM().priors[r*GMM_priors[0].size()+c]-GMM_priors[r][c])<0.001);
+            assert(fabs(GMM().priors[c*GMM_priors.size()+r]-GMM_priors[r][c])<0.001);
     
     
     /*
