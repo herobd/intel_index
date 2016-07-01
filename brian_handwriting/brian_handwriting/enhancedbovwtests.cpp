@@ -1016,7 +1016,7 @@ void EnhancedBoVWTests::experiment_Aldavert_dist_batched(EnhancedBoVW &bovw, str
 //    regex imageNameNumExtract("(?:wordimg_)(\d+)");
     regex imageNameNumExtract("\\d+");
 
-    
+    //vector<string> words;
     map<string,vector<int> > locations;
     
     ifstream file;
@@ -1027,17 +1027,18 @@ void EnhancedBoVWTests::experiment_Aldavert_dist_batched(EnhancedBoVW &bovw, str
     string fileList;
     
 
-    
+    int fileCount=0; 
     while (getline(file,wordText))
     {
         getline(file,fileList);
-        
+        //words.push_back(wordText);
         smatch sm;
         while(regex_search(fileList,sm,imageNameNumExtract))
         {
             int idx = stoi(sm[0]);
             locations[wordText].push_back(idx);
             fileList = sm.suffix().str();
+            fileCount++;
         }
     }
     
@@ -1053,17 +1054,51 @@ void EnhancedBoVWTests::experiment_Aldavert_dist_batched(EnhancedBoVW &bovw, str
     int mapCount=0;
     int prevCount=0;
     
-    int taskSize = locations.size() / numNodes;
-    int mybegin = iproc * taskSize;
-    int myend = (iproc+1) * taskSize;
-    if (myend > locations.size())
-        myend = locations.size();
-    if (iproc+1 == numNodes)
-        myend = locations.size();   
+    //Doing this by the fileCount rather than locations.size() keeps the work distributed more evenly.
+    int taskSize = fileCount/numNodes; //locations.size() / numNodes;
+    auto iter = locations.begin();
+    int accum=0;
+    int onNode=0;
+    vector<int>begins(numNodes);
+    begins[0]=0;
+    vector<int>ends(numNodes);
+    for (int i=0; i<locations.size() && onNode<numNodes; i++, iter++)
+    {
+        int size = iter->second.size(); //locations.at(words[i]).size();
+        accum+=size;
+        cout <<i<<endl;
+        cout << "accum: "<<accum<<endl;
+        cout <<"taskSize: "<<taskSize<<endl;
+        fileCount-=size;
+        if (accum>taskSize && (accum)/taskSize<2)
+        {
+            ends.at(onNode)=i+1;
+            if (++onNode<numNodes)
+            {
+                begins.at(onNode)=i+1;
+                taskSize=fileCount/(numNodes-onNode);
+            }
+            accum=0;
+        }
+        else if (accum>taskSize)
+        {
+            ends.at(onNode)=i;
+            if (++onNode<numNodes)
+            {
+                begins.at(onNode)=i;
+                taskSize=(fileCount+size)/(numNodes-onNode);
+            }
+            accum=size;//As I've already "added" it, in a sense
+        }
+            
+    }
+    ends.back()=locations.size();//just in case
+    int mybegin=begins[iproc];
+    int myend=ends[iproc];
 
     cout << "["<<iproc<<"] is going from "<<mybegin<<" to "<<myend<<endl; 
     
-    auto iter = locations.begin();
+    iter = locations.begin();
     for (int i=0; i<mybegin; i++)
         iter++;
     
