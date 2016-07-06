@@ -4,6 +4,8 @@
     #include "embattspotter_test.cpp"
 #endif
 
+#include <armadillo>
+
 EmbAttSpotter::EmbAttSpotter(string saveName, bool useNumbers, int test_mode)
 {
     
@@ -1716,10 +1718,11 @@ void EmbAttSpotter::cca2(Mat X, Mat Y, float reg, int d, Mat& Wx, Mat& Wy)
     }
 #endif
     //[Wx,r] = eigs(double(M),d); // Basis in X
-    Mat r;
-    eigen(M.t(), r, Wx); //TODO try armadilo
-    assert(r.rows >= d);
+    //Mat r;
+    //eigen(M.t(), r, Wx); //TODO try armadilo
+    //assert(r.rows >= d);
     //Wx = Wx(Rect(0,0,Wx.cols,d)).t(); try and copy MATALB
+    
     /*sqrt(r,r);      // Canonical correlations
     Mat V;
     flip(Wx,V,0);
@@ -1738,7 +1741,40 @@ void EmbAttSpotter::cca2(Mat X, Mat Y, float reg, int d, Mat& Wx, Mat& Wy)
         Wx.row(row) = V.row(inds.at<int>(row,0));
     }
     Wx = Wx(Rect(0,0,Wx.cols,d)).t();*/
+    
+    arma::mat aM(M.rows,M.cols);
+    for (int r=0; r<M.rows; r++)
+        for(int c=0; c<M.cols; c++)
+        {
+            //not symetric --assert(M.at<float>(r,c)==M.at<float>(c,r));
+            aM(r,c)=M.at<float>(r,c);
+        }
+    arma::cx_vec cxr;
+    arma::cx_mat aWx;
 
+    arma::eig_gen( cxr, aWx, aM );
+    arma::vec r = arma::real(r);//      % Canonical correlations
+
+    // --- Sort correlations ---
+
+    arma::cx_mat V = aWx; //arma::fliplr(aWx);//         % reverse order of eigenvectors
+    //r = arma::flipud(r);//    % extract eigenvalues anr reverse their orrer
+    arma::uvec I = sort_index(r,"descend");// % sort reversed eigenvalues in ascending order
+    //arma::vec rN=r;
+    for (int j = 0; j<I.n_elem; j++)
+    {
+        //r(j) = rN(I(j));
+        aWx.col(j) = V.col(I(j));
+        //Wx(:,j) = V(:,I(j));  % sort reversed eigenvectors in ascending order
+    }
+    //r = arma::flipud(r);//          % restore sorted eigenvalues into descending order
+    //aWx = arma::fliplr(aWx); 
+
+    Wx=Mat(aWx.n_rows,d,CV_32F);
+    for (int r=0; r<aWx.n_rows; r++)
+        for (int c=0; c<d; c++)
+            Wx.at<float>(r,c) = real(aWx(r,c)); //hmm, I'm assuming I dont want imaginary
+    //Wx = Wx.t();
 
     // --- Calcualte Wy  ---
     solve(Cyy,Cyx,tmp);

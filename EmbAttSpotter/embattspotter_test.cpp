@@ -136,8 +136,8 @@ void EmbAttSpotter::test()
     compareToCSV(embedding().rndmaty,"test/embedding_rndmaty_test2.csv");
     compareToCSV(embedding().matt,"test/embedding_matt_test2.csv");
     compareToCSV(embedding().mphoc,"test/embedding_mphoc_test2.csv");
-    compareToCSV(embedding().Wx,"test/embedding_Wx_test2.csv");
-    compareToCSV(embedding().Wy,"test/embedding_Wy_test2.csv");
+    compareToCSVAbs(embedding().Wx,"test/embedding_Wx_test2.csv",false,0.0001);
+    compareToCSVAbs(embedding().Wy,"test/embedding_Wy_test2.csv",false,0.0001);
     
     cout <<"tests passed"<<endl;
     
@@ -614,7 +614,7 @@ void EmbAttSpotter::compareToCSV(Mat mine, string csvloc, bool transpose, float 
                 assert(fabs(mine.at<float>(r,c)-csv[r][c])<thresh);
 }
 
-void EmbAttSpotter::compareToCSVAbs(Mat mine, string csvloc, bool transpose)
+void EmbAttSpotter::compareToCSVAbs(Mat mine, string csvloc, bool transpose, float thresh)
 {
     vector<vector<float> > csv;
     readCSV(csvloc,csv);
@@ -635,9 +635,9 @@ void EmbAttSpotter::compareToCSVAbs(Mat mine, string csvloc, bool transpose)
     for (int r=0; r<csvRows; r++)
         for (int c=0; c<csvCols; c++)
             if (transpose)
-                assert(fabs(fabs(mine.at<float>(r,c))-fabs(csv[c][r]))<0.001);
+                assert(fabs(fabs(mine.at<float>(r,c))-fabs(csv[c][r]))<thresh);
             else
-                assert(fabs(fabs(mine.at<float>(r,c))-fabs(csv[r][c]))<0.001);
+                assert(fabs(fabs(mine.at<float>(r,c))-fabs(csv[r][c]))<thresh);
 }
 
 void EmbAttSpotter::get_GMM_PCA_testM()

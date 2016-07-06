@@ -8,6 +8,8 @@ INCLUDE +=  -Ivlfeat-0.9.20 -Imatio-1.5.6/src -I/usr/local/MATLAB/R2015a/extern/
 LIBS += -L/usr/local/MATLAB/R2015a/bin/glnxa64/ -licuuc -lmx -lmex -lmat -lm #-lmx #-lmwi18n#-lmx -l:libicuio.so.52
 
 LIBS += -L/usr/local/lib/ -lopencv_features2d -lopencv_core -lopencv_highgui -lopencv_imgproc -lopencv_ml -fopenmp -lopencv_flann -lopencv_ocl -lopencv_nonfree 
+
+LIBS += -larmadillo
 #LIBS += -L/home/brian/robert_stuff/documentproject/lib -ldocumentproject
 
 LIBS += -L/home/brian/intel_index/EmbAttSpotter/vlfeat-0.9.20/bin/glnxa64/ -l:libvl.so -lstdc++

@@ -256,7 +256,7 @@ private:
         
         void readCSV(string fileName, vector< vector<float> >& out);
         void compareToCSV(Mat mine, string csvloc, bool transpose=false, float thresh=0.001);
-        void compareToCSVAbs(Mat mine, string csvloc, bool transpose=false);
+        void compareToCSVAbs(Mat mine, string csvloc, bool transpose=false, float thresh=0.001);
     #endif
     
 public:
