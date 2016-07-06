@@ -1220,6 +1220,127 @@ void EnhancedBoVWTests::experiment_Aldavert_dist_batched(EnhancedBoVW &bovw, str
     }
 }
 
+multimap<double,int> EnhancedBoVWTests::experiment_Aldavert_single(EnhancedBoVW &bovw, string locationCSVPath, string dataDirPath, int dataSize, string fileExt, Mat query, string gt)
+{
+    multimap< double,int> scores;
+    assert(query.rows > 0);
+    try{
+//    regex imageNameNumExtract("(?:wordimg_)(\d+)");
+    regex imageNameNumExtract("\\d+");
+
+    //vector<string> words;
+    map<string,vector<int> > locations;
+    ifstream file;
+    file.open (locationCSVPath, ios::in);
+    assert(file.is_open());
+    
+    string wordText;
+    string fileList;
+    
+
+    int fileCount=0; 
+    while (getline(file,wordText))
+    {
+        getline(file,fileList);
+        //words.push_back(wordText);
+        smatch sm;
+        while(regex_search(fileList,sm,imageNameNumExtract))
+        {
+            int idx = stoi(sm[0]);
+            locations[wordText].push_back(idx);
+            fileList = sm.suffix().str();
+            fileCount++;
+        }
+    }
+    
+    
+    file.close();
+    
+    vector<int> word_locations = locations[gt];
+    
+    
+    
+    vector<float>* exemplar_b = bovw.featurizeImage(query);
+    
+    
+    
+    #pragma omp parallel
+    {
+        multimap<double,int> myScores;//(dataSize);
+        
+
+        #pragma omp for nowait //schedule(dynamic,200)
+        for (int imageIdx=1; imageIdx<=dataSize; imageIdx++)
+        {
+            //double startImg = clock();
+            
+            std::string imagePath = dataDirPath + "wordimg_" + to_string(imageIdx) + fileExt;
+            Mat word = imread(imagePath,CV_LOAD_IMAGE_GRAYSCALE);
+            assert(word.rows>0);
+            double score = bovw.compareImage(word,*exemplar_b);
+
+            /*//debug
+            if (imageIdx==1566)
+                cout <<"score at "<<imageIdx<<" is "<<score<<endl;
+            string qPath  = dataDirPath + "wordimg_81" + fileExt;
+            Mat q = imread(qPath,CV_LOAD_IMAGE_GRAYSCALE);
+            vector<float>* q_b = bovw.featurizeImage(q);
+            for (int i=0; i<q_b->size(); i++)
+                assert(q_b->at(i) == exemplar_b->at(i));
+            double score2 = bovw.compareImage(word,*q_b);
+            assert(score==score2);*/
+            
+            myScores.emplace(score,imageIdx);
+        }
+        
+        #pragma omp critical
+        scores.insert(myScores.begin(),myScores.end());
+    }
+    delete exemplar_b;
+    
+    /*bool testHas=false;
+    for (auto p : scores)
+        if (p.second==1566)
+        {
+            testHas=true;
+            break;
+        }
+    assert(testHas);*/
+        
+    
+    //compute average precision
+    int foundRelevent = 0;
+    double avgPrecision = 0.0;
+    int totalRelevent=word_locations.size();
+    auto iter=scores.begin(); 
+    for (int top=0; top<scores.size(); top++, iter++)
+    {
+        int ii = iter->second;
+        if (top==0)
+        {
+            cout << "top match is " << ii << endl;
+        }
+        if (find(word_locations.begin(),word_locations.end(),ii)!=word_locations.end())
+        {
+            foundRelevent++;
+            double precision = foundRelevent/(double)(top+1);
+            avgPrecision += precision;
+        }
+    }
+    assert(totalRelevent == foundRelevent);
+    avgPrecision = avgPrecision/totalRelevent;
+    
+        
+    
+    cout <<"map: "<<avgPrecision<<endl;
+    
+    return scores;
+    
+    } catch (std::regex_error& e) {
+        cout << "regex error:"<<e.code() << endl;
+        return scores;
+    }
+}
 
 void EnhancedBoVWTests::experiment_Aldavert_dist_batched_test(int scenario)
 {

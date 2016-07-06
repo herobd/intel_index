@@ -102,13 +102,13 @@ void EmbAttSpotter::test()
     training_labels=NULL;
     
     
-    training_dataset = new GWDataset("/home/brian/intel_index/brian_handwriting/EmbeddedAtt_Almazan/datasets/GW/queries/queries.gtp","/home/brian/intel_index/brian_handwriting/EmbeddedAtt_Almazan/datasets/GW/images/");
+    /*training_dataset = new GWDataset("/home/brian/intel_index/brian_handwriting/EmbeddedAtt_Almazan/datasets/GW/queries/queries.gtp","/home/brian/intel_index/brian_handwriting/EmbeddedAtt_Almazan/datasets/GW/images/");
     phocsTr_testM();
     get_GMM_PCA_testM(); //we now are copying this becuase GMM is stochastic process
     //feats_training_testM(); This is dependent on our different phow implementation
     delete training_dataset;
     //learn_attributes_bagging_test();
-    
+    */
     training_dataset = new GWDataset("test/queries_train.gtp","/home/brian/intel_index/brian_handwriting/EmbeddedAtt_Almazan/datasets/GW/images/");
     //phocsTr(true);
     //PCA_(true);

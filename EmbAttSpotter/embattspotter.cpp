@@ -1717,13 +1717,28 @@ void EmbAttSpotter::cca2(Mat X, Mat Y, float reg, int d, Mat& Wx, Mat& Wy)
 #endif
     //[Wx,r] = eigs(double(M),d); // Basis in X
     Mat r;
-    eigen(M, r, Wx);
+    eigen(M.t(), r, Wx); //TODO try armadilo
     assert(r.rows >= d);
-    //r = r(Rect(0,0,d,1)).t();//only use top d
-    Wx = Wx(Rect(0,0,Wx.cols,d)).t();
-    //r = sqrt(r);      // Canonical correlations
+    //Wx = Wx(Rect(0,0,Wx.cols,d)).t(); try and copy MATALB
+    /*sqrt(r,r);      // Canonical correlations
+    Mat V;
+    flip(Wx,V,0);
+    Mat rcc;
+    flip(r,rcc,0);
+    // already sorted, but for recreating MATLAB's sake ...
+    Mat inds;
+    sortIdx(rcc, inds, CV_SORT_EVERY_ROW + CV_SORT_DESCENDING);
+    //for (int row=0; row<r.rows; row++)
+    //    r.at<float>(inds.at<int>(row,0),0)=
+    for (int row=0; row<inds.rows; row++)
+    {
+        r.row(row) = rcc.row(inds.at<int>(row,0));
+        if (row>0 && row<d)
+            assert(r.at<float>(row-1,0) > r.at<float>(row,0));
+        Wx.row(row) = V.row(inds.at<int>(row,0));
+    }
+    Wx = Wx(Rect(0,0,Wx.cols,d)).t();*/
 
-    // already sorted
 
     // --- Calcualte Wy  ---
     solve(Cyy,Cyx,tmp);

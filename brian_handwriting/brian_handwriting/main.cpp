@@ -165,9 +165,9 @@ int main( int argc, char** argv )
     else if (option.compare("bovwscore")==0)
     {
         //    MPI_Init(&argc,&argv);
-        
+        Preprocessor pre(PP_BASELINE_CENTER | PP_BASELINE_NORMALIZE);
         EnhancedBoVW bovw;
-        
+        bovw.setPre(pre);
         string codebookLoc = argv[2];//"data/IAM_codebook.csv";
         
         //    bovw.makeCodebook("data/GW/words/");
@@ -361,6 +361,34 @@ int main( int argc, char** argv )
         string outfile = argv[10];
         
         EnhancedBoVWTests::experiment_Aldavert_dist_batched(bovw,locationCSVPath, dataDirPath, dataSize, fileExt, batchNum, numOfBatches, outfile);
+    }
+    else if (option.compare("show_best")==0)
+    {
+        EnhancedBoVW bovw;
+        Preprocessor pre(PP_BASELINE_CENTER | PP_BASELINE_NORMALIZE);
+        bovw.setPre(pre);
+        string codebookLoc = argv[2];
+        bovw.codebook = new Codebook();
+        bovw.codebook->readIn(codebookLoc);
+        
+        string locationCSVPath = argv[3];
+        string dataDirPath = argv[4];
+        int dataSize = atoi(argv[5]);
+        string fileExt = argv[6];
+        Mat find = imread(argv[7], CV_LOAD_IMAGE_GRAYSCALE);
+        string gt = argv[8];
+        
+        multimap<double,int> scores = EnhancedBoVWTests::experiment_Aldavert_single(bovw,locationCSVPath, dataDirPath, dataSize, fileExt, find,gt);
+        auto iter = scores.begin();
+        for (int i=0; i<10; i++, iter++)
+        {
+            cout<<"with score "<<iter->first<<", word "<<iter->second<<endl;
+            string imagePath = dataDirPath + "wordimg_" + to_string(iter->second) + fileExt;
+            Mat found = imread(imagePath, CV_LOAD_IMAGE_GRAYSCALE);
+            imshow(to_string(i+1),found);
+            waitKey();
+        }
+
     }
     else if (option.compare("experiment_Aldavert_dist_batched_noLLC")==0)
     {
