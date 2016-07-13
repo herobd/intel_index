@@ -12,7 +12,9 @@ function [attModels,data] = learn_attributes(opts,data)
             %features = readMat(opts.fileFeatures);            
             % Training and validation sets are concatenated
             data.feats_training = data.features_test(:, [find(data.idxTrain); find(data.idxValidation)]);
+    	    dlmwrite('feats_training_test.csv',data.feats_training,'precision',8);
             data.phocs_training = [data.phocsTr data.phocsVa];
+    	    dlmwrite('phocs_training_test.csv',data.phocs_training,'precision',8);
             %clear features;
             [attModels,attReprTr] = learn_attributes_bagging_test(opts,data);
         end

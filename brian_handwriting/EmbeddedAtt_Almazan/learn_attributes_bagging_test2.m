@@ -14,6 +14,7 @@ params = opts.sgdparams;
 %phocs = data.phocs_training;
 
 [numAtt,numSamples] = size(data.phocs_training);
+numAtt=200;
 dimFeats = size(data.feats_training,1);
 
 % Output encoded

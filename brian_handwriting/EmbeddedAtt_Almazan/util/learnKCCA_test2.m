@@ -121,18 +121,23 @@ maty = rndmaty(1:bestM,:);
 % train
 tmp = matx*DATA.attReprTrFull;
 attReprTrFull_emb = 1/sqrt(bestM) * [ cos(tmp); sin(tmp)];
+dlmwrite('i_attRepTr_cossin_test2.csv',attReprTrFull_emb,'precision',8);
+
 tmp = maty*DATA.phocsTrFull;
 phocsTrFull_emb = 1/sqrt(bestM) * [ cos(tmp); sin(tmp)];
+dlmwrite('i_phocsTr_cossin_test2.csv',phocsTrFull_emb,'precision',8);
 
 % Mean center
 ma = mean(attReprTrFull_emb,2);
 attReprTrFull_emb=bsxfun(@minus, attReprTrFull_emb, ma);
+dlmwrite('i_attRepTr_ma_test2.csv',attReprTrFull_emb,'precision',8);
 
 mh = mean(phocsTrFull_emb,2);
 phocsTrFull_emb=bsxfun(@minus, phocsTrFull_emb, mh);
+dlmwrite('i_phocsTr_mh_test2.csv',phocsTrFull_emb,'precision',8);
 
 % Learn CCA
-[Wx,Wy,r] = cca2(attReprTrFull_emb', phocsTrFull_emb',bestReg,bestK);
+[Wx,Wy,r] = cca2_test2(attReprTrFull_emb', phocsTrFull_emb',bestReg,bestK);
 
 mAP = 100*bestScore/2;
 embedding.Wx = Wx;
