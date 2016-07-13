@@ -438,7 +438,7 @@ void Codebook::my_kmeans(const cv::Mat& data, int size, cv::Mat& centers)
             {
                 uniform_real_distribution<float> distribution(mins[c],maxs[c]);
                 centers.at<float>(r,c) = distribution(generator);
-            }
+            }a
         }
         //vector<int> curClass(data.rows);
         
@@ -999,6 +999,76 @@ void Codebook::unittest()
 //    vector<double> t3= {1,3,4};
 //    vector< tuple<int,float> > t3q = quantizeSoft(t3,4);  
 ////    assert(fabs(get<1>(t3q[0])-.333)<.001 && fabs(get<1>(t3q[1])-.333)<.001 && fabs(get<1>(t3q[2])-.333)<.001);
+
+
+
+    codebook.clear();
+    inverseDocFreq.clear();
+    vector< vector<float> > examples;
+    vector<float> a1 = {9,9,7};
+    vector<float> a2 = {5,13,-3};
+    vector<float> a3 = {7,7,8};
+    vector<float> a4 = {6,5,0};
+    vector<float> a5 = {6,8,3};
+
+    vector<float> b1 = {13,-7,7};
+    vector<float> b2 = {7,-13,-3};
+    vector<float> b3 = {6,-13,8};
+    vector<float> b4 = {12,-5,0};
+    vector<float> b5 = {7,-8,3};
+
+    vector<float> c1 = {-7,-5,7};
+    vector<float> c2 = {-6,-8,-3};
+    vector<float> c3 = {-13,-11,8};
+    vector<float> c4 = {-13,-7,0};
+    vector<float> c5 = {-5,-6,3};
+
+    examples.push_back(a1);
+    examples.push_back(a2);
+    examples.push_back(a3);
+    examples.push_back(a4);
+    examples.push_back(a5);
+
+    examples.push_back(b1);
+    examples.push_back(b2);
+    examples.push_back(b3);
+    examples.push_back(b4);
+    examples.push_back(b5);
+
+    examples.push_back(c1);
+    examples.push_back(c2);
+    examples.push_back(c3);
+    examples.push_back(c4);
+    examples.push_back(c5);
+
+    trainFromExamples(3,examples);
+    assert(codebook.size()==3);
+    bool a=false;
+    bool b=false;
+    bool c=false;
+
+    for (auto d : codebook)
+    {
+        if (d[0]>0 && d[1]>0)
+        {
+            assert(!a);
+            a=true;
+        }
+        else if (d[0]>0 && d[1]<0)
+        {
+            assert(!b);
+            b=true;
+        }
+        else if (d[0]<0 && d[1]<0)
+        {
+            assert(!c);
+            c=true;
+        }
+        else
+            assert(false);
+    }
+    assert(a&&b&&c);
+
     cout << "Codebook passed its tests!" << endl;
 }
 

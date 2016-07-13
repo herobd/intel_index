@@ -14,6 +14,7 @@ public:
     static void experiment_dist_batched(EnhancedBoVW &bovw, string locationCSVPath, string exemplarDirPath, string dataDirPath, int dataSize, int numExemplarsPer, string fileExt, int batchNum, int numOfBatches, string outfile);
     static void experiment_Aldavert_dist_batched(EnhancedBoVW &bovw, string locationCSVPath, string dataDirPath, int dataSize, string fileExt, int batchNum, int numOfBatches, string outfile);
     
+    static multimap<double,int> experiment_Aldavert_single(EnhancedBoVW &bovw, string locationCSVPath, string dataDirPath, int dataSize, string fileExt, Mat query, string gt);
     static void experiment_Aldavert_dist_batched_test(int scenario);
     static void test(EnhancedBoVW& bovw);
     static void createGGobiFile(EnhancedBoVW &bovw, string locationCSVPath, string dataDirPath, string fileExt, int numWords, string outfile);

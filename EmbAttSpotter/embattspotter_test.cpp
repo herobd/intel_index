@@ -45,6 +45,32 @@ void EmbAttSpotter::test()
     // delete files
     system(("rm "+saveName+"*").c_str());
     
+    ofstream outTest;
+    outTest.open(saveName+"save.mat");
+    Mat testMat = (Mat_<float>(3,3) << 0, -1, 0, -1, 5, -1, 0, -1, 0);
+    writeFloatMat(outTest,testMat);
+    Mat testMatB = (Mat_<float>(3,2) << 0.345, -1.45346, 0.2111111, -1.000004, 5.4643, -1.5645645);
+    writeFloatMat(outTest,testMatB);
+    float testArray[5] = {1,2,3,4,5};
+    writeFloatArray(outTest,testArray,5);
+    outTest.close();
+    ifstream in(saveName+"save.mat");
+    Mat testMat2 = readFloatMat(in);
+    Mat testMatB2 = readFloatMat(in);
+    float* testArray2 = readFloatArray(in);
+    in.close();
+    assert(testMat.rows == testMat2.rows && testMat.cols==testMat2.cols);
+    for (int r=0; r<testMat.rows; r++)
+        for (int c=0; c<testMat.cols; c++)
+            assert(fabs(testMat.at<float>(r,c) - testMat2.at<float>(r,c)) <0.0001);
+    assert(testMatB.rows == testMatB2.rows && testMatB.cols==testMatB2.cols);
+    for (int r=0; r<testMatB.rows; r++)
+        for (int c=0; c<testMatB.cols; c++)
+            assert(fabs(testMatB.at<float>(r,c) - testMatB2.at<float>(r,c)) <0.0001);
+    
+    for (int i=0; i<5; i++)
+        assert(fabs(testArray[i] - testArray2[i]) <0.0001);
+    
     int tempgenericBatchSize=genericBatchSize;
     genericBatchSize=2;
     int tempnumWordsTrainGMM=numWordsTrainGMM;
@@ -53,7 +79,8 @@ void EmbAttSpotter::test()
     num_samples_PCA = 5000;
     
     //TODO, tests go here  
-    /*sinMat_cosMat_test(); 
+    /*test_mode=0;
+    sinMat_cosMat_test(); 
     normalizeL2Columns_test();
     otsuBinarization_test();
     embed_labels_PHOC_test();
@@ -66,7 +93,8 @@ void EmbAttSpotter::test()
     feats_training_test();
     phow_test();
     getImageDescriptorFV_test();
-    batches_cca_att_test();*/
+    batches_cca_att_test();
+    test_mode=1;*/
     
     //Compare to mat files
     numWordsTrainGMM=tempnumWordsTrainGMM;
@@ -74,24 +102,42 @@ void EmbAttSpotter::test()
     training_labels=NULL;
     
     
-    training_dataset = new GWDataset("/home/brian/intel_index/brian_handwriting/EmbeddedAtt_Almazan/datasets/GW/queries/queries.gtp","/home/brian/intel_index/brian_handwriting/EmbeddedAtt_Almazan/datasets/GW/images/");
+    /*training_dataset = new GWDataset("/home/brian/intel_index/brian_handwriting/EmbeddedAtt_Almazan/datasets/GW/queries/queries.gtp","/home/brian/intel_index/brian_handwriting/EmbeddedAtt_Almazan/datasets/GW/images/");
     phocsTr_testM();
-    get_GMM_PCA_testM();
-    feats_training_testM();
+    get_GMM_PCA_testM(); //we now are copying this becuase GMM is stochastic process
+    //feats_training_testM(); This is dependent on our different phow implementation
     delete training_dataset;
-    
+    //learn_attributes_bagging_test();
+    */
     training_dataset = new GWDataset("test/queries_train.gtp","/home/brian/intel_index/brian_handwriting/EmbeddedAtt_Almazan/datasets/GW/images/");
-    phocsTr(true);
-    PCA_(true);
-    feats_training(true);
+    //phocsTr(true);
+    //PCA_(true);
+    //feats_training(true);
+    //load attRepr and phocs
+    vector< vector<float> > loaded_phocs_training;
+    readCSV("test/phocsTr_test2.csv",loaded_phocs_training);
+    assert(loaded_phocs_training.size()==phocSize+phocSize_bi);
+    _phocsTr=Mat(phocSize+phocSize_bi,loaded_phocs_training[0].size(),CV_32F);
+    for (int r=0; r< phocSize+phocSize_bi; r++)
+        for (int c=0; c<loaded_phocs_training[0].size(); c++)
+            _phocsTr.at<float>(r,c)=loaded_phocs_training[r][c];
     
-    learn_attributes_bagging_test();
+    int numAtt = 604;
+    vector< vector<float> > loaded_attReprTr;
+    readCSV("test/attReprTr_test2.csv",loaded_attReprTr);
+    assert(loaded_attReprTr.size()==numAtt);
+    _attReprTr=Mat(numAtt,loaded_attReprTr[0].size(),CV_32F);
+    for (int r=0; r< numAtt; r++)
+        for (int c=0; c<loaded_attReprTr[0].size(); c++)
+            _attReprTr.at<float>(r,c)=loaded_attReprTr[r][c];
+
+    
     compareToCSV(embedding().rndmatx,"test/embedding_rndmatx_test2.csv");
     compareToCSV(embedding().rndmaty,"test/embedding_rndmaty_test2.csv");
     compareToCSV(embedding().matt,"test/embedding_matt_test2.csv");
     compareToCSV(embedding().mphoc,"test/embedding_mphoc_test2.csv");
-    compareToCSV(embedding().Wx,"test/embedding_Wx_test2.csv");
-    compareToCSV(embedding().Wy,"test/embedding_Wy_test2.csv");
+    compareToCSVAbs(embedding().Wx,"test/embedding_Wx_test2.csv",false,0.0001);
+    compareToCSVAbs(embedding().Wy,"test/embedding_Wy_test2.csv",false,0.0001);
     
     cout <<"tests passed"<<endl;
     
@@ -515,7 +561,11 @@ void EmbAttSpotter::readCSV(string fileName, vector< vector<float> >& out)
         split(line,',',strV);
         vector<float> row;
         for (string s : strV)
-            row.push_back(stof(s));
+        {
+            float v = stof(s);
+            assert(v==v);
+            row.push_back(v);
+        }
         
         out.push_back(row);
     }
@@ -538,7 +588,7 @@ void EmbAttSpotter::phocsTr_testM()//dlmwrite('phocs.csv',phocs,'precision',5)
     
 }
 
-void EmbAttSpotter::compareToCSV(Mat mine, string csvloc, bool transpose)
+void EmbAttSpotter::compareToCSV(Mat mine, string csvloc, bool transpose, float thresh)
 {
     vector<vector<float> > csv;
     readCSV(csvloc,csv);
@@ -559,12 +609,12 @@ void EmbAttSpotter::compareToCSV(Mat mine, string csvloc, bool transpose)
     for (int r=0; r<csvRows; r++)
         for (int c=0; c<csvCols; c++)
             if (transpose)
-                assert(fabs(mine.at<float>(r,c)-csv[c][r])<0.001);
+                assert(fabs(mine.at<float>(r,c)-csv[c][r])<thresh);
             else
-                assert(fabs(mine.at<float>(r,c)-csv[r][c])<0.001);
+                assert(fabs(mine.at<float>(r,c)-csv[r][c])<thresh);
 }
 
-void EmbAttSpotter::compareToCSVAbs(Mat mine, string csvloc, bool transpose)
+void EmbAttSpotter::compareToCSVAbs(Mat mine, string csvloc, bool transpose, float thresh)
 {
     vector<vector<float> > csv;
     readCSV(csvloc,csv);
@@ -585,9 +635,9 @@ void EmbAttSpotter::compareToCSVAbs(Mat mine, string csvloc, bool transpose)
     for (int r=0; r<csvRows; r++)
         for (int c=0; c<csvCols; c++)
             if (transpose)
-                assert(fabs(fabs(mine.at<float>(r,c))-fabs(csv[c][r]))<0.001);
+                assert(fabs(fabs(mine.at<float>(r,c))-fabs(csv[c][r]))<thresh);
             else
-                assert(fabs(fabs(mine.at<float>(r,c))-fabs(csv[r][c]))<0.001);
+                assert(fabs(fabs(mine.at<float>(r,c))-fabs(csv[r][c]))<thresh);
 }
 
 void EmbAttSpotter::get_GMM_PCA_testM()
@@ -604,13 +654,13 @@ void EmbAttSpotter::get_GMM_PCA_testM()
     assert(GMM_mean.size()>0);
     for (int r=0; r<GMM_mean.size(); r++)
         for (int c=0; c<GMM_mean[0].size(); c++)
-            assert(abs(GMM().means[r*GMM_mean[0].size()+c]-GMM_mean[r][c])<0.001);
+            assert(fabs(GMM().means[c*GMM_mean.size()+r]-GMM_mean[r][c])<0.001);
     for (int r=0; r<GMM_covariances.size(); r++)
         for (int c=0; c<GMM_covariances[0].size(); c++)
-            assert(abs(GMM().covariances[r*GMM_covariances[0].size()+c]-GMM_covariances[r][c])<0.001);
+            assert(fabs(GMM().covariances[c*GMM_covariances.size()+r]-GMM_covariances[r][c])<0.001);
     for (int r=0; r<GMM_priors.size(); r++)
         for (int c=0; c<GMM_priors[0].size(); c++)
-            assert(abs(GMM().priors[r*GMM_priors[0].size()+c]-GMM_priors[r][c])<0.001);
+            assert(fabs(GMM().priors[c*GMM_priors.size()+r]-GMM_priors[r][c])<0.001);
     
     
     /*
@@ -631,7 +681,7 @@ void EmbAttSpotter::get_GMM_PCA_testM()
 
 void EmbAttSpotter::feats_training_testM()
 {
-    compareToCSV(feats_training(),"test/fileFeatures_test.csv");
+    compareToCSV(feats_training(),"test/fileFeatures_test.csv",true);
     /*vector<vector<float> > fileFeatures;
     readCSV("test/fileFeatures_test.csv",fileFeatures);
     assert(feats_training().rows>0);
@@ -643,8 +693,26 @@ void EmbAttSpotter::feats_training_testM()
 
 void EmbAttSpotter::learn_attributes_bagging_test()
 {
-    compareToCSV(attModels().W,"test/attModels_W_test.csv");
-    compareToCSV(attReprTr(),"test/attReprTr_test.csv");
+    //load feats_training and phocs_training
+    vector< vector<float> > loaded_feats_training;
+    readCSV("test/feats_training_test.csv",loaded_feats_training);
+    assert(loaded_feats_training.size()==FV_DIM);
+    _feats_training=Mat(loaded_feats_training[0].size(),FV_DIM,CV_32F);
+    for (int r=0; r< loaded_feats_training[0].size(); r++)
+        for (int c=0; c<FV_DIM; c++)
+            _feats_training.at<float>(r,c)=loaded_feats_training[c][r];
+
+    vector< vector<float> > loaded_phocs_training;
+    readCSV("test/phocs_training_test.csv",loaded_phocs_training);
+    assert(loaded_phocs_training.size()==phocSize+phocSize_bi);
+    _phocsTr=Mat(phocSize+phocSize_bi,loaded_feats_training[0].size(),CV_32F);
+    for (int r=0; r< phocSize+phocSize_bi; r++)
+        for (int c=0; c<loaded_phocs_training[0].size(); c++)
+            _phocsTr.at<float>(r,c)=loaded_phocs_training[r][c];
+    
+
+    compareToCSV(attModels().W,"test/attModels_W_test.csv",false,0.005);
+    compareToCSV(attReprTr(),"test/attReprTr_test.csv",false,0.005);
     /*vector<vector<float> > attModels_Wt;
     readCSV("test/attModels_W_test.csv",attModels_Wt);
     assert(attModels().W.rows==attModels_Wt.size() && attModels().W.cols==attModels_Wt[0].size());

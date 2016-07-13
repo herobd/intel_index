@@ -41,14 +41,14 @@ if ~exist(opts.fileImages, 'file')
         patch = im(data.words(i).loc(3):data.words(i).loc(4),data.words(i).loc(1):data.words(i).loc(2));
         
         if i==1
-            data.words(i).loc
-            disp(['pre canary ' num2str(patch(1,1))]);
+            %data.words(i).loc
+            %disp(['pre canary ' num2str(patch(1,1))]);
         end
         % Move to single and equalize if necessary
         patch = im2single(patch);
         
         if i==1
-            disp(['pre canary ' num2str(patch(1,1))]);
+            %disp(['pre canary ' num2str(patch(1,1))]);
         end
 
         m = max(max(patch));
@@ -67,8 +67,9 @@ if ~exist(opts.fileImages, 'file')
         if  (opts.maxH < data.words(i).H)
             patch = imresize(patch, [opts.maxH,nan]);
         end
+        
         if i==1 %|| i==2
-            disp(['pre canary ' num2str(patch(1,1))]);
+            %disp(['pre canary ' num2str(patch(1,1))]);
         %   data.words(i).gttext
         %   size(patch)
         %   data.words(i).H
@@ -84,7 +85,7 @@ if ~exist(opts.fileImages, 'file')
         fwrite(fid, im2uint8(patch), 'uint8');
         if i==1 %|| i==2
             tmp=im2uint8(patch);
-            disp(['pre canary ' num2str(tmp(1,1))]);
+            %disp(['pre canary ' num2str(tmp(1,1))]);
         end
     end
     fclose(fid);

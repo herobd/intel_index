@@ -43,6 +43,7 @@ if size(p1h,1) ~=0 && size(p2h,1) ~= 0 && size(p1v,1) ~=0 && size(p2v,1) ~= 0
 else
 	bbox = [floor(size(im,2)*0.2),floor(size(im,2)*0.8),floor(size(im,1)*0.2),floor(size(im,1)*0.8)];
 end
+
 if show
     imshow(im);
     rectangle('Position',[bbox(1),bbox(3),bbox(2)-bbox(1)+1,bbox(4)-bbox(3)+1],'LineStyle','--','EdgeColor','r')

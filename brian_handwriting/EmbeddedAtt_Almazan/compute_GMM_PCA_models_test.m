@@ -62,10 +62,10 @@ for i=1:length(images)
     d = [d; xy];
     
     
-    %[d_norm,drop] = normalizeSift(opts,d);
-    %size(d)
+    [d_norm,drop] = normalizeSift(opts,d);
+    size(d)
     %saved_desc
-    %dlmwrite(['descs_test/GMM_PCA_desc_' num2str(i-1) '_test.csv'],d_norm,'precision',8);
+    dlmwrite(['descs_test/GMM_PCA_desc_' num2str(i-1) '_test.csv'],d_norm,'precision',10);
     %stop
     % Assings each SIFT to a region of the spatial pyramid
     for s = 1:length(opts.numSpatialX)

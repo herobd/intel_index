@@ -5,15 +5,18 @@ function data = prepare_data_learning_subword(opts,data)
 if strcmp(opts.dataset,'IAM_lines')
   numTr = 41710;
   rest = 11344;
-  if (numTr+rest == size(data.words,1))
+  if (numTr+rest == size(data.words,2))
     data.idxTrain = zeros(numTr+rest,1)
-    data.idxTrain[1:30000]=1;
+    data.idxTrain(1:30000)=1;
     data.idxValidation = zeros(numTr+rest,1)
-    data.idxValidation[30001:numTr]=1;
+    data.idxValidation(30001:numTr)=1;
     data.idxTest = zeros(numTr+rest,1)
-    data.idxTest[numTr+1:end]=1;
+    data.idxTest(numTr+1:end)=1;
+    data.idxTrain=logical(data.idxTrain);
+    data.idxValidation=logical(data.idxValidation);
+    data.idxTest=logical(data.idxTest);
   else
-    disp('error, size off')
+      disp([ 'error, size off ' num2str(size(data.words,1)) '    and in case ' num2str(size(data.words,2))]);
     exit
   end
 else
@@ -24,11 +27,11 @@ else
 end
 % Words, labels, PHOCS and classes indexes are splitted in the different
 % subsets according to the indexes
-data.wordsTr = data.words(idxTrain);
+data.wordsTr = data.words(data.idxTrain);
 data.numWTr = length(data.wordsTr);
-data.wordsVa = data.words(idxValidation);
+data.wordsVa = data.words(data.idxValidation);
 data.numWVa = length(data.wordsVa);
-data.wordsTe = data.words(idxTest);
+data.wordsTe = data.words(data.idxTest);
 data.numWTe = length(data.wordsTe);
 
 data.labelsTr = {data.wordsTr(:).gttext};
@@ -45,9 +48,9 @@ data.wordClsVa_subword = {data.wordsVa(:).class_subword};
 data.wordClsTe_subword = {data.wordsTe(:).class_subword};
 data.wordClsQu_subword = {data.words_subword(:).class_subword};
 
-data.phocsTr = data.phocs(:,idxTrain);
-data.phocsVa = data.phocs(:,idxValidation);
-data.phocsTe = data.phocs(:,idxTest);
+data.phocsTr = data.phocs(:,data.idxTrain);
+data.phocsVa = data.phocs(:,data.idxValidation);
+data.phocsTe = data.phocs(:,data.idxTest);
 data.phocsQu_subword = data.phocs_subword(:,:);
 
 i=0

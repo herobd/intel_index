@@ -25,7 +25,7 @@
 #include "liang.h"
 #include "liangtests.h"
 #include "mog.h"
-
+#include "preprocessor.h"
 
 
 void deslant(Mat &img);
@@ -165,9 +165,9 @@ int main( int argc, char** argv )
     else if (option.compare("bovwscore")==0)
     {
         //    MPI_Init(&argc,&argv);
-        
+        Preprocessor pre(PP_BASELINE_CENTER | PP_BASELINE_NORMALIZE);
         EnhancedBoVW bovw;
-        
+        bovw.setPre(pre);
         string codebookLoc = argv[2];//"data/IAM_codebook.csv";
         
         //    bovw.makeCodebook("data/GW/words/");
@@ -228,9 +228,14 @@ int main( int argc, char** argv )
         }
         cout << "score  " << score << endl;
         cout << "score2 " << score2 << endl;
-        
-//        bovw.printDescThreshContours(find);
-//        bovw.printDescThreshContours(img);
+    }    
+    else if (option.compare("showhog")==0)
+    {
+
+        Mat img = imread(argv[2], CV_LOAD_IMAGE_GRAYSCALE);
+        EnhancedBoVW bovw(simpleSpatialPyramids,stoi(argv[3]));
+        //bovw.printDescThreshContours(find);
+        bovw.printDescThreshContours(img,stoi(argv[3]));
     }
     else if (option.compare("experiment_subword")==0)
     {
@@ -288,6 +293,102 @@ int main( int argc, char** argv )
         string outfile = argv[9];
         
         EnhancedBoVWTests::experiment_Aldavert_dist_batched(bovw,locationCSVPath, dataDirPath, dataSize, fileExt, batchNum, numOfBatches, outfile);
+    }
+    else if (option.compare("experiment_Aldavert_dist_batched_baseCenter")==0)
+    {
+        EnhancedBoVW bovw;
+        bovw.setPre(Preprocessor(PP_BASELINE_CENTER));
+        string codebookLoc = argv[2];
+        bovw.codebook = new Codebook();
+        bovw.codebook->readIn(codebookLoc);
+        
+        string locationCSVPath = argv[3];
+        string dataDirPath = argv[4];
+        int dataSize = atoi(argv[5]);
+        string fileExt = argv[6];
+        int batchNum = atoi(argv[7]);
+        int numOfBatches = atoi(argv[8]);
+        string outfile = argv[9];
+        
+        EnhancedBoVWTests::experiment_Aldavert_dist_batched(bovw,locationCSVPath, dataDirPath, dataSize, fileExt, batchNum, numOfBatches, outfile);
+    }
+    else if (option.compare("experiment_Aldavert_dist_batched_baseCenterNorm")==0)
+    {
+        EnhancedBoVW bovw;
+        bovw.setPre(Preprocessor(PP_BASELINE_CENTER | PP_BASELINE_NORMALIZE));
+        string codebookLoc = argv[2];
+        bovw.codebook = new Codebook();
+        bovw.codebook->readIn(codebookLoc);
+        
+        string locationCSVPath = argv[3];
+        string dataDirPath = argv[4];
+        int dataSize = atoi(argv[5]);
+        string fileExt = argv[6];
+        int batchNum = atoi(argv[7]);
+        int numOfBatches = atoi(argv[8]);
+        string outfile = argv[9];
+        
+        EnhancedBoVWTests::experiment_Aldavert_dist_batched(bovw,locationCSVPath, dataDirPath, dataSize, fileExt, batchNum, numOfBatches, outfile);
+    }
+    else if (option.compare("experiment_Aldavert_dist_batched_pyramid")==0)
+    {
+        vector<Vec2i> spatialPyramid;//={Vec2i(2,1),Vec2i(4,1)};
+        string layers = argv[2];
+        regex getLayer("\\((\\d*),(\\d*)\\)");
+        smatch m;
+        cout <<"Pyramid: ";
+        while (regex_search (layers,m,getLayer)) 
+        {
+            Vec2i layer(stoi(m[1]),stoi(m[2]));
+            spatialPyramid.push_back(layer);
+            layers=m.suffix().str();
+            cout <<"("<<layer[0]<<", "<<layer[1]<<") ";
+        }
+        cout << endl;
+
+        EnhancedBoVW bovw(spatialPyramid);
+        bovw.setPre(Preprocessor(PP_BASELINE_CENTER | PP_BASELINE_NORMALIZE));//This is best preproessing so far
+        string codebookLoc = argv[3];
+        bovw.codebook = new Codebook();
+        bovw.codebook->readIn(codebookLoc);
+        
+        string locationCSVPath = argv[4];
+        string dataDirPath = argv[5];
+        int dataSize = atoi(argv[6]);
+        string fileExt = argv[7];
+        int batchNum = atoi(argv[8]);
+        int numOfBatches = atoi(argv[9]);
+        string outfile = argv[10];
+        
+        EnhancedBoVWTests::experiment_Aldavert_dist_batched(bovw,locationCSVPath, dataDirPath, dataSize, fileExt, batchNum, numOfBatches, outfile);
+    }
+    else if (option.compare("show_best")==0)
+    {
+        EnhancedBoVW bovw;
+        Preprocessor pre(PP_BASELINE_CENTER | PP_BASELINE_NORMALIZE);
+        bovw.setPre(pre);
+        string codebookLoc = argv[2];
+        bovw.codebook = new Codebook();
+        bovw.codebook->readIn(codebookLoc);
+        
+        string locationCSVPath = argv[3];
+        string dataDirPath = argv[4];
+        int dataSize = atoi(argv[5]);
+        string fileExt = argv[6];
+        Mat find = imread(argv[7], CV_LOAD_IMAGE_GRAYSCALE);
+        string gt = argv[8];
+        
+        multimap<double,int> scores = EnhancedBoVWTests::experiment_Aldavert_single(bovw,locationCSVPath, dataDirPath, dataSize, fileExt, find,gt);
+        auto iter = scores.begin();
+        for (int i=0; i<10; i++, iter++)
+        {
+            cout<<"with score "<<iter->first<<", word "<<iter->second<<endl;
+            string imagePath = dataDirPath + "wordimg_" + to_string(iter->second) + fileExt;
+            Mat found = imread(imagePath, CV_LOAD_IMAGE_GRAYSCALE);
+            imshow(to_string(i+1),found);
+            waitKey();
+        }
+
     }
     else if (option.compare("experiment_Aldavert_dist_batched_noLLC")==0)
     {
@@ -427,6 +528,17 @@ int main( int argc, char** argv )
         string imgDir = argv[2];
         string codebookLoc = argv[3];
         EnhancedBoVW bovw;
+        bovw.setPre(Preprocessor(PP_BASELINE_CENTER | PP_BASELINE_NORMALIZE));
+        Codebook *cb = bovw.makeCodebook(imgDir,1024);
+        cb->save(codebookLoc);
+    }
+    else if (option.compare("train_1024_codebook_noBaseNorm")==0)
+    {
+            
+        string imgDir = argv[2];
+        string codebookLoc = argv[3];
+        EnhancedBoVW bovw;
+        bovw.setPre(Preprocessor(PP_BASELINE_CENTER));
         Codebook *cb = bovw.makeCodebook(imgDir,1024);
         cb->save(codebookLoc);
     }
@@ -471,7 +583,7 @@ int main( int argc, char** argv )
             
         string imgDir = simple_corpus + "words_lots/";
         string codebookLoc = simple_corpus + "codebook.csv";
-        EnhancedBoVW bovw(simpleSpatialPyramids,3500,simple_LLC,6,8,10,2,2,2,2);
+        EnhancedBoVW bovw(simpleSpatialPyramids,DESC_THRESH,simple_LLC,6,8,10,2,2,2,2);
         Codebook *cb = bovw.makeCodebook(imgDir,160);
         cb->save(codebookLoc);
         //cb->print();
@@ -481,13 +593,13 @@ int main( int argc, char** argv )
             
         string imgDir = simple_corpus + "words_lots/";
         string codebookLoc = simple_corpus + "codebook.csv";
-        EnhancedBoVW bovw(simpleSpatialPyramids,3500,simple_LLC,6,8,10,2,2,2,2);
+        EnhancedBoVW bovw(simpleSpatialPyramids,DESC_THRESH,simple_LLC,6,8,10,2,2,2,2);
         bovw.make3Codebooks(imgDir,160);
         bovw.writeCodebooks(codebookLoc);
     }
     else if (option.compare("bovwscore_simple")==0)
     {
-        EnhancedBoVW bovw(simpleSpatialPyramids,3500,simple_LLC,6,8,10,2,2,2,2);
+        EnhancedBoVW bovw(simpleSpatialPyramids,DESC_THRESH,simple_LLC,6,8,10,2,2,2,2);
         
         string codebookLoc = simple_corpus + "codebook.csv";
 //        bovw.readCodebooks(codebookLoc);  
@@ -506,7 +618,7 @@ int main( int argc, char** argv )
     else if (option.compare("bovwscore_single_simple")==0)
     {
         vector<Vec2i> spatialPyramids={Vec2i(1,1)};
-        EnhancedBoVW bovw(spatialPyramids,3500,simple_LLC,6,8,10,2,2,2,2);
+        EnhancedBoVW bovw(spatialPyramids,DESC_THRESH,simple_LLC,6,8,10,2,2,2,2);
             
         string codebookLoc = simple_corpus + "codebook.csv";
 //        bovw.readCodebooks(codebookLoc);
@@ -544,7 +656,7 @@ int main( int argc, char** argv )
     }
     else if (option.compare("show_simple")==0)
     {
-        EnhancedBoVW bovw(simpleSpatialPyramids,3500,simple_LLC,6,8,10,2,2,2,2);
+        EnhancedBoVW bovw(simpleSpatialPyramids,DESC_THRESH,simple_LLC,6,8,10,2,2,2,2);
             
         string codebookLoc = simple_corpus + "codebook.csv";
         bovw.readCodebooks(codebookLoc);
@@ -558,7 +670,7 @@ int main( int argc, char** argv )
     }
     else if (option.compare("experiment_Aldavert_dist_batched_simple")==0)
     {
-        EnhancedBoVW bovw(simpleSpatialPyramids,3500,simple_LLC,6,8,10,2,2,2,2);
+        EnhancedBoVW bovw(simpleSpatialPyramids,DESC_THRESH,simple_LLC,6,8,10,2,2,2,2);
         
         string codebookLoc = simple_corpus + "codebook.csv";
 //        bovw.readCodebooks(codebookLoc);
@@ -576,7 +688,7 @@ int main( int argc, char** argv )
     }
     else if (option.compare("experiment_Aldavert_dist_batched_simple_LLC")==0)
     {
-        EnhancedBoVW bovw(simpleSpatialPyramids,3500,atoi(argv[2]),6,8,10,2,2,2,2);
+        EnhancedBoVW bovw(simpleSpatialPyramids,DESC_THRESH,atoi(argv[2]),6,8,10,2,2,2,2);
         
         string codebookLoc = simple_corpus + "codebook.csv";
 //        bovw.readCodebooks(codebookLoc);
@@ -598,7 +710,7 @@ int main( int argc, char** argv )
         string second = argv[3];
         vector<Vec2i> spatialPyramidsSingle={Vec2i(1,1)};
         
-        EnhancedBoVW bovw(simpleSpatialPyramids,3500,simple_LLC,6,8,10,2,2,2,2);
+        EnhancedBoVW bovw(simpleSpatialPyramids,DESC_THRESH,simple_LLC,6,8,10,2,2,2,2);
             
         string codebookLoc = simple_corpus + "codebook.csv";
 //        bovw.readCodebooks(codebookLoc);
@@ -822,6 +934,20 @@ int main( int argc, char** argv )
         
         
         waitKey();
+    }
+    else if (option.compare("testpreprocess")==0)
+    {
+        string imagePath = argv[2];
+        Preprocessor pre(PP_BASELINE_CENTER | PP_BASELINE_NORMALIZE);
+        Mat done = pre.process(imread(imagePath));
+        imshow("prep",done);
+        waitKey();
+    }
+    else if (option.compare("testhog")==0)
+    {
+        string imagePath = argv[2];
+        HOG hog(0,18,14,16);
+        hog.show(imread(imagePath,CV_LOAD_IMAGE_GRAYSCALE));
     }
     else
     {

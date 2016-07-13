@@ -8,7 +8,7 @@ meta.nWords = length(imagesTOC);
 
 %imagesPerBatch = 256;
 %imagesPerBatch = nWords;
-meta.imagesPerBatch = 5000;
+meta.imagesPerBatch = 128;
 meta.nBatches = int32(ceil(meta.nWords/meta.imagesPerBatch));
 meta.nInBatch=[];
 %featsBatch = zeros(opts.FVdim,imagesPerBatch,'single');
@@ -73,6 +73,9 @@ for cb=1:meta.nBatches
 %     fid = fopen(opts.fileFeatures_slidingwindow, 'r+');    
 %     fseek(fid, 2*4  + (int64(cb)-1)*imagesPerBatch*opts.FVdim * 4, 'bof');
 %     fwrite(fid, featsBatch(:,1:nInBatch,:), 'single');        
+    %if (size(featsBatch,2) ~= meta.nInBatch(cb))
+    %    disp(['ERROR, batch size dif: ' num2str(size(featsBatch,2))]);
+    %end
     save(strcat(opts.fileFeatures_slidingwindow,num2str(cb)),'featsBatch','-v7.3');
 end
 save(opts.fileFeatures_slidingwindow_meta,'meta','-v7.3');

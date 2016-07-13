@@ -22,7 +22,7 @@ data = prepare_data_learning(opts,data);
 data.att_models = learn_attributes(opts,data);
 
 %% Learn common subspaces and/or calibrations
-[embedding,mAPsvali] = learn_common_subspace(opts,data);
+[embedding,mAPsval] = learn_common_subspace(opts,data);
 
 %% Evaluate
 mAPstest = evaluate(opts,data,embedding);
