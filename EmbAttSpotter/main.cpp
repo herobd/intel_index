@@ -68,7 +68,7 @@ int main(int argc, char** argv)
             for (int i=1; i<=5; i++)
             {
                 iter--;
-                cout<<"I rank "<<i<<" with score "<<iter->first<<endl;
+                cout<<"I rank "<<i<<" is "<<iter->second<<" with score "<<iter->first<<endl;
                 imshow("I "+to_string(i),test.image(iter->second));
                 
             }
@@ -81,7 +81,7 @@ int main(int argc, char** argv)
             for (int i=1; i<=5; i++)
             {
                 iter--;
-                cout<<"T rank "<<i<<" with score "<<iter->first<<endl;
+                cout<<"T rank "<<i<<" is "<<iter->second<<" with score "<<iter->first<<endl;
                 imshow("T "+to_string(i),test.image(iter->second));
                 
             }

@@ -187,6 +187,42 @@ vector<float> EmbAttSpotter::spot(const Mat& exemplar, string word, float alpha)
         computePhoc(word, map<char,int>(), vocBi2pos,bigrams.size(), phoc_levels_bi, phocSize_bi, query_phoc,0);
     }
     
+#ifdef SAYATT
+    {
+        cout <<"attb: ";
+        for (int r=0; r<query_att.rows; r++)
+            cout << query_att.at<float>(r,0)<<", ";
+        cout<<endl;
+        cout <<"phoc: ";
+        for (int r=0; r<query_phoc.rows; r++)
+            cout << query_phoc.at<float>(r,0)<<", ";
+        cout<<endl;
+    }
+#endif
+
+#ifdef TEST_MODE
+    if (test_mode)
+    {
+        //Read in from MATLAB's results
+        vector<vector<float> > csv;
+        readCSV("test/attReprTe_test2.csv",csv);
+        assert(csv.size()==query_att.cols && csv[0].size()==query_att.rows);
+        for (int r=0; r<csv.at(0).size(); r++)
+            for (int c=0; c<csv.size(); c++)
+            {
+                query_att.at<float>(r,c) = csv[c][r];
+            }
+        csv.clear();
+        readCSV("test/phocTe_test2.csv",csv);
+        assert(csv.size()==query_phoc.cols && csv[0].size()==query_phoc.rows);
+        for (int r=0; r<csv.at(0).size(); r++)
+            for (int c=0; c<csv.size(); c++)
+            {
+                query_phoc.at<float>(r,c) = csv[c][r];
+            }
+    }
+#endif
+
     Mat matx = embedding().rndmatx;//(Rect(0,0,embedding().M,embedding().rndmatx.cols));
     Mat maty = embedding().rndmaty;//(Rect(0,0,embedding().M,embedding().rndmatx.cols));
     assert(matx.rows==embedding().M);
@@ -196,14 +232,32 @@ vector<float> EmbAttSpotter::spot(const Mat& exemplar, string word, float alpha)
     //checkNaN(maty);
     
     Mat tmp = matx*query_att;
+#ifdef TEST_MODE
+    if (test_mode)
+        compareToCSV(tmp,"test/attReprTe_tmp_test2.csv");
+#endif
     vconcat(cosMat(tmp),sinMat(tmp),tmp);
+    assert(embedding().matt.size() == tmp.size());
     Mat query_emb_att = (1/sqrt(embedding().M)) * tmp - embedding().matt;
+#ifdef TEST_MODE
+    if (test_mode)
+        compareToCSV(query_emb_att,"test/attReprTe_emb_mean_test2.csv");
+#endif
     tmp = maty*query_phoc;
+#ifdef TEST_MODE
+    if (test_mode)
+        compareToCSV(tmp,"test/phocTe_tmp_test2.csv");
+#endif
     //checkNaN(tmp);
     vconcat(cosMat(tmp),sinMat(tmp),tmp);
     //checkNaN(embedding().mphoc);
     //checkNaN(tmp);
+    assert(embedding().mphoc.size() == tmp.size());
     Mat query_emb_phoc = (1/sqrt(embedding().M)) * tmp - embedding().mphoc;
+#ifdef TEST_MODE
+    if (test_mode)
+        compareToCSV(query_emb_phoc,"test/phocTe_emb_mean_test2.csv");
+#endif
     
     //checkNaN(embedding().Wy);
     //checkNaN(query_emb_phoc);
@@ -211,13 +265,33 @@ vector<float> EmbAttSpotter::spot(const Mat& exemplar, string word, float alpha)
     Mat query_cca_att = embedding().Wx.t()*query_emb_att;
     Mat query_cca_phoc = embedding().Wy.t()*query_emb_phoc;
     
+#ifdef TEST_MODE
+    if (test_mode)
+    {
+        compareToCSV(query_cca_att,"test/attReprTe_cca_test2.csv");
+        compareToCSV(query_cca_phoc,"test/phocTe_cca_test2.csv");
+    }
+#endif
     //checkNaN(query_cca_att);
     //checkNaN(query_cca_phoc);
     
     normalizeL2Columns(query_cca_att);
     normalizeL2Columns(query_cca_phoc);
+#ifdef TEST_MODE
+    if (test_mode)
+    {
+        compareToCSV(query_cca_att,"test/attReprTe_cca_norm_test2.csv");
+        compareToCSV(query_cca_phoc,"test/phocTe_cca_norm_test2.csv");
+    }
+    return vector<float>();
+#endif
     Mat query_cca_hy = query_cca_att*alpha + query_cca_phoc*(1-alpha);
     
+    /*cout <<"Query: ";
+    for (int r=0; r<query_cca_hy.rows; r++)
+        for (int c=0; c<query_cca_hy.cols; c++)
+            cout <<query_cca_hy.at<float>(r,c)<<", ";
+    cout<<endl;*/
     //checkNaN(query_cca_hy);
     
     
@@ -234,13 +308,14 @@ vector<float> EmbAttSpotter::spot(const Mat& exemplar, string word, float alpha)
     //cout <<"numBatches "<<numBatches<<endl;
     
     #pragma omp parallel for
-    
     for (int i=0; i<numBatches; i++)
     {
         //checkNaN(batches_cca_att()[i]);
         Mat s_batch = batches_cca_att()[i].t()*query_cca_hy;
+        //??Mat s_batch = query_cca_hy*batches_cca_att()[i].t();
         //cout << "batch "<<i<<": ";
         //for (int r=0; r<s_batch.rows; r++)
+        //    assert(s_batch.at<float>(r,0)>0);
         //    cout << s_batch.at<float>(r,0)<<", ";
         //cout <<endl;
         //s.push_back(s_batch);
@@ -257,10 +332,25 @@ Mat EmbAttSpotter::extract_feats(const Mat& im)
 {
     
     Mat feats_m=phow(im,&PCA_());
-    
+    if (test_mode)
+    {
+        compareToCSV(attModels().W,"test/attModels_W_test.csv",false,0.0005);
+        compareToCSV(attReprTr(),"test/attReprTr_test.csv",false,0.0005);
+    }
+        /*vector<vector<float> > attModels_Wt;
+    readCSV("test/attModels_W_test.csv",attModels_Wt);
+    assert(attModels().W.rows==attModels_Wt.size() && attModels().W.cols==attModels_Wt[0].size());
+    for (int r=0; r<attModels().W.rows; r++)
+        for (int c=0; c<attModels().W.cols; c++)
+            assert(abs(attModels().W.at<float>(r,c)-attModels_Wt[r][c])<0.0001);*/
+   
+
     Mat feats_FV = getImageDescriptorFV(feats_m);
     
-    
+    /*cout<<"image feats: ";
+    for (int c=0; c<min(feats_FV.cols,30); c++)
+        cout<<feats_FV.at<float>(0,c)<<", ";
+    cout<<endl;*/
     
     return feats_FV;
 }
@@ -842,11 +932,11 @@ Mat EmbAttSpotter::phow(const Mat& im, const struct PCA_struct* PCA_pt)
                 desc.at<float>(i,j) = desc.at<float>(i,j)*X;
             }
             if (PCA_pt!=NULL)
-                desc.row(i) = desc.row(i) - PCA_pt->mean;
+                desc.row(i) = desc.row(i) - PCA_pt->mean.t();
         }
         //trans with eigen vectors (desc is tranposed in relation to ALmazan's code, flip back at end)
         if (PCA_pt!=NULL)
-            desc = (PCA_pt->eigvec*desc.t()).t();
+            desc = (PCA_pt->eigvec.t()*desc.t()).t();
         #if DRAW
         #if USE_VL
         /**VL*/
@@ -935,7 +1025,14 @@ Mat EmbAttSpotter::phow(const Mat& im, const struct PCA_struct* PCA_pt)
         feats_m.push_back(augmented);
         
         if (PCA_pt!=NULL)
+        {
+            if (feats_m.cols!=AUG_PCA_DIM)
+            {
+                cout << "feats_m.cols: "<<feats_m.cols<<endl;
+                cout << "AUG_PCA_DIM: "<<AUG_PCA_DIM<<endl;
+            }
             assert(feats_m.cols==AUG_PCA_DIM);
+        }
     }
     //for (int r=0; r<feats_m.rows; r++)
     //    for (int c=0; c<feats_m.cols; c++)
@@ -1719,7 +1816,7 @@ void EmbAttSpotter::cca2(Mat X, Mat Y, float reg, int d, Mat& Wx, Mat& Wy)
 #endif
     //[Wx,r] = eigs(double(M),d); // Basis in X
     //Mat r;
-    //eigen(M.t(), r, Wx); //TODO try armadilo
+    //eigen(M.t(), r, Wx); 
     //assert(r.rows >= d);
     //Wx = Wx(Rect(0,0,Wx.cols,d)).t(); try and copy MATALB
     
@@ -1912,7 +2009,7 @@ void EmbAttSpotter::get_GMM_PCA(int numWordsTrainGMM, string saveAs, bool retrai
         _GMM.priors = readFloatArray(in,&size);
         assert(numGMMClusters== size/(numSpatialX*numSpatialY));
         
-        PCA_dim = _PCA.eigvec.rows;
+        PCA_dim = _PCA.eigvec.cols;
         
         in.close();
     }
@@ -2086,7 +2183,7 @@ void EmbAttSpotter::get_GMM_PCA(int numWordsTrainGMM, string saveAs, bool retrai
                 }*/
             for_PCA=newFor_PCA;
         }
-        compute_PCA(for_PCA,PCA_dim);
+        compute_PCA(for_PCA.t(),PCA_dim);
             
         
         //GMM
@@ -2264,7 +2361,7 @@ void EmbAttSpotter::compute_PCA(const Mat& data, int PCA_dim)
     if (test_mode)
         cout<<"compute_PCA()"<<endl;
     assert(_PCA.eigvec.rows==0);
-    PCA pt_pca(data, cv::Mat(), CV_PCA_DATA_AS_ROW, PCA_dim);
+    /*PCA pt_pca(data, cv::Mat(), CV_PCA_DATA_AS_ROW, PCA_dim);
     assert(pt_pca.mean.type()==CV_32F);
     _PCA.mean = pt_pca.mean;
     
@@ -2281,18 +2378,41 @@ void EmbAttSpotter::compute_PCA(const Mat& data, int PCA_dim)
         //test
     }
     
-    ////Mat eig_vals = pt_pca.eigenvalues;
-    //Mat eig_vecs = pt_pca.eigenvectors;
-    
-    ////Mat idxs;
-    ////sortIdx(eig_vals, idxs, CV_SORT_EVERY_ROW + CV_SORT_DESCENDING);
-    _PCA.eigvec = -1*pt_pca.eigenvectors;//(Rect(0,0,eig_vecs.cols,PCA_dim));
-    
-    /*for (int r=0; r<PCA_dim; r++)//I'm not sure how needed this is, but it makes it match the MATLAB data.
+    _PCA.eigvec = pt_pca.eigenvectors;//(Rect(0,0,eig_vecs.cols,PCA_dim));
+    */
+
+    //armadillo version
+    arma::mat X(data.rows,data.cols);
+    for (int r=0; r<data.rows; r++)
+        for(int c=0; c<data.cols; c++)
+        {
+            //not symetric --assert(M.at<float>(r,c)==M.at<float>(c,r));
+            X(r,c)=data.at<float>(r,c);
+        }
+
+    arma::mat m = arma::mean(X,1);
+
+    arma::cx_vec cxEigval;
+    arma::cx_mat aEigvec;
+
+    arma::eig_gen( cxEigval, aEigvec, arma::cov(X.t()));
+
+
+    arma::cx_mat V = aEigvec; //arma::fliplr(aWx);//         % reverse order of eigenvectors
+    arma::uvec I = sort_index(real(cxEigval),"descend");// % sort reversed eigenvalues in ascending order
+    for (int j = 0; j<I.n_elem; j++)
     {
-        if (_PCA.eigvec.at<float>(r,0)<0)
-            _PCA.eigvec.row(r) *= -1;
-    }*/
+        aEigvec.col(j) = V.col(I(j));
+    }
+
+    _PCA.eigvec=Mat(aEigvec.n_rows,PCA_dim,CV_32F);
+    for (int r=0; r<aEigvec.n_rows; r++)
+        for (int c=0; c<PCA_dim; c++)
+            _PCA.eigvec.at<float>(r,c) = real(aEigvec(r,c)); //hmm, I'm assuming I dont want imaginary
+    _PCA.mean=Mat(m.n_rows,m.n_cols,CV_32F);
+    for (int r=0; r<m.n_rows; r++)
+        for (int c=0; c<m.n_cols; c++)
+             _PCA.mean.at<float>(r,c) = m(r,c);
 }
 
 void EmbAttSpotter::compute_GMM(const vector<Mat>& bins, int numSpatialX, int numSpatialY, int numGMMClusters)
@@ -2313,18 +2433,18 @@ void EmbAttSpotter::compute_GMM(const vector<Mat>& bins, int numSpatialX, int nu
         Mat d = bins[i](Rect(0,0,SIFT_DIM,bins[i].rows));
         Mat xy = bins[i](Rect(SIFT_DIM,0,2,bins[i].rows));
         for (int r = 0; r < d.rows; ++r)
-            d.row(r) = d.row(r) - PCA_().mean;
+            d.row(r) = d.row(r) - PCA_().mean.t();
         //subtract(d,PCA_().mean,d);
-        d = (PCA_().eigvec*d.t()).t();//transposed to fit VL format  
+        d = (PCA_().eigvec.t()*d.t()).t();//transposed to fit VL format  
         //hconcat(d,xy,d);
         hconcat(d,xy,d);
         assert(d.type() == CV_32F);
         assert(d.cols==AUG_PCA_DIM);
         assert(d.isContinuous());
-        for (int r=0; r<d.rows; r++)
+        /*for (int r=0; r<d.rows; r++)
             for (int c=0; c<d.cols; c++)
                 assert(d.at<float>(r,c)==d.at<float>(r,c));
-        
+        */
         if (test_mode)
         {
             vector<vector<float> > csv;

@@ -13,7 +13,7 @@ prepare_images(opts,data);
 data.phocs = embed_labels_PHOC(opts,data);
 
 %% Extract features from images
-extract_features_test2(opts);
+extract_features_test2(opts,data);
 
 %% Split data into sets
 data = prepare_data_learning(opts,data);
@@ -25,7 +25,7 @@ data.att_models = learn_attributes_test2(opts,data);
 [embedding,mAPsvali] = learn_common_subspace_test2(opts,data);
 
 %% Evaluate
-%mAPstest = evaluate(opts,data,embedding);
+mAPstest = evaluate_test2(opts,data,embedding);
 
 %% Save model
 % save_model(opts,data,embedding);

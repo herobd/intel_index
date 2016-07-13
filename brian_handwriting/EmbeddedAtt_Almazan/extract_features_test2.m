@@ -1,4 +1,4 @@
-function extract_features_test2(opts)
+function extract_features_test2(opts,data)
 disp('* Extracting FV features *');
 % Extracts the FV representation for every image in the dataset
 
@@ -13,7 +13,7 @@ if  ~exist(opts.fileFeatures,'file')
         getImage = @(x) readImage(fid,toc,x);
         images = arrayfun(getImage, idxTrainGMM', 'uniformoutput', false);
         fclose(fid);
-        [GMM,PCA] = compute_GMM_PCA_models_test(opts,images);
+        [GMM,PCA] = compute_GMM_PCA_models_test(opts,data,images);
         writeGMM(GMM,opts.fileGMM);
         writePCA(PCA, opts.filePCA); 
         clear images;
