@@ -28,6 +28,8 @@ data.wordClsTr = data.wordClsTr(p);
 data.labelsTr = data.labelsTr(p);
 data.TestPermutation = p;
 
+dlmwrite('attReprTr_test2.csv',data.attReprTr,'precision',8);
+dlmwrite('phocsTr_test2.csv',data.phocsTr,'precision',8);
 %% Create "fake" validation partition
 % Extract 30% descs from train to use as validation.
 % We also keep the original full training set to retrain later on.
