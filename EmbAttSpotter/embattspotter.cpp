@@ -206,19 +206,19 @@ vector<float> EmbAttSpotter::spot(const Mat& exemplar, string word, float alpha)
         //Read in from MATLAB's results
         vector<vector<float> > csv;
         readCSV("test/attReprTe_test2.csv",csv);
-        assert(csv.size()==query_att.cols && csv[0].size()==query_att.rows);
-        for (int r=0; r<csv.at(0).size(); r++)
-            for (int c=0; c<csv.size(); c++)
+        assert(csv[0].size()==query_att.cols && csv.size()==query_att.rows);
+        for (int c=0; c<csv.at(0).size(); c++)
+            for (int r=0; r<csv.size(); r++)
             {
-                query_att.at<float>(r,c) = csv[c][r];
+                query_att.at<float>(r,c) = csv[r][c];
             }
         csv.clear();
-        readCSV("test/phocTe_test2.csv",csv);
-        assert(csv.size()==query_phoc.cols && csv[0].size()==query_phoc.rows);
-        for (int r=0; r<csv.at(0).size(); r++)
-            for (int c=0; c<csv.size(); c++)
+        readCSV("test/phocsTe_test2.csv",csv);
+        assert(csv.size()==query_phoc.rows && csv[0].size()==query_phoc.cols);
+        for (int r=0; r<csv.size(); r++)
+            for (int c=0; c<csv.at(0).size(); c++)
             {
-                query_phoc.at<float>(r,c) = csv[c][r];
+                query_phoc.at<float>(r,c) = csv[r][c];
             }
     }
 #endif
@@ -246,7 +246,7 @@ vector<float> EmbAttSpotter::spot(const Mat& exemplar, string word, float alpha)
     tmp = maty*query_phoc;
 #ifdef TEST_MODE
     if (test_mode)
-        compareToCSV(tmp,"test/phocTe_tmp_test2.csv");
+        compareToCSV(tmp,"test/phocsTe_tmp_test2.csv");
 #endif
     //checkNaN(tmp);
     vconcat(cosMat(tmp),sinMat(tmp),tmp);
@@ -256,7 +256,7 @@ vector<float> EmbAttSpotter::spot(const Mat& exemplar, string word, float alpha)
     Mat query_emb_phoc = (1/sqrt(embedding().M)) * tmp - embedding().mphoc;
 #ifdef TEST_MODE
     if (test_mode)
-        compareToCSV(query_emb_phoc,"test/phocTe_emb_mean_test2.csv");
+        compareToCSV(query_emb_phoc,"test/phocsTe_emb_mean_test2.csv");
 #endif
     
     //checkNaN(embedding().Wy);
@@ -269,7 +269,7 @@ vector<float> EmbAttSpotter::spot(const Mat& exemplar, string word, float alpha)
     if (test_mode)
     {
         compareToCSV(query_cca_att,"test/attReprTe_cca_test2.csv");
-        compareToCSV(query_cca_phoc,"test/phocTe_cca_test2.csv");
+        compareToCSV(query_cca_phoc,"test/phocsTe_cca_test2.csv");
     }
 #endif
     //checkNaN(query_cca_att);
@@ -281,9 +281,9 @@ vector<float> EmbAttSpotter::spot(const Mat& exemplar, string word, float alpha)
     if (test_mode)
     {
         compareToCSV(query_cca_att,"test/attReprTe_cca_norm_test2.csv");
-        compareToCSV(query_cca_phoc,"test/phocTe_cca_norm_test2.csv");
+        compareToCSV(query_cca_phoc,"test/phocsTe_cca_norm_test2.csv");
+        return vector<float>();
     }
-    return vector<float>();
 #endif
     Mat query_cca_hy = query_cca_att*alpha + query_cca_phoc*(1-alpha);
     
@@ -335,7 +335,7 @@ Mat EmbAttSpotter::extract_feats(const Mat& im)
     if (test_mode)
     {
         compareToCSV(attModels().W,"test/attModels_W_test.csv",false,0.0005);
-        compareToCSV(attReprTr(),"test/attReprTr_test.csv",false,0.0005);
+        compareToCSV(attReprTr(),"test/attReprTr_test2.csv",false,0.0005);
     }
         /*vector<vector<float> > attModels_Wt;
     readCSV("test/attModels_W_test.csv",attModels_Wt);
@@ -1838,7 +1838,7 @@ void EmbAttSpotter::cca2(Mat X, Mat Y, float reg, int d, Mat& Wx, Mat& Wy)
         Wx.row(row) = V.row(inds.at<int>(row,0));
     }
     Wx = Wx(Rect(0,0,Wx.cols,d)).t();*/
-    
+    cout<<"arma1: "<<M.rows<<", "<<M.cols<<endl;
     arma::mat aM(M.rows,M.cols);
     for (int r=0; r<M.rows; r++)
         for(int c=0; c<M.cols; c++)
@@ -1849,13 +1849,17 @@ void EmbAttSpotter::cca2(Mat X, Mat Y, float reg, int d, Mat& Wx, Mat& Wy)
     arma::cx_vec cxr;
     arma::cx_mat aWx;
 
+    cout<<"arma2: eig"<<endl;
     arma::eig_gen( cxr, aWx, aM );
+    cout<<"arma3:real "<<endl;
     arma::vec r = arma::real(r);//      % Canonical correlations
 
     // --- Sort correlations ---
 
+    cout<<"arma4: assign"<<endl;
     arma::cx_mat V = aWx; //arma::fliplr(aWx);//         % reverse order of eigenvectors
     //r = arma::flipud(r);//    % extract eigenvalues anr reverse their orrer
+    cout<<"arma5: sort"<<endl;
     arma::uvec I = sort_index(r,"descend");// % sort reversed eigenvalues in ascending order
     //arma::vec rN=r;
     for (int j = 0; j<I.n_elem; j++)
@@ -2120,7 +2124,7 @@ void EmbAttSpotter::get_GMM_PCA(int numWordsTrainGMM, string saveAs, bool retrai
                 readCSV("test/GMM_PCA_descs/GMM_PCA_desc_"+to_string(i)+"_test.csv",csv);
                 assert(csv.size() == desc.cols);
                 cout <<"size dif "<<((int)desc.rows-(int)csv.at(0).size())<<endl;
-                assert((int)desc.rows-(int)csv.at(0).size()<500);
+                //assert((int)desc.rows-(int)csv.at(0).size()<500);
                 /*for (int ii=0; ii<desc.cols; ii++)
                     cout << desc.at<float>(0,ii) << endl;*/
                 //exit(1);
@@ -2382,6 +2386,7 @@ void EmbAttSpotter::compute_PCA(const Mat& data, int PCA_dim)
     */
 
     //armadillo version
+    cout<<"arma6: "<<data.rows<<",  "<<data.cols<<endl;
     arma::mat X(data.rows,data.cols);
     for (int r=0; r<data.rows; r++)
         for(int c=0; c<data.cols; c++)

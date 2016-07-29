@@ -276,6 +276,27 @@ int main( int argc, char** argv )
         
         EnhancedBoVWTests::experiment_dist_batched(bovw,locationCSVPath, exemplarDirPath, dataDirPath, dataSize, numExamplesPer, fileExt, batchNum, numOfBatches, outfile);
     }
+    else if (option.compare("experiment_dist_batched_reuse")==0)
+    {
+        vector<Vec2i> spp={Vec2i(1,1),Vec2i(2,2)};
+        EnhancedBoVW bovw(spp);
+            
+        string codebookLoc = argv[2];
+        bovw.codebook = new Codebook();
+        bovw.codebook->readIn(codebookLoc);
+        
+        string locationCSVPath = argv[3];
+        string exemplarDirPath = argv[4];
+        string dataDirPath = argv[5];
+        int dataSize = atoi(argv[6]);
+        int numExamplesPer = atoi(argv[7]);
+        string fileExt = argv[8];
+        int batchNum = atoi(argv[9]);
+        int numOfBatches = atoi(argv[10]);
+        string outfile = argv[11];
+        
+        EnhancedBoVWTests::experiment_dist_batched(bovw,locationCSVPath, exemplarDirPath, dataDirPath, dataSize, numExamplesPer, fileExt, batchNum, numOfBatches, outfile,false);
+    }
     else if (option.compare("experiment_Aldavert_dist_batched")==0)
     {
         EnhancedBoVW bovw;

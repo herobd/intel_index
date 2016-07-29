@@ -49,13 +49,13 @@ public:
     Codebook* codebook_med;
     Codebook* codebook_large;
     
-#if !NO_LLC && !NO_SP_PY
-    EnhancedBoVW(vector<Vec2i> spatialPyramids={Vec2i(3,2),Vec2i(9,2)}, int desc_thresh=DESC_THRESH, int LLC_numOfNN=10, int blockSize1=20, int blockSize2=30, int blockSize3=45, int blockStride=3, int hStride=8, int vStride=8, int skip=3);
-#elif !NO_SP_PY
-    EnhancedBoVW(vector<Vec2i> spatialPyramids={Vec2i(3,2),Vec2i(9,2)}, int desc_thresh=DESC_THRESH, int LLC_numOfNN=1, int blockSize1=20, int blockSize2=30, int blockSize3=45, int blockStride=3, int hStride=8, int vStride=8, int skip=3);
+//#if !NO_LLC && !NO_SP_PY
+    EnhancedBoVW(vector<Vec2i> spatialPyramids={Vec2i(3,2),Vec2i(9,2)}, int desc_thresh=DESC_THRESH, int LLC_numOfNN=10, int blockSize1=20, int blockSize2=30, int blockSize3=45, int blockStride=3, int hStride=3, int vStride=3, int skip=3, string savePrefix="./bovw_save/encode", string saveExt=".dat");
+/*#elif !NO_SP_PY
+    EnhancedBoVW(vector<Vec2i> spatialPyramids={Vec2i(3,2),Vec2i(9,2)}, int desc_thresh=DESC_THRESH, int LLC_numOfNN=1, int blockSize1=20, int blockSize2=30, int blockSize3=45, int blockStride=3, int hStride=3, int vStride=3, int skip=3);
 #else
-    EnhancedBoVW(vector<Vec2i> spatialPyramids={Vec2i(1,1)}, int desc_thresh=DESC_THRESH, int LLC_numOfNN=1, int blockSize1=20, int blockSize2=30, int blockSize3=45, int blockStride=3, int hStride=8, int vStride=8, int skip=3);
-#endif
+    EnhancedBoVW(vector<Vec2i> spatialPyramids={Vec2i(1,1)}, int desc_thresh=DESC_THRESH, int LLC_numOfNN=1, int blockSize1=20, int blockSize2=30, int blockSize3=45, int blockStride=3, int hStride=3, int vStride=3, int skip=3);
+#endif*/
     ~EnhancedBoVW(){if(codebook!=NULL) delete codebook;}
     void readCodebooks(string loc)
     {
@@ -78,7 +78,7 @@ public:
 //    vector< tuple< vector< tuple<int,float> >, Point2i > >* codeDescriptors(vector< tuple< vector<float>, Point2i, int > >* desc);
     vector< vector< Mat/*< float >*/ > >* codeDescriptorsIntegralImageSkip(vector<description> *desc, Mat::MSize imgsize, int skip=1) const;
     
-    vector<float>* getPooledDescFastSkip(vector< vector< Mat/*< float >*/ > >* samplesIntegralImage, Rect window, vector<Vec2i> spatialPyramids = {Vec2i(3,2),Vec2i(9,2)}, int skip=1, int level=0) const;
+    vector<float>* getPooledDescFastSkip(const vector< vector< Mat/*< float >*/ > >* samplesIntegralImage, Rect window, vector<Vec2i> spatialPyramids = {Vec2i(3,2),Vec2i(9,2)}, int skip=1, int level=0) const;
     
     Codebook* makeCodebook(string dir, int codebook_size=4096);
     void make3Codebooks(string directory, int codebook_size=4096);
@@ -87,8 +87,12 @@ public:
     float scanImage(const Mat &img, const vector<float> &exemplar, Size exemplarSize) const;
     float scanImageHorz(const Mat &img, const Mat &exemplar) const;
     float scanImageHorz(const Mat &img, const vector<float> &exemplar, Size exemplarSize) const;
+    float scanImageHorz(int imageIdx, const vector<float> &exemplar, Size exemplarSize) const;
+    float scanImageHorz(const vector< vector< Mat > >* samplesCodedII, Size preprocessedSize, const vector<float> &exemplar, Size exemplarSize) const;
     float compareImage(const Mat &img, const vector<float> &exemplar) const;
-    vector<float>* featurizeImage(const Mat &img) const;
+    vector< vector< Mat/*< float >*/ > >* encodeImage(const Mat &img, Size* preprocessedSize=NULL) const;
+    void encodeAndSaveImage(const Mat &img, int imageIdx) const;
+    vector<float>* featurizeImage(const Mat &img, Size* preprocessedSize=NULL) const;
     void normalizeDesc(vector<float> *desc, float a=.35) const;
     
     int featureSize() const
@@ -130,6 +134,8 @@ private:
     void color(Mat &heatMap, float score, float max, float min, int midI, int midJ) const;
     
     Preprocessor pre;
+    string savePrefix;
+    string saveExt;
     //Codebook* computeCodebookFromExamples(int codebook_size,vector< vector<float> >& accum);
     
 };

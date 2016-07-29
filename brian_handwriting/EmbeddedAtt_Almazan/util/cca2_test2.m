@@ -1,4 +1,4 @@
-function [Wx, Wy, r] = cca2(X,Y, reg,d)
+function [Wx, Wy, r] = cca2_test2(X,Y, reg,d)
 
 % CCA calculate canonical correlations
 %

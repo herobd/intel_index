@@ -37,6 +37,9 @@ if ~exist(opts.fileAttModels,'file')
     end
     feats_te = features(:,data.idxTest);
     attReprTe = W'*feats_te;
+    if (size(attReprTe,1)~=200 && size(attReprTe,2)~=200)
+        crash
+    end
     
     writeMat(single([[attModels.W];[attModels.B]]), opts.fileAttModels);
     writeMat(single(attReprTr), opts.fileAttRepresTr);

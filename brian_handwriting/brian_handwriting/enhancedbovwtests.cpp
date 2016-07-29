@@ -833,7 +833,7 @@ void EnhancedBoVWTests::experiment_Aldavert(EnhancedBoVW &bovw, string locationC
     }
 }
 
-void EnhancedBoVWTests::experiment_dist_batched(EnhancedBoVW &bovw, string locationCSVPath, string exemplarDirPath, string dataDirPath, int dataSize, int numExemplarsPer, string fileExt, int batchNum, int numOfBatches, string outfile)
+void EnhancedBoVWTests::experiment_dist_batched(EnhancedBoVW &bovw, string locationCSVPath, string exemplarDirPath, string dataDirPath, int dataSize, int numExemplarsPer, string fileExt, int batchNum, int numOfBatches, string outfile, bool process)
 {
     int numNodes=numOfBatches;
     int iproc=batchNum;
@@ -853,6 +853,7 @@ void EnhancedBoVWTests::experiment_dist_batched(EnhancedBoVW &bovw, string locat
     
 
     
+    int fileCount=0; 
     while (getline(file,ngram))
     {
         getline(file,fileList);
@@ -863,6 +864,7 @@ void EnhancedBoVWTests::experiment_dist_batched(EnhancedBoVW &bovw, string locat
             int idx = stoi(sm[0]);
             locations[ngram].push_back(idx);
             fileList = sm.suffix().str();
+            fileCount++;
         }
     }
     
@@ -878,17 +880,73 @@ void EnhancedBoVWTests::experiment_dist_batched(EnhancedBoVW &bovw, string locat
     int mapCount=0;
     int prevCount=0;
     
-    int taskSize = locations.size() / numNodes;
-    int mybegin = iproc * taskSize;
-    int myend = (iproc+1) * taskSize;
-    if (myend > locations.size())
-        myend = locations.size();
-    if (iproc+1 == numNodes)
-        myend = locations.size();   
 
-    cout << "["<<iproc<<"] is going from "<<mybegin<<" to "<<myend<<endl; 
-    
+    //Doing this by the fileCount rather than locations.size() keeps the work distributed more evenly.
+    int taskSize = fileCount/numNodes; //locations.size() / numNodes;
     auto iter = locations.begin();
+    int accum=0;
+    int onNode=0;
+    vector<int>begins(numNodes);
+    begins[0]=0;
+    vector<int>ends(numNodes);
+    for (int i=0; i<locations.size() && onNode<numNodes && taskSize>0; i++, iter++)
+    {
+        int size = iter->second.size(); //locations.at(words[i]).size();
+        accum+=size;
+        cout <<i<<endl;
+        cout << "accum: "<<accum<<endl;
+        cout <<"taskSize: "<<taskSize<<endl;
+        fileCount-=size;
+        //if (fileCount==0)
+        //    break;
+        if (accum>taskSize && (accum)/taskSize<2)
+        {
+            ends.at(onNode)=i+1;
+            if (++onNode<numNodes)
+            {
+                begins.at(onNode)=i+1;
+                taskSize=fileCount/(numNodes-onNode);
+            }
+            accum=0;
+        }
+        else if (accum>taskSize)
+        {
+            ends.at(onNode)=i;
+            if (++onNode<numNodes)
+            {
+                begins.at(onNode)=i;
+                taskSize=(fileCount+size)/(numNodes-onNode);
+            }
+            accum=size;//As I've already "added" it, in a sense
+        }
+            
+    }
+    ends.back()=locations.size();//just in case
+    int mybegin=begins[iproc];
+    int myend=ends[iproc];
+    cout << "["<<iproc<<"] is going from "<<mybegin<<" to "<<myend<<endl; 
+   
+    if (process)
+    {
+        cout<<"reading and encoding corpus"<<endl; 
+        //vector< vector< vector< Mat/*< float >*/ > >* > corpusCoded(dataSize);
+        //vector< Size > corpusSizes(dataSize);
+        #pragma omp parallel for 
+        for (int imageIdx=1; imageIdx<=dataSize; imageIdx++)
+        {
+            
+            std::string imagePath = dataDirPath + "wordimg_" + to_string(imageIdx) + fileExt;
+            Mat word = imread(imagePath,CV_LOAD_IMAGE_GRAYSCALE);
+            assert(word.rows>0);
+            //Size sz;
+            bovw.encodeAndSaveImage(word,imageIdx);
+            //corpusCoded[imageIdx-1] = bovw.encodeImage(word,&sz);
+            //corpusSizes[imageIdx-1] = sz;
+            
+        }
+    }
+
+    iter = locations.begin();
     for (int i=0; i<mybegin; i++)
         iter++;
     
@@ -926,10 +984,8 @@ void EnhancedBoVWTests::experiment_dist_batched(EnhancedBoVW &bovw, string locat
                     if (imageIdx == ngram_locations[exemplarIdx])
                         continue;
                     
-                    std::string imagePath = dataDirPath + "wordimg_" + to_string(imageIdx) + fileExt;
-                    Mat word = imread(imagePath,CV_LOAD_IMAGE_GRAYSCALE);
-                    assert(word.rows>0);
-                    double score = bovw.scanImageHorz(word,*exemplar_b,exemplar.size());
+                    //double score = bovw.scanImageHorz(corpusCoded[imageIdx-1],corpusSizes[imageIdx-1],*exemplar_b,exemplar.size());
+                    double score = bovw.scanImageHorz(imageIdx,*exemplar_b,exemplar.size());
                     
                     
                     myScores.push_back(pair<int,double>(imageIdx,score));
@@ -1001,6 +1057,9 @@ void EnhancedBoVWTests::experiment_dist_batched(EnhancedBoVW &bovw, string locat
     out.open (outfile+to_string(iproc), ios::out);
     out << fullResults;
     out.close();
+
+    //for (auto pointer : corpusCoded)
+    //    delete pointer;
     
     } catch (std::regex_error& e) {
         cout << "regex error:"<<e.code() << endl;

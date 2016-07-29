@@ -6,7 +6,7 @@
 
 #define SHOW_HEATMAP 0
 
-EnhancedBoVW::EnhancedBoVW(vector<Vec2i> spatialPyramids, int desc_thresh, int LLC_numOfNN, int blockSize1, int blockSize2, int blockSize3, int blockStride, int hStride, int vStride, int skip)
+EnhancedBoVW::EnhancedBoVW(vector<Vec2i> spatialPyramids, int desc_thresh, int LLC_numOfNN, int blockSize1, int blockSize2, int blockSize3, int blockStride, int hStride, int vStride, int skip, string savePrefix, string saveExt)
 {
     this->desc_thresh=desc_thresh;
     this->LLC_numOfNN=LLC_numOfNN;
@@ -21,7 +21,8 @@ EnhancedBoVW::EnhancedBoVW(vector<Vec2i> spatialPyramids, int desc_thresh, int L
 //    cout << "testing pyramid (2,2) (4,2) bigrams horz" << endl;
 //    spatialPyramids = {Vec2i(1,1),Vec2i(2,2)};
 //    spatialPyramids = {Vec2i(1,1)};
-    
+    assert(hStride>0 && hStride%skip==0);
+    assert(vStride>0 && vStride%skip==0);
     this->hStride = hStride;
     this->vStride=vStride;
     this->skip=skip;
@@ -32,17 +33,81 @@ EnhancedBoVW::EnhancedBoVW(vector<Vec2i> spatialPyramids, int desc_thresh, int L
     this->blockStride=blockStride;
 
 
-    pre = Preprocessor(0);        
+    pre = Preprocessor(PP_BASELINE_CENTER | PP_BASELINE_NORMALIZE);        
+    this->savePrefix=savePrefix;
+    if (saveExt[0]=='.')
+        this->saveExt=saveExt;
+    else
+        this->saveExt="."+saveExt;
 }
 
-vector<float>* EnhancedBoVW::featurizeImage(const Mat &img) const
+
+void EnhancedBoVW::encodeAndSaveImage(const Mat &img, int imageIdx) const
+{
+    
+    Size preprocessedSize;
+    auto samplesCoded = encodeImage(img,&preprocessedSize);
+    ofstream out(savePrefix+to_string(imageIdx)+saveExt);
+    assert(out.is_open());
+    out << preprocessedSize.width<<","<<preprocessedSize.height<<","<<samplesCoded->size()<<","<<samplesCoded->at(0).size()<<",";
+    out << samplesCoded->at(0).at(0).rows;
+    for (int i=0; i<samplesCoded->size(); i++)
+        for (int j=0; j<samplesCoded->at(0).size(); j++)
+            for (int k=0; k<samplesCoded->at(0).at(0).rows; k++)
+                out<<","<<samplesCoded->at(0).at(0).at<float>(k,0);
+    out.close();
+    delete samplesCoded;
+}
+float EnhancedBoVW::scanImageHorz(int imageIdx, const vector<float> &exemplar, Size exemplarSize) const
+{
+    Size preprocessedSize;
+    vector< vector< Mat > > encode;
+
+    ifstream in(savePrefix+to_string(imageIdx)+saveExt);
+    assert(in.is_open());
+    string num;
+    getline(in,num,',');
+    preprocessedSize.width=stoi(num);
+    getline(in,num,',');
+    preprocessedSize.height=stoi(num);
+    getline(in,num,',');
+    encode.resize(stoi(num));
+    getline(in,num,',');
+    int w=stoi(num);
+    getline(in,num,',');
+    int l=stoi(num);
+    for (vector<Mat>& v : encode) {
+        v.resize(w);
+        for (Mat& m : v) {
+            m = Mat(l,1,CV_32F);
+            for (int k=0; k<l; k++) {
+                getline(in,num,',');
+                m.at<float>(k,0)=stoi(num);
+            }
+        }
+    }
+
+    float ret = scanImageHorz(&encode,preprocessedSize,exemplar,exemplarSize);
+    return ret;
+}
+vector< vector< Mat/*< float >*/ > >* EnhancedBoVW::encodeImage(const Mat &img, Size* preprocessedSize) const
 {
     
     Mat preprocessed = pre.process(img);
+    if (preprocessedSize!=NULL)
+        *preprocessedSize=preprocessed.size();
     auto samplesUncoded = getDescriptors(preprocessed);
     auto samplesCoded = codeDescriptorsIntegralImageSkip(samplesUncoded,preprocessed.size,skip);
-    
-    vector<float>* exe = getPooledDescFastSkip(samplesCoded, Rect(0,0,preprocessed.cols,preprocessed.rows),spatialPyramids,skip);
+    return samplesCoded;
+}
+
+vector<float>* EnhancedBoVW::featurizeImage(const Mat &img, Size* preprocessedSize) const
+{
+    Size tmp;    
+    auto samplesCoded = encodeImage(img,&tmp);
+    if (preprocessedSize!=NULL)
+        *preprocessedSize=tmp;
+    vector<float>* exe = getPooledDescFastSkip(samplesCoded, Rect(0,0,tmp.width,tmp.height),spatialPyramids,skip);
     normalizeDesc(exe);
     assert(exe->size()>0);
     delete samplesCoded;
@@ -200,24 +265,28 @@ float EnhancedBoVW::scanImage(const Mat &img, const vector<float> &exemplar, Siz
 
 float EnhancedBoVW::scanImageHorz(const Mat &img, const Mat &exemplar) const
 {
-    Mat preprocessed = pre.process(exemplar);
-    auto samplesUncoded = getDescriptors(preprocessed);
-    auto samplesCoded = codeDescriptorsIntegralImageSkip(samplesUncoded,preprocessed.size,skip);
-    
-    vector<float>* exe = getPooledDescFastSkip(samplesCoded, Rect(0,0,preprocessed.cols,preprocessed.rows),spatialPyramids,skip);
+    Size preprocessedSize;
+    vector<float>* exe = featurizeImage(exemplar,&preprocessedSize);
     normalizeDesc(exe);
-    float ret=scanImageHorz(img,*exe,preprocessed.size());
+    float ret=scanImageHorz(img,*exe,preprocessedSize);
     delete exe;
     
-    delete samplesCoded;
+    //delete samplesCoded;
     return ret;
 }
 
-
 float EnhancedBoVW::scanImageHorz(const Mat &img, const vector<float> &exemplar, Size exemplarSize) const
 {
+    Size preprocessedSize;
+    auto encode = encodeImage(img,&preprocessedSize);
+    float ret = scanImageHorz(encode,preprocessedSize,exemplar,exemplarSize);
+    delete encode;
+    return ret;
+}
+
+float EnhancedBoVW::scanImageHorz(const vector< vector< Mat > >* samplesCodedII, Size preprocessedSize, const vector<float> &exemplar, Size exemplarSize) const
+{
     
-    Mat preprocessed = pre.process(img);
     int windowWidth=exemplarSize.width*1.2;
 //    int windowHeight=exemplarSize.height*1.2;
     int windowWidth2=exemplarSize.width;
@@ -226,23 +295,20 @@ float EnhancedBoVW::scanImageHorz(const Mat &img, const vector<float> &exemplar,
 //    int windowHeight3=exemplarSize.height*.8;
     
 #if SHOW_HEATMAP
-    Mat scores(preprocessed.rows/vStride, preprocessed.cols/hStride, CV_32FC3);
+    Mat scores(samplesCoded.size(), samplesCoded[0].size(), CV_32FC3);
     float maxScore=0;
 #endif
     
     float minScore=9999;
     
-    auto samplesUncoded = getDescriptors(preprocessed);
-    auto samplesCodedII = codeDescriptorsIntegralImageSkip(samplesUncoded,preprocessed.size,skip);
     
     
-    
-    for (int x=windowWidth3/3; x<preprocessed.cols-windowWidth3/3; x+=hStride)
+    for (int x=windowWidth3/3; x<preprocessedSize.width-windowWidth3/3; x+=hStride)
     {
         
-        Rect r1(x-windowWidth/2, 0, windowWidth, preprocessed.rows);
-        Rect r2(x-windowWidth2/2, 0, windowWidth2, preprocessed.rows);
-        Rect r3(x-windowWidth3/2, 0, windowWidth3, preprocessed.rows);
+        Rect r1(x-windowWidth/2, 0, windowWidth, preprocessedSize.height);
+        Rect r2(x-windowWidth2/2, 0, windowWidth2, preprocessedSize.height);
+        Rect r3(x-windowWidth3/2, 0, windowWidth3, preprocessedSize.height);
         
         
         vector<float>* desc1 = getPooledDescFastSkip(samplesCodedII, r1, spatialPyramids,skip);
@@ -260,9 +326,9 @@ float EnhancedBoVW::scanImageHorz(const Mat &img, const vector<float> &exemplar,
         
         for (int i=0; i<exemplar.size(); i++)
         {
-            score1 += pow(exemplar[i]-(*desc1)[i],2);
-            score2 += pow(exemplar[i]-(*desc2)[i],2);
-            score3 += pow(exemplar[i]-(*desc3)[i],2);
+            score1 += exemplar[i]*(*desc1)[i];
+            score2 += exemplar[i]*(*desc2)[i];
+            score3 += exemplar[i]*(*desc3)[i];
             
         }
 #if SHOW_HEATMAP
@@ -303,7 +369,7 @@ float EnhancedBoVW::scanImageHorz(const Mat &img, const vector<float> &exemplar,
     maxScore=min(maxScore,1.f);
     maxScore*=.25;
     
-    for (int x=windowWidth3/3; x<preprocessed.cols-windowWidth3/3; x+=hStride)
+    for (int x=windowWidth3/3; x<preprocessedSize.width-windowWidth3/3; x+=hStride)
     {
         if (scores.at<Vec3f>(0, x/hStride)[0] < 
                 min(scores.at<Vec3f>(0, x/hStride)[1],scores.at<Vec3f>(0, x/hStride)[2]))
@@ -344,17 +410,15 @@ float EnhancedBoVW::scanImageHorz(const Mat &img, const vector<float> &exemplar,
     waitKey();
 #endif
     
-    delete samplesCodedII;
-    return minScore;
+    return -1*minScore;
 }
 
 float EnhancedBoVW::compareImage(const Mat &img, const vector<float> &exemplar) const
 {
     assert(codebook != NULL);
-    Mat preprocessed = pre.process(img);
-    auto samplesUncoded = getDescriptors(preprocessed);
-    auto samplesCodedII = codeDescriptorsIntegralImageSkip(samplesUncoded,preprocessed.size,skip);
-    Rect r1(0, 0, preprocessed.cols, preprocessed.rows);
+    Size preprocessedSize;
+    auto samplesCodedII = encodeImage(img,&preprocessedSize);
+    Rect r1(0, 0, preprocessedSize.width, preprocessedSize.height);
     vector<float>* desc1 = getPooledDescFastSkip(samplesCodedII, r1, spatialPyramids,skip);
     normalizeDesc(desc1);
     float score1=0;
@@ -919,7 +983,7 @@ void EnhancedBoVW::make3Codebooks(string directory, int codebook_size)
 
 
 
-vector<float>* EnhancedBoVW::getPooledDescFastSkip(vector< vector< Mat/*< float >*/ > >* samplesIntegralImage, Rect window, vector<Vec2i> spatialPyramids, int skip, int level) const
+vector<float>* EnhancedBoVW::getPooledDescFastSkip(const vector< vector< Mat/*< float >*/ > >* samplesIntegralImage, Rect window, vector<Vec2i> spatialPyramids, int skip, int level) const
 {
     float compensation = spatialPyramids.at(0)[0]*spatialPyramids.at(0)[1];
     for (int l=1; l <= level; l++)
