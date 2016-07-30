@@ -926,10 +926,11 @@ void EnhancedBoVWTests::experiment_dist_batched(EnhancedBoVW &bovw, string locat
     int myend=ends[iproc];
     cout << "["<<iproc<<"] is going from "<<mybegin<<" to "<<myend<<endl; 
    
+    /*
     if (process)
     {
         cout<<"reading and encoding corpus"<<endl; 
-        //vector< vector< vector< Mat/*< float >*/ > >* > corpusCoded(dataSize);
+        //vector< vector< vector< Mat > >* > corpusCoded(dataSize);
         //vector< Size > corpusSizes(dataSize);
         #pragma omp parallel for 
         for (int imageIdx=1; imageIdx<=dataSize; imageIdx++)
@@ -944,12 +945,12 @@ void EnhancedBoVWTests::experiment_dist_batched(EnhancedBoVW &bovw, string locat
             //corpusSizes[imageIdx-1] = sz;
             
         }
-    }
+    }*/
 
+    
     iter = locations.begin();
     for (int i=0; i<mybegin; i++)
         iter++;
-    
 //    for (const auto &ngramLocPair : locations)
     for (int i=mybegin; i<myend; i++, iter++)
     {
@@ -957,10 +958,9 @@ void EnhancedBoVWTests::experiment_dist_batched(EnhancedBoVW &bovw, string locat
         
         const vector<int> &ngram_locations = ngramLocPair.second;//locations[ngramLocPair.first];
         string dirPath = exemplarDirPath + ngramLocPair.first + "/";
-        cout << "["<<iproc<<"] on ngram["<<i<<"]: " <<  ngramLocPair.first << endl;
         for (int exemplarIdx=0; exemplarIdx<numExemplarsPer; exemplarIdx++)
         {
-            vector<pair<int,double> >scores;
+            int si = i*numExemplarsPer + exemplarIdx;
 
             
             string imagePath=dirPath;
@@ -970,86 +970,117 @@ void EnhancedBoVWTests::experiment_dist_batched(EnhancedBoVW &bovw, string locat
             imagePath+=".png";
             Mat exemplar = imread(imagePath,CV_LOAD_IMAGE_GRAYSCALE);
             assert(exemplar.rows>0);
-            vector<float>* exemplar_b = bovw.featurizeImage(exemplar);
-            
-            #pragma omp parallel
-            {
-                vector<pair<int,double> >myScores;//(dataSize);
-                
-
-                #pragma omp for nowait //schedule(dynamic,200)
-                for (int imageIdx=1; imageIdx<=dataSize; imageIdx++)
-                {
-                    //double startImg = clock();
-                    if (imageIdx == ngram_locations[exemplarIdx])
-                        continue;
-                    
-                    //double score = bovw.scanImageHorz(corpusCoded[imageIdx-1],corpusSizes[imageIdx-1],*exemplar_b,exemplar.size());
-                    double score = bovw.scanImageHorz(imageIdx,*exemplar_b,exemplar.size());
-                    
-                    
-                    myScores.push_back(pair<int,double>(imageIdx,score));
-                }
-                
-                #pragma omp critical
-                scores.insert(scores.end(),myScores.begin(),myScores.end());
-            }
-            delete exemplar_b;
-//            if (scores.size() != dataSize-1 && scores.size() != dataSize)
-//            {
-//                cout << "Error, scores size:" << scores.size() << ", dataSize:" << dataSize << endl;
-//                assert(false);
-//            }
-            sort(scores.begin(),scores.end(),[](const pair<int,double> &l, const pair<int,double> &r)->bool {return l.second < r.second;});
-//            fullResults(strcat(ngram,num2str(exemplarIdx)))=scores;
-            
-
-                
-            
-            //compute average precision
-            int foundRelevent = 0;
-            double avgPrecision = 0.0;
-            int totalRelevent=ngram_locations.size()-1;
-            
-            for (int top=0; top<scores.size(); top++)
-            {
-                int ii = scores[top].first;
-                if (top==0)
-                {
-                    cout << "top match is " << ii << endl;
-                }
-                if (find(ngram_locations.begin(),ngram_locations.end(),ii)!=ngram_locations.end())
-                {
-                    foundRelevent++;
-                    double precision = foundRelevent/(double)(top+1);
-                    avgPrecision += precision;
-                }
-            }
-            
-            avgPrecision = avgPrecision/totalRelevent;
-            
-//#pragma omp critical
-            {
-                fullResults += ngramLocPair.first+"_"+to_string(exemplarIdx+1) + "{" + to_string(scores[0].first);
-                for (int i=1; i<scores.size(); i++)
-                {
-                    fullResults += "," + to_string(scores[i].first);
-                }
-                fullResults += "}\n";
-                
-                map += avgPrecision;
-                mapCount++;
-            }
-            
+            exemplars[si] = bovw.featurizeImage(exemplar);
         }
-        
-        cout << "finished ngram '" << ngramLocPair.first << "'' with " << (map-prevMap)/(mapCount-prevCount) << " mAP" << endl;
-        prevMap=map;
-        prevCount=mapCount;
-        
-//        break;
     }
-    
+    map<int,vector<pair<int,double> > > scores;
+    for (int i=mybegin; i<myend; i++)
+        scores[i];
+
+    #pragma omp parallel for nowait //schedule(dynamic,200)
+    for (int imageIdx=1; imageIdx<=dataSize; imageIdx++)
+    {
+        std::string imagePath = dataDirPath + "wordimg_" + to_string(imageIdx) + fileExt;
+        Mat word = imread(imagePath,CV_LOAD_IMAGE_GRAYSCALE);
+        assert(word.rows>0);
+        bovw.encodeAndSaveImage(word,imageIdx);
+        Size imageSize = sz;
+        Mat imageCoded = bovw.encodeImage(word,&imageSize);
+        for (int i=mybegin; i<myend; i++ )
+        {
+            //cout << "["<<iproc<<"] on ngram["<<i<<"]: " << endl;
+            for (int exemplarIdx=0; exemplarIdx<numExemplarsPer; exemplarIdx++)
+            {
+                int si = i*numExemplarsPer + exemplarIdx;
+                vector<float>* exemplar_b = exemplars[si];
+                
+                //s#pragma omp parallel
+                {
+                    //vector<pair<int,double> >myScores;//(dataSize);
+                    
+
+                    //s#pragma omp for nowait //schedule(dynamic,200)
+                    //for (int imageIdx=1; imageIdx<=dataSize; imageIdx++)
+                    {
+                        //double startImg = clock();
+                        if (imageIdx == ngram_locations[exemplarIdx])
+                            continue;
+                        
+                        double score = bovw.scanImageHorz(imageCoded,imageSize,*exemplar_b,exemplar.size());
+                        //double score = bovw.scanImageHorz(imageIdx,*exemplar_b,exemplar.size());
+                        
+                        
+                        //myScores.push_back(pair<int,double>(imageIdx,score));
+                    }
+                    
+                    #pragma omp critical
+                    scores[si].push_back(pair<int,double>(imageIdx,score));
+                    //scores.insert(scores[si].end(),myScores.begin(),myScores.end());
+                }
+                
+            }
+        }
+    }
+                    
+                
+    iter = locations.begin();
+    for (int i=0; i<mybegin; i++)
+        iter++;
+//    for (const auto &ngramLocPair : locations)
+    for (int i=mybegin; i<myend; i++, iter++)
+    {
+        const auto &ngramLocPair = *(iter);
+        
+        const vector<int> &ngram_locations = ngramLocPair.second;//locations[ngramLocPair.first];
+        string dirPath = exemplarDirPath + ngramLocPair.first + "/";
+        for (int exemplarIdx=0; exemplarIdx<numExemplarsPer; exemplarIdx++)
+        {
+                int si = i*numExemplarsPer + exemplarIdx;
+                sort(scores[si].begin(),scores[si].end(),[](const pair<int,double> &l, const pair<int,double> &r)->bool {return l.second < r.second;});
+                //compute average precision
+                int foundRelevent = 0;
+                double avgPrecision = 0.0;
+                int totalRelevent=ngram_locations.size()-1;
+                
+                for (int top=0; top<scores[si].size(); top++)
+                {
+                    int ii = scores[si][top].first;
+                    if (top==0)
+                    {
+                        cout << "top match is " << ii << endl;
+                    }
+                    if (find(ngram_locations.begin(),ngram_locations.end(),ii)!=ngram_locations.end())
+                    {
+                        foundRelevent++;
+                        double precision = foundRelevent/(double)(top+1);
+                        avgPrecision += precision;
+                    }
+                }
+                
+                avgPrecision = avgPrecision/totalRelevent;
+                
+                //#pragma omp critical
+                {
+                    fullResults += ngramLocPair.first+"_"+to_string(exemplarIdx+1) + "{" + to_string(scores[si][0].first);
+                    for (int iii=1; i<scores[si].size(); i++)
+                    {
+                        fullResults += "," + to_string(scores[si][iii].first);
+                    }
+                    fullResults += "}\n";
+                    
+                    map += avgPrecision;
+                    mapCount++;
+                }
+                
+            }
+            
+            cout << "finished ngram '" << ngramLocPair.first << "'' with " << (map-prevMap)/(mapCount-prevCount) << " mAP" << endl;
+            prevMap=map;
+            prevCount=mapCount;
+            
+    //        break;
+        }
+    } 
     
     cout << "for batch " << batchNum << " mAP sum:"<<map<< " count:" << mapCount << endl;
     //save("results"+iproc=".mat","fullResults","map","mapCount");

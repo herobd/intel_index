@@ -859,3 +859,47 @@ void EmbAttSpotter::compute_GMM_isotest()
     _PCA.mean=Mat();
     _PCA.eigvec=Mat();
 }
+void EmbAttSpotter::modelMap_isotest()
+{
+    Mat featsVal;
+    readCSV("test/cvSVM_featsVal_test.csv",featsVal);
+    Mat labelsVal;
+    readCSV("test/cvSVM_labelsVal_test.csv",labelsVal);
+    
+    Mat double_feats;
+    featsVal.convertTo(double_feats, CV_64F);
+    Mat double_labels;
+    labelsVal.convertTo(double_labels, CV_64F);
+    vector<vector<float> Wv;
+    readCSV("test/cvSVM_Wv_test.csv",Wv);
+    double gtCmap = //TODO;
+    VlSvm * svm = vl_svm_new(VlSvmSolverSdca,//stochastic dual cord ascent
+                               (double*)double_feats.data, featsVal.cols, featsVal.rows,
+                               double_labels.data,
+                               0.1) ;
+    if (Wv[0].size()==1)
+        for (int i=0; i<Wv.size(); Wv++)
+            vl_svm_get_model(svm)[i] = Wv[i][0];
+    else if (Wv.size()==1)
+        for (int i=0; i<Wv[0].size(); Wv++)
+            vl_svm_get_model(svm)[i] = Wv[0][i];
+    else
+        assert(false);
+    double cmap = modelMap(svm,featsVal,labelsVal.data);
+    assert(fabs(cmap - gtCmap)<.001);
+}
+void EmbAttSpotter::cvSVM_isotest()
+{
+    Mat featsTrain;
+    readCSV("test/cvSVM_featsTrain_test.csv",featsTrain);
+    Mat labelsVal;
+    readCSV("test/cvSVM_labelsTrain_test.csv",labelsTrain);
+    Mat featsVal;
+    readCSV("test/cvSVM_featsVal_test.csv",featsVal);
+    Mat labelsVal;
+    readCSV("test/cvSVM_featsVal_test.csv",featsVal);
+    VlSvm * svm;
+    Mat W = cvSVM(featsTrain,labelsTrain.data,featsVal,labelsVal.data,svm);
+    compareToCSV(W,"test/cvSVM_W_test.csv",false);
+}
+

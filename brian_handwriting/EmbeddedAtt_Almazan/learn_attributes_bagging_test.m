@@ -150,6 +150,10 @@ map = sum(single(acc)./(1:length(labels)))/N;
 end
 
 function model = cvSVM(featsTrain, labelsTrain, featsVal, labelsVal,   params) 
+        dlmwrite(['cvSVM_featsTrain_test.csv'],featsTrain,'precision',10);
+        dlmwrite(['cvSVM_labelsTrain_test.csv'],labelsTrain,'precision',10);
+        dlmwrite(['cvSVM_featsVal_test.csv'],featsVal,'precision',10);
+        dlmwrite(['cvSVM_labelsVal_test.csv'],labelsVal,'precision',10);
         bestmap = 0;
         bestlbd = 0;
         W = [];
@@ -169,7 +173,10 @@ function model = cvSVM(featsTrain, labelsTrain, featsVal, labelsVal,   params)
                 B = Bv;
             end
         end
+        dlmwrite(['cvSVM_Wv_test.csv'],W,'precision',10);
+        disp(['modelMap, cmap = ' num2str(bestmap)]);
         model.W = W;
         model.B = B;
         model.info.acc = 100*bestmap;
+        dlmwrite(['cvSVM_W_test.csv'],W,'precision',10);
 end

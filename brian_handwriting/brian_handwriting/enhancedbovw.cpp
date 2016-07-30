@@ -49,12 +49,48 @@ void EnhancedBoVW::encodeAndSaveImage(const Mat &img, int imageIdx) const
     auto samplesCoded = encodeImage(img,&preprocessedSize);
     ofstream out(savePrefix+to_string(imageIdx)+saveExt);
     assert(out.is_open());
-    out << preprocessedSize.width<<","<<preprocessedSize.height<<","<<samplesCoded->size()<<","<<samplesCoded->at(0).size()<<",";
+    out << preprocessedSize.width<<":"<<preprocessedSize.height<<":"<<samplesCoded->size()<<":"<<samplesCoded->at(0).size()<<":";
     out << samplesCoded->at(0).at(0).rows;
+    bool run=false;
+    int runLen=0;
+    //This is a sparse encoding, collapsing 0 runs
     for (int i=0; i<samplesCoded->size(); i++)
         for (int j=0; j<samplesCoded->at(0).size(); j++)
             for (int k=0; k<samplesCoded->at(0).at(0).rows; k++)
-                out<<","<<samplesCoded->at(0).at(0).at<float>(k,0);
+            {
+
+                if (samplesCoded->at(i).at(j).at<float>(k,0)==0)
+                {
+                    if (run)
+                        runLen++;
+                    else
+                    {
+                        run=true;
+                        runLen=1;
+                    }
+                }
+                else
+                {
+                    if (run)
+                    {
+                        out<<":%"<<runLen;
+                        run=false;
+                    }
+                    out<<":"<<samplesCoded->at(i).at(j).at<float>(k,0);
+                }
+                //old sparse
+                /*if (samplesCoded->at(i).at(j).at<float>(k,0)==0)
+                    run=false;
+                else if (run)
+                {
+                    out<<","<<samplesCoded->at(i).at(j).at<float>(k,0);
+                }
+                else
+                {
+                    run = true;
+                    out<<":"<<k+j*samplesCoded->at(0).at(0).rows+i*samplesCoded->at(0).size()<<","<<samplesCoded->at(i).at(j).at<float>(k,0);
+                }*/
+            }
     out.close();
     delete samplesCoded;
 }
@@ -66,26 +102,62 @@ float EnhancedBoVW::scanImageHorz(int imageIdx, const vector<float> &exemplar, S
     ifstream in(savePrefix+to_string(imageIdx)+saveExt);
     assert(in.is_open());
     string num;
-    getline(in,num,',');
+    getline(in,num,':');
     preprocessedSize.width=stoi(num);
-    getline(in,num,',');
+    getline(in,num,':');
     preprocessedSize.height=stoi(num);
-    getline(in,num,',');
+    getline(in,num,':');
     encode.resize(stoi(num));
-    getline(in,num,',');
+    getline(in,num,':');
     int w=stoi(num);
-    getline(in,num,',');
+    getline(in,num,':');
+    int h=stoi(num);
+    getline(in,num,':');
     int l=stoi(num);
+    int run=0;
     for (vector<Mat>& v : encode) {
         v.resize(w);
         for (Mat& m : v) {
-            m = Mat(l,1,CV_32F);
+            m = Mat::zeros(l,1,CV_32F);
             for (int k=0; k<l; k++) {
-                getline(in,num,',');
-                m.at<float>(k,0)=stoi(num);
+                if (run>0)
+                    run--;
+                else
+                {
+                    getline(in,num,':');
+                    if (num[0]=='%')
+                    {
+                        run=stoi(num.substr(1))-1;
+                    }
+                    else
+                    {
+                        m.at<float>(k,0)=stof(num);
+                    }
+                }
             }
+            //no sparse
+            //for (int k=0; k<l; k++) {
+            //    getline(in,num,',');
+            //    m.at<float>(k,0)=stof(num);
+            //}
         }
     }
+
+    //old sparse
+    /*string run;
+    while (getline(in,run,':'))
+    {
+        stringstream runs(run);
+        getline(runs,num,',');
+        int idx = stoi(num);
+        int i = idx/h;
+        int j = (idx%h)/l;
+        int k = (idx%h)%l;
+        while(getline(runs,num,','))
+        {
+            encode[i][j].at<float>(k,0)=stofnum);
+        }
+    }*/
 
     float ret = scanImageHorz(&encode,preprocessedSize,exemplar,exemplarSize);
     return ret;
