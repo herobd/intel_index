@@ -276,7 +276,7 @@ int main( int argc, char** argv )
         
         EnhancedBoVWTests::experiment_dist_batched(bovw,locationCSVPath, exemplarDirPath, dataDirPath, dataSize, numExamplesPer, fileExt, batchNum, numOfBatches, outfile);
     }
-    else if (option.compare("experiment_dist_batched_reuse")==0)
+    /*else if (option.compare("experiment_dist_batched_reuse")==0)
     {
         vector<Vec2i> spp={Vec2i(1,1),Vec2i(2,2)};
         EnhancedBoVW bovw(spp);
@@ -296,7 +296,7 @@ int main( int argc, char** argv )
         string outfile = argv[11];
         
         EnhancedBoVWTests::experiment_dist_batched(bovw,locationCSVPath, exemplarDirPath, dataDirPath, dataSize, numExamplesPer, fileExt, batchNum, numOfBatches, outfile,false);
-    }
+    }*/
     else if (option.compare("experiment_Aldavert_dist_batched")==0)
     {
         EnhancedBoVW bovw;
