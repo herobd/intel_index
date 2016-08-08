@@ -990,13 +990,14 @@ void EnhancedBoVWTests::experiment_dist_batched(EnhancedBoVW &bovw, string locat
         assert(word.rows>0);
         Size imageSize;
         vector< vector<Mat> >* imageCoded = bovw.encodeImage(word,&imageSize);
-        for (int i=mybegin; i<myend; i++ )
+        auto iterP = locations.cbegin();
+        for (int iP=0; iP<mybegin; iP++)
+            iterP++;
+        for (int i=mybegin; i<myend; i++, iterP++ )
         {
-            auto iterP = locations.begin();
-            for (int i=0; i<imageIdx; i++)
-                iterP++;
-            const auto &ngramLocPair = *(iterP);
-            const vector<int> &ngram_locations = ngramLocPair.second;//locations[ngramLocPair.first];
+            //const auto &ngramLocPair = *(iterP);
+            //const vector<int> &ngram_locations = ngramLocPair.second;//locations[ngramLocPair.first];
+            const vector<int> &ngram_locations = iterP->second;//locations[ngramLocPair.first];
             //cout << "["<<iproc<<"] on ngram["<<i<<"]: " << endl;
             for (int exemplarIdx=0; exemplarIdx<numExemplarsPer; exemplarIdx++)
             {
@@ -1072,7 +1073,7 @@ void EnhancedBoVWTests::experiment_dist_batched(EnhancedBoVW &bovw, string locat
             //#pragma omp critical
             {
                 fullResults += ngramLocPair.first+"_"+to_string(exemplarIdx+1) + "{" + to_string(scores[si][0].first);
-                for (int iii=1; i<scores[si].size(); i++)
+                for (int iii=1; iii<scores[si].size(); iii++)
                 {
                     fullResults += "," + to_string(scores[si][iii].first);
                 }

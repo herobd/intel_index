@@ -201,7 +201,7 @@ vector<float> EmbAttSpotter::spot(const Mat& exemplar, string word, float alpha)
 #endif
 
 #ifdef TEST_MODE
-    if (test_mode)
+    if (test_mode==1)
     {
         //Read in from MATLAB's results
         vector<vector<float> > csv;
@@ -233,19 +233,19 @@ vector<float> EmbAttSpotter::spot(const Mat& exemplar, string word, float alpha)
     
     Mat tmp = matx*query_att;
 #ifdef TEST_MODE
-    if (test_mode)
+    if (test_mode==1)
         compareToCSV(tmp,"test/attReprTe_tmp_test2.csv");
 #endif
     vconcat(cosMat(tmp),sinMat(tmp),tmp);
     assert(embedding().matt.size() == tmp.size());
     Mat query_emb_att = (1/sqrt(embedding().M)) * tmp - embedding().matt;
 #ifdef TEST_MODE
-    if (test_mode)
+    if (test_mode==1)
         compareToCSV(query_emb_att,"test/attReprTe_emb_mean_test2.csv");
 #endif
     tmp = maty*query_phoc;
 #ifdef TEST_MODE
-    if (test_mode)
+    if (test_mode==1)
         compareToCSV(tmp,"test/phocsTe_tmp_test2.csv");
 #endif
     //checkNaN(tmp);
@@ -255,7 +255,7 @@ vector<float> EmbAttSpotter::spot(const Mat& exemplar, string word, float alpha)
     assert(embedding().mphoc.size() == tmp.size());
     Mat query_emb_phoc = (1/sqrt(embedding().M)) * tmp - embedding().mphoc;
 #ifdef TEST_MODE
-    if (test_mode)
+    if (test_mode==1)
         compareToCSV(query_emb_phoc,"test/phocsTe_emb_mean_test2.csv");
 #endif
     
@@ -266,7 +266,7 @@ vector<float> EmbAttSpotter::spot(const Mat& exemplar, string word, float alpha)
     Mat query_cca_phoc = embedding().Wy.t()*query_emb_phoc;
     
 #ifdef TEST_MODE
-    if (test_mode)
+    if (test_mode==1)
     {
         compareToCSV(query_cca_att,"test/attReprTe_cca_test2.csv");
         compareToCSV(query_cca_phoc,"test/phocsTe_cca_test2.csv");
@@ -278,7 +278,7 @@ vector<float> EmbAttSpotter::spot(const Mat& exemplar, string word, float alpha)
     normalizeL2Columns(query_cca_att);
     normalizeL2Columns(query_cca_phoc);
 #ifdef TEST_MODE
-    if (test_mode)
+    if (test_mode==1)
     {
         compareToCSV(query_cca_att,"test/attReprTe_cca_norm_test2.csv");
         compareToCSV(query_cca_phoc,"test/phocsTe_cca_norm_test2.csv");
@@ -332,7 +332,7 @@ Mat EmbAttSpotter::extract_feats(const Mat& im)
 {
     
     Mat feats_m=phow(im,&PCA_());
-    if (test_mode)
+    if (test_mode==1)
     {
         compareToCSV(attModels().W,"test/attModels_W_test.csv",false,0.0005);
         compareToCSV(attReprTr(),"test/attReprTr_test2.csv",false,0.0005);
@@ -384,7 +384,7 @@ Mat EmbAttSpotter::extract_feats(const Mat& im)
 
 vector<Mat>* EmbAttSpotter::extract_FV_feats_fast_and_batch(const vector<string>& imageLocations,vector<int>* batches_index,vector<int>* batches_indexEnd, int batchSize)
 {
-    if (test_mode)
+    if (test_mode==1)
         cout<<"extract_FV_feats_fast_and_batch1()"<<endl;
     bool del=false;
     if (batches_index==NULL & batches_indexEnd==NULL)
@@ -449,7 +449,7 @@ vector<Mat>* EmbAttSpotter::extract_FV_feats_fast_and_batch(const vector<string>
 
 vector<Mat>* EmbAttSpotter::extract_FV_feats_fast_and_batch(const Dataset* dataset,vector<int>* batches_index,vector<int>* batches_indexEnd, int batchSize)
 {
-    if (test_mode)
+    if (test_mode==1)
         cout<<"extract_FV_feats_fast_and_batch2()"<<endl;
     bool del=false;
     if (batches_index==NULL & batches_indexEnd==NULL)
@@ -517,7 +517,7 @@ vector<Mat>* EmbAttSpotter::extract_FV_feats_fast_and_batch(const Dataset* datas
 
 Mat EmbAttSpotter::get_FV_feats(const Dataset* dataset)
 {
-    if (test_mode)
+    if (test_mode==1)
         cout<<"get_FV_feats()"<<endl;
     int size;
     if (test_mode==1)
@@ -1278,11 +1278,11 @@ Mat EmbAttSpotter::batch_att(int batchNum)
 
 void EmbAttSpotter::learn_attributes_bagging()
 {
-    if (test_mode)
-        cout<<"learn_attributes_baggings()"<<endl;
+    if (test_mode==1)
+        cout<<"learn_attributes_bagging()"<<endl;
     int dimFeats=feats_training().cols;
     int numAtt = phocsTr().rows;
-    if (test_mode)//==1)
+    if (test_mode==1)//==1)
         numAtt=200;
     
     int numSamples = phocsTr().cols;
@@ -1372,7 +1372,7 @@ void EmbAttSpotter::learn_attributes_bagging()
                     }
                     
                     VlSvm * svm=NULL;
-                    Mat modelAtt = cvSVM(featsTrain,labelsTrain,featsVal,labelsVal,svm);
+                    Mat modelAtt = cvSVM(featsTrain,labelsTrain,featsVal,labelsVal,&svm);
                     
                     
                     
@@ -1383,15 +1383,17 @@ void EmbAttSpotter::learn_attributes_bagging()
                     #pragma omp critical (learn_attributes_bagging_inside)
                     {
                         _attModels->W.col(idxAtt) += modelAtt;
-                        for (int r=0; r<featsVal.rows; r++)
+                        assert(featsVal.cols==numSamples);
+                        assert(vl_svm_get_dimension(svm)==numSamples);
+                        for (int c=0; c<featsVal.cols; c++)
                         {
                             float s=0;
-                            for (int c=0; c<featsVal.cols; c++)
-                                s += featsVal.at<float>(r,c)*vl_svm_get_model(svm)[c];
-                            _attReprTr.at<float>(idxAtt,r)+=s;
+                            for (int r=0; r<featsVal.rows; r++)
+                                s += featsVal.at<float>(r,c)*((double const*)vl_svm_get_model(svm))[r];
+                            _attReprTr.at<float>(idxAtt,c)+=s;
                         }
                     }
-                    delete svm;
+                    vl_svm_delete(svm);
                     
                     
                     for (int circshift=0; circshift<nValPos; circshift++)
@@ -1431,7 +1433,7 @@ void EmbAttSpotter::learn_attributes_bagging()
     }
 }
 
-Mat EmbAttSpotter::cvSVM(const Mat& featsTrain, const double* labelsTrain, const Mat& featsVal, const float* labelsVal, VlSvm * &bestsvm)
+Mat EmbAttSpotter::cvSVM(const Mat& featsTrain, const double* labelsTrain, const Mat& featsVal, const float* labelsVal, VlSvm ** bestsvm)
 {
     Mat double_featsTrain;
     featsTrain.convertTo(double_featsTrain, CV_64F);
@@ -1439,6 +1441,7 @@ Mat EmbAttSpotter::cvSVM(const Mat& featsTrain, const double* labelsTrain, const
     assert(double_featsTrain.at<double>(0,1)==((double*)double_featsTrain.data)[1]);
     assert(double_featsTrain.at<double>(1,0)==((double*)double_featsTrain.data)[double_featsTrain.cols]);
     assert(double_featsTrain.isContinuous());
+    assert(*bestsvm==NULL);
     double bestmap=0;
     double bestlambda=0;
     for (double lambda : sgdparams_lbds)
@@ -1458,43 +1461,52 @@ Mat EmbAttSpotter::cvSVM(const Mat& featsTrain, const double* labelsTrain, const
         vl_svm_set_bias_multiplier (svm, 0.1);
         vl_svm_train(svm) ;
         
-        double cmap = modelMap(svm,featsVal,labelsVal);
-        if (cmap > bestmap || bestsvm==NULL)
+        double cmap = modelMap(vl_svm_get_num_data(svm),vl_svm_get_model(svm),featsVal,labelsVal);
+        if (cmap > bestmap || *bestsvm==NULL)
         {
             bestmap=cmap;
             bestlambda=lambda;
-            if (bestsvm!=NULL)
-                delete bestsvm;
-            bestsvm=svm;
+            if (*bestsvm!=NULL)
+                vl_svm_delete(*bestsvm);
+            *bestsvm=svm;
         }
         else
         {
-            delete svm;
+            vl_svm_delete(svm);
         }
     }
-    Mat ret(featsVal.cols,1,CV_32F);
-    for (int c=0; c<ret.rows; c++)
+    Mat ret(vl_svm_get_num_data(*bestsvm),1,CV_32F);
+    double const* model = vl_svm_get_model(*bestsvm);
+    for (int r=0; r<vl_svm_get_num_data(*bestsvm); r++)
     {
-        ret.at<float>(c,0)=vl_svm_get_model(bestsvm)[c];
+        double ddd = model[r];
+        bool ttt = isfinite(ddd);
+        assert(ttt);
+        ret.at<float>(r,0)=model[r];
     }
-    assert(bestsvm!=NULL);
+    assert(*bestsvm!=NULL);
     return ret;
 }
 
-double EmbAttSpotter::modelMap(VlSvm * svm, const Mat& featsVal, const float* labelsVal)
+double EmbAttSpotter::modelMap(int model_size, double const* svm_model, const Mat& featsVal, const float* labelsVal)
 {
-    vector< pair<int,float> > scores(featsVal.rows);
-    for (int r=0; r<featsVal.rows; r++)
+    vector< pair<int,float> > scores(featsVal.cols);
+    int N=0;
+    for (int c=0; c<featsVal.cols; c++)
     {
         float s=0;
-        for (int c=0; c<featsVal.cols; c++)
-            s += featsVal.at<float>(r,c)*vl_svm_get_model(svm)[c];
-        scores[r]=make_pair(labelsVal[r],s);
+        for (int r=0; r<model_size; r++) {
+            s += featsVal.at<float>(r,c)*svm_model[r];
+            //assert(isfinite(svm_model[r]));
+            if (!isfinite(svm_model[r]))
+                return -1;
+        }
+        scores.at(c)=make_pair(labelsVal[c],s);
+        N+=labelsVal[c];
     }
     sort(scores.begin(), scores.end(),[](const pair<int,float>& lh, const pair<int,float>& rh) {return lh.second>rh.second;}); 
     vector<float> acc(scores.size());
     int accum=0;
-    int N=0;
     int place=0;
     double map=0;
     for (const pair<int,float>& score : scores)
@@ -1600,7 +1612,7 @@ const EmbAttSpotter::Embedding& EmbAttSpotter::embedding(bool retrain)
 
 void EmbAttSpotter::learn_common_subspace()
 {
-    if (test_mode)
+    if (test_mode==1)
         cout<<"learn_common_subspace()"<<endl;
     assert(_embedding==NULL);
     _embedding = new Embedding();
@@ -1637,7 +1649,7 @@ void EmbAttSpotter::learn_common_subspace()
     float G = 40;
     int Dims = 160;//or K
     float reg = 1e-5;
-    /*if (test_mode)
+    /*if (test_mode==1)
     {
         M=200;
         Dims=50;
@@ -1646,7 +1658,7 @@ void EmbAttSpotter::learn_common_subspace()
     int Dy = phocsTr().rows;
     Mat rndmatx(M,Dx,CV_32F);
     Mat rndmaty(M,Dy,CV_32F);
-    if (test_mode)//==2)
+    if (test_mode==1)//==2)
     {
         //rndmatx = Mat::ones(M,Dx,CV_32F)*(1.0/(2.0*G));
         //rndmaty = Mat::ones(M,Dy,CV_32F)*(1.0/(2.0*G));
@@ -1680,7 +1692,7 @@ void EmbAttSpotter::learn_common_subspace()
     vconcat(cosMat(tmp),sinMat(tmp),tmp);
     Mat phocsTr_emb = (1/sqrt(M)) * tmp;
 #if TEST_MODE
-    if (test_mode)
+    if (test_mode==1)
     {
         vector< vector<float> > attReprTr_cossin;
         readCSV("test/i_attRepTr_cossin_test2.csv", attReprTr_cossin);
@@ -1713,7 +1725,7 @@ void EmbAttSpotter::learn_common_subspace()
         phocsTr_emb.col(c) = phocsTr_emb.col(c) - mh;
     }
 #if TEST_MODE
-    if (test_mode)
+    if (test_mode==1)
     {
         vector< vector<float> > attReprTr_ma;
         readCSV("test/i_attRepTr_ma_test2.csv", attReprTr_ma);
@@ -1770,7 +1782,7 @@ void EmbAttSpotter::cca2(Mat X, Mat Y, float reg, int d, Mat& Wx, Mat& Wy)
     Mat Cxy = X.t()*Y / N;
     Mat Cyx = Cxy.t();
 #if TEST_MODE
-    if (test_mode)
+    if (test_mode==1)
     {
         vector< vector<float> > loadCxx;
         readCSV("test/i_Cxx_test2.csv", loadCxx);
@@ -1804,7 +1816,7 @@ void EmbAttSpotter::cca2(Mat X, Mat Y, float reg, int d, Mat& Wx, Mat& Wy)
             solve(Cyy.t(),tmp.t(),tmp);
     Mat M =  (tmp.t())*Cyx;
 #if TEST_MODE
-    if (test_mode)
+    if (test_mode==1)
     {
         vector< vector<float> > loadM;
         readCSV("test/i_M_test2.csv", loadM);
@@ -2056,7 +2068,7 @@ void EmbAttSpotter::get_GMM_PCA(int numWordsTrainGMM, string saveAs, bool retrai
         #if TEST_MODE
         Mat newFor_PCA;
         #endif
-        if (test_mode)
+        if (test_mode==1)
         {
             //Read in for_PCA from MATLAB's results
             vector<vector<float> > csv;
@@ -2104,7 +2116,7 @@ void EmbAttSpotter::get_GMM_PCA(int numWordsTrainGMM, string saveAs, bool retrai
                 resize(im, im, Size(minH, newWidth), 0, 0, INTER_CUBIC);
             }*/
             
-            if (test_mode)
+            if (test_mode==1)
             {
             //cout <<"image "<<imageIndex<<" size ["<<im.rows<<" "<<im.cols<<"]"<<endl;
             //cout << training_dataset->labels()[imageIndex] << endl;
@@ -2173,7 +2185,7 @@ void EmbAttSpotter::get_GMM_PCA(int numWordsTrainGMM, string saveAs, bool retrai
         }
         else
             cout <<"for_PCA is fullsized. "<<num_samples_PCA<<endl;
-        if (test_mode)
+        if (test_mode==1)
         {
             if (newFor_PCA.rows != for_PCA.rows || newFor_PCA.cols != for_PCA.cols)
             {
@@ -2191,7 +2203,7 @@ void EmbAttSpotter::get_GMM_PCA(int numWordsTrainGMM, string saveAs, bool retrai
             
         
         //GMM
-        if (test_mode)
+        if (test_mode==1)
         {
             vector<Mat> newBins(numSpatialX*numSpatialY);
             for (int i=0; i<numSpatialX*numSpatialY; i++)
@@ -2362,14 +2374,14 @@ const EmbAttSpotter::GMM_struct & EmbAttSpotter::GMM(bool retrain)
 
 void EmbAttSpotter::compute_PCA(const Mat& data, int PCA_dim)
 {
-    if (test_mode)
+    if (test_mode==1)
         cout<<"compute_PCA()"<<endl;
     assert(_PCA.eigvec.rows==0);
     /*PCA pt_pca(data, cv::Mat(), CV_PCA_DATA_AS_ROW, PCA_dim);
     assert(pt_pca.mean.type()==CV_32F);
     _PCA.mean = pt_pca.mean;
     
-    if (test_mode)
+    if (test_mode==1)
     {
         //test
         Mat testMean(1,128,CV_32F);
@@ -2422,7 +2434,7 @@ void EmbAttSpotter::compute_PCA(const Mat& data, int PCA_dim)
 
 void EmbAttSpotter::compute_GMM(const vector<Mat>& bins, int numSpatialX, int numSpatialY, int numGMMClusters)
 {
-    if (test_mode)
+    if (test_mode==1)
         cout<<"compute_GMM()"<<endl;
     assert(_GMM.means==NULL);
     _GMM.means = new float[numGMMClusters*AUG_PCA_DIM*numSpatialX*numSpatialY];
@@ -2450,7 +2462,7 @@ void EmbAttSpotter::compute_GMM(const vector<Mat>& bins, int numSpatialX, int nu
             for (int c=0; c<d.cols; c++)
                 assert(d.at<float>(r,c)==d.at<float>(r,c));
         */
-        if (test_mode)
+        if (test_mode==1)
         {
             vector<vector<float> > csv;
             readCSV("test/GMM_vecs/GMM_vec_"+to_string(i)+".csv",csv);
@@ -2477,6 +2489,8 @@ void EmbAttSpotter::compute_GMM(const vector<Mat>& bins, int numSpatialX, int nu
             
             vl_rand_seed (vl_get_rand(), 0) ;
         }
+        else if (test_mode==2)
+            vl_rand_seed (vl_get_rand(), 0) ;
         
         VlGMM* gmm = vl_gmm_new (VL_TYPE_FLOAT, AUG_PCA_DIM, numGMMClusters) ;
         vl_gmm_set_max_num_iterations (gmm, 30);
@@ -2520,7 +2534,7 @@ void EmbAttSpotter::compute_GMM(const vector<Mat>& bins, int numSpatialX, int nu
         _GMM.priors[i] /= sum;
     
     
-    if (test_mode)
+    if (test_mode==1)
      {
         vector<vector<float> > GMM_mean;
         readCSV("test/GMM_mean_test.csv",GMM_mean);
@@ -2744,6 +2758,7 @@ Mat& EmbAttSpotter::normalizeL2Columns(Mat& m)
     Mat tmp;
     multiply(m,m,tmp);
     reduce(tmp,tmp,0,CV_REDUCE_SUM);
+    assert(tmp.rows==1);
     sqrt(tmp,tmp);
     for (int c=0; c<m.cols; c++)
     {

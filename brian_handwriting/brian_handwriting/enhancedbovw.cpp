@@ -368,10 +368,10 @@ float EnhancedBoVW::scanImageHorz(const vector< vector< Mat > >* samplesCodedII,
     
 #if SHOW_HEATMAP
     Mat scores(samplesCoded.size(), samplesCoded[0].size(), CV_32FC3);
-    float maxScore=0;
+    float minScore=99999;
 #endif
+    float maxScore=-99999;
     
-    float minScore=9999;
     
     
     
@@ -405,15 +405,15 @@ float EnhancedBoVW::scanImageHorz(const vector< vector< Mat > >* samplesCodedII,
         }
 #if SHOW_HEATMAP
         scores.at<Vec3f>(0, x/hStride) = Vec3f(score1,score2,score3);
-        if (score1>maxScore) maxScore=score1;
-        if (score2>maxScore) maxScore=score2;
-        if (score3>maxScore) maxScore=score3;
-#endif
-        
         if (score1<minScore) minScore=score1;
         if (score2<minScore) minScore=score2;
         if (score3<minScore) minScore=score3;
+#endif
         
+        if (score1>maxScore) maxScore=score1;
+        if (score2>maxScore) maxScore=score2;
+        if (score3>maxScore) maxScore=score3;
+       assert(maxScore!=0); 
         
         
         delete desc1;
@@ -481,8 +481,8 @@ float EnhancedBoVW::scanImageHorz(const vector< vector< Mat > >* samplesCodedII,
     
     waitKey();
 #endif
-    
-    return -1*minScore;
+    assert(maxScore>-99999);
+    return -1*maxScore;
 }
 
 float EnhancedBoVW::compareImage(const Mat &img, const vector<float> &exemplar) const

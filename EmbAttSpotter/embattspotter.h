@@ -34,7 +34,7 @@ extern "C" {
 }
 #endif
 
-
+#include <math.h>
 
 #define SIFT_DIM 128
 #define DESC_DIM (SIFT_DIM+2)
@@ -173,8 +173,8 @@ private:
     Mat batch_att(int batchNum);
 
     void learn_attributes_bagging();
-    Mat cvSVM(const Mat& featsTrain, const double* labelsTrain, const Mat& featsVal, const float* labelsVal, VlSvm * &bestsvm);
-    double modelMap(VlSvm * svm, const Mat& featsVal, const float* labelsVal);
+    Mat cvSVM(const Mat& featsTrain, const double* labelsTrain, const Mat& featsVal, const float* labelsVal, VlSvm ** bestsvm);
+    double modelMap(int model_size, double const* svm, const Mat& featsVal, const float* labelsVal);
     
     Mat select_rows(const Mat& m, vector<int> idx);
 
@@ -255,8 +255,14 @@ private:
         void learn_attributes_bagging_test();
         
         void readCSV(string fileName, vector< vector<float> >& out);
+        void readCSV(string fileName, Mat& out);
         void compareToCSV(Mat mine, string csvloc, bool transpose=false, float thresh=0.001);
         void compareToCSVAbs(Mat mine, string csvloc, bool transpose=false, float thresh=0.001);
+
+        void cvSVM_isotest();
+        void compute_PCA_isotest();
+        void compute_GMM_isotest();
+        void modelMap_isotest();
     #endif
     
 public:
