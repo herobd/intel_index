@@ -164,7 +164,7 @@ float EnhancedBoVW::scanImageHorz(int imageIdx, const vector<float> &exemplar, S
 }
 vector< vector< Mat/*< float >*/ > >* EnhancedBoVW::encodeImage(const Mat &img, Size* preprocessedSize) const
 {
-    
+    assert(img.rows>0); 
     Mat preprocessed = pre.process(img);
     if (preprocessedSize!=NULL)
         *preprocessedSize=preprocessed.size();
@@ -372,23 +372,53 @@ float EnhancedBoVW::scanImageHorz(const vector< vector< Mat > >* samplesCodedII,
 #endif
     float maxScore=-99999;
     
-    
-    
-    
-    for (int x=windowWidth3/3; x<preprocessedSize.width-windowWidth3/3; x+=hStride)
+    bool do3=true;
+    bool do2=true;
+    int startX=windowWidth3/3;
+    int endX=preprocessedSize.width-windowWidth3/3;
+    if (startX>=endX)
     {
+        do3=false;
+        startX=windowWidth2/3;
+        endX=preprocessedSize.width-windowWidth2/3;
+
+        if (startX>=endX)
+        {
+            do2=false;
+            startX=windowWidth/3;
+            endX=preprocessedSize.width-windowWidth/3;
+
+            if (startX>=endX)
+            {
+                startX=preprocessedSize.width/2;
+                endX=startX+1;
+            }
+        }
+    }
+
+    
+    for (int x=startX; x<endX; x+=hStride)
+    {
+        vector<float>* desc1;
+        vector<float>* desc2;
+        vector<float>* desc3;
+        
         
         Rect r1(x-windowWidth/2, 0, windowWidth, preprocessedSize.height);
-        Rect r2(x-windowWidth2/2, 0, windowWidth2, preprocessedSize.height);
-        Rect r3(x-windowWidth3/2, 0, windowWidth3, preprocessedSize.height);
-        
-        
-        vector<float>* desc1 = getPooledDescFastSkip(samplesCodedII, r1, spatialPyramids,skip);
+        desc1 = getPooledDescFastSkip(samplesCodedII, r1, spatialPyramids,skip);
         normalizeDesc(desc1);
-        vector<float>* desc2 = getPooledDescFastSkip(samplesCodedII, r2, spatialPyramids,skip);
-        normalizeDesc(desc2);
-        vector<float>* desc3 = getPooledDescFastSkip(samplesCodedII, r3, spatialPyramids,skip);
-        normalizeDesc(desc3);
+        if (do2)
+        {
+            Rect r2(x-windowWidth2/2, 0, windowWidth2, preprocessedSize.height);
+            desc2 = getPooledDescFastSkip(samplesCodedII, r2, spatialPyramids,skip);
+            normalizeDesc(desc2);
+        }
+        if (do3)
+        {
+            Rect r3(x-windowWidth3/2, 0, windowWidth3, preprocessedSize.height);
+            desc3 = getPooledDescFastSkip(samplesCodedII, r3, spatialPyramids,skip);
+            normalizeDesc(desc3);
+        }
         
         
         
@@ -399,26 +429,30 @@ float EnhancedBoVW::scanImageHorz(const vector< vector< Mat > >* samplesCodedII,
         for (int i=0; i<exemplar.size(); i++)
         {
             score1 += exemplar[i]*(*desc1)[i];
-            score2 += exemplar[i]*(*desc2)[i];
-            score3 += exemplar[i]*(*desc3)[i];
+            if (do2)
+                score2 += exemplar[i]*(*desc2)[i];
+            if (do3)
+                score3 += exemplar[i]*(*desc3)[i];
             
         }
 #if SHOW_HEATMAP
         scores.at<Vec3f>(0, x/hStride) = Vec3f(score1,score2,score3);
         if (score1<minScore) minScore=score1;
-        if (score2<minScore) minScore=score2;
-        if (score3<minScore) minScore=score3;
+        if (do2 && score2<minScore) minScore=score2;
+        if (do3 && score3<minScore) minScore=score3;
 #endif
         
         if (score1>maxScore) maxScore=score1;
-        if (score2>maxScore) maxScore=score2;
-        if (score3>maxScore) maxScore=score3;
-       assert(maxScore!=0); 
+        if (do2 && score2>maxScore) maxScore=score2;
+        if (do3 && score3>maxScore) maxScore=score3;
+       //assert(maxScore!=0); 
         
         
         delete desc1;
-        delete desc2;
-        delete desc3;
+        if (do2)
+            delete desc2;
+        if (do3)
+            delete desc3;
         
 //            cout << "scores("<<x<<","<<y<<"): " << score1 << ", " << score2 << ", " << score3 << endl;
 //            Mat tmp;
@@ -540,7 +574,16 @@ void EnhancedBoVW::showEncoding(const Mat &img) const
     }
 }
 
-
+/*bool nonzero(vector< vector< Mat > >* t)
+{
+    for (vector< Mat >& v : *t)
+        for (Mat& m : v)
+            for (int r=0; r<m.rows; r++)
+                for (int c=0; c<m.cols; c++)
+                    if (m.at<float>(r,c)!=0)
+                        return true;
+    return false;
+}*/
 
 vector< vector< Mat/*< float >*/ > >* EnhancedBoVW::codeDescriptorsIntegralImageSkip(vector< description >* desc, Mat::MSize imgsize, int skip) const
 {
@@ -638,10 +681,13 @@ vector< vector< Mat/*< float >*/ > >* EnhancedBoVW::codeDescriptorsIntegralImage
         }
     }
     assert(iter==desc->end());
+    //assert(nonzero(ret));
     
     delete desc;
     return ret;
 }
+
+
 
 void EnhancedBoVW::color(Mat &heatMap, float score, float maxV, float minV, int midI, int midJ) const
 {

@@ -1368,7 +1368,7 @@ void EmbAttSpotter::learn_attributes_bagging()
                     float labelsVal[featsVal.rows];//binary vector, 1 where idxAtt is not zero, -1 where it is zero
                     for (int r=0; r<featsVal.rows; r++)
                     {
-                        labelsVal[r] = phocsTr().at<float>(idxAtt,idxVal[r])!=0?1:-1;
+                        labelsVal[r] = phocsTr().at<float>(idxAtt,idxVal[r])!=0?1:0; //instrad of -1 as it isn't used in SVM
                     }
                     
                     VlSvm * svm=NULL;
@@ -1383,14 +1383,14 @@ void EmbAttSpotter::learn_attributes_bagging()
                     #pragma omp critical (learn_attributes_bagging_inside)
                     {
                         _attModels->W.col(idxAtt) += modelAtt;
-                        assert(featsVal.cols==numSamples);
-                        assert(vl_svm_get_dimension(svm)==numSamples);
-                        for (int c=0; c<featsVal.cols; c++)
+                        assert(featsVal.rows==numSamples);
+                        assert(vl_svm_get_dimension(svm)==featsVal.cols);
+                        for (int r=0; r<featsVal.rows; r++)
                         {
                             float s=0;
-                            for (int r=0; r<featsVal.rows; r++)
-                                s += featsVal.at<float>(r,c)*((double const*)vl_svm_get_model(svm))[r];
-                            _attReprTr.at<float>(idxAtt,c)+=s;
+                            for (int c=0; c<featsVal.cols; c++)
+                                s += featsVal.at<float>(r,c)*((double const*)vl_svm_get_model(svm))[c];
+                            _attReprTr.at<float>(idxAtt,r)+=s;
                         }
                     }
                     vl_svm_delete(svm);
@@ -1435,33 +1435,44 @@ void EmbAttSpotter::learn_attributes_bagging()
 
 Mat EmbAttSpotter::cvSVM(const Mat& featsTrain, const double* labelsTrain, const Mat& featsVal, const float* labelsVal, VlSvm ** bestsvm)
 {
-    Mat double_featsTrain;
-    featsTrain.convertTo(double_featsTrain, CV_64F);
-    assert(double_featsTrain.at<double>(0,0)==((double*)double_featsTrain.data)[0]);
-    assert(double_featsTrain.at<double>(0,1)==((double*)double_featsTrain.data)[1]);
-    assert(double_featsTrain.at<double>(1,0)==((double*)double_featsTrain.data)[double_featsTrain.cols]);
-    assert(double_featsTrain.isContinuous());
+    //Mat double_featsTrain;
+    //featsTrain.convertTo(double_featsTrain, CV_64F);
+    //assert(double_featsTrain.at<double>(0,0)==((double*)double_featsTrain.data)[0]);
+    //assert(double_featsTrain.at<double>(0,1)==((double*)double_featsTrain.data)[1]);
+    //assert(double_featsTrain.at<double>(1,0)==((double*)double_featsTrain.data)[double_featsTrain.cols]);
+    //assert(double_featsTrain.isContinuous());
+    assert(featsTrain.cols == featsVal.cols);
     assert(*bestsvm==NULL);
     double bestmap=0;
     double bestlambda=0;
+
+    VlSvmDataset* dataset = vl_svmdataset_new(VL_TYPE_FLOAT,(float*)featsTrain.data, featsTrain.cols, featsTrain.rows) ;
+
     for (double lambda : sgdparams_lbds)
     {
         if (test_mode!=0)
             vl_rand_seed (vl_get_rand(), 0) ;
        
-        VlSvm * svm = vl_svm_new(VlSvmSolverSdca,//stochastic dual cord ascent
-                               (double*)double_featsTrain.data, featsTrain.cols, featsTrain.rows,
+        VlSvm * svm = vl_svm_new_with_dataset(VlSvmSolverSdca,//stochastic dual cord ascent
+                               dataset,
                                labelsTrain,
                                lambda) ;
         //VlSvm * svm = vl_svm_new(VlSvmSolverSdca,//stochastic dual cord ascent
         //                       (double*)double_featsTrain.data, featsTrain.cols, featsTrain.rows,
         //                       labelsTrain,
         //                       lambda) ;
+        //VlSvm * svm = vl_svm_new(VlSvmSolverSdca,//stochastic dual cord ascent
+        //                       (double*)double_featsTrain.data, featsTrain.cols, featsTrain.rows,
+        //                       labelsTrain,
+        //                       lambda) ;
         assert(svm!=NULL);
+        vl_svm_set_loss(svm,VlSvmLossHinge);
         vl_svm_set_bias_multiplier (svm, 0.1);
+        if (test_mode!=0)
+            vl_rand_seed (vl_get_rand(), 0) ;
         vl_svm_train(svm) ;
         
-        double cmap = modelMap(vl_svm_get_num_data(svm),vl_svm_get_model(svm),featsVal,labelsVal);
+        double cmap = modelMap(vl_svm_get_dimension(svm),vl_svm_get_model(svm),featsVal,labelsVal);
         if (cmap > bestmap || *bestsvm==NULL)
         {
             bestmap=cmap;
@@ -1475,9 +1486,9 @@ Mat EmbAttSpotter::cvSVM(const Mat& featsTrain, const double* labelsTrain, const
             vl_svm_delete(svm);
         }
     }
-    Mat ret(vl_svm_get_num_data(*bestsvm),1,CV_32F);
+    Mat ret(vl_svm_get_dimension(*bestsvm),1,CV_32F);
     double const* model = vl_svm_get_model(*bestsvm);
-    for (int r=0; r<vl_svm_get_num_data(*bestsvm); r++)
+    for (int r=0; r<vl_svm_get_dimension(*bestsvm); r++)
     {
         double ddd = model[r];
         bool ttt = isfinite(ddd);
@@ -1485,24 +1496,26 @@ Mat EmbAttSpotter::cvSVM(const Mat& featsTrain, const double* labelsTrain, const
         ret.at<float>(r,0)=model[r];
     }
     assert(*bestsvm!=NULL);
+    vl_svmdataset_delete(dataset);
     return ret;
 }
 
 double EmbAttSpotter::modelMap(int model_size, double const* svm_model, const Mat& featsVal, const float* labelsVal)
-{
-    vector< pair<int,float> > scores(featsVal.cols);
+{       
+    assert(model_size==featsVal.cols); 
+    vector< pair<int,float> > scores(featsVal.rows);
     int N=0;
-    for (int c=0; c<featsVal.cols; c++)
+    for (int r=0; r<featsVal.rows; r++)
     {
         float s=0;
-        for (int r=0; r<model_size; r++) {
-            s += featsVal.at<float>(r,c)*svm_model[r];
+        for (int c=0; c<model_size; c++) {
+            s += featsVal.at<float>(r,c)*svm_model[c];
             //assert(isfinite(svm_model[r]));
-            if (!isfinite(svm_model[r]))
+            if (!isfinite(svm_model[c]))
                 return -1;
         }
-        scores.at(c)=make_pair(labelsVal[c],s);
-        N+=labelsVal[c];
+        scores.at(r)=make_pair(labelsVal[r],s);
+        N+=labelsVal[r];
     }
     sort(scores.begin(), scores.end(),[](const pair<int,float>& lh, const pair<int,float>& rh) {return lh.second>rh.second;}); 
     vector<float> acc(scores.size());
@@ -2457,6 +2470,7 @@ void EmbAttSpotter::compute_GMM(const vector<Mat>& bins, int numSpatialX, int nu
         hconcat(d,xy,d);
         assert(d.type() == CV_32F);
         assert(d.cols==AUG_PCA_DIM);
+        assert(d.rows==bins[i].rows);
         assert(d.isContinuous());
         /*for (int r=0; r<d.rows; r++)
             for (int c=0; c<d.cols; c++)
@@ -2490,8 +2504,11 @@ void EmbAttSpotter::compute_GMM(const vector<Mat>& bins, int numSpatialX, int nu
             vl_rand_seed (vl_get_rand(), 0) ;
         }
         else if (test_mode==2)
+        {
+            compareToCSV(d,"test/GMM_vecs/GMM_vec_"+to_string(i)+".csv",true);
             vl_rand_seed (vl_get_rand(), 0) ;
-        
+        }
+
         VlGMM* gmm = vl_gmm_new (VL_TYPE_FLOAT, AUG_PCA_DIM, numGMMClusters) ;
         vl_gmm_set_max_num_iterations (gmm, 30);
         vl_gmm_set_num_repetitions (gmm, 2);

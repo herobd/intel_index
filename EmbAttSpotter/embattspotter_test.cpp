@@ -611,7 +611,7 @@ void EmbAttSpotter::readCSV(string fileName, vector< vector<float> >& out)
         out.push_back(row);
     }
 }
-void EmbAttSpotter::readCSV(string fileName, Mat& out)
+void EmbAttSpotter::readCSV(string fileName, Mat& out, bool trans)
 {
     ifstream in(fileName);
     string line;
@@ -634,6 +634,8 @@ void EmbAttSpotter::readCSV(string fileName, Mat& out)
     for (int r=0; r<outA.size(); r++)
         for (int c=0; c<outA[0].size(); c++)
             out.at<float>(r,c)=outA[r][c];
+    if (trans)
+        out=out.t();
 }
 
 void EmbAttSpotter::phocsTr_testM()//dlmwrite('phocs.csv',phocs,'precision',5) 
@@ -828,8 +830,8 @@ void EmbAttSpotter::compute_GMM_isotest()
     vector<Mat> bins(numSpatialX*numSpatialY);
     int num=0;
     for (int xBin=0; xBin<numSpatialX; xBin++)
-        for (int yBin=0; yBin<numSpatialY; yBin++)
-            readCSV("test/GMM_vecs/GMM_vecs_"+to_string(num)+"_test.csv",bins[++num]);
+        for (int yBin=0; yBin<numSpatialY; yBin++, num++)
+            readCSV("test/GMM_vecs/GMM_descs_"+to_string(num)+".csv",bins[num],true);
     //read assign PCA mean, eigvec
     readCSV("test/PCA_mean_test.csv",_PCA.mean);
     readCSV("test/PCA_eigvec_test.csv",_PCA.eigvec);
@@ -864,7 +866,7 @@ void EmbAttSpotter::compute_GMM_isotest()
 void EmbAttSpotter::modelMap_isotest()
 {
     Mat featsVal;
-    readCSV("test/cvSVM_featsVal_test.csv",featsVal);
+    readCSV("test/cvSVM_featsVal_test.csv",featsVal,true);
     Mat labelsVal;
     readCSV("test/cvSVM_labelsVal_test.csv",labelsVal);
     
@@ -903,12 +905,14 @@ void EmbAttSpotter::modelMap_isotest()
 void EmbAttSpotter::cvSVM_isotest()
 {
     Mat featsTrain;
-    readCSV("test/cvSVM_featsTrain_test.csv",featsTrain);
+    readCSV("test/cvSVM_featsTrain_test.csv",featsTrain,true);
     Mat labelsTrain;
     readCSV("test/cvSVM_labelsTrain_test.csv",labelsTrain);
+    labelsTrain*=2;
+    labelsTrain-=1;
     labelsTrain.convertTo(labelsTrain, CV_64F);
     Mat featsVal;
-    readCSV("test/cvSVM_featsVal_test.csv",featsVal);
+    readCSV("test/cvSVM_featsVal_test.csv",featsVal,true);
     Mat labelsVal;
     readCSV("test/cvSVM_labelsVal_test.csv",labelsVal);
     VlSvm * svm=NULL;

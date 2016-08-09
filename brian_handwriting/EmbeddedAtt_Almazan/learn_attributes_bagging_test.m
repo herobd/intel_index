@@ -163,7 +163,7 @@ function model = cvSVM(featsTrain, labelsTrain, featsVal, labelsVal,   params)
            %     [Wv,Bv,info, scores] = vl_svmtrain(featsTrain, double(2*labelsTrain-1), double(lbd),'BiasMultiplier', 0.1, 'weights', double(weightsTrain));
             %else
                 vl_twister('state',0);
-                [Wv,Bv,info, scores] = vl_svmtrain(featsTrain, double(2*labelsTrain-1), double(lbd),'BiasMultiplier', 0.1);
+                [Wv,Bv,info, scores] = vl_svmtrain_0(featsTrain, double(2*labelsTrain-1), double(lbd),'BiasMultiplier', 0.1);
             %end
             cmap = modelMap(Wv'*featsVal, labelsVal);
             if cmap > bestmap
