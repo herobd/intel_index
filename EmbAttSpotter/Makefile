@@ -1,6 +1,6 @@
 CXX = g++-4.9 
 LINK = g++-4.9
-CXX_FLAGS =    -std=c++11 -g #-O3 
+CXX_FLAGS =    -std=c++11 -O3  #-g
 
 SOURCES += main.cpp
 INCLUDE +=  -Ivlfeat-0.9.20 -Imatio-1.5.6/src -I/usr/local/MATLAB/R2015a/extern/include -I"/usr/local/MATLAB/R2015a/simulink/include"

@@ -112,15 +112,19 @@ for s = 1:length(opts.numSpatialX)
         for k=1:opts.numSpatialY(s)
             d = cat(2, descrs{s}{j,k}{:});
             [d,drop] = normalizeSift(opts,d);
-            dlmwrite(['GMM_vecs/GMM_descs_' num2str((j-1)*opts.numSpatialY(s)+(k-1)) '.csv'],d,'precision',8);
+            dlmwrite(['GMM_vecs/GMM_descs_' num2str((j-1)*opts.numSpatialY(s)+(k-1)) '.csv'],d,'precision',15);
             xy = d(opts.SIFTDIM+1:end,:);
             d=bsxfun(@minus, d(1:opts.SIFTDIM,:), PCA.mean);
             d=PCA.eigvec'*d;
             
             d = [d; xy];
-            dlmwrite(['GMM_vecs/GMM_vec_' num2str((j-1)*opts.numSpatialY(s)+(k-1)) '.csv'],d,'precision',8);
-            vl_twister('state',0); 
-            [mu,sigma,we] = vl_gmm(d, opts.G, 'MaxNumIterations', 30, 'NumRepetitions', 2); 
+            dlmwrite(['GMM_vecs/GMM_vec_' num2str((j-1)*opts.numSpatialY(s)+(k-1)) '.csv'],d,'precision',15);
+            vl_twister('state',0);
+            if (j-1)*opts.numSpatialY(s)+(k-1)==7 || (j-1)*opts.numSpatialY(s)+(k-1)==6
+                [mu,sigma,we] = vl_gmm(d, opts.G, 'MaxNumIterations', 30, 'NumRepetitions', 2, 'verbose'); 
+            else
+                [mu,sigma,we] = vl_gmm(d, opts.G, 'MaxNumIterations', 30, 'NumRepetitions', 2);
+            end 
             we = we'; 
             GMM.we = [GMM.we we];
             GMM.mu = [GMM.mu mu];
@@ -130,7 +134,7 @@ for s = 1:length(opts.numSpatialX)
 end
 GMM.we = GMM.we/sum(GMM.we);
 
-
+crash
 
 function [descrs_normalized,frames_normalized] = normalizeSift(opts,descrs,frames)
 % -------------------------------------------------------------------------

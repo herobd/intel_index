@@ -21,6 +21,10 @@ dimFeats = size(data.feats_training,1);
 attFeatsTr = single(zeros(numAtt,numSamples));
 att_models = struct('W',[],'B',[],'numPosSamples',[]);
 
+
+%dlmwrite(['learn_attributes_bagging_feats_training_test.csv'],data.feats_training,'precision',10);
+%dlmwrite(['learn_attributes_bagging_phocs_training_test.csv'],data.phocs_training,'precision',10);
+
 % For each attribute
 for idxAtt = 1:numAtt
     [model, encodedTr] = learn_att(idxAtt,data.feats_training, data.phocs_training,dimFeats, numSamples, opts, params);

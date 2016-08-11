@@ -172,12 +172,10 @@ vector<float> EmbAttSpotter::spot(const Mat& exemplar, string word, float alpha)
     assert(alpha>=0 && alpha<=1);
     assert(word.length()>0 || alpha==1);
     assert(exemplar.rows*exemplar.cols>1 || alpha==0);
+    assert (exemplar.channels()==1);
     
     
-    
-    Mat im;
-    exemplar.convertTo(im, CV_32FC1);
-    Mat query_feats = extract_feats(im);
+    Mat query_feats = extract_feats(exemplar);
     
     Mat query_att = attModels().W.t()*query_feats.t();
     Mat query_phoc = Mat::zeros(phocSize+phocSize_bi,1,CV_32F);
@@ -1282,7 +1280,7 @@ void EmbAttSpotter::learn_attributes_bagging()
         cout<<"learn_attributes_bagging()"<<endl;
     int dimFeats=feats_training().cols;
     int numAtt = phocsTr().rows;
-    if (test_mode==1)//==1)
+    if (test_mode)//==1)
         numAtt=200;
     
     int numSamples = phocsTr().cols;
@@ -1297,7 +1295,7 @@ void EmbAttSpotter::learn_attributes_bagging()
     threshold(phocsTr(),threshed, 0.47999, 1, THRESH_BINARY);
     assert(threshed.type()==CV_32F);
     
-    #pragma omp parallel for  num_threads(4)//I'm aumming I can read-only from Mats without worrying about thread stuff. If wrong, use data ptr
+    #pragma omp parallel for // num_threads(4)//I'm aumming I can read-only from Mats without worrying about thread stuff. If wrong, use data ptr
     for (int idxAtt=0; idxAtt<numAtt; idxAtt++)
     {
         //learn_att(...)
@@ -1383,15 +1381,19 @@ void EmbAttSpotter::learn_attributes_bagging()
                     #pragma omp critical (learn_attributes_bagging_inside)
                     {
                         _attModels->W.col(idxAtt) += modelAtt;
-                        assert(featsVal.rows==numSamples);
+                        //assert(featsVal.rows==numSamples);
                         assert(vl_svm_get_dimension(svm)==featsVal.cols);
-                        for (int r=0; r<featsVal.rows; r++)
+                        /*for (int r=0; r<featsVal.rows; r++)
                         {
                             float s=0;
                             for (int c=0; c<featsVal.cols; c++)
                                 s += featsVal.at<float>(r,c)*((double const*)vl_svm_get_model(svm))[c];
-                            _attReprTr.at<float>(idxAtt,r)+=s;
-                        }
+                            _attReprTr.at<float>(idxAtt,idxVal[r])+=s;
+                        }*/
+                        Mat sc = modelAtt.t() * featsVal.t();
+                        assert(sc.cols==featsVal.rows);
+                        for (int r=0; r<featsVal.rows; r++)
+                            _attReprTr.at<float>(idxAtt,idxVal[r])+=sc.at<float>(0,r);
                     }
                     vl_svm_delete(svm);
                     
@@ -1425,7 +1427,8 @@ void EmbAttSpotter::learn_attributes_bagging()
                 #pragma omp critical (learn_attributes_bagging_inside)
                 {
                     _attModels->W.col(idxAtt) /= (float)N;
-                    divide(_attReprTr(Rect(0,idxAtt,numSamples,1)),Np,_attReprTr(Rect(0,idxAtt,numSamples,1)));
+                    //divide(_attReprTr(Rect(0,idxAtt,numSamples,1)),Np,_attReprTr(Rect(0,idxAtt,numSamples,1)));
+                    divide(_attReprTr.row(idxAtt),Np,_attReprTr.row(idxAtt));
                     _attModels->numPosSamples.at<float>(0,idxAtt) = ceil(numPosSamples/(double)N);
                 }
             }
@@ -1877,7 +1880,7 @@ void EmbAttSpotter::cca2(Mat X, Mat Y, float reg, int d, Mat& Wx, Mat& Wy)
     cout<<"arma2: eig"<<endl;
     arma::eig_gen( cxr, aWx, aM );
     cout<<"arma3:real "<<endl;
-    arma::vec r = arma::real(r);//      % Canonical correlations
+    arma::vec r = arma::real(cxr);//      % Canonical correlations
 
     // --- Sort correlations ---
 
@@ -2505,7 +2508,7 @@ void EmbAttSpotter::compute_GMM(const vector<Mat>& bins, int numSpatialX, int nu
         }
         else if (test_mode==2)
         {
-            compareToCSV(d,"test/GMM_vecs/GMM_vec_"+to_string(i)+".csv",true);
+            compareToCSV(d,"test/GMM_vecs/GMM_vec_"+to_string(i)+".csv",true,0.00001);
             vl_rand_seed (vl_get_rand(), 0) ;
         }
 
@@ -2513,6 +2516,8 @@ void EmbAttSpotter::compute_GMM(const vector<Mat>& bins, int numSpatialX, int nu
         vl_gmm_set_max_num_iterations (gmm, 30);
         vl_gmm_set_num_repetitions (gmm, 2);
         vl_gmm_set_initialization (gmm,VlGMMRand);
+        if (test_mode==2 && (i==7 || i==6))
+            vl_gmm_set_verbosity(gmm,1);
         
         assert(((float*) d.data)[1] == d.at<float>(0,1));
         assert(((float*) d.data)[d.cols] == d.at<float>(1,0));
