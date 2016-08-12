@@ -20,8 +20,16 @@ int main(int argc, char** argv)
 	TCLAP::SwitchArg testF("t","test","Run unit tests", cmd, false);
 	TCLAP::ValueArg<int> imageArg("i","image","show visual result", false,-1,"int");
 	cmd.add( imageArg );
+	TCLAP::ValueArg<int> image2Arg("c","image2","compare images", false,-1,"int");
+	cmd.add( image2Arg );
 	TCLAP::SwitchArg retrainAttReprTrF("1","attReprTr","Retrain attReprTr", cmd, false);
 	TCLAP::SwitchArg retrainEmbeddingF("2","embedding","Retrain embedding", cmd, false);
+	TCLAP::ValueArg<string> trainFileArg("9","train","training gtp file", false,"test/queries_train.gtp","string");
+	cmd.add( trainFileArg );
+	TCLAP::ValueArg<string> testFileArg("8","test","testing gtp file", false,"test/queries_test.gtp","string");
+	cmd.add( testFileArg );
+	TCLAP::ValueArg<string> imageDirArg("d","images","directory containing images", false,"/home/brian/intel_index/brian_handwriting/EmbeddedAtt_Almazan/datasets/GW/images/","string");
+	cmd.add( imageDirArg );
 	cmd.parse( argc, argv );
 
 	 
@@ -35,9 +43,9 @@ int main(int argc, char** argv)
 	if ( evalF.getValue() )
 	{
 	    EmbAttSpotter spotter(modelArg.getValue());
-	    GWDataset train("test/queries_train.gtp","/home/brian/intel_index/brian_handwriting/EmbeddedAtt_Almazan/datasets/GW/images/");
-	    GWDataset test("test/queries_test.gtp","/home/brian/intel_index/brian_handwriting/EmbeddedAtt_Almazan/datasets/GW/images/");
-	    spotter.setTraining_dataset(&train);
+	    GWDataset train(trainFileArg.getValue(),imageDirArg.getValue());
+	    GWDataset test(testFileArg.getValue(),imageDirArg.getValue());
+            spotter.setTraining_dataset(&train);
 	    
 	    if ( retrainAttReprTrF.getValue() )
 	        spotter.attReprTr(true);
@@ -49,43 +57,52 @@ int main(int argc, char** argv)
 	
 	if ( imageArg.getValue()>=0 )
 	{
-	    EmbAttSpotter spotter("model/evalGW");
-	    GWDataset train("test/queries_train.gtp","/home/brian/intel_index/brian_handwriting/EmbeddedAtt_Almazan/datasets/GW/images/");
-	    GWDataset test("test/queries_test.gtp","/home/brian/intel_index/brian_handwriting/EmbeddedAtt_Almazan/datasets/GW/images/");
+	    EmbAttSpotter spotter(modelArg.getValue());
+	    GWDataset train(trainFileArg.getValue(),imageDirArg.getValue());
+	    GWDataset test(testFileArg.getValue(),imageDirArg.getValue());
 	    spotter.setTraining_dataset(&train);
 	    spotter.setCorpus_dataset(&test);
 	    
 	    int ex=imageArg.getValue();
 	    
-	    cout <<"test word "<<test.labels()[ex]<<endl;
-	    imshow("test word",test.image(ex));
-	    
-	    vector<float> scores = spotter.spot(test.image(ex), "", 1);
-	    multimap<float, int> ranked;
-	    for (int i=0; i<scores.size(); i++)
-	        ranked.emplace(scores[i],i);
-            auto iter = ranked.end();
-            for (int i=1; i<=5; i++)
+	    if ( image2Arg.getValue()>=0 )
             {
-                iter--;
-                cout<<"I rank "<<i<<" is "<<iter->second<<" with score "<<iter->first<<endl;
-                imshow("I "+to_string(i),test.image(iter->second));
-                
+                int ex2= image2Arg.getValue();
+                double score = spotter.compare(test.image(ex),test.image(ex2));
+                cout <<"score: "<<score<<endl;
             }
-            
-            scores = spotter.spot(test.image(ex), test.labels()[ex], 0);
-	    ranked.clear();
-	    for (int i=0; i<scores.size(); i++)
-	        ranked.emplace(scores[i],i);
-            iter = ranked.end();
-            for (int i=1; i<=5; i++)
+            else
             {
-                iter--;
-                cout<<"T rank "<<i<<" is "<<iter->second<<" with score "<<iter->first<<endl;
-                imshow("T "+to_string(i),test.image(iter->second));
+                cout <<"test word "<<test.labels()[ex]<<endl;
+                imshow("test word",test.image(ex));
                 
+                vector<float> scores = spotter.spot(test.image(ex), "", 1);
+                multimap<float, int> ranked;
+                for (int i=0; i<scores.size(); i++)
+                    ranked.emplace(scores[i],i);
+                auto iter = ranked.end();
+                for (int i=1; i<=5; i++)
+                {
+                    iter--;
+                    cout<<"I rank "<<i<<" is "<<iter->second<<" with score "<<iter->first<<endl;
+                    imshow("I "+to_string(i),test.image(iter->second));
+                    
+                }
+                
+                scores = spotter.spot(test.image(ex), test.labels()[ex], 0);
+                ranked.clear();
+                for (int i=0; i<scores.size(); i++)
+                    ranked.emplace(scores[i],i);
+                iter = ranked.end();
+                for (int i=1; i<=5; i++)
+                {
+                    iter--;
+                    cout<<"T rank "<<i<<" is "<<iter->second<<" with score "<<iter->first<<endl;
+                    imshow("T "+to_string(i),test.image(iter->second));
+                    
+                }
+                waitKey();
             }
-            waitKey();
 	}
 
 

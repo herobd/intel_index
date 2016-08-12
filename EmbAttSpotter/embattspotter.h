@@ -274,6 +274,7 @@ public:
     void loadCorpus(string dir);
     void setTrainData(string gtFile, string imageDir, string saveAs="");
     vector<float> spot(const Mat& exemplar) {return spot(exemplar,"",1);}
+    double compare(const Mat& im1, const Mat& im2);
     vector<struct spotting_sw> spot_sw(const Mat& exemplar) {return spot_sw(exemplar,"",1);}
     vector<float> spot(const Mat& exemplar, string word, float alpha=0.5);
     vector<struct spotting_sw> spot_sw(const Mat& exemplar, string ngram, float alpha=0.5);

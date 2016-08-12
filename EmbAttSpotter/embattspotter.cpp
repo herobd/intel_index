@@ -326,6 +326,57 @@ vector<float> EmbAttSpotter::spot(const Mat& exemplar, string word, float alpha)
     return scores;
 }
 
+double EmbAttSpotter::compare(const Mat& im1, const Mat& im2)
+{
+    assert(im1.rows*im1.cols>1);
+    assert (im1.channels()==1);
+    assert(im2.rows*im2.cols>1);
+    assert (im2.channels()==1);
+    
+    
+    Mat query_feats1 = extract_feats(im1);
+    Mat query_feats2 = extract_feats(im2);
+    
+    
+    Mat query_att1 = attModels().W.t()*query_feats1.t();
+    Mat query_att2 = attModels().W.t()*query_feats2.t();
+
+    Mat matx = embedding().rndmatx;//(Rect(0,0,embedding().M,embedding().rndmatx.cols));
+    assert(matx.rows==embedding().M);
+    
+    //checkNaN(query_phoc);
+    //checkNaN(maty);
+    
+    Mat tmp = matx*query_att1;
+    vconcat(cosMat(tmp),sinMat(tmp),tmp);
+    assert(embedding().matt.size() == tmp.size());
+    Mat query_emb_att1 = (1/sqrt(embedding().M)) * tmp - embedding().matt;
+    
+    Mat query_cca_att1 = embedding().Wx.t()*query_emb_att1;
+    
+    
+    normalizeL2Columns(query_cca_att1);
+    
+    tmp = matx*query_att2;
+    vconcat(cosMat(tmp),sinMat(tmp),tmp);
+    assert(embedding().matt.size() == tmp.size());
+    Mat query_emb_att2 = (1/sqrt(embedding().M)) * tmp - embedding().matt;
+    
+    Mat query_cca_att2 = embedding().Wx.t()*query_emb_att2;
+    
+    
+    normalizeL2Columns(query_cca_att2);
+    /*cout <<"Query: ";
+    for (int r=0; r<query_cca_hy.rows; r++)
+        for (int c=0; c<query_cca_hy.cols; c++)
+            cout <<query_cca_hy.at<float>(r,c)<<", ";
+    cout<<endl;*/
+    //checkNaN(query_cca_hy);
+    
+    
+    return query_cca_att1.dot(query_cca_att2);
+}
+
 Mat EmbAttSpotter::extract_feats(const Mat& im)
 {
     
@@ -1253,7 +1304,9 @@ const vector<Mat>& EmbAttSpotter::batches_cca_att()
                     for (int c=0; c<batch_emb_att.cols; c++)
                         batch_emb_att.col(c) -= embedding().matt;
                     Mat batch_cca_att = embedding().Wx.t()*batch_emb_att;
+                    normalizeL2Columns(batch_cca_att);
                     _batches_cca_att->at(i)=batch_cca_att;
+
                 }
                 
                 //save
