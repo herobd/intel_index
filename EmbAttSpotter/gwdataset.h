@@ -27,7 +27,7 @@ private:
     
 public:
     GWDataset(const string& queries, const string& imDir, int minH=80, int maxH=80, int margin=16);
-    virtual const vector<string> labels() const;
+    virtual const vector<string>& labels() const;
     virtual int size() const;
     virtual const Mat image(unsigned int i) const;
 };

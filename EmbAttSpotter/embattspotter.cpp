@@ -325,6 +325,130 @@ vector<float> EmbAttSpotter::spot(const Mat& exemplar, string word, float alpha)
     //return s.toVector();
     return scores;
 }
+vector<float> EmbAttSpotter::subwordSpot(const Mat& exemplar, string word, float alpha)
+{
+    assert(alpha>=0 && alpha<=1);
+    assert(word.length()>0 || alpha==1);
+    assert(exemplar.rows*exemplar.cols>1 || alpha==0);
+    assert (exemplar.channels()==1);
+    
+    
+    Mat query_feats = extract_feats(exemplar);
+    
+    Mat query_att = attModels().W.t()*query_feats.t();
+    Mat query_phoc = Mat::zeros(phocSize+phocSize_bi,1,CV_32F);
+    if (alpha < 1)
+    {
+        computePhoc(word, vocUni2pos, map<string,int>(),unigrams.size(), phoc_levels, phocSize, query_phoc,0);
+        computePhoc(word, map<char,int>(), vocBi2pos,bigrams.size(), phoc_levels_bi, phocSize_bi, query_phoc,0);
+    }
+    
+
+    Mat matx = embedding().rndmatx;//(Rect(0,0,embedding().M,embedding().rndmatx.cols));
+    Mat maty = embedding().rndmaty;//(Rect(0,0,embedding().M,embedding().rndmatx.cols));
+    assert(matx.rows==embedding().M);
+    assert(maty.rows==embedding().M);
+    
+    Mat tmp;
+    Mat query_cca_att;
+    Mat query_cca_phoc;
+    if (alpha!=0)
+    {
+        tmp = matx*query_att;
+        vconcat(cosMat(tmp),sinMat(tmp),tmp);
+        assert(embedding().matt.size() == tmp.size());
+        Mat query_emb_att = (1/sqrt(embedding().M)) * tmp - embedding().matt;
+        
+        
+        query_cca_att = embedding().Wx.t()*query_emb_att;
+        
+        normalizeL2Columns(query_cca_att);
+    } 
+    if (alpha!=1)
+    { 
+        tmp = maty*query_phoc;
+        //checkNaN(tmp);
+        vconcat(cosMat(tmp),sinMat(tmp),tmp);
+        //checkNaN(embedding().mphoc);
+        //checkNaN(tmp);
+        assert(embedding().mphoc.size() == tmp.size());
+        Mat query_emb_phoc = (1/sqrt(embedding().M)) * tmp - embedding().mphoc;
+        query_cca_phoc = embedding().Wy.t()*query_emb_phoc;
+        //checkNaN(query_cca_phoc);
+        
+        
+        normalizeL2Columns(query_cca_phoc);
+    }
+    Mat query_cca_hy = query_cca_att*alpha + query_cca_phoc*(1-alpha);
+    
+    /*cout <<"Query: ";
+    for (int r=0; r<query_cca_hy.rows; r++)
+        for (int c=0; c<query_cca_hy.cols; c++)
+            cout <<query_cca_hy.at<float>(r,c)<<", ";
+    cout<<endl;*/
+    //checkNaN(query_cca_hy);
+    
+    
+    //Mat s;//scores
+    int numberOfInstances=-1;
+    if (corpus_imgfiles!=NULL)
+        numberOfInstances=corpus_imgfiles->size();
+    else if (corpus_dataset!=NULL)
+        numberOfInstances=corpus_dataset->size();
+        
+    //map <scores, pair<image,window> >
+    multimap<float,pair<int,int> > scores(numberOfInstances);
+    
+    
+
+    #pragma omp parallel for
+    for (int i=0; i<corpus_data->size(); i++)
+    {
+        Mat s_batch = subword_cca_att(i,windowWidth,stride).t()*query_cca_hy;
+        float topScoreInd;
+        float topScore=-999999;
+        float top2ScoreInd=-1;
+        float top2Score=-999999
+        for (int r=0; r<s_batch.rows; r++) {
+            float s = s_batch.at<float>(r,0);
+            if (s>topScore)
+            {
+                topScore=s;
+                topScoreInd=r;
+            }
+        }
+        int diff = windowWidth/stride;
+        for (int r=0; r<s_batch.rows; r++) {
+            float s = s_batch.at<float>(r,0);
+            if (s>top2Score && abs(r-topScoreInd)>diff)
+            {
+                top2Score=s;
+                top2ScoreInd=r;
+            }
+        }
+        scores[-1*topScore] = make_pair(i,topScoreInd);
+        if (top2ScoreInd!=-1)
+            scores[-1*top2Score] = make_pair(i,top2ScoreInd);
+    }
+    
+    //Now, we will refine only the top X% of the results
+    auto iter = scores.begin();
+    vector< SubwordSpottingResult > finalScores;
+    for (int i=0; i<score.size()*refinePortion; i++, iter++)
+    {
+        if (refineThresh!=0 && iter->first > -1*fabs(refineThresh))
+            break;
+        finalScores.push_back(refine(iter->second.first,iter->second.second,windowWidth,query_cca_hy));
+    }
+    
+
+    return finalScores;
+}
+
+SubwordSpottingResult EmbAttSpotter::refine(int imIdx, int windIdx, int windWidth, const Mat& query_cca)
+{
+    
+}
 
 double EmbAttSpotter::compare(const Mat& im1, const Mat& im2)
 {
@@ -985,7 +1109,10 @@ Mat EmbAttSpotter::phow(const Mat& im, const struct PCA_struct* PCA_pt)
         }
         //trans with eigen vectors (desc is tranposed in relation to ALmazan's code, flip back at end)
         if (PCA_pt!=NULL)
-            desc = (PCA_pt->eigvec.t()*desc.t()).t();
+        {
+            desc = (PCA_pt->eigvec.t()*desc.t());
+            desc=desc.t();
+        }
         #if DRAW
         #if USE_VL
         /**VL*/
@@ -1025,62 +1152,65 @@ Mat EmbAttSpotter::phow(const Mat& im, const struct PCA_struct* PCA_pt)
         #endif
         #endif
         
-        //append x,y information
-        Mat augmented(desc.rows, desc.cols+2, desc.type());
-        desc.copyTo(augmented(Rect(0, 0, desc.cols, desc.rows)));
-        for (unsigned int j=0; j<desc.rows; j++)
+        if (desc.rows>0)
         {
-            #if USE_VL
-            /**VL*/
-            
-            int kpx=kps[toKeep.at(j)].x;
-            int kpy=kps[toKeep.at(j)].y;
-            assert(kpx<im.cols);
-            assert(kpy<im.rows);
-            /*VL**/
-            #else
-            /**CV*/
-            int kpx=keyPoints.at(toKeep.at(j)).pt.x;
-            int kpy=keyPoints.at(toKeep.at(j)).pt.y;
-            /*CV**/
-            #endif
-            
-            
-            augmented.at<float>(j,desc.cols) = (kpx-cx)/(float)bb_w;
-            augmented.at<float>(j,desc.cols+1) = (kpy-cy)/(float)bb_h;
-            //TODO augmented.at<float>(j,desc.cols+2) = (size);
-            
-            #if DRAW
-            size=1;
-            Vec3b c(100+rand()%156,100+rand()%156,100+rand()%156);
-            for (int xx=kpx-size; xx<kpx+size; xx++)
-                for (int yy=kpy-size; yy<kpy+size; yy++)
-                    if (xx>=0 && xx<draw.cols && yy>=0 && yy<draw.rows)
-                    {
-                        draw.at<Vec3b>(yy,xx)=c;
-                    }
-            #endif
-        }
-        #if DRAW
-        imshow("SIFT",draw);
-        waitKey();
-        #endif
-        
-        #if USE_VL
-        vl_dsift_delete(dsift);
-        #endif
-        
-        //vconcat(feats,augmented,feats);
-        feats_m.push_back(augmented);
-        
-        if (PCA_pt!=NULL)
-        {
-            if (feats_m.cols!=AUG_PCA_DIM)
+            //append x,y information
+            Mat augmented(desc.rows, desc.cols+2, desc.type());
+            desc.copyTo(augmented(Rect(0, 0, desc.cols, desc.rows)));
+            for (unsigned int j=0; j<desc.rows; j++)
             {
-                cout << "feats_m.cols: "<<feats_m.cols<<endl;
-                cout << "AUG_PCA_DIM: "<<AUG_PCA_DIM<<endl;
+                #if USE_VL
+                /**VL*/
+                
+                int kpx=kps[toKeep.at(j)].x;
+                int kpy=kps[toKeep.at(j)].y;
+                assert(kpx<im.cols);
+                assert(kpy<im.rows);
+                /*VL**/
+                #else
+                /**CV*/
+                int kpx=keyPoints.at(toKeep.at(j)).pt.x;
+                int kpy=keyPoints.at(toKeep.at(j)).pt.y;
+                /*CV**/
+                #endif
+                
+                
+                augmented.at<float>(j,desc.cols) = (kpx-cx)/(float)bb_w;
+                augmented.at<float>(j,desc.cols+1) = (kpy-cy)/(float)bb_h;
+                //TODO augmented.at<float>(j,desc.cols+2) = (size);
+                
+                #if DRAW
+                size=1;
+                Vec3b c(100+rand()%156,100+rand()%156,100+rand()%156);
+                for (int xx=kpx-size; xx<kpx+size; xx++)
+                    for (int yy=kpy-size; yy<kpy+size; yy++)
+                        if (xx>=0 && xx<draw.cols && yy>=0 && yy<draw.rows)
+                        {
+                            draw.at<Vec3b>(yy,xx)=c;
+                        }
+                #endif
             }
-            assert(feats_m.cols==AUG_PCA_DIM);
+            #if DRAW
+            imshow("SIFT",draw);
+            waitKey();
+            #endif
+            
+            #if USE_VL
+            vl_dsift_delete(dsift);
+            #endif
+            
+            //vconcat(feats,augmented,feats);
+            feats_m.push_back(augmented);
+            
+            if (PCA_pt!=NULL)
+            {
+                if (feats_m.cols!=AUG_PCA_DIM)
+                {
+                    cout << "feats_m.cols: "<<feats_m.cols<<endl;
+                    cout << "AUG_PCA_DIM: "<<AUG_PCA_DIM<<endl;
+                }
+                assert(feats_m.cols==AUG_PCA_DIM);
+            }
         }
     }
     //for (int r=0; r<feats_m.rows; r++)
@@ -1326,6 +1456,76 @@ Mat EmbAttSpotter::batch_att(int batchNum)
     Mat m = features_corpus()[batchNum];
     return attModels().W.t()*(m.t());
 }
+
+Mat EmbAttSpotter::subword_cca_att(int imIdx, int windWidth, int stride)
+{
+    Mat matx = embedding().rndmatx;
+    Mat window_feats;
+    int windS=0;
+    int windE=windWidth;
+    for (; windE<corpus_dataset.image(imIdx).cols; windS+=stride, windE+=stride)
+    {
+        
+            Mat im = corpus_dataset->image(j);
+            Mat feats=phow(im,&PCA_());
+            //ret->at(i).row(j-batches_index[i]) = getImageDescriptorFV(feats.t());
+            Mat feats=phowsByX(imIdx)(Rect(
+            window_feats.append? = getImageDescriptorFV(feats);
+    }
+    Mat windows_att= attModels().W.t()*(window_feats.t());
+    Mat tmp = matx*windows_att;
+    vconcat(cosMat(tmp),sinMat(tmp),tmp);
+    Mat batch_emb_att = (1/sqrt(embedding().M)) * tmp;
+    for (int c=0; c<batch_emb_att.cols; c++)
+        batch_emb_att.col(c) -= embedding().matt;
+    Mat ret_cca_att = embedding().Wx.t()*batch_emb_att;
+    normalizeL2Columns(ret_cca_att);
+    return ret_cca_att
+}
+
+Mat EmbAttSpotter::phowsByX(int i)
+{
+    string name = saveName+"_phowsByX.dat";
+    if (_phowsByX.size()==0)
+    {
+        
+        #pragma omp critical (phowsByX)
+        {
+            if (_phowsByX.size()==0)
+            {
+                //load
+                ifstream in(name);
+                if (in)
+                {
+                    int numMatsRead;
+                    assert(numMatsRead==corpus_dataset->size());
+                    _phowsByX.resize(numMatsRead);
+                    in >> numBatchesRead;
+                     
+                    _phowsByX.resize(numMatsRead);
+                    for (int i=0; i<numBatches; i++)
+                    {
+                        Mat imf = readFloatMat(in);
+                        _phosByX.push_back(imf);
+                    }
+                    in.close();
+                    
+                    
+                }
+                else
+                {
+                    for (int imIdx=0; imIdx<corpus_dataset->size(); imIdx++)
+                    {
+
+
+                }
+
+            }
+        }
+    }
+    return _phowsByX[i];
+}
+
 
 void EmbAttSpotter::learn_attributes_bagging()
 {

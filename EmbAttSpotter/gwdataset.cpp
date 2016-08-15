@@ -2,11 +2,15 @@
 
 GWDataset::GWDataset(const string& queries, const string& imDir, int minH, int maxH, int margin) 
 {
+    string extension = queries.substr(queries.find_last_of('.')+1);
+    bool gtp=extension.compare("gtp")==0;
+
     ifstream fileQueries(queries);
     assert(fileQueries.good());
     //2700270.tif 519 166 771 246 orders
     string line;
-    regex qExt("(\\S+\\.tif) (\\d+) (\\d+) (\\d+) (\\d+) (\\w+)");
+    regex qExtGtp("(\\S+\\.\\S+) (\\d+) (\\d+) (\\d+) (\\d+) (\\w+)");
+    regex qExt("(\\S+\\.\\S+) (\\w+)");
     
     
     
@@ -16,23 +20,36 @@ GWDataset::GWDataset(const string& queries, const string& imDir, int minH, int m
     while (getline(fileQueries,line))
     {
         smatch sm;
-        regex_search(line,sm,qExt);
-
-        string pathIm=imDir+string(sm[1]);
-        pathIms.push_back(pathIm);
-        
-        if (curPathIm.compare(pathIm)!=0)
+        Mat patch;
+        string label;
+        if (gtp)
         {
-            curPathIm=pathIm;
-            curIm = imread(curPathIm,CV_LOAD_IMAGE_GRAYSCALE);
+            regex_search(line,sm,qExtGtp);
+
+            string pathIm=imDir+string(sm[1]);
+            pathIms.push_back(pathIm);
+            
+            if (curPathIm.compare(pathIm)!=0)
+            {
+                curPathIm=pathIm;
+                curIm = imread(curPathIm,CV_LOAD_IMAGE_GRAYSCALE);
+            }
+            int x1=max(1,stoi(sm[2])-margin)-1;
+            int x2=min(curIm.cols,stoi(sm[4])+margin)-1;
+            int y1=max(1,stoi(sm[3])-margin)-1;
+            int y2=min(curIm.rows,stoi(sm[5])+margin)-1;
+            Rect loc(x1,y1,x2-x1+1,y2-y1+1);
+            locs.push_back(loc);
+            patch = curIm(loc);
+            label=string(sm[6]);
         }
-        int x1=max(1,stoi(sm[2])-margin)-1;
-        int x2=min(curIm.cols,stoi(sm[4])+margin)-1;
-        int y1=max(1,stoi(sm[3])-margin)-1;
-        int y2=min(curIm.rows,stoi(sm[5])+margin)-1;
-        Rect loc(x1,y1,x2-x1+1,y2-y1+1);
-        locs.push_back(loc);
-        Mat patch = curIm(loc);
+        else
+        {
+            regex_search(line,sm,qExt);
+            patch=imread(imDir+string(sm[1]),CV_LOAD_IMAGE_GRAYSCALE);
+            label=string(sm[2]);
+        }
+        assert(patch.rows*patch.cols>1);
         patch.convertTo(patch,CV_32F);
         patch/=255;
         #if TEST_MODE
@@ -69,12 +86,12 @@ GWDataset::GWDataset(const string& queries, const string& imDir, int minH, int m
             cout << "pre canary "<<(int)patch.at<unsigned char>(0,0)<<endl;
         #endif
         wordImages.push_back(patch);
-        _labels.push_back(sm[6]);
+        _labels.push_back(label);
     }
 
 }
 
-const vector<string> GWDataset::labels() const
+const vector<string>& GWDataset::labels() const
 {
     return _labels;
 }

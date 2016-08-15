@@ -19,7 +19,7 @@ class Dataset
 
 public:
     
-    virtual const vector<string> labels() const =0;
+    virtual const vector<string>& labels() const =0;
     virtual int size() const =0;
     virtual const Mat image(unsigned int) const =0;
 };
