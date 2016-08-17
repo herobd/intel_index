@@ -38,7 +38,7 @@ extern "C" {
 
 #define SIFT_DIM 128
 #define DESC_DIM (SIFT_DIM+2)
-#define FV_DIM 2*(numGMMClusters*numSpatialX*numSpatialY*AUG_PCA_DIM)
+#define FV_DIM (2*numGMMClusters*numSpatialX*numSpatialY*AUG_PCA_DIM)
 #define AUG_PCA_DIM (PCA_dim+2)
 
 using namespace std;
@@ -49,6 +49,16 @@ struct spotting_sw
     float score;
     int posStart;
     int posEnd;
+};
+struct SubwordSpottingResult {
+    int imIdx;
+    float score;
+    int startX;
+    int endX;
+    SubwordSpottingResult(int imIdx, float score, int startX, int endX) : 
+        imIdx(imIdx), score(score), startX(startX), endX(endX)
+    {
+    }
 };
 
 class EmbAttSpotter// : public SegmentationBasedSpotter
@@ -103,6 +113,8 @@ private:
     
     Mat _phocsTr;
     
+    vector<Mat> _corpus_phows;    
+    vector<vector<int> > _corpus_phows_xs;
     ////
     ////End lazy elements
     ////
@@ -232,6 +244,10 @@ private:
     
     Mat otsuBinarization(const Mat& src);
     
+    SubwordSpottingResult refine(int imIdx, int windIdx, int windWidth, const Mat& query_cca);
+    Mat subwordWindows_cca_att(int imIdx, int windWidth, int stride);
+    Mat subword_cca_att(int imIdx, int windS, int windE);
+    Mat phowsByX(int i, int xS, int xE);
     int test_mode;
     
     #if TEST_MODE
@@ -274,6 +290,7 @@ public:
     void loadCorpus(string dir);
     void setTrainData(string gtFile, string imageDir, string saveAs="");
     vector<float> spot(const Mat& exemplar) {return spot(exemplar,"",1);}
+    vector< SubwordSpottingResult > subwordSpot(const Mat& exemplar, string word, float alpha, float refinePortion=0.25);
     double compare(const Mat& im1, const Mat& im2);
     vector<struct spotting_sw> spot_sw(const Mat& exemplar) {return spot_sw(exemplar,"",1);}
     vector<float> spot(const Mat& exemplar, string word, float alpha=0.5);
@@ -283,6 +300,7 @@ public:
     void setCorpus_dataset(const Dataset* d);
     
     void eval(const Dataset* data);
+    void evalSpotting(const Dataset* exemplars, const Dataset* data, double hyV=-1);
     
     #if TEST_MODE
         void test();

@@ -29,8 +29,12 @@ int main(int argc, char** argv)
 	cmd.add( trainFileArg );
 	TCLAP::ValueArg<string> testFileArg("8","testfile","testing file: *.gtp for 'docimagefile lx ty rx by gt', *.txt for 'imagefile gt'", false,"test/queries_test.gtp","string");
 	cmd.add( testFileArg );
+	TCLAP::ValueArg<string> exemplarFileArg("7","exemplars","exemplar file: *.gtp for 'docimagefile lx ty rx by gt', *.txt for 'imagefile gt'", false,"test/exemplars.txt","string");
+	cmd.add( testFileArg );
 	TCLAP::ValueArg<string> imageDirArg("d","images","directory containing images", false,"/home/brian/intel_index/brian_handwriting/EmbeddedAtt_Almazan/datasets/GW/images/","string");
 	cmd.add( imageDirArg );
+	TCLAP::ValueArg<string> exemplarDirArg("x","exemplarsDir","directory containing exemplar images", false,"/home/brian/intel_index/data/gw_20p_wannot/bigrams_clean_deslant/","string");
+	cmd.add( exemplarDirArg );
 	cmd.parse( argc, argv );
 
 	 
@@ -60,6 +64,7 @@ int main(int argc, char** argv)
 	    EmbAttSpotter spotter(modelArg.getValue());
 	    GWDataset train(trainFileArg.getValue(),imageDirArg.getValue());
 	    GWDataset test(testFileArg.getValue(),imageDirArg.getValue());
+	    GWDataset exemplars(exemplarFileArg.getValue(),exemplarDirArg.getValue());
             spotter.setTraining_dataset(&train);
 	    
 	    if ( retrainAttReprTrF.getValue() )
@@ -67,7 +72,7 @@ int main(int argc, char** argv)
             if ( retrainEmbeddingF.getValue() )
 	        spotter.embedding(true);
 	    
-		spotter.evalSpotting(&test);
+		spotter.evalSpotting(&exemplars, &test);
 	}
 	
 	if ( imageArg.getValue()>=0 )
