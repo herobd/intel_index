@@ -802,11 +802,11 @@ const vector<Mat>& EmbAttSpotter::features_corpus(bool retrain)
 const Mat& EmbAttSpotter::feats_training(bool retrain)
 {
     string name = saveName+"_feats_training.dat";
+    #pragma omp  critical (feats_training)
     if (_feats_training.rows==0)
     {
-        #pragma omp  critical (feats_training)
         {
-            if (_feats_training.rows==0)
+            //if (_feats_training.rows==0)
             {
                 ifstream in(name);
                 if (in && !retrain)
@@ -1157,8 +1157,12 @@ Mat EmbAttSpotter::phow(const Mat& im, const struct PCA_struct* PCA_pt, vector<i
         }
         #endif
         #endif
+        int prevXS;
         if (xs)
-            xs.resize(desc.rows);
+        {
+            prevXS=xs->size();
+            xs->resize(prevXS+desc.rows);
+        }
         if (desc.rows>0)
         {
             //append x,y information
@@ -1181,7 +1185,7 @@ Mat EmbAttSpotter::phow(const Mat& im, const struct PCA_struct* PCA_pt, vector<i
                 /*CV**/
                 #endif
                 if (xs)
-                    xs[j]=kpx;   
+                    xs->at(prevXS+j)=kpx;   
                 
                 augmented.at<float>(j,desc.cols) = (kpx-cx)/(float)bb_w;
                 augmented.at<float>(j,desc.cols+1) = (kpy-cy)/(float)bb_h;
@@ -1375,12 +1379,12 @@ Mat EmbAttSpotter::getImageDescriptorFV(const Mat& feats_m)
 const vector<Mat>& EmbAttSpotter::batches_cca_att()
 {
     string name = saveName+"_batches_cca_att.dat";
+    #pragma omp critical (batches_cca_att)
     if (_batches_cca_att == NULL)
     {
         //cout<<"batches_cca_att is NULL"<<endl;
-        #pragma omp critical (batches_cca_att)
         {
-            if (_batches_cca_att == NULL)
+            //if (_batches_cca_att == NULL)
             {
                 //init
                 
@@ -1419,11 +1423,11 @@ const vector<Mat>& EmbAttSpotter::batches_cca_att()
             }
         }
     }
+    #pragma omp critical (batches_cca_att)
     if (_batches_cca_att==NULL)
     {
-        #pragma omp critical (batches_cca_att)
         {
-            if (_batches_cca_att==NULL)
+            //if (_batches_cca_att==NULL)
             {
                 //cout<<"doing batches_cca_att, numBatches="<<numBatches<<endl;
                 
@@ -1510,10 +1514,11 @@ Mat EmbAttSpotter::subword_cca_att(int imIdx, int windS, int windE)
 Mat EmbAttSpotter::phowsByX(int i, int xS, int xE)
 {
     string name = saveName+"_phowsByX.dat";
+    #pragma omp critical (phowsByXPre)
     if (_corpus_phows.size()==0)
     {
         
-        #pragma omp critical (phowsByX)
+        //#pragma omp critical (phowsByX)
         {
             if (_corpus_phows.size()==0)
             {
@@ -1540,17 +1545,23 @@ Mat EmbAttSpotter::phowsByX(int i, int xS, int xE)
                     
                 }
                 else
-                {
+                { 
+                    vector<Mat> tmp_corpus_phows(corpus_dataset->size());
+                    _corpus_phows_xs.resize(corpus_dataset->size());
+
                     for (int imIdx=0; imIdx<corpus_dataset->size(); imIdx++)
                     {
 
                         vector<int> xs;
-                        Mat desc = phow(corpus_dataset->image(imIdx),&xs);//includes xy's, normalization 
+                        Mat desc = phow(corpus_dataset->image(imIdx),&PCA_(),&xs);//includes xy's, normalization 
                         assert(desc.type() == CV_32F);
-                        assert(desc.cols == DESC_DIM);
-                        _corpus_phows[imIdx]=desc;
+                        assert(desc.cols == AUG_PCA_DIM);
+
+                        assert(desc.rows==xs.size());
+                        tmp_corpus_phows[imIdx]=desc;
                         _corpus_phows_xs[imIdx]=xs;
                     }
+                    _corpus_phows = tmp_corpus_phows;
                     //save
                     ofstream out(name);
                     out << corpus_dataset->size() << " ";
@@ -1568,10 +1579,11 @@ Mat EmbAttSpotter::phowsByX(int i, int xS, int xE)
             }
         }
     }
-    Mat ret( 0, DESC_DIM, CV_32F);
+    Mat ret( 0, AUG_PCA_DIM, CV_32F);
+    assert(_corpus_phows_xs[i].size()>0);
     for (int point=0; point<_corpus_phows_xs[i].size(); point++)
         if (xS<= _corpus_phows_xs[i][point] && _corpus_phows_xs[i][point]<= xE)
-            ret.vconcat(_corpus_phows[i].row(point));
+            vconcat(ret,_corpus_phows[i].row(point),ret);
     return ret;
 }
 
@@ -1847,11 +1859,11 @@ Mat EmbAttSpotter::select_rows(const Mat& m, vector<int> idx)
 
 const EmbAttSpotter::AttributesModels& EmbAttSpotter::attModels(bool retrain)
 {
+    #pragma omp  critical (learn_attributes_bagging)
     if (_attModels==NULL)
     {
-        #pragma omp  critical (learn_attributes_bagging)
         {
-            if (_attModels==NULL)
+            //if (_attModels==NULL)
             {
                 string name = saveName+"_attModels.dat";
                 ifstream in(name);
@@ -1886,11 +1898,11 @@ const EmbAttSpotter::AttributesModels& EmbAttSpotter::attModels(bool retrain)
 
 const EmbAttSpotter::Embedding& EmbAttSpotter::embedding(bool retrain)
 {
+    #pragma omp  critical (embedding)
     if (_embedding==NULL)
     {
-        #pragma omp  critical (embedding)
         {
-            if (_embedding==NULL)
+            //if (_embedding==NULL)
             {
                 string name = saveName+"_embedding.dat";
                 ifstream in(name);
@@ -2215,11 +2227,11 @@ void EmbAttSpotter::cca2(Mat X, Mat Y, float reg, int d, Mat& Wx, Mat& Wy)
 
 const Mat& EmbAttSpotter::attReprTr(bool retrain)//correct orientation
 {
+    #pragma omp  critical (learn_attributes_bagging)
     if (_attReprTr.rows==0)
     {
-        #pragma omp  critical (learn_attributes_bagging)
         {
-            if (_attReprTr.rows==0)
+            //if (_attReprTr.rows==0)
             {
                 string name = saveName+"_attModels.dat";
                 ifstream in(name);
@@ -2280,10 +2292,6 @@ const Mat& EmbAttSpotter::attReprTr(bool retrain)//correct orientation
     return *_attReprVa;
 }*/
 
-vector<struct spotting_sw> EmbAttSpotter::spot_sw(const Mat& exemplar, string ngram, float alpha)
-{
-    
-}
 
 /*Mat EmbAttSpotter::scores(const Mat& query, const Mat& corpus_batch)
 {

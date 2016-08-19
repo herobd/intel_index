@@ -59,6 +59,10 @@ struct SubwordSpottingResult {
         imIdx(imIdx), score(score), startX(startX), endX(endX)
     {
     }
+    SubwordSpottingResult() : 
+        imIdx(-1), score(0), startX(-1), endX(-1)
+    {
+    }
 };
 
 class EmbAttSpotter// : public SegmentationBasedSpotter
@@ -177,7 +181,7 @@ private:
     const vector<Mat>& features_corpus(bool retrain=false);
     const Mat& feats_training(bool retrain=false);
 
-    Mat phow(const Mat& im, const struct PCA_struct* PCA_pt=NULL);
+    Mat phow(const Mat& im, const struct PCA_struct* PCA_pt=NULL, vector<int>* xs=NULL);
     Mat getImageDescriptorFV(const Mat& feats_m);
 
     const vector<Mat>& batches_cca_att();
@@ -279,6 +283,7 @@ private:
         void compute_PCA_isotest();
         void compute_GMM_isotest();
         void modelMap_isotest();
+        void subwordSpot_test();
     #endif
     
 public:
@@ -292,9 +297,7 @@ public:
     vector<float> spot(const Mat& exemplar) {return spot(exemplar,"",1);}
     vector< SubwordSpottingResult > subwordSpot(const Mat& exemplar, string word, float alpha, float refinePortion=0.25);
     double compare(const Mat& im1, const Mat& im2);
-    vector<struct spotting_sw> spot_sw(const Mat& exemplar) {return spot_sw(exemplar,"",1);}
     vector<float> spot(const Mat& exemplar, string word, float alpha=0.5);
-    vector<struct spotting_sw> spot_sw(const Mat& exemplar, string ngram, float alpha=0.5);
     
     void setTraining_dataset(const Dataset* d);
     void setCorpus_dataset(const Dataset* d);

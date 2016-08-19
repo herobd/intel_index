@@ -9,6 +9,7 @@ extern "C"
 }
 //#include <unistr.h>
 #include "gwdataset.h"
+#include "facadedataset.h"
 
 void EmbAttSpotter::test()
 {
@@ -179,7 +180,7 @@ void EmbAttSpotter::test()
 
 
     spot(training_dataset->image(0),training_dataset->labels()[0],0);
-
+    subwordSpot_test();
     cout <<"tests passed"<<endl;
     
     delete _features_corpus;
@@ -922,4 +923,33 @@ void EmbAttSpotter::cvSVM_isotest()
     Mat W = cvSVM(featsTrain,(double*)labelsTrain.data,featsVal,(float*)labelsVal.data,&svm);
     compareToCSV(W,"test/cvSVM_W_test.csv",false);
 }
+
+
+void EmbAttSpotter::subwordSpot_test()
+{
+    Mat testEx = imread("test/testImages/ng.tif",CV_LOAD_IMAGE_GRAYSCALE);
+    Dataset* data = new FacadeDataset();
+    corpus_dataset = data;
+    vector<SubwordSpottingResult> res = subwordSpot(testEx,"ng",1,0.5);
+    assert(res.size()>=2 && res.size()<=4);
+    SubwordSpottingResult best;
+    float minScore=99999;
+    SubwordSpottingResult best2;
+    float minScore2=99999;
+    for (auto r : res)
+        if (r.score < minScore)
+        {
+            minScore2=minScore;
+            best2=best;
+            minScore=r.score;
+            best=r;
+        }
+    assert(best.imIdx==0);
+    assert(best.startX>107 && best.startX<128);
+    assert(best.endX>197 && best.endX<220);
+    assert(best2.imIdx==1);
+    assert(best2.startX>215 && best2.startX<255);
+    assert(best2.endX>290 && best2.endX<334);
+}
+    
 
