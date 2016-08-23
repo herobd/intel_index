@@ -248,7 +248,7 @@ private:
     
     Mat otsuBinarization(const Mat& src);
     
-    SubwordSpottingResult refine(int imIdx, int windIdx, int windWidth, const Mat& query_cca);
+    SubwordSpottingResult refine(int imIdx, int windIdx, int windWidth, int stride, const Mat& query_cca);
     Mat subwordWindows_cca_att(int imIdx, int windWidth, int stride);
     Mat subword_cca_att(int imIdx, int windS, int windE);
     Mat phowsByX(int i, int xS, int xE);

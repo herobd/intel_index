@@ -29,7 +29,6 @@ void EmbAttSpotter::test()
     vector<int> tempbatches_index=batches_index;
     vector<int> tempbatches_indexEnd=batches_indexEnd;
     string tempsaveName=saveName;
-    saveName="test/tmp_saveTest";
     Mat temp_phocsTr = _phocsTr;
     PCA_struct tmp_PCA;
     tmp_PCA.mean = _PCA.mean;
@@ -37,16 +36,34 @@ void EmbAttSpotter::test()
     tmp_PCA.eigvec = _PCA.eigvec;
     _PCA.eigvec=Mat();
     
-    
+    //load good stuff
+    saveName="model/evalGW";
+    PCA_();
+    GMM();
+    embedding();
+    attModels();
+    test_mode=2;
+    //but dont save it under thatn name
+    saveName="test/tmp_saveTest";
+    system(("rm "+saveName+"*").c_str());
+    subwordSpot_test();
+    _features_corpus=NULL;
+    _batches_cca_att=NULL;
+    _PCA.mean=Mat();
+    _PCA.eigvec=Mat();
+    _GMM.means=NULL;
+    _GMM.covariances=NULL;
+    _GMM.priors=NULL;
+
     ///
     //Mat smoothed = imread("test/smoothed.pgm",CV_LOAD_IMAGE_GRAYSCALE);
     //phow(smoothed);
     ///
     
     // delete files
-    system(("rm "+saveName+"*").c_str());
 
     test_mode=2;
+    saveName="test/tmp_saveTest";
     //Isolated tests. These are my second round of tests, which are designed to test a spcific method
     compute_PCA_isotest(); 
     modelMap_isotest();
@@ -115,7 +132,7 @@ void EmbAttSpotter::test()
     
     training_dataset = new GWDataset("/home/brian/intel_index/brian_handwriting/EmbeddedAtt_Almazan/datasets/GW/queries/queries.gtp","/home/brian/intel_index/brian_handwriting/EmbeddedAtt_Almazan/datasets/GW/images/");
     //phocsTr_testM();
-    //get_GMM_PCA_testM(); //we now are copying this becuase GMM is stochastic process
+    get_GMM_PCA_testM(); //we now are copying this becuase GMM is stochastic process
     //cout<<"skip feats_training_testM()"<<endl;
     ////feats_training_testM(); This is dependent on our different phow implementation
     delete training_dataset;
@@ -180,7 +197,6 @@ void EmbAttSpotter::test()
 
 
     spot(training_dataset->image(0),training_dataset->labels()[0],0);
-    subwordSpot_test();
     cout <<"tests passed"<<endl;
     
     delete _features_corpus;
@@ -931,7 +947,7 @@ void EmbAttSpotter::subwordSpot_test()
     Dataset* data = new FacadeDataset();
     corpus_dataset = data;
     vector<SubwordSpottingResult> res = subwordSpot(testEx,"ng",1,0.5);
-    assert(res.size()>=2 && res.size()<=4);
+    assert(res.size()<=5 && res.size()>=2);
     SubwordSpottingResult best;
     float minScore=99999;
     SubwordSpottingResult best2;
