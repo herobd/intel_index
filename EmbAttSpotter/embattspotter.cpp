@@ -1489,10 +1489,10 @@ Mat EmbAttSpotter::subwordWindows_cca_att(int imIdx, int windWidth, int stride)
     for (; windE<corpus_dataset->image(imIdx).cols; windS+=stride, windE+=stride, windIdx++)
     {
         
-            Mat feats=phowsByX(imIdx,windS,windE);
-            window_feats.row(windIdx) = getImageDescriptorFV(feats);
-            assert(sum(window_feats)[0]!=0);
+        Mat feats=phowsByX(imIdx,windS,windE);
+        window_feats.row(windIdx) = getImageDescriptorFV(feats);
     }
+    assert(sum(window_feats)[0]!=0);
     if(numWindows!=1)
     {
         bool dif=false;
