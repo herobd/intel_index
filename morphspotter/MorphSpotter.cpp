@@ -1,23 +1,46 @@
+#include "MorphSpotter.h"
+#include <string.h>
+
+MorphSpotter::MorphSpotter()
+{
+
+}
+void MorphSpotter::cvToD(const Mat& cvI, DImage& dI)
+{
+    dI.setLogicalSize(cvI.cols,cvI.rows);
+    unsigned char* data1 = dI.dataPointer_u8();
+    unsigned char* dataO = cvI.data;
+    /*for (int i=0; i< cvI.cols * cvI.rows; i++)
+    {
+        data1[i]=dataO[i];
+    }*/
+    memcpy(data1,dataO,cvI.cols * cvI.rows);
+}
+
 double MorphSpotter::score(Mat im1, Mat im2)
 {
     DImage dim1, dim2;
-    cvToD(im1,dim1);
-    cvToD(im2,dim2);
-    int tval = getThreshold(im1);
+    Mat bim1=binarize(im1);
+    Mat bim2=binarize(im2);
+    cvToD(bim1,dim1);
+    cvToD(bim2,dim2);
+    /*int tval = getThreshold(im1);
     DThresholder::threshImage_(dim1,dim1, tval);
     tval = getThreshold(im2);
-    DThresholder::threshImage_(dim2,dim2, tval);
+    DThresholder::threshImage_(dim2,dim2, tval);*/
     return mobj.getWordMorphCost(dim1,dim2);
 }
 double MorphSpotter::scoreFast(Mat im1, Mat im2)
 {
     DImage dim1, dim2;
-    cvToD(im1,dim1);
-    cvToD(im2,dim2);
-    int tval = getThreshold(im1);
+    Mat bim1=binarize(im1);
+    Mat bim2=binarize(im2);
+    cvToD(bim1,dim1);
+    cvToD(bim2,dim2);
+    /*int tval = getThreshold(im1);
     DThresholder::threshImage_(dim1,dim1, tval);
     tval = getThreshold(im2);
-    DThresholder::threshImage_(dim2,dim2, tval);
+    DThresholder::threshImage_(dim2,dim2, tval);*/
     return mobj.getWordMorphCostFast(dim1,dim2);
 }
 double MorphSpotter::score_preThreshed(Mat im1, Mat im2)
@@ -35,9 +58,121 @@ double MorphSpotter::scoreFast_preThreshed(Mat im1, Mat im2)
     return mobj.getWordMorphCostFast(dim1,dim2);
 }
 
+inline int xDelta(int direction)
+{
+    int xDelta=1;
+    if (direction>2 && direction<6) xDelta=-1;
+    else if (direction==2 || direction==6) xDelta=0;
+    return xDelta;
+}
+
+inline int yDelta(int direction)
+{
+    int yDelta=0;
+    if (direction>0 && direction<4) yDelta=-1;
+    else if (direction>4 && direction<8) yDelta=1;
+    return yDelta;
+}
+
+void MorphSpotter::scrubCCs(Mat& im)
+{
+    vector<bool> visited(im.cols*im.rows);
+    visited.assign(im.cols*im.rows,false);
+
+    for (int r=0; r<im.rows; r++)
+        for (int c=0; c<im.cols; c++)
+        {
+            if (!visited[c+r*im.cols] && im.at<unsigned char>(r,c)==0)
+            {
+                list<Point> toVisit;
+                list<Point> toScrub;
+                toVisit.push_back(Point(c,r));
+                toScrub.push_back(Point(c,r));
+                visited[c+r*im.cols]=true;
+                int count = 1;
+                while (!toVisit.empty())
+                {
+                    Point cur = toVisit.back();
+                    toVisit.pop_back();
+
+                    for (int direction=0; direction<8; direction++)
+                    {
+                        int x = cur.x+xDelta(direction);
+                        int y = cur.y+yDelta(direction);
+                        if (x<0 || y<0 || x>=im.cols || y>=im.rows)
+                            continue;
+                        if (im.at<unsigned char>(y,x)==0 && !visited[x+y*im.cols])
+                        {
+                            ++count;
+                            visited[x+y*im.cols]=true;
+                            toVisit.push_back(Point(x,y));
+                            toScrub.push_back(Point(x,y));
+                        }
+                    }
+                }
+
+                if (count <= SCRUB_THRESH)
+                {
+                    /*toVisit.clear();
+                    toVisit.push_back(Point(c,r));
+                    while (!toVisit.empty())
+                    {
+                        Point cur = toVisit.back();
+                        toVisit.pop_back();
+                        im.at<unsigned char>(cur)=255;
+
+                        for (int direction=0; direction<8; direction++)
+                        {
+                            int x = cur.x+xDelta(direction);
+                            int y = cur.y+yDelta(direction);
+                            if (x<0 || y<0 || x>=im.cols || y>=im.rows)
+                                continue;
+                            if (im.at<unsigned char>(y,x)==0)
+                            {
+                                im.at<unsigned char>(y,x)=255;
+                                toVisit.push_back(Point(x,y));
+                            }
+                        }
+                    }*/
+                    for (Point p : toScrub)
+                        im.at<unsigned char>(p)=255;
+                }
+            }
+        }
+}
+
+//Both binarizes and does some cleaning
 Mat MorphSpotter::binarize(const Mat& orig)
 {
+    Mat ret;
+    adaptiveThreshold(orig,ret,255,ADAPTIVE_THRESH_GAUSSIAN_C,THRESH_BINARY,11,2);
+    /*Mat element = getStructuringElement(MORPH_ELLIPSE,
+                                       Size( 3, 3 ) );
 
+    /// Apply the erosion operation
+    Mat scrubbed;
+    dilate( ret, scrubbed, element );
+    element = getStructuringElement(MORPH_ELLIPSE,
+                                   Size( 7, 7 ) );
+    erode( scrubbed, scrubbed, element );
+    
+    for (int r=0; r<ret.rows; r++)
+        for (int c=0; c<ret.cols; c++)
+            if (scrubbed.at<unsigned char>(r,c)==255)
+                ret.at<unsigned char>(r,c)=255;
+*/
+    //imshow("before scrub",ret);
+    scrubCCs(ret);
+    //imshow("bin",ret);
+    //waitKey();
+    return ret;
+}
+
+int sort_xxx(const void *x, const void *y) {
+    if (*(int*)x > *(int*)y) return 1;
+    else if (*(int*)x < *(int*)y) return -1;
+    else return 0;
+}
 
 void MorphSpotter::eval(const Dataset* data)
 {
@@ -47,7 +182,7 @@ void MorphSpotter::eval(const Dataset* data)
     #pragma omp parallel  for
     for (int inst=0; inst<data->size(); inst++)
     {
-        binarized[inst]=binarize(data.image(inst));
+        binarized[inst]=binarize(data->image(inst));
     }
     
     #pragma omp parallel  for
@@ -135,53 +270,3 @@ void MorphSpotter::eval(const Dataset* data)
 
     cout<<"map: "<<(map/queryCount)<<endl; 
 }
-
-//DMorphInk mobj;
-void* word_morphing_thread_func(void *params){
-  WORDWARP_THREAD_PARMS *pparms;
-  int numTrain;
-  DMorphInk mobj;
-  int testWordIdx;
-
-  pparms = (WORDWARP_THREAD_PARMS*)params;
-  numTrain = pparms->numTrain;
-  testWordIdx = pparms->testWordIdx;
-
-  //now compare to all training values
-  int numLexReductionWordsSkipped;
-  numLexReductionWordsSkipped = 0;
-  for(int tr=(pparms->threadNum); tr < numTrain; tr+=(pparms->numThreads)){
-    double morphCost=0.;
-    double DPcost=0.;
-
-#if DO_FAST_PASS_FIRST
-    if(pparms->fFastPass)
-      morphCost =
-        mobj.getWordMorphCostFast(*(pparms->pimgTest),
-                                  pparms->rgTrainingImages[tr],
-                                  pparms->bandWidthDP,/*15 */
-                                  0./*nonDiagonalCostDP*/,
-                                  pparms->meshSpacingStatic,
-                                  pparms->numRefinesStatic,
-                                  pparms->meshDiv,
-                                  pparms->lengthPenalty);
-    else
-#else
-      morphCost = mobj.getWordMorphCost(*(pparms->pimgTest),
-                                        pparms->rgTrainingImages[tr],
-                                        pparms->bandWidthDP,/*15 bandWidthDP*/
-                                        0./*nonDiagonalCostDP*/,
-                                        pparms->meshSpacingStatic,
-                                        pparms->numRefinesStatic,
-                                        pparms->meshDiv,
-                                        pparms->lengthPenalty);
-#endif
-    DPcost = mobj.warpCostDP;
-    pparms->rgCostsMorph[testWordIdx*(long)numTrain+tr] = morphCost;
-    pparms->rgCostsDP[testWordIdx*(long)numTrain+tr] = DPcost;
-    pparms->rgNumLexReductionWordsSkipped[pparms->threadNum] =
-      numLexReductionWordsSkipped;
-  }
-  return NULL;
-}
-

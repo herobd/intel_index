@@ -111,6 +111,15 @@ for s = 1:length(opts.numSpatialX)
     for j=1:opts.numSpatialX(s)
         for k=1:opts.numSpatialY(s)
             d = cat(2, descrs{s}{j,k}{:});
+            hasNeg=0;
+            for ii=1:opts.SIFTDIM
+                for jj=1:size(d,2)
+                    if d(ii,jj)<0
+                        hasNeg=1;
+                        disp(['neg at:',num2str(ii),' ',num2str(jj)])
+                    end
+                end
+            end
             [d,drop] = normalizeSift(opts,d);
             dlmwrite(['GMM_vecs/GMM_descs_' num2str((j-1)*opts.numSpatialY(s)+(k-1)) '.csv'],d,'precision',15);
             xy = d(opts.SIFTDIM+1:end,:);
@@ -125,6 +134,9 @@ for s = 1:length(opts.numSpatialX)
             else
                 [mu,sigma,we] = vl_gmm(d, opts.G, 'MaxNumIterations', 30, 'NumRepetitions', 2);
             end 
+            if (hasNeg)
+                crash
+            end
             we = we'; 
             GMM.we = [GMM.we we];
             GMM.mu = [GMM.mu mu];
@@ -134,7 +146,7 @@ for s = 1:length(opts.numSpatialX)
 end
 GMM.we = GMM.we/sum(GMM.we);
 
-crash
+%crash
 
 function [descrs_normalized,frames_normalized] = normalizeSift(opts,descrs,frames)
 % -------------------------------------------------------------------------

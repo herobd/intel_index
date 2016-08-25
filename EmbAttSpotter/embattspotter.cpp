@@ -462,7 +462,7 @@ SubwordSpottingResult EmbAttSpotter::refine(int imIdx, int windIdx, int windWidt
         x1=corpus_dataset->image(imIdx).cols-1;
     Mat s_mat = subword_cca_att(imIdx,x0,x1).t()*query_cca;
     assert(s_mat.rows==1 && s_mat.cols==1);
-    return SubwordSpottingResult(imIdx,s_mat.at<float>(0,0),x0,x1);
+    return SubwordSpottingResult(imIdx,-1*s_mat.at<float>(0,0),x0,x1);
 }
 
 double EmbAttSpotter::compare(const Mat& im1, const Mat& im2)
@@ -1066,8 +1066,13 @@ Mat EmbAttSpotter::phow(const Mat& im, const struct PCA_struct* PCA_pt, vector<i
         for (int r=0; r<num; r++)
         {
             //cout << kps[r].x<<", "<<kps[r].y<<" = "<<kps[r].norm<<endl;
-            if (summed.at<float>(r,0)>0 && kps[r].norm>=contrastthreshold)
+            double minVal;
+            int test[2];
+            minMaxIdx(desc.row(r),&minVal,NULL,test);
+            if (summed.at<float>(r,0)>0 && kps[r].norm>=contrastthreshold && minVal>=0)
                 toKeep.push_back(r);
+            //if (minVal<0)
+            //    cout<<"Discluded descriptor for negative value, at size:"<<size<<" row:"<<r<<"index:"<<test[1]<<endl;
         }
         /*VL**/
         //cout <<"Start "<<num<< ", Removed "<<num-toKeep.size()<<endl;
@@ -1100,7 +1105,6 @@ Mat EmbAttSpotter::phow(const Mat& im, const struct PCA_struct* PCA_pt, vector<i
             desc = select_rows(desc,toKeep);
         }
         
-        desc /= 255.0;
         
         assert(desc.cols==SIFT_DIM);
         
@@ -1110,8 +1114,14 @@ Mat EmbAttSpotter::phow(const Mat& im, const struct PCA_struct* PCA_pt, vector<i
             double sum=0;
             for (unsigned int j=0; j<desc.cols; j++)
             {
-                sum += desc.at<float>(i,j);
-                //sum += pow(desc.at<float>(i,j),4); //TODO, why isn't this used?
+#if USE_VL
+                desc.at<float>(i,j) =  min(desc.at<float>(i,j)*512.0,255.0)/255.0;
+#else
+                desc.at<float>(i,j)/=255;
+#endif
+                //assert(desc.at<float>(i,j)>=0);
+                desc.at<float>(i,j) = sqrt(desc.at<float>(i,j));
+                sum += desc.at<float>(i,j)*desc.at<float>(i,j);
             }
             assert (sum!=0);
             double X = pow(sum,-0.25);
@@ -1379,9 +1389,9 @@ Mat EmbAttSpotter::getImageDescriptorFV(const Mat& feats_m)
          ) ;
          
      //assert(ret.cols
-     for (int r=0; r<ret.rows; r++)
-        for (int c=0; c<ret.cols; c++)
-            assert(ret.at<float>(r,c)==ret.at<float>(r,c));
+     //for (int r=0; r<ret.rows; r++)
+     //   for (int c=0; c<ret.cols; c++)
+     //       assert(ret.at<float>(r,c)==ret.at<float>(r,c));
      return ret;
 }
 
@@ -1490,9 +1500,11 @@ Mat EmbAttSpotter::subwordWindows_cca_att(int imIdx, int windWidth, int stride)
     {
         
         Mat feats=phowsByX(imIdx,windS,windE);
-        window_feats.row(windIdx) = getImageDescriptorFV(feats);
+        Mat tmp= getImageDescriptorFV(feats);
+        tmp.copyTo(window_feats.row(windIdx));
+        
     }
-    assert(sum(window_feats)[0]!=0);
+    //assert(sum(window_feats)[0]!=0);
     if(numWindows!=1)
     {
         bool dif=false;
@@ -2889,10 +2901,16 @@ void EmbAttSpotter::compute_GMM(const vector<Mat>& bins, int numSpatialX, int nu
         copy(means,means+numGMMClusters*AUG_PCA_DIM,_GMM.means+numGMMClusters*AUG_PCA_DIM*i);
         
         float* covariances = (float*) vl_gmm_get_covariances(gmm);
-        /*for (int ttt=0; ttt<numGMMClusters*AUG_PCA_DIM; ttt++)
+        bool dif = false;
+        for (int ttt=0; ttt<numGMMClusters*AUG_PCA_DIM; ttt++)
         {
-            assert(covariances[ttt]==covariances[ttt]);
-        }*/
+            if(covariances[0]!=covariances[ttt])
+            {
+                dif=true;
+                break;
+            }
+        }
+        assert(dif);
         copy(covariances,covariances+numGMMClusters*AUG_PCA_DIM,_GMM.covariances+numGMMClusters*AUG_PCA_DIM*i);
 
         float* priors = (float*) vl_gmm_get_priors(gmm);
@@ -2904,6 +2922,19 @@ void EmbAttSpotter::compute_GMM(const vector<Mat>& bins, int numSpatialX, int nu
          
          
     }
+
+
+    bool dif = false;
+    for (int ttt=0; ttt<AUG_PCA_DIM*numGMMClusters*numSpatialX*numSpatialY; ttt++)
+    {
+        if(_GMM.covariances[0]!=_GMM.covariances[ttt])
+        {
+            dif=true;
+            break;
+        }
+    }
+    assert(dif);
+
     
     //GMM.we = GMM.we/sum(GMM.we);
     float sum=0;
@@ -2915,7 +2946,7 @@ void EmbAttSpotter::compute_GMM(const vector<Mat>& bins, int numSpatialX, int nu
     for (int i=0; i<numGMMClusters*numSpatialX*numSpatialY; i++)
         _GMM.priors[i] /= sum;
     
-    
+    cout<<"finished GMM computation"<<endl;
     if (test_mode==1)
      {
         vector<vector<float> > GMM_mean;
