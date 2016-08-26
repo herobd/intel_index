@@ -1,4 +1,4 @@
-
+;
 #include "embattspotter_eval.cpp"
 #if TEST_MODE
     #include "embattspotter_test.cpp"
@@ -104,9 +104,33 @@ EmbAttSpotter::EmbAttSpotter(string saveName, bool useNumbers, int test_mode)
     corpus_dataset=NULL;
     genericBatchSize=5000;
     
-    
-    
-    
+    /*int minH=80;
+    int maxH=80;
+    pp = [](Mat patch) {    
+        patch.convertTo(patch,CV_32F);
+        patch/=255;
+        
+        double m;
+        minMaxIdx(patch,NULL,&m);
+        if (m<0.2)
+            patch*=0.2/m;
+        
+        if (patch.rows>maxH)
+        {
+            double ratio = (maxH+0.0)/patch.rows;
+            resize(patch,patch,Size(),ratio,ratio,INTER_CUBIC);
+        }
+        else if (patch.rows<minH)
+        {
+            double ratio = (maxH+0.0)/patch.rows;
+            resize(patch,patch,Size(),ratio,ratio,INTER_CUBIC);
+        }
+        
+        
+        patch*=255;
+        patch.convertTo(patch,CV_8U);
+        return patch;
+    };*/
 }
 
 EmbAttSpotter::~EmbAttSpotter()
@@ -327,6 +351,60 @@ vector<float> EmbAttSpotter::spot(const Mat& exemplar, string word, float alpha)
 }
 
 
+float EmbAttSpotter::compare(const Mat& im1, const Mat& im2)
+{
+    assert(im1.rows*im1.cols>1);
+    assert (im1.channels()==1);
+    assert(im2.rows*im2.cols>1);
+    assert (im2.channels()==1);
+    
+    
+    Mat matx = embedding().rndmatx;//(Rect(0,0,embedding().M,embedding().rndmatx.cols));
+    Mat maty = embedding().rndmaty;//(Rect(0,0,embedding().M,embedding().rndmatx.cols));
+    assert(matx.rows==embedding().M);
+    assert(maty.rows==embedding().M);
+    
+    /////////////////////
+    Mat im1_feats = extract_feats(im1);
+    
+    Mat im1_att = attModels().W.t()*im1_feats.t();
+
+    
+    Mat tmp;
+    Mat im1_cca_att;
+    tmp = matx*im1_att;
+    vconcat(cosMat(tmp),sinMat(tmp),tmp);
+    assert(embedding().matt.size() == tmp.size());
+    Mat im1_emb_att = (1/sqrt(embedding().M)) * tmp - embedding().matt;
+    
+    
+    im1_cca_att = embedding().Wx.t()*im1_emb_att;
+    
+    normalizeL2Columns(im1_cca_att);
+
+    /////////////////////
+    Mat im2_feats = extract_feats(im2);
+   
+    Mat im2_att = attModels().W.t()*im2_feats.t();
+    
+
+    
+    Mat im2_cca_att;
+    tmp = matx*im2_att;
+    vconcat(cosMat(tmp),sinMat(tmp),tmp);
+    assert(embedding().matt.size() == tmp.size());
+    Mat im2_emb_att = (1/sqrt(embedding().M)) * tmp - embedding().matt;
+    
+    
+    im2_cca_att = embedding().Wx.t()*im2_emb_att;
+    
+    normalizeL2Columns(im2_cca_att);
+    //////////////////////////
+
+    Mat score = im1_cca_att.t() * im2_cca_att;
+    return score.at<float>(0,0);
+}
+
 vector< SubwordSpottingResult > EmbAttSpotter::subwordSpot(const Mat& exemplar, string word, float alpha, float refinePortion)
 {
     int windowWidth=exemplar.cols;
@@ -383,7 +461,13 @@ vector< SubwordSpottingResult > EmbAttSpotter::subwordSpot(const Mat& exemplar, 
         
         normalizeL2Columns(query_cca_phoc);
     }
-    Mat query_cca_hy = query_cca_att*alpha + query_cca_phoc*(1-alpha);
+    Mat query_cca_hy;
+    if (alpha!=0 && alpha!=1)
+       query_cca_hy = query_cca_att*alpha + query_cca_phoc*(1-alpha);
+    else if (alpha==1)
+        query_cca_hy = query_cca_att;
+    else if (alpha==0)
+        query_cca_hy = query_cca_phoc;
     
     /*cout <<"Query: ";
     for (int r=0; r<query_cca_hy.rows; r++)
@@ -417,7 +501,7 @@ vector< SubwordSpottingResult > EmbAttSpotter::subwordSpot(const Mat& exemplar, 
         for (int r=0; r<s_batch.rows; r++) {
             assert((r)*stride<corpus_dataset->image(i).cols);
             float s = s_batch.at<float>(r,0);
-            cout <<"im "<<i<<" x: "<<r*stride<<" score: "<<s<<endl;
+            //cout <<"im "<<i<<" x: "<<r*stride<<" score: "<<s<<endl;
             if (s>topScore)
             {
                 topScore=s;
@@ -433,9 +517,13 @@ vector< SubwordSpottingResult > EmbAttSpotter::subwordSpot(const Mat& exemplar, 
                 top2ScoreInd=r;
             }
         }
+
+        //ttt#pragma omp critical (subword_spot)
+        {
         scores.emplace(-1*topScore, make_pair(i,topScoreInd));
         if (top2ScoreInd!=-1)
             scores.emplace(-1*top2Score, make_pair(i,top2ScoreInd));
+        }
     }
     
     //Now, we will refine only the top X% of the results
@@ -465,7 +553,7 @@ SubwordSpottingResult EmbAttSpotter::refine(int imIdx, int windIdx, int windWidt
     return SubwordSpottingResult(imIdx,-1*s_mat.at<float>(0,0),x0,x1);
 }
 
-double EmbAttSpotter::compare(const Mat& im1, const Mat& im2)
+/*double EmbAttSpotter::compare(const Mat& im1, const Mat& im2)
 {
     assert(im1.rows*im1.cols>1);
     assert (im1.channels()==1);
@@ -509,12 +597,12 @@ double EmbAttSpotter::compare(const Mat& im1, const Mat& im2)
     for (int r=0; r<query_cca_hy.rows; r++)
         for (int c=0; c<query_cca_hy.cols; c++)
             cout <<query_cca_hy.at<float>(r,c)<<", ";
-    cout<<endl;*/
+    cout<<endl;/
     //checkNaN(query_cca_hy);
     
     
     return query_cca_att1.dot(query_cca_att2);
-}
+}*/
 
 Mat EmbAttSpotter::extract_feats(const Mat& im)
 {
@@ -1230,7 +1318,6 @@ Mat EmbAttSpotter::phow(const Mat& im, const struct PCA_struct* PCA_pt, vector<i
             vl_dsift_delete(dsift);
             #endif
             
-            //vconcat(feats,augmented,feats);
             feats_m.push_back(augmented);
             
             if (PCA_pt!=NULL)
@@ -1500,12 +1587,14 @@ Mat EmbAttSpotter::subwordWindows_cca_att(int imIdx, int windWidth, int stride)
     {
         
         Mat feats=phowsByX(imIdx,windS,windE);
+        //cout <<"w["<<windS<<", "<<windE<<"]: "<<feats.rows<<endl;
         Mat tmp= getImageDescriptorFV(feats);
+
         tmp.copyTo(window_feats.row(windIdx));
         
     }
-    //assert(sum(window_feats)[0]!=0);
-    if(numWindows!=1)
+    //assert(sum(window_feats.row(24))[0]!=0);
+    /*if(numWindows!=1)
     {
         bool dif=false;
         for (int c=0; c<FV_DIM; c++)
@@ -1515,7 +1604,7 @@ Mat EmbAttSpotter::subwordWindows_cca_att(int imIdx, int windWidth, int stride)
                 break;
             }
         assert(dif);
-    }
+    }*/
     Mat windows_att= attModels().W.t()*(window_feats.t());
     Mat tmp = matx*windows_att;
     vconcat(cosMat(tmp),sinMat(tmp),tmp);
@@ -1524,6 +1613,9 @@ Mat EmbAttSpotter::subwordWindows_cca_att(int imIdx, int windWidth, int stride)
         batch_emb_att.col(c) -= embedding().matt;
     Mat ret_cca_att = embedding().Wx.t()*batch_emb_att;
     normalizeL2Columns(ret_cca_att);
+
+
+
     return ret_cca_att;
 }
 Mat EmbAttSpotter::subword_cca_att(int imIdx, int windS, int windE)
@@ -1546,6 +1638,7 @@ Mat EmbAttSpotter::subword_cca_att(int imIdx, int windS, int windE)
 
 Mat EmbAttSpotter::phowsByX(int i, int xS, int xE)
 {
+    /*
     string name = saveName+"_phowsByX.dat";
     #pragma omp critical (phowsByXPre)
     if (_corpus_phows.size()==0)
@@ -1622,19 +1715,15 @@ Mat EmbAttSpotter::phowsByX(int i, int xS, int xE)
         {
             assert(_corpus_phows[i].cols==AUG_PCA_DIM);
             assert(_corpus_phows[i].type()==ret.type());
-            /*if (first)
-            {
-                ret.row(0)=_corpus_phows[i].row(point);
-                first=false;
-            }
-            else
-                vconcat(ret,_corpus_phows[i].row(point),ret);*/
             ret.push_back(_corpus_phows[i].row(point));
         }
      for (int r=0; r<ret.rows; r++)
         for (int c=0; c<ret.cols; c++)
             assert(ret.at<float>(r,c)==ret.at<float>(r,c));
     assert(sum(ret)[0]!=0);
+    */
+    Mat im = corpus_dataset->image(i)(Rect(xS,0,xE-xS+1,corpus_dataset->image(i).rows)).clone();
+    Mat ret = phow(im,&PCA_());
     return ret;
 }
 
@@ -3252,13 +3341,17 @@ Mat EmbAttSpotter::otsuBinarization(const Mat& src)
     return ret;
 }
 
+
+
 void EmbAttSpotter::setTraining_dataset(const Dataset* d)
 {
     training_dataset=d;
+    //training_dataset->preprocess(pp);
 }
 void EmbAttSpotter::setCorpus_dataset(const Dataset* d)
 {
     corpus_dataset=d;
+    //corpus_dataset->preprocess(pp);
 }
 
 //}}}//?

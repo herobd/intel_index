@@ -163,8 +163,8 @@ Mat MorphSpotter::binarize(const Mat& orig)
 */
     //imshow("before scrub",ret);
     scrubCCs(ret);
-    //imshow("bin",ret);
-    //waitKey();
+    imshow("bin",ret);
+    waitKey();
     return ret;
 }
 

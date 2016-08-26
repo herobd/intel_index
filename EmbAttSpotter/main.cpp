@@ -23,14 +23,20 @@ int main(int argc, char** argv)
 	cmd.add( imageArg );
 	TCLAP::ValueArg<int> image2Arg("c","image2","compare images", false,-1,"int");
 	cmd.add( image2Arg );
-	TCLAP::SwitchArg retrainAttReprTrF("1","attReprTr","Retrain attReprTr", cmd, false);
-	TCLAP::SwitchArg retrainEmbeddingF("2","embedding","Retrain embedding", cmd, false);
+	TCLAP::ValueArg<string> compare1Arg("1","compare1","1st image for comparison", false,"","string");
+	cmd.add( compare1Arg );
+	TCLAP::ValueArg<string> compare2Arg("2","compare2","2nd image for comparison", false,"","string");
+	cmd.add( compare2Arg );
+	TCLAP::SwitchArg retrainAttReprTrF("6","attReprTr","Retrain attReprTr", cmd, false);
+	TCLAP::SwitchArg retrainEmbeddingF("5","embedding","Retrain embedding", cmd, false);
 	TCLAP::ValueArg<string> trainFileArg("9","trainfile","training file: *.gtp for 'docimagefile lx ty rx by gt', *.txt for 'imagefile gt'", false,"test/queries_train.gtp","string");
 	cmd.add( trainFileArg );
 	TCLAP::ValueArg<string> testFileArg("8","testfile","testing file: *.gtp for 'docimagefile lx ty rx by gt', *.txt for 'imagefile gt'", false,"test/queries_test.gtp","string");
 	cmd.add( testFileArg );
 	TCLAP::ValueArg<string> exemplarFileArg("7","exemplars","exemplar file: *.gtp for 'docimagefile lx ty rx by gt', *.txt for 'imagefile gt'", false,"test/exemplars.txt","string");
 	cmd.add( exemplarFileArg );
+	//TCLAP::ValueArg<string> exemplarLocArg("7","exemplar_locations","exemplar locations file", false,"test/exemplars.txt","string");
+	//cmd.add( exemplarLocArg );
 	TCLAP::ValueArg<string> imageDirArg("d","images","directory containing images", false,"/home/brian/intel_index/brian_handwriting/EmbeddedAtt_Almazan/datasets/GW/images/","string");
 	cmd.add( imageDirArg );
 	TCLAP::ValueArg<string> exemplarDirArg("x","exemplarsDir","directory containing exemplar images", false,"/home/brian/intel_index/data/gw_20p_wannot/bigrams_clean_deslant/","string");
@@ -125,7 +131,18 @@ int main(int argc, char** argv)
             }
 	}
 
+        if (compare1Arg.getValue().length()>0 && compare2Arg.getValue().length()>0)
+        {
+	    EmbAttSpotter spotter(modelArg.getValue());
+            Mat im1 = imread(compare1Arg.getValue(),CV_LOAD_IMAGE_GRAYSCALE);
+            Mat im2 = imread(compare2Arg.getValue(),CV_LOAD_IMAGE_GRAYSCALE);
+            //im1 = GWDataset::preprocess(im1);
+            //im2 = GWDataset::preprocess(im2);
+            cout<<spotter.compare(im1,im2)<<endl;;
+        }
+
 
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }
 }
+

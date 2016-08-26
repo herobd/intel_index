@@ -97,7 +97,7 @@ void EmbAttSpotter::eval(const Dataset* data)
     }
 }
 
-void EmbAttSpotter::evalSpotting(const Dataset* exemplars, const Dataset* data, double hyV)
+void EmbAttSpotter::evalSpotting(const Dataset* exemplars, /*string exemplars_locations,*/ const Dataset* data, double hyV)
 {
     corpus_dataset=data;
     double hyS=0.0;
@@ -214,7 +214,7 @@ void EmbAttSpotter::evalSpotting(const Dataset* exemplars, const Dataset* data, 
                 /* If it is from the same class and it is not the query idx, it is a relevant one. */
                 /* Compute how many on the dataset get a better score and how many get an equal one, excluding itself and the query.*/
                 
-                if (rel[j] && inst!=j)
+                if (rel[j])// && inst_index!=j)
                 {
                     int better=0;
                     int equal = 0;
@@ -257,6 +257,6 @@ void EmbAttSpotter::evalSpotting(const Dataset* exemplars, const Dataset* data, 
             
         }
         
-        cout<<"map: "<<(map/queryCount)<<" for "<<hy<<endl;
+        cout<<"map: "<<(map/queryCount)<<" for hy:"<<hy<<endl;
     }
 }

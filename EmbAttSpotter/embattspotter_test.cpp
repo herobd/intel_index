@@ -699,6 +699,13 @@ void EmbAttSpotter::compareToCSV(Mat mine, string csvloc, bool transpose, float 
             else
                 assert(fabs(mine.at<float>(r,c)-csv[r][c])<thresh);
 }
+void EmbAttSpotter::compareToMat(Mat mine, Mat other, float thresh)
+{
+    assert(mine.rows==other.rows && mine.cols==other.cols);
+    for (int r=0; r<mine.rows; r++)
+        for (int c=0; c<mine.cols; c++)
+            assert(fabs(mine.at<float>(r,c)-other.at<float>(r,c))<thresh);
+}
 
 void EmbAttSpotter::compareToCSVAbs(Mat mine, string csvloc, bool transpose, float thresh)
 {
@@ -959,6 +966,11 @@ void EmbAttSpotter::subwordSpot_test()
             best2=best;
             minScore=r.score;
             best=r;
+        }
+        else if (r.score < minScore2)
+        {
+            minScore2=r.score;
+            best2=r;
         }
     assert(best.imIdx==0);
     assert(best.startX>107 && best.startX<128);

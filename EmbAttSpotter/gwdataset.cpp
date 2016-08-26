@@ -1,6 +1,6 @@
 #include "gwdataset.h"
 
-GWDataset::GWDataset(const string& queries, const string& imDir, int minH, int maxH, int margin) 
+GWDataset::GWDataset(const string& queries, const string& imDir, int margin)
 {
     string extension = queries.substr(queries.find_last_of('.')+1);
     bool gtp=extension.compare("gtp")==0;
@@ -10,7 +10,7 @@ GWDataset::GWDataset(const string& queries, const string& imDir, int minH, int m
     //2700270.tif 519 166 771 246 orders
     string line;
     regex qExtGtp("(\\S+\\.\\S+) (\\d+) (\\d+) (\\d+) (\\d+) (\\w+)");
-    regex qExt("(\\S+\\.\\S+) (\\w+)");
+    regex qExt("(.+\\.\\S+) (\\w+)");
     
     
     
@@ -19,6 +19,8 @@ GWDataset::GWDataset(const string& queries, const string& imDir, int minH, int m
     
     while (getline(fileQueries,line))
     {
+        if (line.length()==0)
+            continue;
         smatch sm;
         Mat patch;
         string label;
@@ -41,54 +43,50 @@ GWDataset::GWDataset(const string& queries, const string& imDir, int minH, int m
             Rect loc(x1,y1,x2-x1+1,y2-y1+1);
             locs.push_back(loc);
             patch = curIm(loc);
+            assert(patch.rows*patch.cols>1);
             label=string(sm[6]);
         }
         else
         {
             regex_search(line,sm,qExt);
             patch=imread(imDir+string(sm[1]),CV_LOAD_IMAGE_GRAYSCALE);
+            assert(patch.rows*patch.cols>1);
             label=string(sm[2]);
         }
-        assert(patch.rows*patch.cols>1);
-        patch.convertTo(patch,CV_32F);
-        patch/=255;
-        #if TEST_MODE
-        if (wordImages.size()==0)
-            cout << "pre canary "<<patch.at<float>(0,0)<<endl;
-        #endif
-        
-        double m;
-        minMaxIdx(patch,NULL,&m);
-        if (m<0.2)
-            patch*=0.2/m;
-        
-        if (patch.rows>maxH)
-        {
-            double ratio = (maxH+0.0)/patch.rows;
-            resize(patch,patch,Size(),ratio,ratio,INTER_CUBIC);
-        }
-        else if (patch.rows<minH)
-        {
-            double ratio = (maxH+0.0)/patch.rows;
-            resize(patch,patch,Size(),ratio,ratio,INTER_CUBIC);
-        }
-        
-        #if TEST_MODE
-        if (wordImages.size()==0)
-            cout << "pre canary "<<patch.at<float>(0,0)<<endl;
-        #endif
-        
-        patch*=255;
-        patch.convertTo(patch,CV_8U);
-        
-        #if TEST_MODE
-        if (wordImages.size()==0)
-            cout << "pre canary "<<(int)patch.at<unsigned char>(0,0)<<endl;
-        #endif
+        patch = preprocess(patch);        
         wordImages.push_back(patch);
         _labels.push_back(label);
     }
 
+}
+
+Mat GWDataset::preprocess(Mat im)
+{
+    int maxH=80;
+    int minH=80;
+    Mat patch;
+    im.convertTo(patch,CV_32F);
+    patch/=255;
+    double m;
+    minMaxIdx(patch,NULL,&m);
+    if (m<0.2)
+        patch*=0.2/m;
+    
+    if (patch.rows>maxH)
+    {
+        double ratio = (maxH+0.0)/patch.rows;
+        resize(patch,patch,Size(),ratio,ratio,INTER_CUBIC);
+    }
+    else if (patch.rows<minH)
+    {
+        double ratio = (maxH+0.0)/patch.rows;
+        resize(patch,patch,Size(),ratio,ratio,INTER_CUBIC);
+    }
+    
+    
+    patch*=255;
+    patch.convertTo(patch,CV_8U);
+    return patch;
 }
 
 const vector<string>& GWDataset::labels() const

@@ -18,7 +18,7 @@
 #include <iostream>
 #include <dirent.h>
 #include <iomanip>
-
+#include <functional>
 #include "dataset.h"
 
 
@@ -166,7 +166,7 @@ private:
     map<std::string,int> vocBi2pos; 
     int phocSize, phocSize_bi;
     
-    
+    function< Mat(Mat) > pp;    
     #if TEST_MODE
         vector<string> testImages;
     #endif
@@ -278,6 +278,7 @@ private:
         void readCSV(string fileName, Mat& out, bool trans=false);
         void compareToCSV(Mat mine, string csvloc, bool transpose=false, float thresh=0.001);
         void compareToCSVAbs(Mat mine, string csvloc, bool transpose=false, float thresh=0.001);
+        void compareToMat(Mat mine, Mat other, float thresh=0.001);
 
         void cvSVM_isotest();
         void compute_PCA_isotest();
@@ -296,7 +297,7 @@ public:
     void setTrainData(string gtFile, string imageDir, string saveAs="");
     vector<float> spot(const Mat& exemplar) {return spot(exemplar,"",1);}
     vector< SubwordSpottingResult > subwordSpot(const Mat& exemplar, string word, float alpha, float refinePortion=0.25);
-    double compare(const Mat& im1, const Mat& im2);
+    float compare(const Mat& im1, const Mat& im2);
     vector<float> spot(const Mat& exemplar, string word, float alpha=0.5);
     
     void setTraining_dataset(const Dataset* d);
