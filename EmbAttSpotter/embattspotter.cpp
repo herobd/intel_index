@@ -1,4 +1,4 @@
-;
+
 #include "embattspotter_eval.cpp"
 #if TEST_MODE
     #include "embattspotter_test.cpp"
@@ -494,7 +494,7 @@ vector< SubwordSpottingResult > EmbAttSpotter::subwordSpot(const Mat& exemplar, 
     {
         Mat s_batch = subwordWindows_cca_att(i,windowWidth,stride).t()*query_cca_hy;
         assert(s_batch.rows<=corpus_dataset->image(i).cols);
-        float topScoreInd;
+        float topScoreInd=-1;
         float topScore=-999999;
         float top2ScoreInd=-1;
         float top2Score=-999999;
@@ -508,7 +508,7 @@ vector< SubwordSpottingResult > EmbAttSpotter::subwordSpot(const Mat& exemplar, 
                 topScoreInd=r;
             }
         }
-        int diff = windowWidth/stride;
+        int diff = (windowWidth*.8)/stride;
         for (int r=0; r<s_batch.rows; r++) {
             float s = s_batch.at<float>(r,0);
             if (s>top2Score && abs(r-topScoreInd)>diff)
@@ -520,6 +520,7 @@ vector< SubwordSpottingResult > EmbAttSpotter::subwordSpot(const Mat& exemplar, 
 
         //ttt#pragma omp critical (subword_spot)
         {
+        assert(topScoreInd!=-1);
         scores.emplace(-1*topScore, make_pair(i,topScoreInd));
         if (top2ScoreInd!=-1)
             scores.emplace(-1*top2Score, make_pair(i,top2ScoreInd));
@@ -1316,6 +1317,7 @@ Mat EmbAttSpotter::phow(const Mat& im, const struct PCA_struct* PCA_pt, vector<i
             
             #if USE_VL
             vl_dsift_delete(dsift);
+            delete[] ims;
             #endif
             
             feats_m.push_back(augmented);

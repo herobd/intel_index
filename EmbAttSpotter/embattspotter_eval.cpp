@@ -115,8 +115,8 @@ void EmbAttSpotter::evalSpotting(const Dataset* exemplars, /*string exemplars_lo
         for (int inst=0; inst<exemplars->size(); inst++)
         {
             string ngram = exemplars->labels()[inst];
-
-            
+            cout <<"on spotting inst:"<<inst<<", "<<ngram;
+            cout << flush;
             //int *rank = new int[other];//(int*)malloc(NRelevantsPerQuery[i]*sizeof(int));
             int Nrelevants = 0;
             float ap=0;
@@ -129,7 +129,7 @@ void EmbAttSpotter::evalSpotting(const Dataset* exemplars, /*string exemplars_lo
                     maxScore=r.score;
             vector<float> scores;
             vector<bool> rel;
-            for (int j=0; j < data->size(); j++)
+            for (int j=0; j<res.size(); j++)
             {
                 SubwordSpottingResult r = res[j];
                 size_t loc = data->labels()[r.imIdx].find(ngram);
@@ -141,7 +141,7 @@ void EmbAttSpotter::evalSpotting(const Dataset* exemplars, /*string exemplars_lo
                 else
                 {
                     vector<int> matching;
-                    for (int jj=0; jj < data->size(); jj++)
+                    for (int jj=0; jj < res.size(); jj++)
                     {
                         if (res[jj].imIdx == r.imIdx && j!=jj)
                             matching.push_back(jj);
@@ -200,28 +200,19 @@ void EmbAttSpotter::evalSpotting(const Dataset* exemplars, /*string exemplars_lo
                 }
             }
             vector<int> rank;
-            for (int j=0; j < data->size(); j++)
+            for (int j=0; j < scores.size(); j++)
             {            
                 float s = scores[j];
                 //cout <<"score for "<<j<<" is "<<s<<". It is ["<<data->labels()[j]<<"], we are looking for ["<<text<<"]"<<endl;
-                /* Precision at 1 part */
-                /*if (inst!=j && s > bestS)
-                {
-                    bestS = s;
-                    p1 = text==data->labels()[j];
-                    //bestIdx[inst] = j;
-                }*/
-                /* If it is from the same class and it is not the query idx, it is a relevant one. */
-                /* Compute how many on the dataset get a better score and how many get an equal one, excluding itself and the query.*/
                 
-                if (rel[j])// && inst_index!=j)
+                if (rel[j])
                 {
                     int better=0;
                     int equal = 0;
                     
-                    for (int k=0; k < data->size(); k++)
+                    for (int k=0; k < scores.size(); k++)
                     {
-                        if (k!=j && inst!=k)
+                        if (k!=j)
                         {
                             float s2 = scores[k];
                             if (s2> s) better++;
@@ -253,6 +244,7 @@ void EmbAttSpotter::evalSpotting(const Dataset* exemplars, /*string exemplars_lo
             {
                 queryCount++;
                 map+=ap;
+                cout<<"   ap: "<<ap<<endl;
             }
             
         }
