@@ -185,9 +185,9 @@ void checkNaN(const Mat& m)
         for (int r=0; r<m.rows; r++)
             assert(m.at<float>(r,c)==m.at<float>(r,c));
     
-    for (int c=0; c<m.cols; c++)
-        for (int r=0; r<m.rows; r++)
-            assert(m.at<float>(r,c)>=0);
+    //for (int c=0; c<m.cols; c++)
+    //    for (int r=0; r<m.rows; r++)
+    //        assert(m.at<float>(r,c)>=0);
 }
 
 
@@ -1208,7 +1208,7 @@ Mat EmbAttSpotter::phow(const Mat& im, const struct PCA_struct* PCA_pt, vector<i
 #else
                 desc.at<float>(i,j)/=255;
 #endif
-                //assert(desc.at<float>(i,j)>=0);
+                assert(desc.at<float>(i,j)>=0);
                 desc.at<float>(i,j) = sqrt(desc.at<float>(i,j));
                 sum += desc.at<float>(i,j)*desc.at<float>(i,j);
             }
@@ -1319,7 +1319,7 @@ Mat EmbAttSpotter::phow(const Mat& im, const struct PCA_struct* PCA_pt, vector<i
             vl_dsift_delete(dsift);
             delete[] ims;
             #endif
-            
+            checkNaN(augmented); 
             feats_m.push_back(augmented);
             
             if (PCA_pt!=NULL)
@@ -1584,17 +1584,20 @@ Mat EmbAttSpotter::subwordWindows_cca_att(int imIdx, int windWidth, int stride)
     Mat window_feats=Mat_<float>(numWindows,FV_DIM);
     int windIdx=0;
     int windS=0;
-    int windE=windWidth-1;
+    int windE=min(windWidth-1,corpus_dataset->image(imIdx).cols-1);
     for (; windE<corpus_dataset->image(imIdx).cols; windS+=stride, windE+=stride, windIdx++)
     {
         
         Mat feats=phowsByX(imIdx,windS,windE);
+        checkNaN(feats);
         //cout <<"w["<<windS<<", "<<windE<<"]: "<<feats.rows<<endl;
         Mat tmp= getImageDescriptorFV(feats);
+        checkNaN(tmp);
 
         tmp.copyTo(window_feats.row(windIdx));
         
     }
+    assert(windIdx==numWindows);
     //assert(sum(window_feats.row(24))[0]!=0);
     /*if(numWindows!=1)
     {
@@ -1607,7 +1610,9 @@ Mat EmbAttSpotter::subwordWindows_cca_att(int imIdx, int windWidth, int stride)
             }
         assert(dif);
     }*/
+    checkNaN(window_feats);
     Mat windows_att= attModels().W.t()*(window_feats.t());
+    checkNaN(windows_att);
     Mat tmp = matx*windows_att;
     vconcat(cosMat(tmp),sinMat(tmp),tmp);
     Mat batch_emb_att = (1/sqrt(embedding().M)) * tmp;
@@ -1616,7 +1621,7 @@ Mat EmbAttSpotter::subwordWindows_cca_att(int imIdx, int windWidth, int stride)
     Mat ret_cca_att = embedding().Wx.t()*batch_emb_att;
     normalizeL2Columns(ret_cca_att);
 
-
+    checkNaN(ret_cca_att);
 
     return ret_cca_att;
 }
