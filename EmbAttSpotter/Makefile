@@ -3,9 +3,9 @@ LINK = g++-4.9
 CXX_FLAGS =    -std=c++11 -g #-O3  #-g
 
 SOURCES += main.cpp
-INCLUDE +=  -Ivlfeat-0.9.20 -Imatio-1.5.6/src -I/usr/local/MATLAB/R2015a/extern/include -I"/usr/local/MATLAB/R2015a/simulink/include"
+INCLUDE +=  -Ivlfeat-0.9.20 #-Imatio-1.5.6/src -I/usr/local/MATLAB/R2015a/extern/include -I"/usr/local/MATLAB/R2015a/simulink/include"
 
-LIBS += -L/usr/local/MATLAB/R2015a/bin/glnxa64/ -licuuc -lmx -lmex -lmat -lm #-lmx #-lmwi18n#-lmx -l:libicuio.so.52
+#LIBS += -L/usr/local/MATLAB/R2015a/bin/glnxa64/ -licuuc -lmx -lmex -lmat -lm #-lmx #-lmwi18n#-lmx -l:libicuio.so.52
 
 LIBS += -L/usr/local/lib/ -lopencv_features2d -lopencv_core -lopencv_highgui -lopencv_imgproc -lopencv_ml -fopenmp -lopencv_flann -lopencv_ocl -lopencv_nonfree 
 
@@ -19,17 +19,21 @@ LIBS += -L/home/brian/intel_index/EmbAttSpotter/vlfeat-0.9.20/bin/glnxa64/ -l:li
 
 
 PROGRAM_NAME = embattspotter
+LIB_NAME = libembattspotter.a
 
 OBJECTS = obj/main.o obj/embattspotter.o obj/gwdataset.o
 
 bin: $(PROGRAM_NAME)
-all: $(PROGRAM_NAME)
-
+all: $(PROGRAM_NAME) $(LIB_NAME)
+lib: $(LIB_NAME)
 
 clean:
 	- rm  $(PROGRAM_NAME)
+	- rm  $(LIB_NAME)
 	- rm  obj/*.o
 
+$(LIB_NAME): $(OBJECTS)
+	ar -cvq $(LIB_NAME) $(OBJECTS)
 
 $(PROGRAM_NAME):  $(OBJECTS)  
 	$(LINK) $(CXX_FLAGS) -o $(PROGRAM_NAME) $(OBJECTS) $(LIBS) 

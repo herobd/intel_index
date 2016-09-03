@@ -111,12 +111,15 @@ void EmbAttSpotter::evalSpotting(const Dataset* exemplars, /*string exemplars_lo
         
         float map=0;
         int queryCount=0;
-        //T#pragma omp parallel  for
+        float gramMap=0;
+        string gram="";
+        int gramCount=0;
+        #pragma omp parallel  for
         for (int inst=0; inst<exemplars->size(); inst++)
         {
             string ngram = exemplars->labels()[inst];
-            cout <<"on spotting inst:"<<inst<<", "<<ngram;
-            cout << flush;
+            //cout <<"on spotting inst:"<<inst<<", "<<ngram;
+            //cout << flush;
             //int *rank = new int[other];//(int*)malloc(NRelevantsPerQuery[i]*sizeof(int));
             int Nrelevants = 0;
             float ap=0;
@@ -240,15 +243,28 @@ void EmbAttSpotter::evalSpotting(const Dataset* exemplars, /*string exemplars_lo
             }
             ap/=Nrelevants;
             
-            //T#pragma omp critical (storeMAP)
+            #pragma omp critical (storeMAP)
             {
                 queryCount++;
                 map+=ap;
-                cout<<"   ap: "<<ap<<endl;
+                //cout<<"   ap: "<<ap<<endl;
+                if (gram.compare(ngram)!=0)
+                {
+                    if (gramCount>0)
+                    {
+                        cout <<"ap for ["<<gram<<"]: "<<(gramMap/gramCount)<<endl;
+                        gramCount=0;
+                        gramMap=0;
+                    }
+                    gram=ngram;
+                }
+                gramMap+=ap;
+                gramCount++;
             }
             
         }
+        cout <<"ap for ["<<gram<<"]: "<<(gramMap/gramCount)<<endl;
         
-        cout<<"map: "<<(map/queryCount)<<" for hy:"<<hy<<endl;
+        cout<<"FULL map: "<<(map/queryCount)<<" for hy:"<<hy<<endl;
     }
 }

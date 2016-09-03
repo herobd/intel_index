@@ -6,6 +6,8 @@
 
 #include <armadillo>
 
+#define CHAR_ASPECT_RATIO 2.45 //TODO, is this robust?
+
 EmbAttSpotter::EmbAttSpotter(string saveName, bool useNumbers, int test_mode)
 {
     
@@ -90,7 +92,7 @@ EmbAttSpotter::EmbAttSpotter(string saveName, bool useNumbers, int test_mode)
         phocSize_bi+=level*bigrams.size();
     }
 
-    
+    _averageCharWidth=-1;    
     
     this->saveName = saveName;//+"_sp"+to_string(numSpatialX)+"x"+to_string(numSpatialY);
     
@@ -405,25 +407,71 @@ float EmbAttSpotter::compare(const Mat& im1, const Mat& im2)
     return score.at<float>(0,0);
 }
 
+float EmbAttSpotter::compare(string text, const Mat& im)
+{
+    assert(im.rows*im.cols>1);
+    assert (im.channels()==1);
+    assert (text.length()>0);
+    
+    
+    Mat matx = embedding().rndmatx;//(Rect(0,0,embedding().M,embedding().rndmatx.cols));
+    Mat maty = embedding().rndmaty;//(Rect(0,0,embedding().M,embedding().rndmatx.cols));
+    assert(matx.rows==embedding().M);
+    assert(maty.rows==embedding().M);
+    
+    /////////////////////
+    Mat im_feats = extract_feats(im);
+    
+    Mat im_att = attModels().W.t()*im_feats.t();
+
+    
+    Mat tmp;
+    Mat im_cca_att;
+    tmp = matx*im_att;
+    vconcat(cosMat(tmp),sinMat(tmp),tmp);
+    assert(embedding().matt.size() == tmp.size());
+    Mat im_emb_att = (1/sqrt(embedding().M)) * tmp - embedding().matt;
+    
+    
+    im_cca_att = embedding().Wx.t()*im_emb_att;
+    
+    normalizeL2Columns(im_cca_att);
+
+    /////////////////////
+    Mat query_phoc = Mat::zeros(phocSize+phocSize_bi,1,CV_32F);
+    computePhoc(text, vocUni2pos, map<string,int>(),unigrams.size(), phoc_levels, phocSize, query_phoc,0);
+    computePhoc(word, map<char,int>(), vocBi2pos,bigrams.size(), phoc_levels_bi, phocSize_bi, query_phoc,0);
+    tmp = maty*query_phoc;
+    //checkNaN(tmp);
+    vconcat(cosMat(tmp),sinMat(tmp),tmp);
+    //checkNaN(embedding().mphoc);
+    //checkNaN(tmp);
+    assert(embedding().mphoc.size() == tmp.size());
+    Mat query_emb_phoc = (1/sqrt(embedding().M)) * tmp - embedding().mphoc;
+    Mat query_cca_phoc = embedding().Wy.t()*query_emb_phoc;
+    //checkNaN(query_cca_phoc);
+    
+    
+    normalizeL2Columns(query_cca_phoc);
+    //////////////////////////
+
+    Mat score = im_cca_att.t() * query_cca_phoc;
+    return score.at<float>(0,0);
+}
+
 vector< SubwordSpottingResult > EmbAttSpotter::subwordSpot(const Mat& exemplar, string word, float alpha, float refinePortion)
 {
     int windowWidth=exemplar.cols;
+    if (windowWidth==0)
+    {
+      windowWidth =  averageCharWidth()*(word.length()+0.2);
+    }
     int stride=5;
     assert(alpha>=0 && alpha<=1);
     assert(word.length()>0 || alpha==1);
     assert(exemplar.rows*exemplar.cols>1 || alpha==0);
-    assert (exemplar.channels()==1);
+    assert (exemplar.channels()==1 || alpha==0);
     
-    
-    Mat query_feats = extract_feats(exemplar);
-    
-    Mat query_att = attModels().W.t()*query_feats.t();
-    Mat query_phoc = Mat::zeros(phocSize+phocSize_bi,1,CV_32F);
-    if (alpha < 1)
-    {
-        computePhoc(word, vocUni2pos, map<string,int>(),unigrams.size(), phoc_levels, phocSize, query_phoc,0);
-        computePhoc(word, map<char,int>(), vocBi2pos,bigrams.size(), phoc_levels_bi, phocSize_bi, query_phoc,0);
-    }
     
 
     Mat matx = embedding().rndmatx;//(Rect(0,0,embedding().M,embedding().rndmatx.cols));
@@ -436,6 +484,9 @@ vector< SubwordSpottingResult > EmbAttSpotter::subwordSpot(const Mat& exemplar, 
     Mat query_cca_phoc;
     if (alpha!=0)
     {
+        Mat query_feats = extract_feats(exemplar);
+        
+        Mat query_att = attModels().W.t()*query_feats.t();
         tmp = matx*query_att;
         vconcat(cosMat(tmp),sinMat(tmp),tmp);
         assert(embedding().matt.size() == tmp.size());
@@ -448,6 +499,9 @@ vector< SubwordSpottingResult > EmbAttSpotter::subwordSpot(const Mat& exemplar, 
     } 
     if (alpha!=1)
     { 
+        Mat query_phoc = Mat::zeros(phocSize+phocSize_bi,1,CV_32F);
+        computePhoc(word, vocUni2pos, map<string,int>(),unigrams.size(), phoc_levels, phocSize, query_phoc,0);
+        computePhoc(word, map<char,int>(), vocBi2pos,bigrams.size(), phoc_levels_bi, phocSize_bi, query_phoc,0);
         tmp = maty*query_phoc;
         //checkNaN(tmp);
         vconcat(cosMat(tmp),sinMat(tmp),tmp);
@@ -552,6 +606,182 @@ SubwordSpottingResult EmbAttSpotter::refine(int imIdx, int windIdx, int windWidt
     Mat s_mat = subword_cca_att(imIdx,x0,x1).t()*query_cca;
     assert(s_mat.rows==1 && s_mat.cols==1);
     return SubwordSpottingResult(imIdx,-1*s_mat.at<float>(0,0),x0,x1);
+}
+
+double EmbAttSpotter::averageCharWidth()
+{
+    if (_averageCharWidth<=0)
+    {
+        double heightAvg=0;
+        //double estWidthAvg=0;
+        for (int i=0; i<corpus_dataset->size(); i++)
+        {
+            Mat gray=corpus_dataset->image(i);
+            if (gray.channels()>2)
+                cvtColor(gray,gray,CV_RGB2GRAY);
+            Mat bin;
+            int blockSize = (1+gray.rows)/2;
+            if (blockSize%2==0)
+                blockSize++;
+            //if (gray.type()==CV_8UC3)
+            //    cv::cvtColor(gray,gray,CV_RGB2GRAY);
+            adaptiveThreshold(gray, bin, 255, ADAPTIVE_THRESH_GAUSSIAN_C, THRESH_BINARY_INV, blockSize, 10);
+
+            //Find the baselines
+            int topBaseline;
+            int botBaseline;
+            int avgWhite=0;
+            int countWhite=0;
+            cv::Mat hist = cv::Mat::zeros(gray.rows,1,CV_32F);
+            map<int,int> topPixCounts, botPixCounts;
+            for (int c=0; c<gray.cols; c++)
+            {
+                int topPix=-1;
+                int lastSeen=-1;
+                for (int r=0; r<gray.rows; r++)
+                {
+                    if (bin.at<unsigned char>(r,c))
+                    {
+                        if (topPix==-1)
+                        {
+                            topPix=r;
+                    }
+                        lastSeen=r;
+                    }
+                    else
+                    {
+                        avgWhite+=gray.at<unsigned char>(r,c);
+                        countWhite++;
+                    }
+                    hist.at<float>(r,0)+=gray.at<unsigned char>(r,c);
+                }
+                if (topPix!=-1)
+                    topPixCounts[topPix]++;
+                if (lastSeen!=-1)
+                    botPixCounts[lastSeen]++;
+            }
+            avgWhite /= countWhite;
+
+            int maxTop=-1;
+            int maxTopCount=-1;
+            for (auto c : topPixCounts)
+            {
+                if (c.second > maxTopCount)
+                {
+                    maxTopCount=c.second;
+                    maxTop=c.first;
+                }
+            }
+            int maxBot=-1;
+            int maxBotCount=-1;
+            for (auto c : botPixCounts)
+            {
+                if (c.second > maxBotCount)
+                {
+                    maxBotCount=c.second;
+                    maxBot=c.first;
+                }
+            }
+
+            //cv::Mat kernel = cv::Mat::ones( 5, 1, CV_32F )/ (float)(5);
+            //cv::filter2D(hist, hist, -1 , kernel );
+            cv::Mat edges;
+            int pad=5;
+            cv::Mat paddedHist = cv::Mat::ones(hist.rows+2*pad,1,hist.type());
+            double avg=0;
+            double maxHist=-99999;
+            double minHist=99999;
+             for (int r=0; r<hist.rows; r++)
+            {
+                avg+=hist.at<float>(r,0);
+                if (hist.at<float>(r,0)>maxHist)
+                    maxHist=hist.at<float>(r,0);
+                if (hist.at<float>(r,0)<minHist)
+                    minHist=hist.at<float>(r,0);
+            }
+            avg/=hist.rows;
+            paddedHist *= avg;
+            hist.copyTo(paddedHist(cv::Rect(0,pad,1,hist.rows)));
+            float kernelData[11] = {1,1,1,1,.5,0,-.5,-1,-1,-1,-1};
+            cv::Mat kernel = cv::Mat(11,1,CV_32F,kernelData);
+            cv::filter2D(paddedHist, edges, -1 , kernel );//, Point(-1,-1), 0 ,BORDER_AVERAGE);
+            float kernelData2[11] = {.1,.1,.1,.1,.1,.1,.1,.1,.1,.1,.1};
+            cv::Mat kernel2 = cv::Mat(11,1,CV_32F,kernelData2);
+            cv::Mat blurred;
+            cv::filter2D(hist, blurred, -1 , kernel2 );//, Point(-1,-1), 0 ,BORDER_AVERAGE);
+            topBaseline=-1;
+            float maxEdge=-9999999;
+            botBaseline=-1;
+            float minEdge=9999999;
+            float minPeak=9999999;
+            float center=-1;
+            for (int r=pad; r<gray.rows+pad; r++)
+            {
+                float v = edges.at<float>(r,0);
+                if (v>maxEdge)
+                {
+                    maxEdge=v;
+                    topBaseline=r-pad;
+                }
+                if (v<minEdge)
+                {
+                    minEdge=v;
+                    botBaseline=r-pad;
+                }
+
+                if (blurred.at<float>(r-pad,0) < minPeak) {
+                    center=r-pad;
+                    minPeak=blurred.at<float>(r-pad,0);
+                }
+            }
+            if (topBaseline>center)
+            {
+                if (maxTop < center)
+                    topBaseline=maxTop;
+                else
+                {
+                    maxEdge=-999999;
+                    for (int r=pad; r<center+pad; r++)
+                    {
+                        float v = edges.at<float>(r,0);
+                        if (v>maxEdge)
+                        {
+                            maxEdge=v;
+                            topBaseline=r-pad;
+                        }
+                    }
+                }
+            }
+            if (botBaseline<center)
+            {
+                if (maxBot > center)
+                    botBaseline=maxBot;
+                else
+                {
+                    minEdge=999999;
+                    for (int r=center+1; r<gray.rows+pad; r++)
+                    {
+                        float v = edges.at<float>(r,0);
+                        if (v<minEdge)
+                        {
+                            minEdge=v;
+                            botBaseline=r-pad;
+                        }
+                    }
+                }
+            }
+            if (botBaseline < topBaseline)//If they fail this drastically, the others won't be much better.
+            {
+                topBaseline=maxTop;
+                botBaseline=maxBot;
+            }
+            heightAvg+=botBaseline-topBaseline;
+        }
+        heightAvg/=(corpus_dataset->size()+0.0);
+        _averageCharWidth=CHAR_ASPECT_RATIO*heightAvg;
+        cout <<"Estimated avg char width="<<_averageCharWidth<<endl;
+    }
+    return _averageCharWidth;
 }
 
 /*double EmbAttSpotter::compare(const Mat& im1, const Mat& im2)

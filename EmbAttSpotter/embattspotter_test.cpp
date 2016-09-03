@@ -2,11 +2,11 @@
 //extern "C" {
 //#include "matio.h"
 //}
-extern "C" 
+/*extern "C" 
 {
 #include <mat.h>
 #include <matrix.h>
-}
+}*/
 //#include <unistr.h>
 #include "gwdataset.h"
 #include "facadedataset.h"
@@ -950,9 +950,20 @@ void EmbAttSpotter::cvSVM_isotest()
 
 void EmbAttSpotter::subwordSpot_test()
 {
-    Mat testEx = imread("test/testImages/ng.tif",CV_LOAD_IMAGE_GRAYSCALE);
     Dataset* data = new FacadeDataset();
     corpus_dataset = data;
+
+    vector<SubwordSpottingResult> resA = subwordSpot(Mat(),"ng",0);
+    vector<SubwordSpottingResult> resB = subwordSpot(Mat(),"ng",0);
+    assert(resA.size() == resB.size());
+    for (int i=0; i<resA.size(); i++)
+    {
+        assert( resA[i].score == resB[i].score );
+        assert( resA[i].imIdx == resB[i].imIdx );
+        assert( resA[i].startX == resB[i].startX );
+    }
+
+    Mat testEx = imread("test/testImages/ng.tif",CV_LOAD_IMAGE_GRAYSCALE);
     vector<SubwordSpottingResult> res = subwordSpot(testEx,"ng",1,0.5);
     assert(res.size()<=5 && res.size()>=2);
     SubwordSpottingResult best;

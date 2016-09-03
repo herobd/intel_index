@@ -119,6 +119,8 @@ private:
     
     vector<Mat> _corpus_phows;    
     vector<vector<int> > _corpus_phows_xs;
+
+    double _averageCharWidth;
     ////
     ////End lazy elements
     ////
@@ -236,6 +238,9 @@ private:
     //The PHOCs of the training set. Lazy
     const Mat& phocsTr(bool retrain=false);//correct orientation
     
+    //Returns an estimated average char width from corpus dataset and a fixed ratio. Lazy
+    double averageCharWidth();
+
     //Computes a bounding box roughly capturing the word lengthwise and the baselines
     void DoBB(const Mat& im, int* bb_x1, int* bb_x2, int* bb_y1, int* bb_y2);
     
@@ -298,6 +303,7 @@ public:
     vector<float> spot(const Mat& exemplar) {return spot(exemplar,"",1);}
     vector< SubwordSpottingResult > subwordSpot(const Mat& exemplar, string word, float alpha, float refinePortion=0.25);
     float compare(const Mat& im1, const Mat& im2);
+    float compare(string text, const Mat& im);
     vector<float> spot(const Mat& exemplar, string word, float alpha=0.5);
     
     void setTraining_dataset(const Dataset* d);
