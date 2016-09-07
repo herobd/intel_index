@@ -25,12 +25,12 @@
 
 #if USE_VL
 extern "C" {
-  #include <vl/generic.h>
-  #include <vl/svm.h>
-  #include <vl/gmm.h>
-  #include <vl/fisher.h>
-  #include <vl/dsift.h>
-  #include <vl/imopv.h>
+  #include "vlfeat-0.9.20/vl/generic.h"
+  #include "vlfeat-0.9.20/vl/svm.h"
+  #include "vlfeat-0.9.20/vl/gmm.h"
+  #include "vlfeat-0.9.20/vl/fisher.h"
+  #include "vlfeat-0.9.20/vl/dsift.h"
+  #include "vlfeat-0.9.20/vl/imopv.h"
 }
 #endif
 
@@ -111,6 +111,7 @@ private:
     Mat _attReprTr;
     
     vector<Mat>* _batches_cca_att;
+    vector<Mat>* _subwordWindows_cca_att_saved;
     
     vector<Mat>* _features_corpus;
     Mat _feats_training;
@@ -124,6 +125,7 @@ private:
     ////
     ////End lazy elements
     ////
+    
     
     
     
@@ -175,6 +177,7 @@ private:
     
 
     Mat extract_feats(const Mat& im);
+    Mat extract_feats(const Mat& im) const;
 
     vector<Mat>* extract_FV_feats_fast_and_batch(const vector<string>& imageLocations,vector<int>* batches_index,vector<int>* batches_indexEnd, int batchSize);
     vector<Mat>* extract_FV_feats_fast_and_batch(const Dataset* dataset,vector<int>* batches_index,vector<int>* batches_indexEnd, int batchSize);
@@ -183,10 +186,13 @@ private:
     const vector<Mat>& features_corpus(bool retrain=false);
     const Mat& feats_training(bool retrain=false);
 
-    Mat phow(const Mat& im, const struct PCA_struct* PCA_pt=NULL, vector<int>* xs=NULL);
+    Mat phow(const Mat& im, const struct PCA_struct* PCA_pt=NULL, vector<int>* xs=NULL) const;
     Mat getImageDescriptorFV(const Mat& feats_m);
+    Mat getImageDescriptorFV(const Mat& feats_m) const;
 
     const vector<Mat>& batches_cca_att();
+    Mat subwordWindows_cca_att_saved(int imIdx, int windWidth, int stride);
+    const Mat subwordWindows_cca_att_saved(int imIdx, int windWidth, int stride) const;
 
     Mat batch_att(int batchNum);
 
@@ -194,7 +200,7 @@ private:
     Mat cvSVM(const Mat& featsTrain, const double* labelsTrain, const Mat& featsVal, const float* labelsVal, VlSvm ** bestsvm);
     double modelMap(int model_size, double const* svm, const Mat& featsVal, const float* labelsVal);
     
-    Mat select_rows(const Mat& m, vector<int> idx);
+    Mat select_rows(const Mat& m, vector<int> idx) const;
 
     const AttributesModels& attModels(bool retrain=false);
     
@@ -233,7 +239,7 @@ private:
     Mat embed_labels_PHOC(const vector<string>& labels);
     
     //This does EITHER unigrams or bigrams, but fills them into the right spot (you call it twice).
-    void computePhoc(string str, map<char,int> vocUni2pos, map<string,int> vocBi2pos, int Nvoc, vector<int> levels, int descSize, Mat &out, int instance);
+    void computePhoc(string str, map<char,int> vocUni2pos, map<string,int> vocBi2pos, int Nvoc, vector<int> levels, int descSize, Mat &out, int instance) const;
     
     //The PHOCs of the training set. Lazy
     const Mat& phocsTr(bool retrain=false);//correct orientation
@@ -242,21 +248,24 @@ private:
     double averageCharWidth();
 
     //Computes a bounding box roughly capturing the word lengthwise and the baselines
-    void DoBB(const Mat& im, int* bb_x1, int* bb_x2, int* bb_y1, int* bb_y2);
+    void DoBB(const Mat& im, int* bb_x1, int* bb_x2, int* bb_y1, int* bb_y2) const;
     
     //Compute element-wise sine or cosine
-    Mat sinMat(const Mat& x);
-    Mat cosMat(const Mat& x);
+    Mat sinMat(const Mat& x) const;
+    Mat cosMat(const Mat& x) const;
     
     //L2-Normalize the columns of the matrix
-    Mat& normalizeL2Columns(Mat& m);
+    Mat& normalizeL2Columns(Mat& m) const;
     
-    Mat otsuBinarization(const Mat& src);
+    Mat otsuBinarization(const Mat& src) const;
     
-    SubwordSpottingResult refine(int imIdx, int windIdx, int windWidth, int stride, const Mat& query_cca);
+    SubwordSpottingResult refine(float score, int imIdx, int windIdx, int windWidth, int stride, const Mat& query_cca) const;
     Mat subwordWindows_cca_att(int imIdx, int windWidth, int stride);
+    Mat subwordWindows_cca_att(int imIdx, int windWidth, int stride) const;
     Mat subword_cca_att(int imIdx, int windS, int windE);
+    Mat subword_cca_att(int imIdx, int windS, int windE) const;
     Mat phowsByX(int i, int xS, int xE);
+    Mat phowsByX(int i, int xS, int xE) const;
     int test_mode;
     
     #if TEST_MODE
@@ -296,18 +305,20 @@ public:
     const Mat& attReprTr(bool retrain=false);//correct orientation
     const Embedding& embedding(bool retrain=false);
 
-    EmbAttSpotter(string saveName="embAttSpotter",bool useNumbers=true, int test_mode=0);
+    EmbAttSpotter(string saveName="embAttSpotter", bool load=false ,bool useNumbers=true, int test_mode=0);
     ~EmbAttSpotter();
     void loadCorpus(string dir);
     void setTrainData(string gtFile, string imageDir, string saveAs="");
     vector<float> spot(const Mat& exemplar) {return spot(exemplar,"",1);}
     vector< SubwordSpottingResult > subwordSpot(const Mat& exemplar, string word, float alpha, float refinePortion=0.25);
+    vector< SubwordSpottingResult > subwordSpot(const Mat& exemplar, string word, float alpha, float refinePortion=0.25) const;
     float compare(const Mat& im1, const Mat& im2);
     float compare(string text, const Mat& im);
+    float compare(string text, const Mat& im) const;
     vector<float> spot(const Mat& exemplar, string word, float alpha=0.5);
     
     void setTraining_dataset(const Dataset* d);
-    void setCorpus_dataset(const Dataset* d);
+    void setCorpus_dataset(const Dataset* d, bool load=false);
     
     void eval(const Dataset* data);
     void evalSpotting(const Dataset* exemplars, const Dataset* data, double hyV=-1);
@@ -322,6 +333,7 @@ public:
     {
         system(("rm "+saveName+"*.dat").c_str());
     }
+    void primeSubwordSpotting(int len);
 };
 
 #endif // EMBATTSPOTTER_H

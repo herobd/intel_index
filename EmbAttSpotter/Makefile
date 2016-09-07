@@ -1,9 +1,9 @@
 CXX = g++-4.9 
 LINK = g++-4.9
-CXX_FLAGS =    -std=c++11 -g #-O3  #-g
+CXX_FLAGS =  -fPIC  -std=c++11 -g #-O3  #-g
 
 SOURCES += main.cpp
-INCLUDE +=  -Ivlfeat-0.9.20 #-Imatio-1.5.6/src -I/usr/local/MATLAB/R2015a/extern/include -I"/usr/local/MATLAB/R2015a/simulink/include"
+#INCLUDE +=  -Ivlfeat-0.9.20 #-Imatio-1.5.6/src -I/usr/local/MATLAB/R2015a/extern/include -I"/usr/local/MATLAB/R2015a/simulink/include"
 
 #LIBS += -L/usr/local/MATLAB/R2015a/bin/glnxa64/ -licuuc -lmx -lmex -lmat -lm #-lmx #-lmwi18n#-lmx -l:libicuio.so.52
 
@@ -33,6 +33,7 @@ clean:
 	- rm  obj/*.o
 
 $(LIB_NAME): $(OBJECTS)
+	- rm  $(LIB_NAME)
 	ar -cvq $(LIB_NAME) $(OBJECTS)
 
 $(PROGRAM_NAME):  $(OBJECTS)  

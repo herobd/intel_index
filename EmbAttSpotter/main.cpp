@@ -16,6 +16,8 @@ int main(int argc, char** argv)
 	TCLAP::CmdLine cmd("EmbAttSpotter tester", ' ', "0.1");
 	TCLAP::SwitchArg evalF("e","eval","Evaluate against dataset", cmd, false);
 	TCLAP::SwitchArg evalSpotF("s","evalSpotting","Evaluate spotting results", cmd, false);
+	TCLAP::ValueArg<int> primeSubwordArg("p","primeSubword","save the cca att for the given string length", false, -1,"int");
+	cmd.add( primeSubwordArg );
 	TCLAP::ValueArg<string> modelArg("l","location","load/save prefix", false,"model/evalGW","string");
 	cmd.add( modelArg );
 	TCLAP::SwitchArg testF("t","test","Run unit tests", cmd, false);
@@ -46,7 +48,7 @@ int main(int argc, char** argv)
 	 
 	if ( testF.getValue() )
 	{
-	    EmbAttSpotter spotter("testing",true,1);
+	    EmbAttSpotter spotter("testing",false,true,1);
 	    
 		spotter.test();
 	}
@@ -65,6 +67,17 @@ int main(int argc, char** argv)
 	    
 		spotter.eval(&test);
 	}
+
+        if (primeSubwordArg.getValue()>=0)
+        {
+	    EmbAttSpotter spotter(modelArg.getValue());
+	    GWDataset train(trainFileArg.getValue(),imageDirArg.getValue());
+	    GWDataset test(testFileArg.getValue(),imageDirArg.getValue());
+            spotter.setTraining_dataset(&train);
+            spotter.setCorpus_dataset(&test);
+            spotter.primeSubwordSpotting(primeSubwordArg.getValue());
+        }
+
 	if ( evalSpotF.getValue() )
 	{
 	    EmbAttSpotter spotter(modelArg.getValue());

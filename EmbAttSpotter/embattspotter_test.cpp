@@ -47,6 +47,7 @@ void EmbAttSpotter::test()
     saveName="test/tmp_saveTest";
     system(("rm "+saveName+"*").c_str());
     subwordSpot_test();
+    cout <<"passed subword test"<<endl;
     _features_corpus=NULL;
     _batches_cca_att=NULL;
     _PCA.mean=Mat();
