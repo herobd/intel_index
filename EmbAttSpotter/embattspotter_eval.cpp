@@ -1,5 +1,5 @@
 #include "embattspotter.h"
-
+#include <set>
 
 int sort_xxx(const void *x, const void *y) {
     if (*(int*)x > *(int*)y) return 1;
@@ -108,7 +108,7 @@ void EmbAttSpotter::evalSpotting(const Dataset* exemplars, /*string exemplars_lo
     }
     for (double hy=hyS; hy<=hyE; hy+=0.1)
     {
-        
+        set<string> done;
         float map=0;
         int queryCount=0;
         float gramMap=0;
@@ -118,6 +118,19 @@ void EmbAttSpotter::evalSpotting(const Dataset* exemplars, /*string exemplars_lo
         for (int inst=0; inst<exemplars->size(); inst++)
         {
             string ngram = exemplars->labels()[inst];
+            if (hyV=0)
+            {
+                bool cc=false;
+#pragma omp critical (ddd)
+                {
+                if (done.find(ngram)!=done.end())
+                    cc=true;
+                else
+                    done.insert(ngram);
+                }
+                if (cc)
+                    continue;
+            }
             //cout <<"on spotting inst:"<<inst<<", "<<ngram;
             //cout << flush;
             //int *rank = new int[other];//(int*)malloc(NRelevantsPerQuery[i]*sizeof(int));
@@ -125,6 +138,8 @@ void EmbAttSpotter::evalSpotting(const Dataset* exemplars, /*string exemplars_lo
             float ap=0;
             
             float bestS=-99999;
+            //imshow("exe", exemplars->image(inst));
+            //waitKey();
             vector<SubwordSpottingResult> res = subwordSpot(exemplars->image(inst),ngram,hy); //scores
             float maxScore=-9999;
             for (auto r : res)
@@ -247,8 +262,8 @@ void EmbAttSpotter::evalSpotting(const Dataset* exemplars, /*string exemplars_lo
             {
                 queryCount++;
                 map+=ap;
-                //cout<<"   ap: "<<ap<<endl;
-                if (gram.compare(ngram)!=0)
+                cout<<"on spotting inst:"<<inst<<", "<<ngram<<"   ap: "<<ap<<endl;
+                /*if (gram.compare(ngram)!=0)
                 {
                     if (gramCount>0)
                     {
@@ -259,11 +274,11 @@ void EmbAttSpotter::evalSpotting(const Dataset* exemplars, /*string exemplars_lo
                     gram=ngram;
                 }
                 gramMap+=ap;
-                gramCount++;
+                gramCount++;*/
             }
             
         }
-        cout <<"ap for ["<<gram<<"]: "<<(gramMap/gramCount)<<endl;
+        //cout <<"ap for ["<<gram<<"]: "<<(gramMap/gramCount)<<endl;
         
         cout<<"FULL map: "<<(map/queryCount)<<" for hy:"<<hy<<endl;
     }

@@ -7,8 +7,10 @@
 #include <armadillo>
 
 #define CHAR_ASPECT_RATIO 2.45 //TODO, is this robust?
-#define SUBWORD_WINDOW_PAD 0.25
+#define SUBWORD_WINDOW_PAD 0.5 //[119]     //0.2 [86]
+#define SUBWORD_WINDOW_EXTEND 1.7 //[119]  //1.3 [86]
 #define COARSE_STRIDE 10
+#define STRIDE_PORTION 0.28
 
 EmbAttSpotter::EmbAttSpotter(string saveName, bool load, bool useNumbers, int test_mode)
 {
@@ -420,7 +422,7 @@ float EmbAttSpotter::compare(const Mat& im1, const Mat& im2)
     //////////////////////////
 
     Mat score = im1_cca_att.t() * im2_cca_att;
-    return score.at<float>(0,0);
+    return -1*score.at<float>(0,0);
 }
 
 float EmbAttSpotter::compare(string text, const Mat& im)
@@ -472,7 +474,7 @@ float EmbAttSpotter::compare(string text, const Mat& im)
     //////////////////////////
 
     Mat score = im_cca_att.t() * query_cca_phoc;
-    return score.at<float>(0,0);
+    return -1*score.at<float>(0,0);
 }
 
 //A non-lazy version of the function
@@ -527,24 +529,25 @@ float EmbAttSpotter::compare(string text, const Mat& im) const
     //////////////////////////
 
     Mat score = im_cca_att.t() * query_cca_phoc;
-    return score.at<float>(0,0);
+    return -1*score.at<float>(0,0);
 }
 
 void EmbAttSpotter::primeSubwordSpotting(int len)
 {
-    int  s_windowWidth =  averageCharWidth()*(len+SUBWORD_WINDOW_PAD);
-    int s_stride=averageCharWidth()/4;
+    int  s_windowWidth =  averageCharWidth()*(len*SUBWORD_WINDOW_EXTEND+SUBWORD_WINDOW_PAD);
+    int s_stride=averageCharWidth()*STRIDE_PORTION;
     subwordWindows_cca_att_saved(0,s_windowWidth,s_stride);
 }
 
 vector< SubwordSpottingResult > EmbAttSpotter::subwordSpot(const Mat& exemplar, string word, float alpha, float refinePortion)
 {
     //int s_windowWidth=exemplar.cols;
+    cout <<"Old windowWidth would have been: "<<exemplar.cols<<endl;
     //if (s_windowWidth==0)
     //{
-    int  s_windowWidth =  averageCharWidth()*(word.length()+SUBWORD_WINDOW_PAD);
+    int  s_windowWidth =  averageCharWidth()*(word.length()*SUBWORD_WINDOW_EXTEND+SUBWORD_WINDOW_PAD);
     //}
-    int s_stride=averageCharWidth()/4;
+    int s_stride=averageCharWidth()*STRIDE_PORTION;
     assert(alpha>=0 && alpha<=1);
     assert(word.length()>0 || alpha==1);
     assert(exemplar.rows*exemplar.cols>1 || alpha==0);
@@ -680,9 +683,9 @@ vector< SubwordSpottingResult > EmbAttSpotter::subwordSpot(const Mat& exemplar, 
     //int s_windowWidth=exemplar.cols;
     //if (s_windowWidth==0)
     //{
-    int  s_windowWidth =  _averageCharWidth*(word.length()+SUBWORD_WINDOW_PAD);
+    int  s_windowWidth =  _averageCharWidth*(word.length()*SUBWORD_WINDOW_EXTEND+SUBWORD_WINDOW_PAD);
     //}
-    int s_stride=_averageCharWidth/4;
+    int s_stride=_averageCharWidth*STRIDE_PORTION;
     assert(alpha>=0 && alpha<=1);
     assert(word.length()>0 || alpha==1);
     assert(exemplar.rows*exemplar.cols>1 || alpha==0);
@@ -888,6 +891,7 @@ SubwordSpottingResult EmbAttSpotter::refine(float score, int imIdx, int windIdx,
 
 double EmbAttSpotter::averageCharWidth()
 {
+#pragma omp critical (compute_acw)
     if (_averageCharWidth<=0)
     {
         assert(corpus_dataset->size()>0);
@@ -896,7 +900,7 @@ double EmbAttSpotter::averageCharWidth()
         for (int i=0; i<corpus_dataset->size(); i++)
         {
             Mat gray=corpus_dataset->image(i);
-            if (gray.channels()>2)
+            if (gray.channels()>1)
                 cvtColor(gray,gray,CV_RGB2GRAY);
             Mat bin;
             int blockSize = (1+gray.rows)/2;
@@ -1055,6 +1059,17 @@ double EmbAttSpotter::averageCharWidth()
                 botBaseline=maxBot;
             }
             heightAvg+=botBaseline-topBaseline;
+
+            Mat draw;
+            cvtColor(gray,draw,CV_GRAY2RGB);
+            for (int c=0; c<draw.cols; c++)
+            {
+                draw.at<Vec3b>(topBaseline,c) = Vec3b(0,0,255);
+                draw.at<Vec3b>(botBaseline,c) = Vec3b(0,0,255);
+            }
+            //cout <<"["<<i<<"] height: "<<botBaseline-topBaseline<<endl;
+            //imshow("baselines",draw);
+            //waitKey();
         }
         heightAvg/=(corpus_dataset->size()+0.0);
         _averageCharWidth=CHAR_ASPECT_RATIO*heightAvg;
@@ -2144,11 +2159,19 @@ Mat EmbAttSpotter::subwordWindows_cca_att_saved(int imIdx, int s_windowWidth, in
         else
         {
             cout<<"Creating subwordWindows_cca_att_saved (w:"<<s_windowWidth<<" s:"<<s_stride<<")"<<endl;
+
             _subwordWindows_cca_att_saved = new vector<Mat>(corpus_dataset->size());
             for (int i=0; i<corpus_dataset->size(); i++)
             {
-                _subwordWindows_cca_att_saved->at(i) = subwordWindows_cca_att(imIdx,s_windowWidth,s_stride);
+                _subwordWindows_cca_att_saved->at(i) = subwordWindows_cca_att(i,s_windowWidth,s_stride);
             }
+            ofstream out(name);
+            out << corpus_dataset->size() << " ";
+            for (int i=0; i<corpus_dataset->size(); i++)
+            {
+                writeFloatMat(out,_subwordWindows_cca_att_saved->at(i));
+            }
+            out.close();
         }
     }
 
@@ -2379,6 +2402,8 @@ Mat EmbAttSpotter::phowsByX(int i, int xS, int xE)
     assert(sum(ret)[0]!=0);
     */
     Mat im = corpus_dataset->image(i)(Rect(xS,0,xE-xS+1,corpus_dataset->image(i).rows)).clone();
+    //imshow("window",im);
+    //waitKey();
     Mat ret = phow(im,&PCA_());
     return ret;
 }
