@@ -169,6 +169,8 @@ private:
     map<char,int> vocUni2pos;
     map<std::string,int> vocBi2pos; 
     int phocSize, phocSize_bi;
+
+    vector<int> spottingNgramLengths;
     
     function< Mat(Mat) > pp;    
     #if TEST_MODE
@@ -260,11 +262,11 @@ private:
     Mat otsuBinarization(const Mat& src) const;
     
     SubwordSpottingResult refine(float score, int imIdx, int windIdx, int windWidth, int stride, const Mat& query_cca) const;
-    Mat subwordWindows_cca_att(int imIdx, int windWidth, int stride);
+    //Mat subwordWindows_cca_att(int imIdx, int windWidth, int stride);
     Mat subwordWindows_cca_att(int imIdx, int windWidth, int stride) const;
-    Mat subword_cca_att(int imIdx, int windS, int windE);
+    //Mat subword_cca_att(int imIdx, int windS, int windE);
     Mat subword_cca_att(int imIdx, int windS, int windE) const;
-    Mat phowsByX(int i, int xS, int xE);
+    //Mat phowsByX(int i, int xS, int xE);
     Mat phowsByX(int i, int xS, int xE) const;
     int test_mode;
     
@@ -310,15 +312,16 @@ public:
     void loadCorpus(string dir);
     void setTrainData(string gtFile, string imageDir, string saveAs="");
     vector<float> spot(const Mat& exemplar) {return spot(exemplar,"",1);}
-    vector< SubwordSpottingResult > subwordSpot(const Mat& exemplar, string word, float alpha, float refinePortion=0.25);
+    //vector< SubwordSpottingResult > subwordSpot(const Mat& exemplar, string word, float alpha, float refinePortion=0.25);
     vector< SubwordSpottingResult > subwordSpot(const Mat& exemplar, string word, float alpha, float refinePortion=0.25) const;
     float compare(const Mat& im1, const Mat& im2);
-    float compare(string text, const Mat& im);
+    //float compare(string text, const Mat& im);
     float compare(string text, const Mat& im) const;
+    float compare(string text, int imIdx) const;
     vector<float> spot(const Mat& exemplar, string word, float alpha=0.5);
     
     void setTraining_dataset(const Dataset* d);
-    void setCorpus_dataset(const Dataset* d, bool load=false);
+    void setCorpus_dataset(const Dataset* d, bool load=true);
     
     void eval(const Dataset* data);
     void evalSpotting(const Dataset* exemplars, const Dataset* data, double hyV=-1);

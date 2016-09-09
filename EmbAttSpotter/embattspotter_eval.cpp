@@ -9,7 +9,7 @@ int sort_xxx(const void *x, const void *y) {
 
 void EmbAttSpotter::eval(const Dataset* data)
 {
-    corpus_dataset=data;
+    setCorpus_dataset(data);
     for (double hy=0.0; hy<=1.0; hy+=0.1)
     {
         
@@ -99,14 +99,31 @@ void EmbAttSpotter::eval(const Dataset* data)
 
 void EmbAttSpotter::evalSpotting(const Dataset* exemplars, /*string exemplars_locations,*/ const Dataset* data, double hyV)
 {
-    corpus_dataset=data;
+    setCorpus_dataset(data);
+
+    map<string,set<int> > widths;
+    for (int i=0; i<exemplars->size(); i++)
+    {
+        widths[exemplars->labels()[i]].insert(exemplars->image(i).cols);
+    }
+
+    cout<<"Average exemplar widths"<<endl;
+    for (auto p : widths)
+    {
+        double avg=0;
+        for (int w : p.second)
+            avg+=w;
+        avg/=p.second.size();
+        cout <<p.first<<": "<<avg<<endl;
+    }
+
     double hyS=0.0;
     double hyE=1.0;
     if (hyV>=0)
     {
         hyS=hyE=hyV;
     }
-    for (double hy=hyS; hy<=hyE; hy+=0.1)
+    for (double hy=hyS; hy<=hyE; hy+=0.2)
     {
         set<string> done;
         float map=0;
@@ -118,7 +135,7 @@ void EmbAttSpotter::evalSpotting(const Dataset* exemplars, /*string exemplars_lo
         for (int inst=0; inst<exemplars->size(); inst++)
         {
             string ngram = exemplars->labels()[inst];
-            if (hyV=0)
+            if (hy==0)
             {
                 bool cc=false;
 #pragma omp critical (ddd)
