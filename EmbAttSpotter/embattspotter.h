@@ -130,12 +130,18 @@ private:
     
     
     string saveName;
+    //This sizes used for the phow extraction
     vector<int> SIFT_sizes;
+    int maxSiftSize;
+    //Stride for phow
     int stride;
     double magnif;
     double windowsize;   
     double contrastthreshold;
-    
+
+    //This is padding to accomidate context for the phow descriptors.
+    int subwordWindowPad;
+
     int corpusSize;
     
     

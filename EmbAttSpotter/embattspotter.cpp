@@ -7,8 +7,8 @@
 #include <armadillo>
 
 #define CHAR_ASPECT_RATIO 2.45 //TODO, is this robust?
-#define SUBWORD_WINDOW_PAD 0.5 //[119]     //0.2 [86]
-#define SUBWORD_WINDOW_EXTEND 1.8//[] //2.0//[138] //1.7 //[119]  //1.3 [86]
+//#define SUBWORD_WINDOW_PAD 0.5 //[119]     //0.2 [86]
+#define SUBWORD_WINDOW_EXTEND  1.8   //2.3//[15?] //1.8//[125] //2.0//[138] //1.7 //[119]  //1.3 [86]
 #define COARSE_STRIDE 10
 #define STRIDE_PORTION 0.28
 
@@ -30,6 +30,12 @@ EmbAttSpotter::EmbAttSpotter(string saveName, bool load, bool useNumbers, int te
     magnif=6.0;
     windowsize=1.5;   
     contrastthreshold=0.005; 
+
+    maxSiftSize=-1;
+    for (int size : SIFT_sizes)
+        if (size>maxSiftSize)
+            maxSiftSize=size;
+    subwordWindowPad = (maxSiftSize/magnif)*5;
     
     numWordsTrainGMM=500;
     minH = -1;//?
@@ -578,7 +584,7 @@ float EmbAttSpotter::compare(string text, int imIdx) const
 
 void EmbAttSpotter::primeSubwordSpotting(int len)
 {
-    int  s_windowWidth =  averageCharWidth()*(len*SUBWORD_WINDOW_EXTEND+SUBWORD_WINDOW_PAD);
+    int  s_windowWidth =  averageCharWidth()*(len*SUBWORD_WINDOW_EXTEND) + 2*subwordWindowPad;
     cout <<"subword["<<len<<"] window width: "<<s_windowWidth<<endl;
     int s_stride=averageCharWidth()*STRIDE_PORTION;
     subwordWindows_cca_att_saved(0,s_windowWidth,s_stride);
@@ -723,7 +729,7 @@ vector< SubwordSpottingResult > EmbAttSpotter::subwordSpot(const Mat& exemplar, 
     //int s_windowWidth=exemplar.cols;
     //if (s_windowWidth==0)
     //{
-    int  s_windowWidth =  _averageCharWidth*(word.length()*SUBWORD_WINDOW_EXTEND+SUBWORD_WINDOW_PAD);
+    int  s_windowWidth =  _averageCharWidth*(word.length()*SUBWORD_WINDOW_EXTEND) + 2*subwordWindowPad;
     //}
     int s_stride=_averageCharWidth*STRIDE_PORTION;
     assert(alpha>=0 && alpha<=1);
@@ -928,6 +934,10 @@ SubwordSpottingResult EmbAttSpotter::refine(float score, int imIdx, int windIdx,
 
     //Mat s_mat = subword_cca_att(imIdx,x0,x1).t()*query_cca;
     //assert(s_mat.rows==1 && s_mat.cols==1);
+
+    //This is to tighten as we favor spotting with wide windows
+    newX0+=subwordWindowPad;
+    newX1-=subwordWindowPad;
     return SubwordSpottingResult(imIdx,bestScore,newX0,newX1);
 }
 
@@ -1102,16 +1112,16 @@ double EmbAttSpotter::averageCharWidth()
             }
             heightAvg+=botBaseline-topBaseline;
 
-            Mat draw;
+            /*Mat draw;
             cvtColor(gray,draw,CV_GRAY2RGB);
             for (int c=0; c<draw.cols; c++)
             {
                 draw.at<Vec3b>(topBaseline,c) = Vec3b(0,0,255);
                 draw.at<Vec3b>(botBaseline,c) = Vec3b(0,0,255);
             }
-            //cout <<"["<<i<<"] height: "<<botBaseline-topBaseline<<endl;
-            //imshow("baselines",draw);
-            //waitKey();
+            cout <<"["<<i<<"] height: "<<botBaseline-topBaseline<<endl;
+            imshow("baselines",draw);
+            waitKey();*/
         }
         heightAvg/=(corpus_dataset->size()+0.0);
         _averageCharWidth=CHAR_ASPECT_RATIO*heightAvg;
@@ -1592,10 +1602,6 @@ Mat EmbAttSpotter::phow(const Mat& im, const struct PCA_struct* PCA_pt, vector<i
 
     Mat feats_m;
     //for all sizes, extract SIFT features
-    int maxSize=-1;
-    for (int size : SIFT_sizes)
-        if (size>maxSize)
-            maxSize=size;
     
     //convert im to vl style
     
@@ -1633,7 +1639,7 @@ Mat EmbAttSpotter::phow(const Mat& im, const struct PCA_struct* PCA_pt, vector<i
         
         #if USE_VL
         /**VL*/
-        int off = floor(1 + (3.0/2.0) * (maxSize - size)); //MATALB, for DSIFT
+        int off = floor(1 + (3.0/2.0) * (maxSiftSize - size)); //MATALB, for DSIFT
         float* ims = new float[imf.rows*imf.cols];
         
         
@@ -1691,7 +1697,7 @@ Mat EmbAttSpotter::phow(const Mat& im, const struct PCA_struct* PCA_pt, vector<i
         /*VL**/
         #else
         /**CV**/
-        int off = floor((3.0/2.0) * maxSize);
+        int off = floor((3.0/2.0) * maxSiftSize);
         Mat ims; 
         GaussianBlur( im, ims, Size( gSize, gSize ), sigma, sigma );
         ims.convertTo(ims,CV_8U);

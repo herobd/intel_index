@@ -53,7 +53,8 @@ GWDataset::GWDataset(const string& queries, const string& imDir, int margin)
             assert(patch.rows*patch.cols>1);
             label=string(sm[2]);
         }
-        patch = preprocess(patch);        
+        //patch = preprocess(patch);        
+        patch=patch.clone();
         wordImages.push_back(patch);
         _labels.push_back(label);
     }
