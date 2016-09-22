@@ -42,13 +42,8 @@ EnhancedBoVW::EnhancedBoVW(vector<Vec2i> spatialPyramids, int desc_thresh, int L
 }
 
 
-void EnhancedBoVW::encodeAndSaveImage(const Mat &img, int imageIdx) const
+void EnhancedBoVW::writeEncoding(ofstream& out, vector< vector< Mat/*< float >*/ > >* samplesCoded, Size preprocessedSize)
 {
-    
-    Size preprocessedSize;
-    auto samplesCoded = encodeImage(img,&preprocessedSize);
-    ofstream out(savePrefix+to_string(imageIdx)+saveExt);
-    assert(out.is_open());
     out << preprocessedSize.width<<":"<<preprocessedSize.height<<":"<<samplesCoded->size()<<":"<<samplesCoded->at(0).size()<<":";
     out << samplesCoded->at(0).at(0).rows;
     bool run=false;
@@ -91,16 +86,10 @@ void EnhancedBoVW::encodeAndSaveImage(const Mat &img, int imageIdx) const
                     out<<":"<<k+j*samplesCoded->at(0).at(0).rows+i*samplesCoded->at(0).size()<<","<<samplesCoded->at(i).at(j).at<float>(k,0);
                 }*/
             }
-    out.close();
-    delete samplesCoded;
 }
-float EnhancedBoVW::scanImageHorz(int imageIdx, const vector<float> &exemplar, Size exemplarSize) const
-{
-    Size preprocessedSize;
-    vector< vector< Mat > > encode;
 
-    ifstream in(savePrefix+to_string(imageIdx)+saveExt);
-    assert(in.is_open());
+void EnhancedBoVW::readEncoding(ofstream& in, vector< vector< Mat > >& encode, Size& preprocessedSize)
+{
     string num;
     getline(in,num,':');
     preprocessedSize.width=stoi(num);
@@ -158,7 +147,60 @@ float EnhancedBoVW::scanImageHorz(int imageIdx, const vector<float> &exemplar, S
             encode[i][j].at<float>(k,0)=stofnum);
         }
     }*/
+}
 
+void EnhancedBoVW::encodeAndSaveBatch(const vector<const Mat *> batch, string fileName) const
+{
+    ofstream out(fileName);
+    assert(out.is_open());
+    for (auto img : batch)
+    {
+        Size preprocessedSize;
+        auto samplesCoded = encodeImage(img,&preprocessedSize);
+        writeEncoding(out,samplesCoded,preprocessedSize);
+        delete samplesCoded;
+    }
+    out.close();
+}
+void EnhancedBoVW::encodeAndSaveImage(const Mat &img, int imageIdx) const
+{
+    
+    Size preprocessedSize;
+    auto samplesCoded = encodeImage(img,&preprocessedSize);
+    ofstream out(savePrefix+to_string(imageIdx)+saveExt);
+    assert(out.is_open());
+    writeEncoding(out,samplesCoded);
+    out.close();
+    delete samplesCoded;
+}
+///Can I actually get the word this comes from?
+float EnhancedBoVW::scanBatchHorz(string fileName, int batchSize, const Mat& exemplarWord, int x1, int x2) const
+{
+    Size preprocessedSize;
+    vector< vector< Mat > > encode;
+    ifstream in(fileName);
+    assert(in.is_open());
+    readEncoding(in,encode,preprocessedSize);
+    in.close();
+
+    Mat preprocessedWord = pre.process(exemplarWord);
+    int ppx1 = 
+    Mat preprocessed = preprocessedWord(Rect(ppx1,0,ppx2-ppx1 +1, preprocessedWord.rows));
+    auto samplesUncoded = getDescriptors(preprocessed);
+    auto samplesCoded = codeDescriptorsIntegralImageSkip(samplesUncoded,preprocessed.size,skip);
+    vector<float>* exe = getPooledDescFastSkip(samplesCoded, Rect(0,0,preprocessed.cols,preprocessed.rows),spatialPyramids,skip);
+    normalizeDesc(exe);
+    float ret = scanImageHorz(&encode,preprocessedSize,exe,preprocessed.size());
+    return ret;
+}
+float EnhancedBoVW::scanImageHorz(int imageIdx, const vector<float> &exemplar, Size exemplarSize) const
+{
+    Size preprocessedSize;
+    vector< vector< Mat > > encode;
+    ifstream in(savePrefix+to_string(imageIdx)+saveExt);
+    assert(in.is_open());
+    readEncoding(in,encode,preprocessedSize);
+    in.close();
     float ret = scanImageHorz(&encode,preprocessedSize,exemplar,exemplarSize);
     return ret;
 }

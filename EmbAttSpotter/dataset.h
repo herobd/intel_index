@@ -25,6 +25,7 @@ public:
     virtual const vector<string>& labels() const =0;
     virtual int size() const =0;
     virtual const Mat image(unsigned int) const =0;
+    virtual ~Dataset() {}
     //virtual int size() const {return wordImages.size();}
     //virtual const Mat image(unsigned int i) const {return wordImages.at(i);}
     //virtual void preprocess(function< Mat(Mat) >& lambda)

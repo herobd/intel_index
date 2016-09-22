@@ -8,7 +8,7 @@
 
 #define CHAR_ASPECT_RATIO 2.45 //TODO, is this robust?
 //#define SUBWORD_WINDOW_PAD 0.5 //[119]     //0.2 [86]
-#define SUBWORD_WINDOW_EXTEND  1.8   //2.3//[15?] //1.8//[125] //2.0//[138] //1.7 //[119]  //1.3 [86]
+#define SUBWORD_WINDOW_EXTEND  1.2   //2.3//[15?] //1.8//[125] //2.0//[138] //1.7 //[119]  //1.3 [86]
 #define COARSE_STRIDE 10
 #define STRIDE_PORTION 0.28
 
