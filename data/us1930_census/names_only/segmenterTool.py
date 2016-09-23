@@ -4,17 +4,28 @@ import cv2
 import sys
 import re
 
-print('CONTROLS:')
-print('* set left border:                left-click')
-print('* set right border:               right-click')
-print('* confirm segmentaion:            enter')
-print('* undo segmentaions:              backspace')
-print('* change transcription for image: insert')
-print('* exit:                           esc')
 namesFileName='names.gtp'
 outGTPName='seg_names.gtp'
 
-refPt = []
+def showControls():
+    print(' -----------------------------------------------')
+    print('| CONTROLS:                                     |')
+    print('| * set left border:                left-click  |')
+    print('| * set right border:               right-click |')
+    print('| * confirm segmentaion:            enter       |')
+    print('| * start image over (undo):        backspace   |')
+    print('| * change transcription for image: insert      |')
+    print('| * exit:                           esc         |')
+    print('|                                               |')
+    print('| If you finish a line and need to undo it,     |')
+    print('| youll need to <esc> out of the program and    |')
+    print('| and manually delete the last entry of the     |')
+    print('| the seg_names.gtp file.                       |')
+    print('| This can be done by opening the file with     |')
+    print('| with a text processor (gedit) and editing it. |')
+    print(' -----------------------------------------------')
+
+refPt = [0]
 image=None
 
 colorIdx=0
@@ -31,8 +42,8 @@ def clicker(event, x, y, flags, param):
         if event == cv2.EVENT_LBUTTONDOWN:
                 #if len(refPt)>0:
                 image=bimage.copy()
-                refPt = [x]
-                cv2.rectangle(image, (refPt[0],0), (refPt[0],image.shape[0]), leadColor[colorIdx], 2)
+                refPt[0] = x
+                cv2.rectangle(image, (refPt[0],0), (refPt[-1],image.shape[0]), leadColor[colorIdx], 2)
                 cv2.imshow("image", image)
  
         # check to see if the left mouse button was released
@@ -64,6 +75,7 @@ try:
 except IOError:
     writeSeg=True
 segGTP = open(outGTPName,'a')
+print ('working on: '+outGTPName)
 segI = 0
 curFilePath=''
 
@@ -103,10 +115,12 @@ for i in range(len(nameGTPLines)):
                             segI+=1
                         else:
                             break
+
             
         #if segI>=segGTPLen:
         if writeSeg:
             if filePath != curFilePath:
+                showControls()
                 orig = cv2.imread(filePath)
                 curFilePath=filePath
 

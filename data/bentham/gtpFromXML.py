@@ -17,15 +17,22 @@ outValidFile = 'ben_valid.gtp'
 outTestFile = 'ben_test.gtp'
 imgDir = 'BenthamDatasetR0-Images/Images/Pages/'
 
-
-xmlDir = sys.argv[1]
-trainFile = sys.argv[2]
-validFile = sys.argv[3]
-testFile = sys.argv[4]
-outTrainFile = sys.argv[5]
-outValidFile = sys.argv[6]
-outTestFile = sys.argv[7]
-imgDir = sys.argv[8]
+if len(sys.argv)>1:
+    xmlDir = sys.argv[1]
+if len(sys.argv)>2:
+    trainFile = sys.argv[2]
+if len(sys.argv)>3:
+    validFile = sys.argv[3]
+if len(sys.argv)>4:
+    testFile = sys.argv[4]
+if len(sys.argv)>5:
+    outTrainFile = sys.argv[5]
+if len(sys.argv)>6:
+    outValidFile = sys.argv[6]
+if len(sys.argv)>7:
+    outTestFile = sys.argv[7]
+if len(sys.argv)>8:
+    imgDir = sys.argv[8]
 if imgDir[-1]!='/':
     imgDir+='/'
 
@@ -35,7 +42,7 @@ def showControls():
     print('| * set left border:                left-click  |')
     print('| * set right border:               right-click |')
     print('| * confirm segmentaion:            enter       |')
-    print('| * undo segmentaions:              backspace   |')
+    print('| * start line over (undo):         backspace   |')
     print('| * change transcription for image: insert      |')
     print('| * shift upper bound up:           page up     |')
     print('| * shift upper bound down:         page down   |')
@@ -45,10 +52,19 @@ def showControls():
     print('|                                               |')
     print('| If you finish a line and need to undo it,     |')
     print('| youll need to simply <esc> out of the program |')
-    print('| and start that page over.                     |')
+    print('| and start that page over (if you havent       |')
+    print('| finished the page already).                   |')
     print('| If you need to unto a page, youll have to     |')
     print('| <esc> and manually delete all the entries     |')
     print('| from the *.gtp file for that page.            |')
+    print('| This can be done by opening the file with     |')
+    print('| the command: (in terminal)                    |')
+    print('|            vim <filename>                     |')
+    print('| Then typing the command:                      |')
+    print('|           :%s/115_009_004.*\\n//               |')
+    print('| (This is a regex)                             |')
+    print('| Close and save the file by typing:            |')
+    print('|                ZZ        (capital)            |')
     print(' -----------------------------------------------')
 
 curImageFile=''
@@ -182,7 +198,7 @@ def makeGTP(xmlList,outFile):
                 out.write(imageFile+' '+str(wordBoxes[wi][0])+' '+str(wordBoxes[wi][1])+' '+str(wordBoxes[wi][2])+' '+str(wordBoxes[wi][3])+' '+words[wi]+'\n')
         if wordsFromThisPage:
             pagesInSet+=1
-            print 'Page '+str(pagesInSet) + ' finished.'
+            print 'Page '+str(pagesInSet) + ' ('+imageFile+') finished.'
 
     out.close();
     return pagesInSet
@@ -206,7 +222,7 @@ def clicker(event, x, y, flags, param):
                 refPt[0]=x
                 #else:
                 #    refPt = [x]
-                cv2.rectangle(image, (refPt[0],0), (refPt[0],image.shape[0]), leadColor[colorIdx], 2)
+                cv2.rectangle(image, (refPt[0],0), (refPt[-1],image.shape[0]), leadColor[colorIdx], 2)
                 cv2.imshow("image", image)
 
         # check to see if the left mouse button was released
