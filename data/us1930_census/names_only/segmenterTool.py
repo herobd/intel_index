@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 import cv2
 import sys
 import re
@@ -117,6 +119,7 @@ for i in range(len(nameGTPLines)):
                 toWrite=''
                 lastX=0
                 colorIdx=0
+                print('Image['+str(i)+']: '+gt)
                 for name in names:
                     print('CROP: '+name)
                     refPt = [lastX]
@@ -132,7 +135,7 @@ for i in range(len(nameGTPLines)):
                             lastX=refPt[1]
                             break
                         elif key == 65288: #backspace
-                            print('CLEAR')
+                            print('[CLEAR]')
                             redo=True
                             break
                         elif key == 65379: #insert
