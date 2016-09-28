@@ -49,7 +49,7 @@ EmbAttSpotter::EmbAttSpotter(string saveName, bool load, bool useNumbers, int te
     if (test_mode==1)
         num_samples_PCA = 5000;
     else
-        num_samples_PCA = 2000000;
+        num_samples_PCA = 1000000;//2000000;
     
     numGMMClusters = 16;
     numSpatialX = 6;//num of bins for spatail pyr
@@ -1393,6 +1393,12 @@ Mat EmbAttSpotter::get_FV_feats(const Dataset* dataset)
     {
         const Mat im = dataset->image(j);
         Mat feats=phow(im,&PCA_());
+        if (feats.cols==0)
+        {
+            cout<<j<<endl;
+            imshow("image",im);
+            waitKey();
+        }
         //ret->at(i).row(j-batches_index[i]) = getImageDescriptorFV(feats.t());
         Mat r = getImageDescriptorFV(feats);
         assert(r.cols==FV_DIM);
@@ -1593,6 +1599,7 @@ Mat createColorMat(float * im, int h, int w)
 
 Mat EmbAttSpotter::phow(const Mat& im, const struct PCA_struct* PCA_pt, vector<int>* xs) const
 {
+    assert(im.channels()==1);
     int bb_x1, bb_x2, bb_y1, bb_y2;
     DoBB(im,&bb_x1,&bb_x2,&bb_y1,&bb_y2);
     int bb_w=bb_x2-bb_x1 + 1;
@@ -3235,6 +3242,13 @@ void EmbAttSpotter::get_GMM_PCA(int numWordsTrainGMM, string saveAs, bool retrai
             
             
             Mat desc = phow(im);//includes xy's, normalization //TODO A possible improvment, include more meta-data like scale
+            if (desc.cols==0)
+            {
+                cout<<"Blank phow, image "<<imageIndex<<endl;
+                imshow("image",im);
+                waitKey();
+                continue;
+            }
             assert(desc.type() == CV_32F);
             assert(desc.cols == DESC_DIM);
             if (test_mode!=0)

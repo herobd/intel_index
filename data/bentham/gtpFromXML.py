@@ -155,11 +155,15 @@ def makeGTP(xmlList,outFile):
                             didI+=1
                             while didI<len(did):
                                 m = re.match(r'(.*\.\w+) (\d+) (\d+) (\d+) (\d+) (.*)',did[didI].strip())
-                                didImageFile = m.group(1)
-                                if imageFile == didImageFile:
-                                    didI+=1
+                                if m is not None:
+                                    didImageFile = m.group(1)
+                                    if imageFile == didImageFile:
+                                        didI+=1
+                                    else:
+                                        break
                                 else:
-                                    break
+                                    print('parse error on did['+str(didI)+']= '+did[didI].strip())
+                                    exit(1)
             wordsFromThisPage=True
             if writeGTP:
                 wordBoxes = sorted(wordBoxes, key=lambda box: box[0])
@@ -193,7 +197,7 @@ def makeGTP(xmlList,outFile):
 
         for (words, wordBoxes) in todo:
             for wi in range(len(words)):
-                if re.match('[&\(\)]',words[wi]):
+                if re.match('[&\(\)]',words[wi]) or len(words[wi])==0:
                     continue
                 out.write(imageFile+' '+str(wordBoxes[wi][0])+' '+str(wordBoxes[wi][1])+' '+str(wordBoxes[wi][2])+' '+str(wordBoxes[wi][3])+' '+words[wi]+'\n')
         if wordsFromThisPage:
@@ -260,8 +264,8 @@ def segmenter(gt, words, wordBoxes, orig):
                 x2=wordBoxes[wi][2]
             if wordBoxes[wi][3]>y2:
                 y2=wordBoxes[wi][3]
-        image = orig[y1:y2, x1:x2].copy()
-        bimage = orig[y1:y2, x1:x2].copy()
+        image = orig[y1:y2+1, x1:x2+1].copy()
+        bimage = orig[y1:y2+1, x1:x2+1].copy()
 
         lastX=0
         colorIdx=0
