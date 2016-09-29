@@ -818,6 +818,9 @@ vector< SubwordSpottingResult > EmbAttSpotter::subwordSpot(const Mat& exemplar, 
         float top2ScoreInd=-1;
         float top2Score=-999999;
         for (int r=0; r<s_batch.rows; r++) {
+            if ((r)*s_stride >= corpus_dataset->image(i).cols) {
+                cout<<"ERROR: sliding window moving out of bounds for iamge "<<i<<". Window starts at "<<(r)*s_stride<<", but image is only "<<corpus_dataset->image(i).rows<<" x "<<corpus_dataset->image(i).cols<<endl;
+            }
             assert((r)*s_stride<corpus_dataset->image(i).cols);
             float s = s_batch.at<float>(r,0);
             //cout <<"im "<<i<<" x: "<<r*stride<<" score: "<<s<<endl;
@@ -2208,7 +2211,7 @@ Mat EmbAttSpotter::subwordWindows_cca_att_saved(int imIdx, int s_windowWidth, in
                 _subwordWindows_cca_att_saved->at(i) = readFloatMat(in);
             }
             in.close();
-            
+            assert(corpus_dataset->size() == numWordsRead);   
             
         }
         else
