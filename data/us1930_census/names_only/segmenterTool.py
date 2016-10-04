@@ -102,16 +102,19 @@ for i in range(len(nameGTPLines)):
                 writeSeg=True
             else:
                 m = re.match(r'(.*\.\w+) (\d+) (\d+) (\d+) (\d+) (.*)',segGTPLines[segI].strip())
+                segFilePath = m.group(1)
                 segY1 = int(m.group(3))
-                if segY1 != y1:
+                if segY1 != y1 or segFilePath!=filePath:
+                    print str(segY1)+' != '+str(y1)+',   at '+filePath+': '+gt+' and '+m.group(6)
                     #print('on: '+segFilePath+'!='+ filePath)
                     writeSeg=True
                 else:
                     segI+=1
                     while segI<segGTPLen:
                         m = re.match(r'(.*\.\w+) (\d+) (\d+) (\d+) (\d+) (.*)',segGTPLines[segI].strip())
+                        segFilePath = m.group(1)
                         segY1 = int(m.group(3))
-                        if segY1 == y1:
+                        if segY1 == y1 and segFilePath==filePath:
                             segI+=1
                         else:
                             break

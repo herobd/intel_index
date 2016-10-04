@@ -867,48 +867,79 @@ vector< SubwordSpottingResult > EmbAttSpotter::subwordSpot(const Mat& exemplar, 
 
 SubwordSpottingResult EmbAttSpotter::refine(float score, int imIdx, int windIdx, int s_windowWidth, int s_stride, const Mat& query_cca) const
 {
-   //currently this does one iteration of moving the boundaries
+    //
+    //Each boundary is scored moving independently at 1/2 stride, then a either the best of these or both is used.
+    //The reasoning is that we want to be efficent but adapt.
+    //only 5 scorings are done at maximum, 4 at a minimum.
+    //The window can shift or resize.
     int x0=windIdx*s_stride;
     assert(corpus_dataset->image(imIdx).cols>x0);
     int x1=windIdx*s_stride+s_windowWidth-1;
     if (x1>=corpus_dataset->image(imIdx).cols)
         x1=corpus_dataset->image(imIdx).cols-1;
     float bestScore = score;
-    float bestScore0=score;
-    int bestX0=x0;
-    float bestScore1=score;
-    int bestX1=x1;
-    Mat s_mat;
-    if (x0>(s_stride/2))
+    /*Shift, not used
+    int bestShift=0;
+
+    float scale=0.5;
+    if (x0>(s_stride*scale))
     {
-        s_mat = subword_cca_att(imIdx,x0-(s_stride/2),x1).t()*query_cca;
+        s_mat = subword_cca_att(imIdx,x0-(s_stride*scale),x1-(s_stride*scale)).t()*query_cca;
+        if (-1*s_mat.at<float>(0,0) < bestScore)
+        {
+            bestScore = -1*s_mat.at<float>(0,0);
+            bestShift=-(s_stride*scale);
+        }
+    }
+    if (x1<corpus_dataset->image(imIdx).cols-(1+ s_stride*scale) )
+    {
+        s_mat = subword_cca_att(imIdx,x0+(s_stride*scale),x1+(s_stride*scale)).t()*query_cca;
+        if (-1*s_mat.at<float>(0,0) < bestScore)
+        {
+            bestScore = -1*s_mat.at<float>(0,0);
+            bestShift=(s_stride*scale);
+        }
+    }
+
+    x0+=bestShift;
+    x1+=bestShift;*/
+
+    float scale=0.5;
+    int bestX0=x0;
+    int bestX1=x1;
+    float bestScore0=bestScore;
+    float bestScore1=bestScore;
+    Mat s_mat;
+    if (x0>(s_stride*scale))
+    {
+        s_mat = subword_cca_att(imIdx,x0-(s_stride*scale),x1).t()*query_cca;
         if (-1*s_mat.at<float>(0,0) < bestScore0)
         {
             bestScore0 = -1*s_mat.at<float>(0,0);
-            bestX0=x0-(s_stride/2);
+            bestX0=x0-(s_stride*scale);
         }
     }
-    s_mat = subword_cca_att(imIdx,x0+(s_stride/2),x1).t()*query_cca;
+    s_mat = subword_cca_att(imIdx,x0+(s_stride*scale),x1).t()*query_cca;
     if (-1*s_mat.at<float>(0,0) < bestScore0)
     {
         bestScore0 = -1*s_mat.at<float>(0,0);
-        bestX0=x0+(s_stride/2);
+        bestX0=x0+(s_stride*scale);
     }
 
-    if (x1<corpus_dataset->image(imIdx).cols-(1+ s_stride/2) )
+    if (x1<corpus_dataset->image(imIdx).cols-(1+ s_stride*scale) )
     {
-        s_mat = subword_cca_att(imIdx,x0,x1+(s_stride/2)).t()*query_cca;
+        s_mat = subword_cca_att(imIdx,x0,x1+(s_stride*scale)).t()*query_cca;
         if (-1*s_mat.at<float>(0,0) < bestScore1)
         {
             bestScore1 = -1*s_mat.at<float>(0,0);
-            bestX1=x1+(s_stride/2);
+            bestX1=x1+(s_stride*scale);
         }
     }
-    s_mat = subword_cca_att(imIdx,x0,x1-(s_stride/2)).t()*query_cca;
+    s_mat = subword_cca_att(imIdx,x0,x1-(s_stride*scale)).t()*query_cca;
     if (-1*s_mat.at<float>(0,0) < bestScore1)
     {
         bestScore1 = -1*s_mat.at<float>(0,0);
-        bestX1=x1-(s_stride/2);
+        bestX1=x1-(s_stride*scale);
     }
     int newX0, newX1;
     if (bestScore0<bestScore1)
@@ -944,142 +975,134 @@ SubwordSpottingResult EmbAttSpotter::refine(float score, int imIdx, int windIdx,
     return SubwordSpottingResult(imIdx,bestScore,newX0,newX1);
 }
 
+double EmbAttSpotter::getAverageCharWidth() const
+{
+    assert(_averageCharWidth>0);
+    return _averageCharWidth;
+}
+
 double EmbAttSpotter::averageCharWidth()
 {
 #pragma omp critical (compute_acw)
     if (_averageCharWidth<=0)
     {
-        assert(corpus_dataset->size()>0);
-        double heightAvg=0;
-        //double estWidthAvg=0;
-        for (int i=0; i<corpus_dataset->size(); i++)
+        string name = saveName+"_charWidth.dat";
+        ifstream in(name);
+        if (in)
         {
-            Mat gray=corpus_dataset->image(i);
-            if (gray.channels()>1)
-                cvtColor(gray,gray,CV_RGB2GRAY);
-            Mat bin;
-            int blockSize = (1+gray.rows)/2;
-            if (blockSize%2==0)
-                blockSize++;
-            //if (gray.type()==CV_8UC3)
-            //    cv::cvtColor(gray,gray,CV_RGB2GRAY);
-            adaptiveThreshold(gray, bin, 255, ADAPTIVE_THRESH_GAUSSIAN_C, THRESH_BINARY_INV, blockSize, 10);
-
-            //Find the baselines
-            int topBaseline;
-            int botBaseline;
-            int avgWhite=0;
-            int countWhite=0;
-            cv::Mat hist = cv::Mat::zeros(gray.rows,1,CV_32F);
-            map<int,int> topPixCounts, botPixCounts;
-            for (int c=0; c<gray.cols; c++)
+            //load
+            in>>_averageCharWidth;
+            in.close();
+            cout <<"Loaded avg char width="<<_averageCharWidth<<endl;
+        }
+        else
+        {
+            assert(training_dataset->size()>0);
+            //double heightAvg=0;
+            for (int i=0; i<training_dataset->size(); i++)
             {
-                int topPix=-1;
-                int lastSeen=-1;
-                for (int r=0; r<gray.rows; r++)
+                Mat gray=training_dataset->image(i);
+                double labelLen = training_dataset->labels()[i].length();
+                if (gray.channels()>1)
+                    cvtColor(gray,gray,CV_RGB2GRAY);
+                Mat bin;
+                int blockSize = (1+gray.rows)/2;
+                if (blockSize%2==0)
+                    blockSize++;
+                //if (gray.type()==CV_8UC3)
+                //    cv::cvtColor(gray,gray,CV_RGB2GRAY);
+                adaptiveThreshold(gray, bin, 255, ADAPTIVE_THRESH_GAUSSIAN_C, THRESH_BINARY_INV, blockSize, 10);
+
+                //Find the baselines
+                int topBaseline;
+                int botBaseline;
                 {
-                    if (bin.at<unsigned char>(r,c))
+                    int avgWhite=0;
+                    int countWhite=0;
+                    cv::Mat hist = cv::Mat::zeros(gray.rows,1,CV_32F);
+                    map<int,int> topPixCounts, botPixCounts;
+                    for (int c=0; c<gray.cols; c++)
                     {
-                        if (topPix==-1)
+                        int topPix=-1;
+                        int lastSeen=-1;
+                        for (int r=0; r<gray.rows; r++)
                         {
-                            topPix=r;
+                            if (bin.at<unsigned char>(r,c))
+                            {
+                                if (topPix==-1)
+                                {
+                                    topPix=r;
+                            }
+                                lastSeen=r;
+                            }
+                            else
+                            {
+                                avgWhite+=gray.at<unsigned char>(r,c);
+                                countWhite++;
+                            }
+                            hist.at<float>(r,0)+=gray.at<unsigned char>(r,c);
+                        }
+                        if (topPix!=-1)
+                            topPixCounts[topPix]++;
+                        if (lastSeen!=-1)
+                            botPixCounts[lastSeen]++;
                     }
-                        lastSeen=r;
-                    }
-                    else
+                    avgWhite /= countWhite;
+
+                    int maxTop=-1;
+                    int maxTopCount=-1;
+                    for (auto c : topPixCounts)
                     {
-                        avgWhite+=gray.at<unsigned char>(r,c);
-                        countWhite++;
+                        if (c.second > maxTopCount)
+                        {
+                            maxTopCount=c.second;
+                            maxTop=c.first;
+                        }
                     }
-                    hist.at<float>(r,0)+=gray.at<unsigned char>(r,c);
-                }
-                if (topPix!=-1)
-                    topPixCounts[topPix]++;
-                if (lastSeen!=-1)
-                    botPixCounts[lastSeen]++;
-            }
-            avgWhite /= countWhite;
+                    int maxBot=-1;
+                    int maxBotCount=-1;
+                    for (auto c : botPixCounts)
+                    {
+                        if (c.second > maxBotCount)
+                        {
+                            maxBotCount=c.second;
+                            maxBot=c.first;
+                        }
+                    }
 
-            int maxTop=-1;
-            int maxTopCount=-1;
-            for (auto c : topPixCounts)
-            {
-                if (c.second > maxTopCount)
-                {
-                    maxTopCount=c.second;
-                    maxTop=c.first;
-                }
-            }
-            int maxBot=-1;
-            int maxBotCount=-1;
-            for (auto c : botPixCounts)
-            {
-                if (c.second > maxBotCount)
-                {
-                    maxBotCount=c.second;
-                    maxBot=c.first;
-                }
-            }
-
-            //cv::Mat kernel = cv::Mat::ones( 5, 1, CV_32F )/ (float)(5);
-            //cv::filter2D(hist, hist, -1 , kernel );
-            cv::Mat edges;
-            int pad=5;
-            cv::Mat paddedHist = cv::Mat::ones(hist.rows+2*pad,1,hist.type());
-            double avg=0;
-            double maxHist=-99999;
-            double minHist=99999;
-             for (int r=0; r<hist.rows; r++)
-            {
-                avg+=hist.at<float>(r,0);
-                if (hist.at<float>(r,0)>maxHist)
-                    maxHist=hist.at<float>(r,0);
-                if (hist.at<float>(r,0)<minHist)
-                    minHist=hist.at<float>(r,0);
-            }
-            avg/=hist.rows;
-            paddedHist *= avg;
-            hist.copyTo(paddedHist(cv::Rect(0,pad,1,hist.rows)));
-            float kernelData[11] = {1,1,1,1,.5,0,-.5,-1,-1,-1,-1};
-            cv::Mat kernel = cv::Mat(11,1,CV_32F,kernelData);
-            cv::filter2D(paddedHist, edges, -1 , kernel );//, Point(-1,-1), 0 ,BORDER_AVERAGE);
-            float kernelData2[11] = {.1,.1,.1,.1,.1,.1,.1,.1,.1,.1,.1};
-            cv::Mat kernel2 = cv::Mat(11,1,CV_32F,kernelData2);
-            cv::Mat blurred;
-            cv::filter2D(hist, blurred, -1 , kernel2 );//, Point(-1,-1), 0 ,BORDER_AVERAGE);
-            topBaseline=-1;
-            float maxEdge=-9999999;
-            botBaseline=-1;
-            float minEdge=9999999;
-            float minPeak=9999999;
-            float center=-1;
-            for (int r=pad; r<gray.rows+pad; r++)
-            {
-                float v = edges.at<float>(r,0);
-                if (v>maxEdge)
-                {
-                    maxEdge=v;
-                    topBaseline=r-pad;
-                }
-                if (v<minEdge)
-                {
-                    minEdge=v;
-                    botBaseline=r-pad;
-                }
-
-                if (blurred.at<float>(r-pad,0) < minPeak) {
-                    center=r-pad;
-                    minPeak=blurred.at<float>(r-pad,0);
-                }
-            }
-            if (topBaseline>center)
-            {
-                if (maxTop < center)
-                    topBaseline=maxTop;
-                else
-                {
-                    maxEdge=-999999;
-                    for (int r=pad; r<center+pad; r++)
+                    //cv::Mat kernel = cv::Mat::ones( 5, 1, CV_32F )/ (float)(5);
+                    //cv::filter2D(hist, hist, -1 , kernel );
+                    cv::Mat edges;
+                    int pad=5;
+                    cv::Mat paddedHist = cv::Mat::ones(hist.rows+2*pad,1,hist.type());
+                    double avg=0;
+                    double maxHist=-99999;
+                    double minHist=99999;
+                     for (int r=0; r<hist.rows; r++)
+                    {
+                        avg+=hist.at<float>(r,0);
+                        if (hist.at<float>(r,0)>maxHist)
+                            maxHist=hist.at<float>(r,0);
+                        if (hist.at<float>(r,0)<minHist)
+                            minHist=hist.at<float>(r,0);
+                    }
+                    avg/=hist.rows;
+                    paddedHist *= avg;
+                    hist.copyTo(paddedHist(cv::Rect(0,pad,1,hist.rows)));
+                    float kernelData[11] = {1,1,1,1,.5,0,-.5,-1,-1,-1,-1};
+                    cv::Mat kernel = cv::Mat(11,1,CV_32F,kernelData);
+                    cv::filter2D(paddedHist, edges, -1 , kernel );//, Point(-1,-1), 0 ,BORDER_AVERAGE);
+                    float kernelData2[11] = {.1,.1,.1,.1,.1,.1,.1,.1,.1,.1,.1};
+                    cv::Mat kernel2 = cv::Mat(11,1,CV_32F,kernelData2);
+                    cv::Mat blurred;
+                    cv::filter2D(hist, blurred, -1 , kernel2 );//, Point(-1,-1), 0 ,BORDER_AVERAGE);
+                    topBaseline=-1;
+                    float maxEdge=-9999999;
+                    botBaseline=-1;
+                    float minEdge=9999999;
+                    float minPeak=9999999;
+                    float center=-1;
+                    for (int r=pad; r<gray.rows+pad; r++)
                     {
                         float v = edges.at<float>(r,0);
                         if (v>maxEdge)
@@ -1087,48 +1110,220 @@ double EmbAttSpotter::averageCharWidth()
                             maxEdge=v;
                             topBaseline=r-pad;
                         }
-                    }
-                }
-            }
-            if (botBaseline<center)
-            {
-                if (maxBot > center)
-                    botBaseline=maxBot;
-                else
-                {
-                    minEdge=999999;
-                    for (int r=center+1; r<gray.rows+pad; r++)
-                    {
-                        float v = edges.at<float>(r,0);
                         if (v<minEdge)
                         {
                             minEdge=v;
                             botBaseline=r-pad;
                         }
+
+                        if (blurred.at<float>(r-pad,0) < minPeak) {
+                            center=r-pad;
+                            minPeak=blurred.at<float>(r-pad,0);
+                        }
+                    }
+                    if (topBaseline>center)
+                    {
+                        if (maxTop < center)
+                            topBaseline=maxTop;
+                        else
+                        {
+                            maxEdge=-999999;
+                            for (int r=pad; r<center+pad; r++)
+                            {
+                                float v = edges.at<float>(r,0);
+                                if (v>maxEdge)
+                                {
+                                    maxEdge=v;
+                                    topBaseline=r-pad;
+                                }
+                            }
+                        }
+                    }
+                    if (botBaseline<center)
+                    {
+                        if (maxBot > center)
+                            botBaseline=maxBot;
+                        else
+                        {
+                            minEdge=999999;
+                            for (int r=center+1; r<gray.rows+pad; r++)
+                            {
+                                float v = edges.at<float>(r,0);
+                                if (v<minEdge)
+                                {
+                                    minEdge=v;
+                                    botBaseline=r-pad;
+                                }
+                            }
+                        }
+                    }
+                    if (botBaseline < topBaseline)//If they fail this drastically, the others won't be much better.
+                    {
+                        topBaseline=maxTop;
+                        botBaseline=maxBot;
                     }
                 }
-            }
-            if (botBaseline < topBaseline)//If they fail this drastically, the others won't be much better.
-            {
-                topBaseline=maxTop;
-                botBaseline=maxBot;
-            }
-            heightAvg+=botBaseline-topBaseline;
+                /*heightAvg+=botBaseline-topBaseline;
+                */
 
-            /*Mat draw;
-            cvtColor(gray,draw,CV_GRAY2RGB);
-            for (int c=0; c<draw.cols; c++)
-            {
-                draw.at<Vec3b>(topBaseline,c) = Vec3b(0,0,255);
-                draw.at<Vec3b>(botBaseline,c) = Vec3b(0,0,255);
+                //create profile
+                int avgWhite=0;
+                int countWhite=0;
+                cv::Mat hist = cv::Mat::zeros(1,gray.cols,CV_32F);
+                map<int,int> leftPixCounts, rightPixCounts;
+                for (int r=topBaseline; r<botBaseline; r++)
+                {
+                    int leftPix=-1;
+                    int lastSeen=-1;
+                    for (int c=0; c<gray.cols; c++)
+                    {
+                        if (bin.at<unsigned char>(r,c))
+                        {
+                            if (leftPix==-1)
+                            {
+                                leftPix=c;
+                            }
+                            lastSeen=c;
+                        }
+                        else
+                        {
+                            avgWhite+=gray.at<unsigned char>(r,c);
+                            countWhite++;
+                        }
+                        hist.at<float>(0,c)+=gray.at<unsigned char>(r,c);
+                    }
+                    if (leftPix!=-1)
+                        leftPixCounts[leftPix]++;
+                    if (lastSeen!=-1)
+                        rightPixCounts[lastSeen]++;
+                }
+                avgWhite /= countWhite;
+
+                int maxLeft=-1;
+                int maxLeftCount=-1;
+                for (auto r : leftPixCounts)
+                {
+                    if (r.second > maxLeftCount)
+                    {
+                        maxLeftCount=r.second;
+                        maxLeft=r.first;
+                    }
+                }
+                int maxRight=-1;
+                int maxRightCount=-1;
+                for (auto r : rightPixCounts)
+                {
+                    if (r.second > maxRightCount)
+                    {
+                        maxRightCount=r.second;
+                        maxRight=r.first;
+                    }
+                }
+
+                //cv::Mat kernel = cv::Mat::ones( 5, 1, CV_32F )/ (float)(5);
+                //cv::filter2D(hist, hist, -1 , kernel );
+                cv::Mat edges;
+                int pad=8;
+                cv::Mat paddedHist = cv::Mat::ones(1,hist.cols+2*pad,hist.type());
+                double avg=0;
+                double maxHist=-99999;
+                double minHist=99999;
+                 for (int c=0; c<hist.cols; c++)
+                {
+                    avg+=hist.at<float>(0,c);
+                    if (hist.at<float>(0,c)>maxHist)
+                        maxHist=hist.at<float>(0,c);
+                    if (hist.at<float>(0,c)<minHist)
+                        minHist=hist.at<float>(0,c);
+                }
+                avg/=hist.cols;
+                /*double stddev=0;
+                for (int c=0; c<hist.cols; c++)
+                {
+                    stddev+=pow(hist.at<float>(0,c)-avg,2);
+                }
+                stddev/=sqrt(hist.cols);
+                for (int c=0; c<hist.cols; c++)
+                {
+                    hist.at<float>(0,c) = min((float)hist.at<float>(0,c),(float)(avg+stddev));
+                }*/
+                //We want the padding to not effect the landscape, but we want to get the ends if the word takes up the whole BB.
+                //So, we use the average. Hopefully this will only effect the landscape when
+                //it is relatively uniform, which hopfully occurs in situations the words takes up the whole bounding box.
+                paddedHist *= (avg);//-sqrt(var));
+                hist.copyTo(paddedHist(cv::Rect(pad,0,hist.cols,1)));
+                float kernelData[21] = {0.5,0.75,1,1,1,1,1,1,1,.5,0,-.5,-1,-1,-1,-1,-1,-1,-1,-0.75,-0.5};
+                cv::Mat kernel = cv::Mat(1,21,CV_32F,kernelData);
+                cv::filter2D(paddedHist, edges, -1 , kernel );//, Point(-1,-1), 0 ,BORDER_AVERAGE);
+                //float kernelData2[19] = {.1,.1,.1,.1,.1,.1,.1,.1,.1,.1,.1,.1,.1,.1,.1,.1,.1,.1,.1};
+                //cv::Mat kernel2 = cv::Mat(1,19,CV_32F,kernelData2);
+                //cv::Mat blurred;
+                //cv::filter2D(hist, blurred, -1 , kernel2 );//, Point(-1,-1), 0 ,BORDER_AVERAGE);
+                float maxEdge=-9999999;
+                float minEdge=9999999;
+                //float minPeak=9999999;
+                //float center=-1; //This won't be the real center, but it atleast shouldn't be on the end.
+
+                int leftBound, rightBound;
+                for (int c=pad; c<gray.cols+pad; c++)
+                {
+                    float v = edges.at<float>(0,c);
+                    if (v>maxEdge)
+                    {
+                        maxEdge=v;
+                        leftBound=c-pad;
+                    }
+                    if (v<minEdge)
+                    {
+                        minEdge=v;
+                        rightBound=c-pad;
+                    }
+                    //cout<<v<<"\t";
+
+                    /*if (blurred.at<float>(0,c-pad) < minPeak) {
+                        center=c-pad;
+                        minPeak=blurred.at<float>(0,c-pad);
+                    }*/
+                }
+                //cout<<endl;
+                if (/*leftBound>center ||*/ leftBound>gray.cols/2 || leftBound<0)
+                {
+                    cout<<"left: "<<leftBound<<endl;
+                    leftBound=maxLeft;
+                }
+                if (/*rightBound<center ||*/ rightBound<gray.cols/2 || rightBound>=gray.cols)
+                {
+                    cout<<"right: "<<rightBound<<endl;
+                    rightBound=maxRight;
+                }
+
+                _averageCharWidth += (rightBound-leftBound)/labelLen;
+                /*
+                Mat draw;
+                cvtColor(gray,draw,CV_GRAY2RGB);
+                for (int r=0; r<draw.rows; r++)
+                {
+                    draw.at<Vec3b>(r,leftBound) = Vec3b(0,0,255);
+                    draw.at<Vec3b>(r,rightBound) = Vec3b(0,0,255);
+                }
+                for (int c=0; c<draw.cols; c++)
+                {
+                    draw.at<Vec3b>(topBaseline,c) = Vec3b(255,0,255);
+                    draw.at<Vec3b>(botBaseline,c) = Vec3b(255,0,255);
+                }
+                cout <<"["<<i<<"] char width: "<<(rightBound-leftBound)/labelLen<<endl;
+                imshow("baselines",draw);
+                waitKey();*/
             }
-            cout <<"["<<i<<"] height: "<<botBaseline-topBaseline<<endl;
-            imshow("baselines",draw);
-            waitKey();*/
+            //heightAvg/=(corpus_dataset->size()+0.0);
+            //_averageCharWidth=CHAR_ASPECT_RATIO*heightAvg;
+            _averageCharWidth /=(corpus_dataset->size()+0.0);
+            cout <<"Estimated avg char width="<<_averageCharWidth<<endl;
+
+            ofstream out(name);
+            out<<_averageCharWidth;
+            out.close();
         }
-        heightAvg/=(corpus_dataset->size()+0.0);
-        _averageCharWidth=CHAR_ASPECT_RATIO*heightAvg;
-        cout <<"Estimated avg char width="<<_averageCharWidth<<endl;
     }
     return _averageCharWidth;
 }
@@ -1398,8 +1593,8 @@ Mat EmbAttSpotter::get_FV_feats(const Dataset* dataset)
         Mat feats=phow(im,&PCA_());
         if (feats.cols==0)
         {
-            cout<<j<<endl;
-            imshow("image",im);
+            cout<<"no phow: "<<j<<endl;
+            imshow("image"+to_string(j),im);
             waitKey();
         }
         //ret->at(i).row(j-batches_index[i]) = getImageDescriptorFV(feats.t());
@@ -2076,6 +2271,8 @@ Mat EmbAttSpotter::getImageDescriptorFV(const Mat& feats_m)
 }
 Mat EmbAttSpotter::getImageDescriptorFV(const Mat& feats_m) const
 {
+    if (feats_m.rows==0)
+        return Mat::zeros(1,FV_DIM,CV_32F);
     assert (_GMM.means!=NULL);
     assert(feats_m.cols==AUG_PCA_DIM);
     int dimension = AUG_PCA_DIM;
@@ -4005,6 +4202,16 @@ void EmbAttSpotter::setTraining_dataset(const Dataset* d)
 {
     training_dataset=d;
     //training_dataset->preprocess(pp);
+    float sumH=0;
+    for (int i=0; i<training_dataset->size(); i++)
+    {
+        sumH += training_dataset->image(i).rows;
+    }
+    if (sumH/training_dataset->size() < 50)
+    {
+        cout <<"average training image H: "<<sumH/training_dataset->size()<<", adding SIFT size 1"<<endl;
+        SIFT_sizes.push_back(1);
+    }
 }
 void EmbAttSpotter::setCorpus_dataset(const Dataset* d, bool load)
 {

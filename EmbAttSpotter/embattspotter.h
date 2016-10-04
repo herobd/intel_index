@@ -343,6 +343,7 @@ public:
         system(("rm "+saveName+"*.dat").c_str());
     }
     void primeSubwordSpotting(int len);
+    double getAverageCharWidth() const;
 };
 
 #endif // EMBATTSPOTTER_H
