@@ -9,7 +9,7 @@ GWDataset::GWDataset(const string& queries, const string& imDir, int margin)
     assert(fileQueries.good());
     //2700270.tif 519 166 771 246 orders
     string line;
-    regex qExtGtp("(\\S+\\.\\S+) (\\d+) (\\d+) (\\d+) (\\d+) (\\w+)");
+    regex qExtGtp("(.+\\.\\S+) ([-\\d]+) ([-\\d]+) ([-\\d]+) ([-\\d]+) (\\w+)");
     regex qExt("(.+\\.\\S+) (\\w+)");
     
     
@@ -35,6 +35,8 @@ GWDataset::GWDataset(const string& queries, const string& imDir, int margin)
             {
                 curPathIm=pathIm;
                 curIm = imread(curPathIm,CV_LOAD_IMAGE_GRAYSCALE);
+                if (curIm.rows*curIm.cols<1)
+                    cout<<"Failed to read: "<<(curPathIm)<<endl;
             }
             int x1=max(1,stoi(sm[2])-margin)-1;
             int x2=min(curIm.cols,stoi(sm[4])+margin)-1;
@@ -43,6 +45,8 @@ GWDataset::GWDataset(const string& queries, const string& imDir, int margin)
             Rect loc(x1,y1,x2-x1+1,y2-y1+1);
             locs.push_back(loc);
             patch = curIm(loc);
+            if (patch.rows*patch.cols<1)
+                cout<<"bad patch: "<<x1<<" "<<y1<<" "<<x2<<" "<<y2<<endl;
             assert(patch.rows*patch.cols>1);
             label=string(sm[6]);
         }
@@ -50,6 +54,8 @@ GWDataset::GWDataset(const string& queries, const string& imDir, int margin)
         {
             regex_search(line,sm,qExt);
             patch=imread(imDir+string(sm[1]),CV_LOAD_IMAGE_GRAYSCALE);
+            if (patch.rows*patch.cols<1)
+                cout<<"Failed to read: "<<(imDir+string(sm[1]))<<endl;
             assert(patch.rows*patch.cols>1);
             label=string(sm[2]);
         }
@@ -113,3 +119,6 @@ int xa=min(stoi(sm[2]),stoi(sm[3]));
         int y1=max(0,ya);
         int y2=min(curIm.rows-1,yb);
 */
+//void makeBig()
+//{
+    

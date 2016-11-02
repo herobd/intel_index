@@ -166,6 +166,10 @@ private:
     int numSpatialX;
     int numSpatialY;
     
+    int s_windowWidth;
+    int s_stride;
+    bool makeBig;
+
     vector<float> sgdparams_lbds;
     
     vector<int> phoc_levels;
@@ -266,7 +270,12 @@ private:
     Mat& normalizeL2Columns(Mat& m) const;
     
     Mat otsuBinarization(const Mat& src) const;
-    
+   
+    Mat cca(const Mat& im) const;
+    Mat cca(string text) const;
+    //This is the common entry point for the two overloaded subwordSpot() methods
+    vector< SubwordSpottingResult > subwordSpotCCA(const Mat& query_cca_att, const Mat& query_cca_phoc, int text_length, float alpha, float refinePortion) const;
+    vector< SubwordSpottingResult > subwordSpotCCA_full(const Mat& query_cca_att, const Mat& query_cca_phoc, float alpha) const;
     SubwordSpottingResult refine(float score, int imIdx, int windIdx, int windWidth, int stride, const Mat& query_cca) const;
     //Mat subwordWindows_cca_att(int imIdx, int windWidth, int stride);
     Mat subwordWindows_cca_att(int imIdx, int windWidth, int stride) const;
@@ -320,6 +329,9 @@ public:
     vector<float> spot(const Mat& exemplar) {return spot(exemplar,"",1);}
     //vector< SubwordSpottingResult > subwordSpot(const Mat& exemplar, string word, float alpha, float refinePortion=0.25);
     vector< SubwordSpottingResult > subwordSpot(const Mat& exemplar, string word, float alpha, float refinePortion=0.25) const;
+    vector< SubwordSpottingResult > subwordSpot_full(const Mat& exemplar, string word, float alpha) const;
+    //This method is the same as the abbove, except it averages the exemplars cca_att vectors together first.
+    vector< SubwordSpottingResult > subwordSpot(const vector<Mat>& exemplars, string word, float alpha, float refinePortion=0.25) const;
     float compare(const Mat& im1, const Mat& im2);
     //float compare(string text, const Mat& im);
     float compare(string text, const Mat& im) const;
@@ -328,9 +340,11 @@ public:
     
     void setTraining_dataset(const Dataset* d);
     void setCorpus_dataset(const Dataset* d, bool load=true);
+    void setCorpus_dataset_fullSub(const Dataset* d, int charWidth=38, int windowWidth=65, int stride=3, bool load=true);
     
     void eval(const Dataset* data);
-    void evalSpotting(const Dataset* exemplars, const Dataset* data, double hyV=-1);
+    void evalSubwordSpotting(const Dataset* exemplars, const Dataset* data, double hyV=-1);
+    void evalSubwordSpottingCombine(const Dataset* exemplars, const Dataset* data, double hyV=-1);
     
     #if TEST_MODE
         void test();
@@ -343,6 +357,7 @@ public:
         system(("rm "+saveName+"*.dat").c_str());
     }
     void primeSubwordSpotting(int len);
+    void primeSubwordSpotting_set(int windowWidth=65, int stride=3);
     double getAverageCharWidth() const;
 };
 

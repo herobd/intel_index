@@ -1,9 +1,10 @@
 #include "embattspotter.h"
 #include "gwdataset.h"
+#include "stridedataset.h"
 
 #include <tclap/CmdLine.h>
 #include <map>
-
+#include <time.h>
 
 int main(int argc, char** argv)
 {
@@ -15,7 +16,8 @@ int main(int argc, char** argv)
 
 	TCLAP::CmdLine cmd("EmbAttSpotter tester", ' ', "0.1");
 	TCLAP::SwitchArg evalF("e","eval","Evaluate against dataset", cmd, false);
-	TCLAP::SwitchArg evalSpotF("s","evalSpotting","Evaluate spotting results", cmd, false);
+	TCLAP::SwitchArg evalSubF("s","evalSubwordSpotting","Evaluate subword spotting results", cmd, false);
+	TCLAP::SwitchArg evalSubCombF("a","evalSubwordSpottingCombine","Evaluate subword spotting results when combining exemplars", cmd, false);
 	TCLAP::ValueArg<int> primeSubwordArg("p","primeSubword","save the cca att for the given string length", false, -1,"int");
 	cmd.add( primeSubwordArg );
 	TCLAP::ValueArg<string> modelArg("l","location","load/save prefix", false,"model/evalGW","string");
@@ -43,6 +45,8 @@ int main(int argc, char** argv)
 	cmd.add( imageDirArg );
 	TCLAP::ValueArg<string> exemplarDirArg("x","exemplarsDir","directory containing exemplar images", false,"/home/brian/intel_index/data/gw_20p_wannot/bigrams_clean_deslant/","string");
 	cmd.add( exemplarDirArg );
+	TCLAP::ValueArg<string> fullFileArg("f","full","Do a full sliding window subword spotting on this image", false,"","string");
+	cmd.add( fullFileArg );
 	cmd.parse( argc, argv );
 
 	 
@@ -78,7 +82,7 @@ int main(int argc, char** argv)
             spotter.primeSubwordSpotting(primeSubwordArg.getValue());
         }
 
-	if ( evalSpotF.getValue() )
+	if ( evalSubF.getValue() ||  evalSubCombF.getValue())
 	{
 	    EmbAttSpotter spotter(modelArg.getValue());
 	    GWDataset train(trainFileArg.getValue(),imageDirArg.getValue());
@@ -91,7 +95,10 @@ int main(int argc, char** argv)
             if ( retrainEmbeddingF.getValue() )
 	        spotter.embedding(true);
 	    
-		spotter.evalSpotting(&exemplars, &test);
+            if ( evalSubF.getValue() )
+		spotter.evalSubwordSpotting(&exemplars, &test);
+            else
+		spotter.evalSubwordSpottingCombine(&exemplars, &test);
 	}
 	
 	if ( imageArg.getValue()>=0 )
@@ -154,6 +161,45 @@ int main(int argc, char** argv)
             cout<<spotter.compare(im1,im2)<<endl;;
         }
 
+        if (fullFileArg.getValue().length()>0)
+        {
+            assert(compare1Arg.getValue().length()>0);
+	    EmbAttSpotter spotter(modelArg.getValue());
+	    StrideDataset im(fullFileArg.getValue());
+	    spotter.setCorpus_dataset_fullSub(&im);
+	    Mat ex = imread(compare1Arg.getValue(),CV_LOAD_IMAGE_GRAYSCALE);
+            clock_t start = clock();
+            time_t start2 = time(0);
+            vector< SubwordSpottingResult > res = spotter.subwordSpot_full(ex,"",1);
+            clock_t end = clock();
+            time_t end2 = time(0);
+            double time = (double) (end-start) / CLOCKS_PER_SEC;
+            double time2 = difftime(end2, start2) * 1000.0;
+            cout<<"Took "<<time<<" secs."<<endl;
+            cout<<"Took "<<time2<<" secs."<<endl;
+            Mat img = imread(fullFileArg.getValue());
+            Mat orig = img.clone();
+            int top=100;
+            float maxS = res[0].score;
+            float minS = res[top].score;
+            for (int i=0; i<top; i++)
+            {
+                float s = 1-((res[i].score-minS)/(maxS-minS));
+                //cout <<res[i].score<<": "<<s<<endl;
+                for (int x=res[i].startX; x<=res[i].endX; x++)
+                    for (int y=res[i].imIdx*3; y<res[i].imIdx*3 +65; y++)
+                    {
+                        Vec3b& p = img.at<Vec3b>(y,x);
+                        Vec3b o = orig.at<Vec3b>(y,x);
+                        p[0] = min(p[0],(unsigned char)(o[0]*s));
+                    }
+            }
+            imwrite("spotting.png",img);
+            imshow("spotting",img);
+            waitKey();
+
+
+        }
 
 	} catch (TCLAP::ArgException &e)  // catch any exceptions
 	{ std::cerr << "error: " << e.error() << " for arg " << e.argId() << std::endl; }

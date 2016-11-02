@@ -21,7 +21,7 @@ LIBS += -L/home/brian/intel_index/EmbAttSpotter/vlfeat-0.9.20/bin/glnxa64/ -l:li
 PROGRAM_NAME = embattspotter
 LIB_NAME = libembattspotter.a
 
-OBJECTS = obj/main.o obj/embattspotter.o obj/gwdataset.o
+OBJECTS = obj/main.o obj/embattspotter.o obj/gwdataset.o obj/stridedataset.o
 
 bin: $(PROGRAM_NAME)
 all: $(PROGRAM_NAME) $(LIB_NAME)
@@ -40,7 +40,7 @@ $(PROGRAM_NAME):  $(OBJECTS)
 	$(LINK) $(CXX_FLAGS) -o $(PROGRAM_NAME) $(OBJECTS) $(LIBS) 
 
 	
-obj/main.o: main.cpp gwdataset.h
+obj/main.o: main.cpp gwdataset.h stridedataset.h
 	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/main.o main.cpp $(LIBS)
 
 obj/embattspotter.o: embattspotter.h embattspotter.cpp embattspotter_eval.cpp embattspotter_test.cpp gwdataset.h
@@ -48,6 +48,9 @@ obj/embattspotter.o: embattspotter.h embattspotter.cpp embattspotter_eval.cpp em
 	
 obj/gwdataset.o: dataset.h gwdataset.h gwdataset.cpp
 	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/gwdataset.o gwdataset.cpp
+
+obj/stridedataset.o: dataset.h stridedataset.h stridedataset.cpp
+	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/stridedataset.o stridedataset.cpp
 	
 	#export LD_LIBRARY_PATH=/home/brain/intel_index/EmbAttSpotter/vlfeat-0.9.20/bin/glnxa64/:$LD_LIBRARY_PATH -l:libmatio.so.4.0.2
 	#-L/urs/local/include/opencv 
