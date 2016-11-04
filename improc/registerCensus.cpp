@@ -667,8 +667,8 @@ int main (int argc, char** argv)
     for (int i=1; i<images.size(); i++)
     {
         ///////////////////
-        if (i%30!=0)
-            continue;
+        //if (i%30!=0)
+        //    continue;
         ///////////////////
         Mat doc=imread(images[i],CV_LOAD_IMAGE_GRAYSCALE);
         doc=doc(Rect(CUT_OFF_SIDE,CUT_OFF_TOP,WIDTH,doc.rows-(CUT_OFF_TOP+CUT_OFF_BOT)));
