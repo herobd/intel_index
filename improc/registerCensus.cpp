@@ -20,13 +20,24 @@
 using namespace std;
 using namespace cv;
 
-#define CUT_OFF_TOP 350
+#define CUT_OFF_TOP 500
 #define CUT_OFF_BOT 210
 #define CUT_OFF_SIDE 90
 #define WIDTH 2500
 #define BLOCK_SIZE 80
 
 #define SKEW_CHECK_CHUNK_SIZE .33
+
+#define INC_WINDOW 10
+#define INC_BOT_FIRST 4.0
+#define INC_BOT 3.0
+#define INC_TOP_FIRST 4.0
+#define INC_TOP 3.0
+#define INC_LEFT_FIRST 0.2
+#define INC_LEFT 0.1
+
+#define SCAN_RES 2
+#define SCALE_RES 0.02
 
 // trim from start (in place)
 static inline void ltrim(std::string &s) {
@@ -83,38 +94,223 @@ Mat grayInvert(const Mat& orig, int avg)
     return cv::max(((unsigned char)avg)-orig,0.0);
 }
 
-int increaseBot(Mat& horzLines, double thresh)
+#ifdef FORCE_LEFT
+int increaseLeft(Mat& vertLines, double thresh, double amount)
 {
-    bool on=false;
-    for (int r=horzLines.rows-1; r>horzLines.rows/2; r--)
+    vector<int> cPeaks;
+    vector<double> valPeaks;
+    while(thresh>=0)
     {
-        //cout<<" "<<horzLines.at<double>(r,0);
-        if (on || horzLines.at<double>(r,0)>thresh)
+        //cout<<"thresh: "<<thresh<<endl;
+        //bool on=false;
+        cPeaks.clear();
+        valPeaks.clear();
+        for (int c=0; c<350; c++)
         {
-            on=true;
-            bool peak=true;
-            for (int rr=max(0,r-20); rr<min(horzLines.rows,r+21); rr++)
+            //cout<<" "<<vertLines.at<double>(r,0);
+            if (vertLines.at<double>(0,c)>thresh)
             {
-                if (horzLines.at<double>(r,0)<horzLines.at<double>(rr,0))
+                //on=true;
+                bool peak=true;
+                for (int cc=max(c-60,0); cc<min(c+61,vertLines.cols); cc++)
                 {
-                    peak=false;
-                    break;
+                    if (vertLines.at<double>(0,c)<vertLines.at<double>(0,cc))
+                    {
+                        peak=false;
+                        break;
+                    }
+                }
+                if (peak)
+                {
+                    cPeaks.push_back(c);
+                    valPeaks.push_back(vertLines.at<double>(0,c));
                 }
             }
-            if (peak)
+        }
+        if (cPeaks.size()>2)
+            break;
+        thresh-=.005;
+    }
+    if (cPeaks.size()==0)
+        return -1;
+    int pc=cPeaks.front();
+    double pv=valPeaks.front();
+    for (int i=1; i<cPeaks.size(); i++)
+    {
+        //cout<<"best: ["<<pr<<", "<<pv<<"], at ["<<rPeaks[i]<<", "<<valPeaks[i]<<"]"<<endl;
+        //If we look lok the top header and the first line, choose the higher
+        if ( (abs(pc-cPeaks[i])>134 && abs(pc-cPeaks[i])<194) ||
+                (abs(pc-cPeaks[i])>210 && abs(pc-cPeaks[i])<274) )
+        {
+            if ( pc>cPeaks[i] )
             {
-                for (int rr=max(0,r-20); rr<min(horzLines.rows,r+21); rr++)
-                {
-                    double p = 1+4*(1-abs(r-rr)/20.0);
-                    //cout <<"p:"<<p<<"  "<<horzLines.at<double>(rr,0);
-                    horzLines.at<double>(rr,0) = horzLines.at<double>(rr,0)*p; //pow(1.7+horzLines.at<double>(rr,0),p);
-                    //cout<<" => "<<horzLines.at<double>(rr,0)<<endl;
-                }
-                return r;
+                pc=cPeaks[i];
+                pv=valPeaks[i];
+            }
+        }
+        else//we just take the heaviest line
+        {
+            if (pv<valPeaks[i])
+            {
+                pc=cPeaks[i];
+                pv=valPeaks[i];
             }
         }
     }
-    return -1;
+
+    for (int cc=max(0,pc-INC_WINDOW); cc<min(vertLines.cols,pc+INC_WINDOW+1); cc++)
+    {
+        double p = 1+amount*(1-abs(pc-cc)/(0.0+INC_WINDOW));
+        //cout <<"p:"<<p<<"  "<<vertLines.at<double>(rr,0);
+        vertLines.at<double>(0,cc) = vertLines.at<double>(0,cc)*p; //pow(1.7+vertLines.at<double>(rr,0),p);
+        //cout<<" => "<<vertLines.at<double>(rr,0)<<endl;
+    }
+    return pc;
+
+}
+#endif
+int increaseTop(Mat& horzLines, double thresh, double amount)
+{
+    vector<int> rPeaks;
+    vector<double> valPeaks;
+    while(thresh>=0)
+    {
+        //cout<<"thresh: "<<thresh<<endl;
+        //bool on=false;
+        rPeaks.clear();
+        valPeaks.clear();
+        for (int r=0; r<500; r++)
+        {
+            //cout<<" "<<horzLines.at<double>(r,0);
+            if (horzLines.at<double>(r,0)>thresh)
+            {
+                //on=true;
+                bool peak=true;
+                for (int rr=max(0,r-60); rr<min(horzLines.rows,r+61); rr++)
+                {
+                    if (horzLines.at<double>(r,0)<horzLines.at<double>(rr,0))
+                    {
+                        peak=false;
+                        break;
+                    }
+                }
+                if (peak)
+                {
+                    rPeaks.push_back(r);
+                    valPeaks.push_back(horzLines.at<double>(r,0));
+                }
+            }
+        }
+        if (rPeaks.size()>1)
+            break;
+        thresh-=.005;
+    }
+    if (rPeaks.size()==0)
+        return -1;
+    int pr=rPeaks.front();
+    double pv=valPeaks.front();
+    for (int i=1; i<rPeaks.size(); i++)
+    {
+        //cout<<"best: ["<<pr<<", "<<pv<<"], at ["<<rPeaks[i]<<", "<<valPeaks[i]<<"]"<<endl;
+        //If we look lok the top header and the first line, choose the higher
+        if (abs(pr-rPeaks[i])>280 && abs(pr-rPeaks[i])<305)
+        {
+            if ( pr>rPeaks[i] )
+            {
+                pr=rPeaks[i];
+                pv=valPeaks[i];
+            }
+        }
+        else//we just take the heaviest line
+        {
+            if (pv<valPeaks[i])
+            {
+                pr=rPeaks[i];
+                pv=valPeaks[i];
+            }
+        }
+    }
+
+    for (int rr=max(0,pr-INC_WINDOW); rr<min(horzLines.rows,pr+INC_WINDOW+1); rr++)
+    {
+        double p = 1+amount*(1-abs(pr-rr)/(0.0+INC_WINDOW));
+        //cout <<"p:"<<p<<"  "<<horzLines.at<double>(rr,0);
+        horzLines.at<double>(rr,0) = horzLines.at<double>(rr,0)*p; //pow(1.7+horzLines.at<double>(rr,0),p);
+        //cout<<" => "<<horzLines.at<double>(rr,0)<<endl;
+    }
+    return pr;
+
+}
+int increaseBot(Mat& horzLines, double thresh, double amount)
+{
+    vector<int> rPeaks;
+    vector<double> valPeaks;
+    while(thresh>=0)
+    {
+        //cout<<"thresh: "<<thresh<<endl;
+        //bool on=false;
+        rPeaks.clear();
+        valPeaks.clear();
+        for (int r=horzLines.rows-1; r>horzLines.rows-300; r--)
+        {
+            //cout<<" "<<horzLines.at<double>(r,0);
+            if (horzLines.at<double>(r,0)>thresh)
+            {
+                //on=true;
+                bool peak=true;
+                for (int rr=max(0,r-60); rr<min(horzLines.rows,r+61); rr++)
+                {
+                    if (horzLines.at<double>(r,0)<horzLines.at<double>(rr,0))
+                    {
+                        peak=false;
+                        break;
+                    }
+                }
+                if (peak)
+                {
+                    rPeaks.push_back(r);
+                    valPeaks.push_back(horzLines.at<double>(r,0));
+                }
+            }
+        }
+        if (rPeaks.size()>1)
+            break;
+        thresh-=.005;
+    }
+    if (rPeaks.size()==0)
+        return -1;
+    int pr=rPeaks.front();
+    double pv=valPeaks.front();
+    for (int i=1; i<rPeaks.size(); i++)
+    {
+        //cout<<"best: ["<<pr<<", "<<pv<<"], at ["<<rPeaks[i]<<", "<<valPeaks[i]<<"]"<<endl;
+        //If we look lok the top header and the first line, choose the higher
+        if (abs(pr-rPeaks[i])>260 && abs(pr-rPeaks[i])<300)
+        {
+            if ( pr<rPeaks[i] )
+            {
+                pr=rPeaks[i];
+                pv=valPeaks[i];
+            }
+        }
+        else//we just take the heaviest line
+        {
+            if (pv<valPeaks[i])
+            {
+                pr=rPeaks[i];
+                pv=valPeaks[i];
+            }
+        }
+    }
+
+    for (int rr=max(0,pr-INC_WINDOW); rr<min(horzLines.rows,pr+INC_WINDOW+1); rr++)
+    {
+        double p = 1+amount*(1-abs(pr-rr)/(0.0+INC_WINDOW));
+        //cout <<"p:"<<p<<"  "<<horzLines.at<double>(rr,0);
+        horzLines.at<double>(rr,0) = horzLines.at<double>(rr,0)*p; //pow(1.7+horzLines.at<double>(rr,0),p);
+        //cout<<" => "<<horzLines.at<double>(rr,0)<<endl;
+    }
+    return pr;
 }
 
 double otsu(vector<int> histogram)
@@ -378,10 +574,15 @@ int main (int argc, char** argv)
     first = transform(first,0,0,skew,first.cols,first.rows,subVal);
     Mat firstInv = grayInvert(first,subVal);
 
-    /*cout<<images[0]<<": skew: "<<skew<<endl;
-    imshow("first-skewed",first);
-    waitKey(500);
-    */
+#ifdef SHOW
+    cout<<images[0]<<": skew: "<<skew<<endl;
+    //imshow("first-skewed",first);
+    Mat small;
+    resize(first,small,Size(),0.3,0.3);
+    imshow("first-skewed-small",small);
+    waitKey(100);
+#endif
+    
     Mat vertLines; 
     reduce(firstInv,vertLines,0,CV_REDUCE_SUM,CV_64F);
     double divVert;
@@ -411,7 +612,41 @@ int main (int argc, char** argv)
         //waitKey(800);
         
     }
-    int botLineY = increaseBot(horzLines,0.5);
+    int botLineY = increaseBot(horzLines,0.5,INC_BOT_FIRST);
+    //if (botlineY>=0)
+    assert(botLineY>=0);
+    int topLineY = increaseTop(horzLines,0.5,INC_TOP_FIRST);
+    assert(topLineY>=0);
+#ifdef FORCE_LEFT
+    int leftLineX = increaseLeft(vertLines,0.5,INC_LEFT_FIRST);
+    assert(leftLineX>=0);
+#endif
+    /*        ///
+    {
+            Mat show= first(Rect(0,0,first.cols,500));
+            cvtColor(show,show,CV_GRAY2RGB);
+            if (lineY>=0)
+            for (int c=0; c<show.cols; c++)
+            {
+                show.at<Vec3b>(lineY,c)[0] =255;
+                show.at<Vec3b>(lineY,c)[1] =0;
+            }
+            imshow("first-top",show);
+            waitKey(100);
+    }       
+            ///
+    {
+            Mat show= first(Rect(0,first.rows*.33,250,first.rows*.33));
+            cvtColor(show,show,CV_GRAY2RGB);
+            for (int r=0; r<show.rows; r++)
+            {
+                show.at<Vec3b>(r,leftLineX)[0] =255;
+                show.at<Vec3b>(r,leftLineX)[1] =0;
+            }
+            imshow("first-left",show);
+            waitKey(100);
+    } 
+    */    
     if (outDir.length()>0)
     {
         int index = images[0].find_last_of('/');
@@ -431,6 +666,10 @@ int main (int argc, char** argv)
     //for (int i=1; i<200; i++)
     for (int i=1; i<images.size(); i++)
     {
+        ///////////////////
+        if (i%30!=0)
+            continue;
+        ///////////////////
         Mat doc=imread(images[i],CV_LOAD_IMAGE_GRAYSCALE);
         doc=doc(Rect(CUT_OFF_SIDE,CUT_OFF_TOP,WIDTH,doc.rows-(CUT_OFF_TOP+CUT_OFF_BOT)));
         DImage dimg2;
@@ -473,29 +712,62 @@ int main (int argc, char** argv)
             reduce(inv,horzLinesDoc,1,CV_REDUCE_SUM,CV_64F);
             horzLinesDoc/=divHorz;
             //cout<<"thresh: "<<(100*doc.cols)/divHorz<<endl;
-            int botLineY = increaseBot(horzLinesDoc,0.4);
+            int docBotLineY = increaseBot(horzLinesDoc,0.4,INC_BOT);
+            if (docBotLineY==-1)
+                continue;
+            int docTopLineY = increaseTop(horzLinesDoc,0.4,INC_TOP);
+            if (docTopLineY==-1)
+                continue;
+#ifdef FORCE_LEFT
+            int docLeftLineX = increaseLeft(vertLinesDoc,0.4,INC_LEFT);
+            if (docLeftLineX==-1)
+                continue;
+#endif
             ///
             /*
-            Mat show= docTemp(Rect(0,docTemp.rows-300,docTemp.cols,299));
+            Mat show= docTemp(Rect(0,0,docTemp.cols,500));
             cvtColor(show,show,CV_GRAY2RGB);
-            int nbl = 300-(docTemp.rows-botLineY);
             for (int c=0; c<show.cols; c++)
             {
-                show.at<Vec3b>(nbl,c)[0] =255;
-                show.at<Vec3b>(nbl,c)[1] =0;
+                show.at<Vec3b>(docTopLineY,c)[0] =255;
+                show.at<Vec3b>(docTopLineY,c)[1] =0;
+            }
+            imshow("top",show);
+
+            show= docTemp(Rect(0,docTemp.rows-300,docTemp.cols,299));
+            cvtColor(show,show,CV_GRAY2RGB);
+            for (int c=0; c<show.cols; c++)
+            {
+                show.at<Vec3b>(docBotLineY-(docTemp.rows-300),c)[0] =255;
+                show.at<Vec3b>(docBotLineY-(docTemp.rows-300),c)[1] =0;
             }
             imshow("bot",show);
+            waitKey(200);
+            
+            Mat show= docTemp(Rect(0,docTemp.rows*.33,350,docTemp.rows*.33));
+            cvtColor(show,show,CV_GRAY2RGB);
+            for (int r=0; r<show.rows; r++)
+            {
+                show.at<Vec3b>(r,docLeftLineX)[0] =255;
+                show.at<Vec3b>(r,docLeftLineX)[1] =0;
+            }
+            imshow("docTemp-left",show);
             waitKey(100);
             */
             ///
             
             //cout<<endl;
 
-            for (double scale=0.99; scale<=1.01; scale+=0.01)
+            double scale = (botLineY-topLineY)/(0.0+docBotLineY-docTopLineY);
+            //for (double scale=0.94; scale<=1.06; scale+=SCALE_RES)
             {
                 Mat scaledVertLinesDoc;
                 resize(vertLinesDoc,scaledVertLinesDoc,Size(),scale,1);
-                for (int offsetx=-240; offsetx<=240; offsetx+=2)
+#ifdef FORCE_LEFT
+                int offsetx = leftLineX-scale*docLeftLineX;
+#else
+                for (int offsetx=-240; offsetx<=240; offsetx+=SCAN_RES)
+#endif
                 {
                     double score = sum(vertLines.mul(transform(scaledVertLinesDoc,offsetx,0,0,vertLines.cols,vertLines.rows,0)))[0];
                     //cout<<score<<"=x= s:"<<scale<<" x:"<<offsetx<<endl;
@@ -509,7 +781,8 @@ int main (int argc, char** argv)
                 }
                 Mat scaledHorzLinesDoc;
                 resize(horzLinesDoc,scaledHorzLinesDoc,Size(),1,scale);
-                for (int offsety=-240; offsety<=240; offsety+=2)
+                int offsety = botLineY-scale*docBotLineY;
+                //for (int offsety=-240; offsety<=240; offsety+=SCAN_RES)
                 {
                     double score = sum(horzLines.mul(transform(scaledHorzLinesDoc,0,offsety,0,horzLines.cols,horzLines.rows,0)))[0];
                     //cout<<score<<"=y= s:"<<scale<<" y:"<<offsety<<endl;
@@ -521,6 +794,14 @@ int main (int argc, char** argv)
                         bestScoreY=score;
                     }
                 }
+#ifdef SHOW
+                /*Mat docTemp2;
+                resize(docTemp,docTemp2,Size(),scale,scale);
+                docTemp2 = transform(docTemp2,bestX,bestY,0,docTemp2.cols,docTemp2.rows,subVal);
+                resize(docTemp2,docTemp2,Size(),0.3,0.3);
+                imshow("fitting",docTemp2);
+                waitKey(200);*/
+#endif
             }
             
         }
@@ -534,7 +815,11 @@ int main (int argc, char** argv)
             vertLinesDoc/=divVert;
             reduce(inv,horzLinesDoc,1,CV_REDUCE_SUM,CV_64F);
             horzLinesDoc/=divHorz;
-            increaseBot(horzLinesDoc,0.4);
+            int docBotLineY=increaseBot(horzLinesDoc,0.4,INC_BOT);
+            int docTopLineY=increaseTop(horzLinesDoc,0.4,INC_TOP);
+#ifdef FORCE_LEFT
+            int docLeftLineX=increaseLeft(vertLinesDoc,0.4,INC_LEFT);
+#endif
             double scale = (bestScaleY+bestScaleX)/2.0;
             bestScaleX=scale;
             bestScaleY=scale;
@@ -545,9 +830,14 @@ int main (int argc, char** argv)
 
             Mat scaledVertLinesDoc;
             resize(vertLinesDoc,scaledVertLinesDoc,Size(),scale,1);
-            for (int offsetx=-240; offsetx<=240; offsetx+=2)
+#ifdef FORCE_LEFT
+            int offsetx = leftLineX-scale*docLeftLineX;
+#else
+            for (int offsetx=-240; offsetx<=240; offsetx+=SCAN_RES)
+#endif
             {
                 double score = sum(vertLines.mul(transform(scaledVertLinesDoc,offsetx,0,0,vertLines.cols,vertLines.rows,0)))[0];
+                //cout<<score<<"=x= s:"<<scale<<" x:"<<offsetx<<endl;
                 if (score>bestScoreX)
                 {
                     bestX=offsetx;
@@ -556,29 +846,79 @@ int main (int argc, char** argv)
             }
             Mat scaledHorzLinesDoc;
             resize(horzLinesDoc,scaledHorzLinesDoc,Size(),1,scale);
-            for (int offsety=-240; offsety<=240; offsety+=2)
+            int offsety = botLineY-scale*docBotLineY;
+            //for (int offsety=-240; offsety<=240; offsety+=SCAN_RES)
             {
                 double score = sum(horzLines.mul(transform(scaledHorzLinesDoc,0,offsety,0,horzLines.cols,horzLines.rows,0)))[0];
+                //cout<<score<<"=y= s:"<<scale<<" y:"<<offsety<<endl;
                 if (score>bestScoreY)
                 {
                     bestY=offsety;
                     bestScoreY=score;
                 }
-           }
+            }
         }
-        if (bestScoreY<40 || bestScoreX<10)
+
+        ////////////////////
+        /*{
+            //Mat docTemp = transform(doc,0,0,bestSkew,doc.cols,doc.rows,subVal);
+            inv = grayInvert(doc,subVal);
+
+            reduce(inv,vertLinesDoc,0,CV_REDUCE_SUM,CV_64F);
+            vertLinesDoc/=divVert;
+            reduce(inv,horzLinesDoc,1,CV_REDUCE_SUM,CV_64F);
+            horzLinesDoc/=divHorz;
+            //cout<<"thresh: "<<(100*doc.cols)/divHorz<<endl;
+            int lineY = increaseBot(horzLinesDoc,0.4,INC_BOT);
+            if (lineY>=0)
+                lineY = increaseTop(horzLinesDoc,0.4,INC_TOP);
+            ///
+            ///
+            
+            //cout<<endl;
+
+            double scale=bestScaleX;
+            {
+                Mat scaledHorzLinesDoc;
+                resize(horzLinesDoc,scaledHorzLinesDoc,Size(),1,scale);
+                for (int offsety=-240; offsety<=240; offsety+=2)
+                {
+                    double score = sum(horzLines.mul(transform(scaledHorzLinesDoc,0,offsety,0,horzLines.cols,horzLines.rows,0)))[0];
+                    //cout<<score<<"=y= s:"<<scale<<" y:"<<offsety<<endl;
+#ifdef SHOW
+                    if (score>500)
+                    {
+                    Mat docTemp2;
+                    resize(doc,docTemp2,Size(),scale,scale);
+                    docTemp2 = transform(docTemp2,0,offsety,0,docTemp2.cols,docTemp2.rows,subVal);
+                    resize(docTemp2,docTemp2,Size(),0.3,0.3);
+                    cout<<"fit: "<<score<<endl;
+                    imshow("fitting",docTemp2);
+                    waitKey(150);
+                    }
+#endif
+                }
+            }
+        }*/
+        /////////////////
+
+        if (bestScoreY<10 || bestScoreX<10)
         {
-            cout<<"skipping "<<images[i]<<endl;
+            cout<<"skipping "<<images[i]<<": "<<bestScoreX<<", "<<bestScoreY<<endl;
             continue;
         }
         resize(doc,doc,Size(),bestScaleX,bestScaleX);
         Mat reg = transform(doc,bestX,bestY,0/*rotation*/,doc.cols+bestX,doc.rows+bestY,subVal);
 #pragma omp critical
         {
-            /*cout<<images[i]<<"= "<<bestScoreX<<" + "<<bestScoreY<<" = [ "<<(bestScoreX+bestScoreY)<<" ]   x:"<<bestX<<" y:"<<bestY<<endl;
+#ifdef SHOW
+            cout<<images[i]<<"= "<<bestScoreX<<" + "<<bestScoreY<<" = [ "<<(bestScoreX+bestScoreY)<<" ]   x:"<<bestX<<" y:"<<bestY<<endl;
             cout<<"     bestSkew:"<<bestSkew<<" bestScale:"<<bestScaleX<<endl;
-            imshow("reg",reg);
-            waitKey();*/
+            //imshow("reg",reg);
+            resize(reg,small,Size(),0.3,0.3);
+            imshow("reg-small",small);
+            waitKey();
+#endif
             if (outDir.length()>0)
             {
                 int index = images[i].find_last_of('/');
