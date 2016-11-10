@@ -20,6 +20,8 @@
 using namespace std;
 using namespace cv;
 
+
+/*mexico
 #define CUT_OFF_TOP 500
 #define CUT_OFF_BOT 210
 #define CUT_OFF_SIDE 90
@@ -36,8 +38,72 @@ using namespace cv;
 #define INC_LEFT_FIRST 0.2
 #define INC_LEFT 0.1
 
+#define INC_THRESH_FIRST 0.5
+#define INC_THRESH 0.4
+
 #define SCAN_RES 2
 #define SCALE_RES 0.02
+
+#define SCAN_X_RANGE 240
+
+#define SCAN_SKEW_START -.008
+#define SCAN_SKEW_END .020
+#define SCAN_SKEW_RES 0.002
+
+#define FIRST_PAGE_SKEW 0.5
+
+#define LINE_MAX_AREA 60
+
+#define TOP_SEARCH_AREA 500
+#define TOP_LINE_DIF 293
+
+#define BOT_SEARCH_AREA 300
+#define BOT_LINE_DIF 280
+
+#define LEFT_SEARCH_AREA 350
+*/
+
+#define CHECK_LEFT
+
+#define CUT_OFF_TOP 250
+#define CUT_OFF_BOT 153
+#define CUT_OFF_SIDE 100
+#define WIDTH 2000
+#define BLOCK_SIZE 60
+
+#define SKEW_CHECK_CHUNK_SIZE .33
+
+#define INC_WINDOW 10
+#define INC_BOT_FIRST 4.0
+#define INC_BOT 3.0
+#define INC_TOP_FIRST 4.0
+#define INC_TOP 3.0
+#define INC_LEFT_FIRST 0.2
+#define INC_LEFT 0.1
+
+#define INC_THRESH_FIRST 0.5
+#define INC_THRESH 0.4
+
+#define SCAN_RES 2
+#define SCALE_RES 0.02
+
+#define SCAN_X_RANGE 400
+
+#define SCAN_SKEW_START -.020
+#define SCAN_SKEW_END .038
+#define SCAN_SKEW_RES 0.002
+
+#define FIRST_PAGE_SKEW 0.0
+
+#define LINE_MAX_AREA 60
+
+#define TOP_SEARCH_AREA 500
+#define TOP_LINE_DIF 240
+
+#define BOT_SEARCH_AREA 190
+#define BOT_LINE_DIF 97
+
+#define LEFT_SEARCH_AREA 350
 
 // trim from start (in place)
 static inline void ltrim(std::string &s) {
@@ -69,6 +135,7 @@ Mat transform(Mat source, int offsetX, int offsetY, double rotation, int width, 
                                   sin(rotation),  cos(rotation), offsetY);
     Mat res;
     warpAffine(source,res,M,Size(width,height),INTER_LINEAR,BORDER_CONSTANT,filler);
+    //warpAffine(source,res,M,Size(width,height),INTER_LINEAR,BORDER_REFLECT_101);
     return res;
 }
 
@@ -105,7 +172,7 @@ int increaseLeft(Mat& vertLines, double thresh, double amount)
         //bool on=false;
         cPeaks.clear();
         valPeaks.clear();
-        for (int c=0; c<350; c++)
+        for (int c=0; c<LEFT_SEARCH_AREA; c++)
         {
             //cout<<" "<<vertLines.at<double>(r,0);
             if (vertLines.at<double>(0,c)>thresh)
@@ -179,14 +246,14 @@ int increaseTop(Mat& horzLines, double thresh, double amount)
         //bool on=false;
         rPeaks.clear();
         valPeaks.clear();
-        for (int r=0; r<500; r++)
+        for (int r=0; r<TOP_SEARCH_AREA; r++)
         {
             //cout<<" "<<horzLines.at<double>(r,0);
             if (horzLines.at<double>(r,0)>thresh)
             {
                 //on=true;
                 bool peak=true;
-                for (int rr=max(0,r-60); rr<min(horzLines.rows,r+61); rr++)
+                for (int rr=max(0,r-LINE_MAX_AREA); rr<min(horzLines.rows,r+LINE_MAX_AREA+1); rr++)
                 {
                     if (horzLines.at<double>(r,0)<horzLines.at<double>(rr,0))
                     {
@@ -213,7 +280,7 @@ int increaseTop(Mat& horzLines, double thresh, double amount)
     {
         //cout<<"best: ["<<pr<<", "<<pv<<"], at ["<<rPeaks[i]<<", "<<valPeaks[i]<<"]"<<endl;
         //If we look lok the top header and the first line, choose the higher
-        if (abs(pr-rPeaks[i])>280 && abs(pr-rPeaks[i])<305)
+        if (abs(pr-rPeaks[i])>TOP_LINE_DIF-13 && abs(pr-rPeaks[i])<TOP_LINE_DIF+13)
         {
             if ( pr>rPeaks[i] )
             {
@@ -251,14 +318,14 @@ int increaseBot(Mat& horzLines, double thresh, double amount)
         //bool on=false;
         rPeaks.clear();
         valPeaks.clear();
-        for (int r=horzLines.rows-1; r>horzLines.rows-300; r--)
+        for (int r=horzLines.rows-1; r>horzLines.rows-BOT_SEARCH_AREA; r--)
         {
             //cout<<" "<<horzLines.at<double>(r,0);
             if (horzLines.at<double>(r,0)>thresh)
             {
                 //on=true;
                 bool peak=true;
-                for (int rr=max(0,r-60); rr<min(horzLines.rows,r+61); rr++)
+                for (int rr=max(0,r-LINE_MAX_AREA); rr<min(horzLines.rows,r+LINE_MAX_AREA+1); rr++)
                 {
                     if (horzLines.at<double>(r,0)<horzLines.at<double>(rr,0))
                     {
@@ -285,7 +352,7 @@ int increaseBot(Mat& horzLines, double thresh, double amount)
     {
         //cout<<"best: ["<<pr<<", "<<pv<<"], at ["<<rPeaks[i]<<", "<<valPeaks[i]<<"]"<<endl;
         //If we look lok the top header and the first line, choose the higher
-        if (abs(pr-rPeaks[i])>260 && abs(pr-rPeaks[i])<300)
+        if (abs(pr-rPeaks[i])>BOT_LINE_DIF-20 && abs(pr-rPeaks[i])<BOT_LINE_DIF+20)
         {
             if ( pr<rPeaks[i] )
             {
@@ -359,20 +426,24 @@ double otsu(vector<int> histogram)
 
 vector<int> getPeaks(const Mat& horzLines, double peakThresh)
 {
+    int size=max(horzLines.rows,horzLines.cols);
+    bool horz=size==horzLines.rows;
     vector<int> peaks;
     int safe=100;
     do
     {
         peaks.clear();
-        for (int r=0; r<horzLines.rows; r++)
+        for (int r=0; r<size; r++)
         {
-            if (horzLines.at<double>(r,0)>peakThresh)
+            if ( (horz && horzLines.at<double>(r,0)>peakThresh) ||
+                    (!horz && horzLines.at<double>(0,r)>peakThresh))
             {
                 bool bad=false;
-                for (int n=-20; n<=20; n++)
+                for (int n=-35; n<=35; n++)
                 {
-                    if (r+n>=0 && r+n<horzLines.rows &&
-                            horzLines.at<double>(r,0)<horzLines.at<double>(r+n,0))
+                    if (r+n>=0 && r+n<size &&
+                            ((horz && horzLines.at<double>(r,0)<horzLines.at<double>(r+n,0)) ||
+                            (!horz && horzLines.at<double>(0,r)<horzLines.at<double>(0,r+n))))
                     {
                         bad=true;
                         break;
@@ -387,6 +458,57 @@ vector<int> getPeaks(const Mat& horzLines, double peakThresh)
     return peaks;
 }
 
+
+#ifdef CHECK_LEFT
+int checkLeft(Mat& vertLines)
+{
+
+    double minC,maxC;
+    minMaxLoc(vertLines,&minC,&maxC);
+    vector<int> hist(50);
+    for (int r=0; r<vertLines.rows; r++)
+    {
+        int bin = 49*(vertLines.at<double>(r,0)-minC)/maxC;
+        hist.at(bin)++;
+    }
+    //cout<<"thresh l: "<<peakThresh<<endl;
+    double peakThresh = 2* ((otsu(hist)/50)*maxC + minC);
+    //cout<<"thresh r: "<<peakThresh<<endl;
+    vector<int> peaks=getPeaks(vertLines,peakThresh);
+    double mean=0;
+    for (int c : peaks)
+        mean+=vertLines.at<double>(0,c);
+    mean/=peaks.size();
+    //Mat s;
+    //reduce(vertLines,s,1,CV_REDUCE_SUM,CV_64F);
+    double sub = 0;//0.5*sum(vertLines)[0]/vertLines.cols;
+    //cout<<"m: "<<mean<<"  sub:"<<sub<<endl;
+    Mat blurred;
+    //vector<double> kernelData(7,1/7.0);
+    double kernelData[41];
+    for (int i=0; i<41; i++)
+        kernelData[i]=1/41.0;
+    Mat kernel = Mat(41,1,CV_64F,kernelData);
+    filter2D(vertLines, blurred, -1 , kernel );
+    int c;
+    for (c=20; c<vertLines.cols*0.2; c++)
+        if (blurred.at<double>(0,c-20) > mean)
+        {
+            //cout<<c<<": "<<vertLines.at<double>(0,c)<<endl;
+            for (int k=-3; k<=3; k++)
+                vertLines.at<double>(0,c+k)=sub;
+        }
+        else if (c>60)
+        {
+            break;
+            //cout<<"x  "<<c<<": "<<vertLines.at<double>(0,c)<<endl;
+        }
+
+    //return peaks;
+    return c;
+}
+#endif
+
 //find skew by finding peaks of clips of the left and right side of document and finding skew from peaks of the horizontal profile (where the horizontal lines occur)
 //This only works within tigh bounds, so is called after Doug's global deskew
 double getSkew(const Mat& inv, double divHorz)
@@ -400,7 +522,7 @@ double getSkew(const Mat& inv, double divHorz)
     vector<int> hist(50);
     for (int r=0; r<horzLinesLeft.rows; r++)
     {
-        int bin = 50*(horzLinesLeft.at<double>(r,0)-minC)/maxC;
+        int bin = 49*(horzLinesLeft.at<double>(r,0)-minC)/maxC;
         hist[bin]++;
     }
     double peakThresh = 2* ((otsu(hist)/50)*maxC + minC);
@@ -433,7 +555,7 @@ double getSkew(const Mat& inv, double divHorz)
     hist.assign(50,0);
     for (int r=0; r<horzLinesRight.rows; r++)
     {
-        int bin = 50*(horzLinesRight.at<double>(r,0)-minC)/maxC;
+        int bin = 49*(horzLinesRight.at<double>(r,0)-minC)/maxC;
         hist[bin]++;
     }
     //cout<<"thresh l: "<<peakThresh<<endl;
@@ -559,6 +681,7 @@ int main (int argc, char** argv)
     }
     filePP.close();
 
+    cout<<images[0]<<endl;
     Mat first = imread(images[0],CV_LOAD_IMAGE_GRAYSCALE);
     first=first(Rect(CUT_OFF_SIDE,CUT_OFF_TOP,WIDTH,first.rows-(CUT_OFF_TOP+CUT_OFF_BOT)));
     //imshow("first",first);
@@ -570,7 +693,7 @@ int main (int argc, char** argv)
     //adaptiveThreshold(first, firstB, 255, ADAPTIVE_THRESH_GAUSSIAN_C, THRESH_BINARY_INV, BLOCK_SIZE, 10);
     DImage dimg;
     convertToD(first,dimg);
-    double skew = 0.5/180.0 * CV_PI; //DGlobalSkew::getSkewAng_var(dimg,-1.1,1.1,0.1)/180.0 * CV_PI;
+    double skew = FIRST_PAGE_SKEW/180.0 * CV_PI; //DGlobalSkew::getSkewAng_var(dimg,-1.1,1.1,0.1)/180.0 * CV_PI;
     first = transform(first,0,0,skew,first.cols,first.rows,subVal);
     Mat firstInv = grayInvert(first,subVal);
 
@@ -612,13 +735,13 @@ int main (int argc, char** argv)
         //waitKey(800);
         
     }
-    int botLineY = increaseBot(horzLines,0.5,INC_BOT_FIRST);
+    int botLineY = increaseBot(horzLines,INC_THRESH_FIRST,INC_BOT_FIRST);
     //if (botlineY>=0)
     assert(botLineY>=0);
-    int topLineY = increaseTop(horzLines,0.5,INC_TOP_FIRST);
+    int topLineY = increaseTop(horzLines,INC_THRESH_FIRST,INC_TOP_FIRST);
     assert(topLineY>=0);
 #ifdef FORCE_LEFT
-    int leftLineX = increaseLeft(vertLines,0.5,INC_LEFT_FIRST);
+    int leftLineX = increaseLeft(vertLines,INC_THRESH_FIRST,INC_LEFT_FIRST);
     assert(leftLineX>=0);
 #endif
     /*        ///
@@ -667,8 +790,11 @@ int main (int argc, char** argv)
     for (int i=1; i<images.size(); i++)
     {
         ///////////////////
-        //if (i%30!=0)
-        //    continue;
+        if (i%50!=0)
+            continue;
+
+        if (images[i].substr(images[i].length()-7).compare("077.jpg")!=0)
+            continue;
         ///////////////////
         Mat doc=imread(images[i],CV_LOAD_IMAGE_GRAYSCALE);
         doc=doc(Rect(CUT_OFF_SIDE,CUT_OFF_TOP,WIDTH,doc.rows-(CUT_OFF_TOP+CUT_OFF_BOT)));
@@ -685,8 +811,8 @@ int main (int argc, char** argv)
         {
             skew2=0;
         }
-        double skewStart=skew2-.008;
-        double skewEnd=skew2+.022;
+        double skewStart=skew2+SCAN_SKEW_START;
+        double skewEnd=skew2+SCAN_SKEW_END;
         
 
         double bestScoreX=-1;
@@ -701,7 +827,7 @@ int main (int argc, char** argv)
 
         Mat vertLinesDoc; 
         Mat horzLinesDoc; 
-        for (double dSkew=skewStart; dSkew<=skewEnd; dSkew+=0.002)
+        for (double dSkew=skewStart; dSkew<=skewEnd; dSkew+=SCAN_SKEW_RES)
         {
             //cout<<"dskew: "<<dSkew<<endl;
             Mat docTemp = transform(doc,0,0,dSkew,doc.cols,doc.rows,subVal);
@@ -711,15 +837,33 @@ int main (int argc, char** argv)
             vertLinesDoc/=divVert;
             reduce(inv,horzLinesDoc,1,CV_REDUCE_SUM,CV_64F);
             horzLinesDoc/=divHorz;
+
+#ifdef CHECK_LEFT
+            //vector<int> peaks = checkLeft(vertLinesDoc);
+            int remd = checkLeft(vertLinesDoc);
+            //if (remd>2)
+            {
+                Mat show= docTemp(Rect(0,400,docTemp.cols,min(1500,docTemp.rows-400)));
+                cvtColor(show,show,CV_GRAY2RGB);
+                //for (int peak : peaks)
+                for (int r=0; r<show.rows; r++)
+                {
+                    show.at<Vec3b>(r,remd)[0] =255;
+                    show.at<Vec3b>(r,remd)[1] =0;
+                }
+                imshow("peaks",show);
+                waitKey();
+            }/**/
+#endif
             //cout<<"thresh: "<<(100*doc.cols)/divHorz<<endl;
-            int docBotLineY = increaseBot(horzLinesDoc,0.4,INC_BOT);
+            int docBotLineY = increaseBot(horzLinesDoc,INC_THRESH,INC_BOT);
             if (docBotLineY==-1)
                 continue;
-            int docTopLineY = increaseTop(horzLinesDoc,0.4,INC_TOP);
+            int docTopLineY = increaseTop(horzLinesDoc,INC_THRESH,INC_TOP);
             if (docTopLineY==-1)
                 continue;
 #ifdef FORCE_LEFT
-            int docLeftLineX = increaseLeft(vertLinesDoc,0.4,INC_LEFT);
+            int docLeftLineX = increaseLeft(vertLinesDoc,INC_THRESH,INC_LEFT);
             if (docLeftLineX==-1)
                 continue;
 #endif
@@ -766,7 +910,7 @@ int main (int argc, char** argv)
 #ifdef FORCE_LEFT
                 int offsetx = leftLineX-scale*docLeftLineX;
 #else
-                for (int offsetx=-240; offsetx<=240; offsetx+=SCAN_RES)
+                for (int offsetx=-SCAN_X_RANGE; offsetx<=SCAN_X_RANGE; offsetx+=SCAN_RES)
 #endif
                 {
                     double score = sum(vertLines.mul(transform(scaledVertLinesDoc,offsetx,0,0,vertLines.cols,vertLines.rows,0)))[0];
@@ -815,10 +959,13 @@ int main (int argc, char** argv)
             vertLinesDoc/=divVert;
             reduce(inv,horzLinesDoc,1,CV_REDUCE_SUM,CV_64F);
             horzLinesDoc/=divHorz;
-            int docBotLineY=increaseBot(horzLinesDoc,0.4,INC_BOT);
-            int docTopLineY=increaseTop(horzLinesDoc,0.4,INC_TOP);
+#ifdef CHECK_LEFT
+            checkLeft(vertLinesDoc);
+#endif
+            int docBotLineY=increaseBot(horzLinesDoc,INC_THRESH,INC_BOT);
+            int docTopLineY=increaseTop(horzLinesDoc,INC_THRESH,INC_TOP);
 #ifdef FORCE_LEFT
-            int docLeftLineX=increaseLeft(vertLinesDoc,0.4,INC_LEFT);
+            int docLeftLineX=increaseLeft(vertLinesDoc,INC_THRESH,INC_LEFT);
 #endif
             double scale = (bestScaleY+bestScaleX)/2.0;
             bestScaleX=scale;
