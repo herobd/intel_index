@@ -55,7 +55,7 @@ def approve(linesForPage,cur,maxWidth):
             #black.fill(255)
         else:
             #apim = np.append(np.append(apim,black,axis=0),im,axis=0)
-            aplabel+='\n\n\n\n'+label
+            aplabel+='\n\n\n'+label
     #cv2.imshow('s',im)
     #cv2.imshow('a',apim)
     if len(linesForPage)>1:
@@ -72,7 +72,7 @@ def approve(linesForPage,cur,maxWidth):
                         #apim=np.append(apim,black,axis=0)
                         apim=np.append(apim,im,axis=0)
                         #apim = np.append(np.append(apim,black,axis=0),im,axis=0)
-                        aplabel+='\n\n\n\n'+label
+                        aplabel+='\n\n\n'+label
         label,im = getLI(linesForPage[-1].strip(),cur)
         if label is not None:
             #print im.shape
@@ -81,7 +81,7 @@ def approve(linesForPage,cur,maxWidth):
                 aplabel=label
             else:
                 apim=np.append(apim,im,axis=0)
-                aplabel+='\n\n\n\n'+label
+                aplabel+='\n\n\n'+label
     
     print(aplabel)
     print ('--------------------------------------')
