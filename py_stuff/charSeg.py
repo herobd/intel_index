@@ -9,10 +9,13 @@ import sys
 from StringIO import StringIO
 import cv2
 
-gtpFile = 'ben_cattss_c_corpus.gtp'
-imDir = 'BenthamDatasetR0-Images/Images/Pages/'
-outFile = 'manual_segmentations.csv'
+#gtpFile = 'ben_cattss_c_corpus.gtp'
+#imDir = 'BenthamDatasetR0-Images/Images/Pages/'
+#outFile = 'manual_segmentations.csv'
 
+gtpFile = 'seg_names_corpus.gtp'
+imDir = './'
+outFile = 'manual_segmentations.csv'
 
 def showControls():
     print(' -----------------------------------------------')
@@ -241,6 +244,7 @@ while i<len(words) and not end:
     if curImageFile != words[i]['imageFile']:
         #pageCount+=1
         orig = cv2.imread(imDir+words[i]['imageFile'])
+        assert orig is not None
         curImageFile=words[i]['imageFile']
     seg, undo, end = segmenter(words[i])
     
