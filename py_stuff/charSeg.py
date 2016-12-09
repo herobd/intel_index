@@ -189,7 +189,7 @@ def segmenter(word):
                         image[:,ll:rr,0] = color[colorIdx][0] * image[:,ll:rr,0]
                         image[:,ll:rr,1] = color[colorIdx][1] * image[:,ll:rr,1]
                         image[:,ll:rr,2] = color[colorIdx][2] * image[:,ll:rr,2]
-                        colorIdx+=1
+                        colorIdx = (colorIdx+1)%len(color)
                     cv2.imshow("image", image)
                 else:
                     return '', True, False
