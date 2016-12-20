@@ -2102,8 +2102,9 @@ Mat EmbAttSpotter::phow(const Mat& im, const struct PCA_struct* PCA_pt, vector<i
     
     //cout <<"canary "<<imf.at<float>(0,0)<<endl;
     
-    assert(im.isContinuous());
-    assert(im.rows>0 && im.cols>0);
+    if (!imf.isContinuous())//Dont think this is necessary
+        imf=imf.clone();
+    assert(imf.rows>0 && imf.cols>0);
     //imf=imf.t(); 
     //assert(imf.isContinuous());
     
@@ -2382,10 +2383,6 @@ Mat EmbAttSpotter::phow(const Mat& im, const struct PCA_struct* PCA_pt, vector<i
             waitKey();
             #endif
             
-            #if USE_VL
-            vl_dsift_delete(dsift);
-            delete[] ims;
-            #endif
             checkNaN(augmented); 
             feats_m.push_back(augmented);
             
@@ -2399,6 +2396,10 @@ Mat EmbAttSpotter::phow(const Mat& im, const struct PCA_struct* PCA_pt, vector<i
                 assert(feats_m.cols==AUG_PCA_DIM);
             }
         }
+        #if USE_VL
+        vl_dsift_delete(dsift);
+        delete[] ims;
+        #endif
     }
     //for (int r=0; r<feats_m.rows; r++)
     //    for (int c=0; c<feats_m.cols; c++)
