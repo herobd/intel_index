@@ -45,8 +45,10 @@ int main(int argc, char** argv)
 	cmd.add( imageDirArg );
 	TCLAP::ValueArg<string> exemplarDirArg("x","exemplarsDir","directory containing exemplar images", false,"/home/brian/intel_index/data/gw_20p_wannot/bigrams_clean_deslant/","string");
 	cmd.add( exemplarDirArg );
-	TCLAP::ValueArg<string> fullFileArg("f","full","Do a full sliding window subword spotting on this image", false,"","string");
+	TCLAP::ValueArg<string> fullFileArg("f","full","do a full sliding window subword spotting on this image", false,"","string");
 	cmd.add( fullFileArg );
+	TCLAP::ValueArg<float> hyarg("y","hybridalpha","hybrid alpha, 0 text only, 1 image only", false,-1,"float");
+	cmd.add( hyarg );
 	cmd.parse( argc, argv );
 
 	 
@@ -96,9 +98,9 @@ int main(int argc, char** argv)
 	        spotter.embedding(true);
 	    
             if ( evalSubF.getValue() )
-		spotter.evalSubwordSpotting(&exemplars, &test);
+		spotter.evalSubwordSpotting(&exemplars, &test, hyarg.getValue());
             else
-		spotter.evalSubwordSpottingCombine(&exemplars, &test);
+		spotter.evalSubwordSpottingCombine(&exemplars, &test, hyarg.getValue());
 	}
 	
 	if ( imageArg.getValue()>=0 )

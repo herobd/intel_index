@@ -4552,3 +4552,32 @@ void EmbAttSpotter::setCorpus_dataset_fullSub(const Dataset* d, int charWidth, i
     }
 }
 //}}}//?
+
+
+vector< SubwordSpottingResult > EmbAttSpotter::subwordSpot_eval(const Mat& exemplar, string word, float alpha, float refinePortion, vector< SubwordSpottingResult >* accumRes, const vector< vector<int> >* corpusXLetterStartBounds, const vector< vector<int> >* corpusXLetterEndBounds, float* ap, float* accumAP) const
+{
+    vector< SubwordSpottingResult > ret = subwordSpot(exemplar,word,alpha,refinePortion);
+    *ap = evalSubwordSpotting_singleScore(word, ret, corpusXLetterStartBounds, corpusXLetterEndBounds);
+    bool matchFound=false;
+    for (auto r : ret)
+    {
+        for (int i=0; i<accumRes->size(); i++)
+        {
+            if (accumRes->at(i).imIdx == r.imIdx && 
+                    ( min(accumRes->at(i).endX,r.endX) - max(accumRes->at(i).startX,r.startX) ) /
+                    ( max(accumRes->at(i).endX,r.endX) - min(accumRes->at(i).startX,r.startX) ) > LIVE_SCORE_OVERLAP_THRESH)
+            {
+                if (r.score > accumRes->at(i).score)
+                    accumRes->at(i)=r;
+                matchFound=true;
+                break;
+            }
+        }
+        if (!matchFound)
+            accumRes->push_back(r);
+    }
+    *accumAP = evalSubwordSpotting_singleScore(word, *accumRes, corpusXLetterStartBounds, corpusXLetterEndBounds);
+            
+
+    return ret;
+}

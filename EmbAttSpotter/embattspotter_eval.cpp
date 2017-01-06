@@ -97,6 +97,160 @@ void EmbAttSpotter::eval(const Dataset* data)
     }
 }
 
+//This is a testing function for the simulator
+#define LIVE_SCORE_OVERLAP_THRESH 0.65
+float EmbAttSpotter::evalSubwordSpotting_singleScore(string ngram, const vector<SubwordSpottingResult>& res, const vector< vector<int> >* corpusXLetterStartBounds, const vector< vector<int> >* corpusXLetterEndBounds) const
+{
+    //string ngram = exemplars->labels()[inst];
+    int Nrelevants = 0;
+    float ap=0;
+    
+    float bestS=-99999;
+    //vector<SubwordSpottingResult> res = subwordSpot(exemplars->image(inst),ngram,hy); //scores
+    float maxScore=-9999;
+    for (auto r : res)
+        if (r.score>maxScore)
+            maxScore=r.score;
+    vector<float> scores;
+    vector<bool> rel;
+    int l=ngram.length()-1;
+    vector<bool> checked(corpus_dataset->size());
+    for (int j=0; j<res.size(); j++)
+    {
+        SubwordSpottingResult r = res[j];
+        checked[r.imIdx]=true;
+        size_t loc = corpus_dataset->labels()[r.imIdx].find(ngram);
+        if (loc==string::npos)
+        {
+            scores.push_back(r.score);
+            rel.push_back(false);
+        }
+        else
+        {
+            vector<int> matching;
+            for (int jj=0; jj < res.size(); jj++)
+            {
+                if (res[jj].imIdx == r.imIdx && j!=jj)
+                    matching.push_back(jj);
+            }
+            float myOverlap = ( min(corpusXLetterEndBounds->at(r.imIdx)[loc+l], r.endX) 
+                                - max(corpusXLetterStartBounds->at(r.imIdx)[loc], r.startX) ) 
+                              /
+                              ( max(corpusXLetterEndBounds->at(r.imIdx)[loc+l], r.endX) 
+                                - min(corpusXLetterStartBounds->at(r.imIdx)[loc], r.startX) +0.0);
+            if (matching.size()>0)
+            {
+                //float relPos = (loc+(ngram.length()/2.0))/corpus_dataset->labels()[r.imIdx].length();
+                //float myDif = fabs(relPos - (r.startX + (r.endX-r.startX)/2.0)/corpus_dataset->image(r.imIdx).cols);
+                bool other=false;
+                for (int oi : matching)
+                {
+                    float otherOverlap = ( min(corpusXLetterEndBounds->at(res[oi].imIdx)[loc+l], res[oi].endX) 
+                                            - max(corpusXLetterStartBounds->at(res[oi].imIdx)[loc], res[oi].startX) ) 
+                                          /
+                                          ( max(corpusXLetterEndBounds->at(res[oi].imIdx)[loc+l], res[oi].endX) 
+                                            - min(corpusXLetterStartBounds->at(res[oi].imIdx)[loc], res[oi].startX) +0.0);
+                    if (otherOverlap > myOverlap) {
+                        other=true;
+                        break;
+                    }
+                }
+                if (other)
+                {
+                    scores.push_back(r.score);
+                    rel.push_back(false);
+                }
+                else if (myOverlap > LIVE_SCORE_OVERLAP_THRESH)
+                {
+                    scores.push_back(r.score);
+                    rel.push_back(true);
+                }
+            }
+            else
+            {
+                /*bool ngram1H = loc+(ngram.length()/2.0) < 0.8*corpus_dataset->labels()[r.imIdx].length()/2.0;
+                bool ngram2H = loc+(ngram.length()/2.0) > 1.2*corpus_dataset->labels()[r.imIdx].length()/2.0;
+                bool ngramM = loc+(ngram.length()/2.0) > corpus_dataset->labels()[r.imIdx].length()/3.0 &&
+                    loc+(ngram.length()/2.0) < 2.0*corpus_dataset->labels()[r.imIdx].length()/3.0;
+                float sLoc = r.startX + (r.endX-r.startX)/2.0;
+                bool spot1H = sLoc < 0.8*corpus_dataset->image(r.imIdx).cols/2.0;
+                bool spot2H = sLoc > 1.2*corpus_dataset->image(r.imIdx).cols/2.0;
+                bool spotM = sLoc > corpus_dataset->image(r.imIdx).cols/3.0 &&
+                    sLoc < 2.0*corpus_dataset->image(r.imIdx).cols/3.0;
+                    */
+
+                if (myOverlap > LIVE_SCORE_OVERLAP_THRESH)
+                //if ( (ngram1H&&spot1H) || (ngram2H&&spot2H) || (ngramM&&spotM) )
+                {
+                    scores.push_back(r.score);
+                    rel.push_back(true);
+                }
+                else
+                {
+                    scores.push_back(r.score);
+                    rel.push_back(false);
+                    //Insert a dummy result for the correct spotting to keep MAP accurate
+                    scores.push_back(maxScore);
+                    rel.push_back(true);
+                }
+
+            }
+        }
+    }
+    
+    for (int j=0; j<corpus_dataset->size(); j++)
+    {
+        if (!checked[j] &&  corpus_dataset->labels()[j].find(ngram)!=string::npos)
+        {
+            scores.push_back(maxScore);
+            rel.push_back(true); 
+        }
+    }
+    vector<int> rank;
+    for (int j=0; j < scores.size(); j++)
+    {            
+        float s = scores[j];
+        //cout <<"score for "<<j<<" is "<<s<<". It is ["<<data->labels()[j]<<"], we are looking for ["<<text<<"]"<<endl;
+        
+        if (rel[j])
+        {
+            int better=0;
+            int equal = 0;
+            
+            for (int k=0; k < scores.size(); k++)
+            {
+                if (k!=j)
+                {
+                    float s2 = scores[k];
+                    if (s2< s) better++;
+                    else if (s2==s) equal++;
+                }
+            }
+            
+            
+            rank.push_back(better+floor(equal/2.0));
+            Nrelevants++;
+        }
+        
+    }
+    qsort(rank.data(), Nrelevants, sizeof(int), sort_xxx);
+    
+    //pP1[i] = p1;
+    
+    /* Get mAP and store it */
+    for(int j=0;j<Nrelevants;j++){
+        /* if rank[i] >=k it was not on the topk. Since they are sorted, that means bail out already */
+        
+        float prec_at_k =  ((float)(j+1))/(rank[j]+1);
+        //mexPrintf("prec_at_k: %f\n", prec_at_k);
+        ap += prec_at_k;            
+    }
+    ap/=Nrelevants;
+    
+   return ap;
+}
+
+
 void EmbAttSpotter::evalSubwordSpotting(const Dataset* exemplars, /*string exemplars_locations,*/ const Dataset* data, double hyV)
 {
     setCorpus_dataset(data);
@@ -250,7 +404,7 @@ void EmbAttSpotter::evalSubwordSpotting(const Dataset* exemplars, /*string exemp
                         if (k!=j)
                         {
                             float s2 = scores[k];
-                            if (s2> s) better++;
+                            if (s2< s) better++;
                             else if (s2==s) equal++;
                         }
                     }

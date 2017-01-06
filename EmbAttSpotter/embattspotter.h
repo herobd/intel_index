@@ -20,7 +20,7 @@
 #include <iomanip>
 #include <functional>
 #include "dataset.h"
-
+#include "SubwordSpottingResult.h"
 
 
 #if USE_VL
@@ -41,6 +41,8 @@ extern "C" {
 #define FV_DIM (2*numGMMClusters*numSpatialX*numSpatialY*AUG_PCA_DIM)
 #define AUG_PCA_DIM (PCA_dim+2)
 
+#define LIVE_SCORE_OVERLAP_THRESH 0.65
+
 using namespace std;
 using namespace cv;
 
@@ -49,20 +51,6 @@ struct spotting_sw
     float score;
     int posStart;
     int posEnd;
-};
-struct SubwordSpottingResult {
-    int imIdx;
-    float score;
-    int startX;
-    int endX;
-    SubwordSpottingResult(int imIdx, float score, int startX, int endX) : 
-        imIdx(imIdx), score(score), startX(startX), endX(endX)
-    {
-    }
-    SubwordSpottingResult() : 
-        imIdx(-1), score(0), startX(-1), endX(-1)
-    {
-    }
 };
 
 class EmbAttSpotter// : public SegmentationBasedSpotter
@@ -329,6 +317,7 @@ public:
     vector<float> spot(const Mat& exemplar) {return spot(exemplar,"",1);}
     //vector< SubwordSpottingResult > subwordSpot(const Mat& exemplar, string word, float alpha, float refinePortion=0.25);
     vector< SubwordSpottingResult > subwordSpot(const Mat& exemplar, string word, float alpha, float refinePortion=0.25) const;
+vector< SubwordSpottingResult > subwordSpot_eval(const Mat& exemplar, string word, float alpha, float refinePortion, vector< SubwordSpottingResult >* accumRes, const vector< vector<int> >* corpusXLetterStartBounds, const vector< vector<int> >* corpusXLetterEndBounds, float* ap, float* accumAP) const;
     vector< SubwordSpottingResult > subwordSpot_full(const Mat& exemplar, string word, float alpha) const;
     //This method is the same as the abbove, except it averages the exemplars cca_att vectors together first.
     vector< SubwordSpottingResult > subwordSpot(const vector<Mat>& exemplars, string word, float alpha, float refinePortion=0.25) const;
@@ -346,6 +335,7 @@ public:
     void evalSubwordSpotting(const Dataset* exemplars, const Dataset* data, double hyV=-1);
     void evalSubwordSpottingCombine(const Dataset* exemplars, const Dataset* data, double hyV=-1);
     
+    float evalSubwordSpotting_singleScore(string ngram, const vector<SubwordSpottingResult>& res, const vector< vector<int> >* corpusXLetterStartBounds, const vector< vector<int> >* corpusXLetterEndBounds) const;
     #if TEST_MODE
         void test();
     #else

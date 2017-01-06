@@ -43,7 +43,7 @@ $(PROGRAM_NAME):  $(OBJECTS)
 obj/main.o: main.cpp gwdataset.h stridedataset.h
 	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/main.o main.cpp $(LIBS)
 
-obj/embattspotter.o: embattspotter.h embattspotter.cpp embattspotter_eval.cpp embattspotter_test.cpp gwdataset.h
+obj/embattspotter.o: embattspotter.h embattspotter.cpp embattspotter_eval.cpp embattspotter_test.cpp gwdataset.h SubwordSpottingResult.h
 	$(CXX) -c $(CXX_FLAGS) $(INCLUDE) -o obj/embattspotter.o embattspotter.cpp $(LIBS)
 	
 obj/gwdataset.o: dataset.h gwdataset.h gwdataset.cpp

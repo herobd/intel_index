@@ -12,16 +12,19 @@ import cv2
 #gtpFile = 'ben_cattss_c_corpus.gtp'
 #imDir = 'BenthamDatasetR0-Images/Images/Pages/'
 #outFile = 'manual_segmentations.csv'
+gtpFile = 'ben_cattss_c_train.gtp'
+imDir = 'BenthamDatasetR0-Images/Images/Pages/'
+outFile = 'manual_segmentations_train.csv'
 
-gtpFile = 'seg_names_corpus.gtp'
-imDir = './'
-outFile = 'manual_segmentations.csv'
+#gtpFile = 'seg_names_corpus.gtp'
+#imDir = './'
+#outFile = 'manual_segmentations.csv'
 
 def showControls():
     print(' -----------------------------------------------')
     print('| CONTROLS:                                     |')
-    print('| * set new boundary:               right-click |')
-    print('| * reset current boundary:         left-click  |')
+    print('| * set new boundary:               left-click |')
+    #print('| * reset current boundary:         left-click  |')
     print('| * set boundary to image edge:     middle-click|')
     print('| * confirm segmentaion (of word):  enter       |')
     print('| * undo:                           backspace   |')
@@ -72,7 +75,7 @@ def clicker(event, x, y, flags, param):
         # grab references to the global variables
         global segPts, image, bimage, colorIdx, wordLen
 
-        if event == cv2.EVENT_LBUTTONDOWN:
+        """if event == cv2.EVENT_LBUTTONDOWN:
             if len(segPts)>0:
                 #change last boundary
                 image=bimage.copy()
@@ -83,8 +86,8 @@ def clicker(event, x, y, flags, param):
                 image[:,ll:rr,1] = color[(colorIdx+len(color)-1)%len(color)][1] * image[:,ll:rr,1]
                 image[:,ll:rr,2] = color[(colorIdx+len(color)-1)%len(color)][2] * image[:,ll:rr,2]
                 cv2.imshow("image", image)
-
-        elif event == cv2.EVENT_RBUTTONDOWN:
+"""
+        if event == cv2.EVENT_LBUTTONDOWN:
                 # a new boundary
                 if len(segPts)<wordLen+1:
                     bimage=image.copy()
@@ -168,7 +171,7 @@ def segmenter(word):
         while True:
             # display the image and wait for a keypress
             key = cv2.waitKey(33) #?? & 0xFF
-            if key == 10 and len(segPts)==wordLen+1: #eneter
+            if key == 13 and len(segPts)==wordLen+1: #eneter
                 #toWrite+=filePath+' '+str(x1+refPt[0])+' '+str(y1)+' '+str(x1+refPt[1])+' '+str(y2)+' '+name+'\n'
                 #niewWordSeg.append(( (x1+refPt[0]), y1, (x1+refPt[1]), y2));
                 #bimage=image.copy()
@@ -178,7 +181,7 @@ def segmenter(word):
                     toWrite+=','+str(segPts[i]+x1)+','+str(segPts[i+1]+x1)
                 toWrite+='\n';
                 return toWrite, False, False
-            elif key == 65288: #backspace
+            elif key == 8: #backspace
                 if len(segPts)>0:
                     image = orig[y1:y2+1, x1:x2+1].copy()
                     segPts.pop()
