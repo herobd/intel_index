@@ -97,8 +97,8 @@ void EmbAttSpotter::eval(const Dataset* data)
     }
 }
 
-//This is a testing function for the simulator
 #define LIVE_SCORE_OVERLAP_THRESH 0.65
+//This is a testing function for the simulator
 float EmbAttSpotter::evalSubwordSpotting_singleScore(string ngram, const vector<SubwordSpottingResult>& res, const vector< vector<int> >* corpusXLetterStartBounds, const vector< vector<int> >* corpusXLetterEndBounds) const
 {
     //string ngram = exemplars->labels()[inst];
@@ -318,9 +318,11 @@ void EmbAttSpotter::evalSubwordSpotting(const Dataset* exemplars, /*string exemp
                     maxScore=r.score;
             vector<float> scores;
             vector<bool> rel;
+            vector<bool> checked(corpus_dataset->size());
             for (int j=0; j<res.size(); j++)
             {
                 SubwordSpottingResult r = res[j];
+                checked[r.imIdx]=true;
                 size_t loc = data->labels()[r.imIdx].find(ngram);
                 if (loc==string::npos)
                 {
@@ -388,6 +390,14 @@ void EmbAttSpotter::evalSubwordSpotting(const Dataset* exemplars, /*string exemp
                     }
                 }
             }
+            for (int j=0; j<corpus_dataset->size(); j++)
+            {
+                if (!checked[j] &&  corpus_dataset->labels()[j].find(ngram)!=string::npos)
+                {
+                    scores.push_back(maxScore);
+                    rel.push_back(true); 
+                }
+            }
             vector<int> rank;
             for (int j=0; j < scores.size(); j++)
             {            
@@ -433,7 +443,7 @@ void EmbAttSpotter::evalSubwordSpotting(const Dataset* exemplars, /*string exemp
             {
                 queryCount++;
                 map+=ap;
-                cout<<"on spotting inst:"<<inst<<", "<<ngram<<"   ap: "<<ap<<endl;
+                cout<<"on spotting inst:"<<inst<<", "<<ngram<<"[# "<<Nrelevants<<"]   ap: "<<ap<<endl;
                 /*if (gram.compare(ngram)!=0)
                 {
                     if (gramCount>0)
