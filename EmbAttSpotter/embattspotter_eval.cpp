@@ -251,6 +251,92 @@ float EmbAttSpotter::evalSubwordSpotting_singleScore(string ngram, const vector<
 }
 
 
+void EmbAttSpotter::evalSubwordSpottingWithCharBounds(const Dataset* exemplars, const Dataset* data, const vector< vector<int> >* corpusXLetterStartBounds, const vector< vector<int> >* corpusXLetterEndBounds, double hyV)
+{
+    setCorpus_dataset(data);
+
+    map<string,set<int> > widths;
+    for (int i=0; i<exemplars->size(); i++)
+    {
+        widths[exemplars->labels()[i]].insert(exemplars->image(i).cols);
+    }
+
+    cout<<"Average exemplar widths"<<endl;
+    for (auto p : widths)
+    {
+        double avg=0;
+        for (int w : p.second)
+            avg+=w;
+        avg/=p.second.size();
+        cout <<p.first<<": "<<avg<<endl;
+    }
+
+    double hyS=0.0;
+    double hyE=1.0;
+    if (hyV>=0)
+    {
+        hyS=hyE=hyV;
+    }
+    for (double hy=hyS; hy<=hyE; hy+=0.2)
+    {
+        set<string> done;
+        float map=0;
+        int queryCount=0;
+        float gramMap=0;
+        string gram="";
+        int gramCount=0;
+        #pragma omp parallel for
+        for (int inst=0; inst<exemplars->size(); inst++)
+        {
+            string ngram = exemplars->labels()[inst];
+            if (hy==0)
+            {
+                bool cc=false;
+#pragma omp critical (ddd)
+                {
+                if (done.find(ngram)!=done.end())
+                    cc=true;
+                else
+                    done.insert(ngram);
+                }
+                if (cc)
+                    continue;
+            }
+            //cout <<"on spotting inst:"<<inst<<", "<<ngram;
+            //cout << flush;
+            //int *rank = new int[other];//(int*)malloc(NRelevantsPerQuery[i]*sizeof(int));
+            float ap=0;
+            
+            //imshow("exe", exemplars->image(inst));
+            //waitKey();
+            vector<SubwordSpottingResult> res = subwordSpot(exemplars->image(inst),ngram,hy); //scores
+            ap = evalSubwordSpotting_singleScore(ngram, res, corpusXLetterStartBounds, corpusXLetterEndBounds);
+            #pragma omp critical (storeMAP)
+            {
+                queryCount++;
+                map+=ap;
+                cout<<"on spotting inst:"<<inst<<", "<<ngram<<"   ap: "<<ap<<endl;
+                /*if (gram.compare(ngram)!=0)
+                {
+                    if (gramCount>0)
+                    {
+                        cout <<"ap for ["<<gram<<"]: "<<(gramMap/gramCount)<<endl;
+                        gramCount=0;
+                        gramMap=0;
+                    }
+                    gram=ngram;
+                }
+                gramMap+=ap;
+                gramCount++;*/
+            }
+            
+        }
+        //cout <<"ap for ["<<gram<<"]: "<<(gramMap/gramCount)<<endl;
+        
+        cout<<"FULL map: "<<(map/queryCount)<<" for hy:"<<hy<<endl;
+    }
+}
+
 void EmbAttSpotter::evalSubwordSpotting(const Dataset* exemplars, /*string exemplars_locations,*/ const Dataset* data, double hyV)
 {
     setCorpus_dataset(data);

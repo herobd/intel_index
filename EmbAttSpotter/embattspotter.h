@@ -333,6 +333,7 @@ vector< SubwordSpottingResult > subwordSpot_eval(const Mat& exemplar, string wor
     
     void eval(const Dataset* data);
     void evalSubwordSpotting(const Dataset* exemplars, const Dataset* data, double hyV=-1);
+    void evalSubwordSpottingWithCharBounds(const Dataset* exemplars, const Dataset* data, const vector< vector<int> >* corpusXLetterStartBounds, const vector< vector<int> >* corpusXLetterEndBounds, double hyV=-1);
     void evalSubwordSpottingCombine(const Dataset* exemplars, const Dataset* data, double hyV=-1);
     
     float evalSubwordSpotting_singleScore(string ngram, const vector<SubwordSpottingResult>& res, const vector< vector<int> >* corpusXLetterStartBounds, const vector< vector<int> >* corpusXLetterEndBounds) const;

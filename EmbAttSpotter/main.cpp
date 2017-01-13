@@ -49,6 +49,8 @@ int main(int argc, char** argv)
 	cmd.add( fullFileArg );
 	TCLAP::ValueArg<float> hyarg("y","hybridalpha","hybrid alpha, 0 text only, 1 image only", false,-1,"float");
 	cmd.add( hyarg );
+	TCLAP::ValueArg<string> charSegCSVArg("3","charSeg","char seg csv file: 'word,pageId,x1,y1,x2,y2,char1start,char1end,char2start,...'", false,"","string");
+        cmd.add( charSegCSVArg );
 	cmd.parse( argc, argv );
 
 	 
@@ -97,11 +99,47 @@ int main(int argc, char** argv)
             if ( retrainEmbeddingF.getValue() )
 	        spotter.embedding(true);
 	    
-            if ( evalSubF.getValue() )
+            if (charSegCSVArg.getValue().length()>0)
+            {
+                vector< vector<int> > corpusXLetterStartBoundsRel;
+                vector< vector<int> > corpusXLetterEndBoundsRel;
+                ifstream in (charSegCSVArg.getValue());
+                string line;
+                //getline(in,line);//header
+                while (getline(in,line))
+                {
+                    string s;
+                    std::stringstream ss(line);
+                    getline(ss,s,',');
+                    getline(ss,s,',');
+                    getline(ss,s,',');//x1
+                    int x1=stoi(s);
+                    getline(ss,s,',');
+                    getline(ss,s,',');//x2
+                    getline(ss,s,',');
+                    vector<int> lettersStartRel, lettersEndRel;
+
+                    while (getline(ss,s,','))
+                    {
+                        lettersStartRel.push_back(stoi(s)-x1);
+                        getline(ss,s,',');
+                        lettersEndRel.push_back(stoi(s)-x1);
+                        //getline(ss,s,',');//conf
+                    }
+                    corpusXLetterStartBoundsRel.push_back(lettersStartRel);
+                    corpusXLetterEndBoundsRel.push_back(lettersEndRel);
+                }
+                in.close();
+                
+                spotter.evalSubwordSpottingWithCharBounds(&exemplars, &test, &corpusXLetterStartBoundsRel, &corpusXLetterEndBoundsRel, hyarg.getValue());
+
+            }
+            else if ( evalSubF.getValue() )
 		spotter.evalSubwordSpotting(&exemplars, &test, hyarg.getValue());
             else
 		spotter.evalSubwordSpottingCombine(&exemplars, &test, hyarg.getValue());
 	}
+
 	
 	if ( imageArg.getValue()>=0 )
 	{
