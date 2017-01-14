@@ -1,5 +1,9 @@
 #include "embattspotter.h"
 #include <set>
+#include <map>
+
+#define PAD_EXE 9
+#define END_PAD_EXE 3
 
 int sort_xxx(const void *x, const void *y) {
     if (*(int*)x > *(int*)y) return 1;
@@ -99,7 +103,7 @@ void EmbAttSpotter::eval(const Dataset* data)
 
 #define LIVE_SCORE_OVERLAP_THRESH 0.65
 //This is a testing function for the simulator
-float EmbAttSpotter::evalSubwordSpotting_singleScore(string ngram, const vector<SubwordSpottingResult>& res, const vector< vector<int> >* corpusXLetterStartBounds, const vector< vector<int> >* corpusXLetterEndBounds) const
+float EmbAttSpotter::evalSubwordSpotting_singleScore(string ngram, const vector<SubwordSpottingResult>& res, const vector< vector<int> >* corpusXLetterStartBounds, const vector< vector<int> >* corpusXLetterEndBounds, int skip) const
 {
     //string ngram = exemplars->labels()[inst];
     int Nrelevants = 0;
@@ -119,6 +123,8 @@ float EmbAttSpotter::evalSubwordSpotting_singleScore(string ngram, const vector<
     {
         SubwordSpottingResult r = res[j];
         checked[r.imIdx]=true;
+        if (skip == r.imIdx)
+            continue;
         size_t loc = corpus_dataset->labels()[r.imIdx].find(ngram);
         if (loc==string::npos)
         {
@@ -130,7 +136,7 @@ float EmbAttSpotter::evalSubwordSpotting_singleScore(string ngram, const vector<
             vector<int> matching;
             for (int jj=0; jj < res.size(); jj++)
             {
-                if (res[jj].imIdx == r.imIdx && j!=jj)
+                if (res[jj].imIdx == r.imIdx && j!=jj && res[jj].imIdx!=skip)
                     matching.push_back(jj);
             }
             float myOverlap = ( min(corpusXLetterEndBounds->at(r.imIdx)[loc+l], r.endX) 
@@ -251,25 +257,10 @@ float EmbAttSpotter::evalSubwordSpotting_singleScore(string ngram, const vector<
 }
 
 
-void EmbAttSpotter::evalSubwordSpottingWithCharBounds(const Dataset* exemplars, const Dataset* data, const vector< vector<int> >* corpusXLetterStartBounds, const vector< vector<int> >* corpusXLetterEndBounds, double hyV)
+void EmbAttSpotter::evalSubwordSpottingWithCharBounds(const Dataset* data, const vector< vector<int> >* corpusXLetterStartBounds, const vector< vector<int> >* corpusXLetterEndBounds, double hyV)
 {
     setCorpus_dataset(data);
 
-    map<string,set<int> > widths;
-    for (int i=0; i<exemplars->size(); i++)
-    {
-        widths[exemplars->labels()[i]].insert(exemplars->image(i).cols);
-    }
-
-    cout<<"Average exemplar widths"<<endl;
-    for (auto p : widths)
-    {
-        double avg=0;
-        for (int w : p.second)
-            avg+=w;
-        avg/=p.second.size();
-        cout <<p.first<<": "<<avg<<endl;
-    }
 
     double hyS=0.0;
     double hyE=1.0;
@@ -280,15 +271,36 @@ void EmbAttSpotter::evalSubwordSpottingWithCharBounds(const Dataset* exemplars, 
     for (double hy=hyS; hy<=hyE; hy+=0.2)
     {
         set<string> done;
-        float map=0;
+        float mAP=0;
         int queryCount=0;
-        float gramMap=0;
-        string gram="";
-        int gramCount=0;
+        map<string,int> ngramCounter;
+
         #pragma omp parallel for
-        for (int inst=0; inst<exemplars->size(); inst++)
+        for (int inst=0; inst<data->size(); inst++)
         {
-            string ngram = exemplars->labels()[inst];
+            string label = data->labels()[inst];
+            if (label.length()<2)
+                continue;
+            int bigram= inst%(label.length()-1);
+            string ngram="";
+            do {
+                ngram = label.substr(bigram,2);
+                int nRel=0;
+                for (int inst2=0; inst2<data->size(); inst2++)
+                {
+                    if (data->labels()[inst2].find(ngram) != string::npos)
+                        nRel++;
+                }
+                if (nRel<10)
+                {
+                    bigram= (bigram+1)%(label.length()-1);
+                    ngram="";
+                }
+            } while(ngram.length()==0 && bigram!=inst%(label.length()-1));
+            if (ngram.length()==0)
+                continue;
+
+            Mat exemplar;
             if (hy==0)
             {
                 bool cc=false;
@@ -302,38 +314,34 @@ void EmbAttSpotter::evalSubwordSpottingWithCharBounds(const Dataset* exemplars, 
                 if (cc)
                     continue;
             }
-            //cout <<"on spotting inst:"<<inst<<", "<<ngram;
-            //cout << flush;
-            //int *rank = new int[other];//(int*)malloc(NRelevantsPerQuery[i]*sizeof(int));
+            else
+            {
+                Mat wordIm = data->image(inst);
+                int x1 = max(0,corpusXLetterStartBounds->at(inst)[bigram] - (bigram==0?END_PAD_EXE:PAD_EXE));
+                int x2 = min(wordIm.cols-1,corpusXLetterEndBounds->at(inst)[bigram+1] + (bigram==label.length()-2?END_PAD_EXE:PAD_EXE));
+                exemplar = wordIm(Rect(x1,0,x2-x1+1,wordIm.rows));
+            }
             float ap=0;
             
-            //imshow("exe", exemplars->image(inst));
+            //imshow("exe", exemplar);
             //waitKey();
-            vector<SubwordSpottingResult> res = subwordSpot(exemplars->image(inst),ngram,hy); //scores
-            ap = evalSubwordSpotting_singleScore(ngram, res, corpusXLetterStartBounds, corpusXLetterEndBounds);
+            vector<SubwordSpottingResult> res = subwordSpot(exemplar,ngram,hy); //scores
+
+            ap = evalSubwordSpotting_singleScore(ngram, res, corpusXLetterStartBounds, corpusXLetterEndBounds, inst);
             #pragma omp critical (storeMAP)
             {
                 queryCount++;
-                map+=ap;
+                mAP+=ap;
                 cout<<"on spotting inst:"<<inst<<", "<<ngram<<"   ap: "<<ap<<endl;
-                /*if (gram.compare(ngram)!=0)
-                {
-                    if (gramCount>0)
-                    {
-                        cout <<"ap for ["<<gram<<"]: "<<(gramMap/gramCount)<<endl;
-                        gramCount=0;
-                        gramMap=0;
-                    }
-                    gram=ngram;
-                }
-                gramMap+=ap;
-                gramCount++;*/
+                ngramCounter[ngram]++;
             }
             
         }
-        //cout <<"ap for ["<<gram<<"]: "<<(gramMap/gramCount)<<endl;
-        
-        cout<<"FULL map: "<<(map/queryCount)<<" for hy:"<<hy<<endl;
+        cout<<"ngram counts= ";
+        for (auto p : ngramCounter)
+            cout<<p.first<<":"<<p.second<<"  ";
+        cout<<endl;
+        cout<<"FULL map: "<<(mAP/queryCount)<<" for hy:"<<hy<<endl;
     }
 }
 

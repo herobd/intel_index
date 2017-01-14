@@ -90,8 +90,8 @@ int main(int argc, char** argv)
 	{
 	    EmbAttSpotter spotter(modelArg.getValue());
 	    GWDataset train(trainFileArg.getValue(),imageDirArg.getValue());
-	    GWDataset test(testFileArg.getValue(),imageDirArg.getValue());
-	    GWDataset exemplars(exemplarFileArg.getValue(),exemplarDirArg.getValue());
+            GWDataset test(testFileArg.getValue(),imageDirArg.getValue());
+
             spotter.setTraining_dataset(&train);
 	    
 	    if ( retrainAttReprTrF.getValue() )
@@ -111,6 +111,9 @@ int main(int argc, char** argv)
                     string s;
                     std::stringstream ss(line);
                     getline(ss,s,',');
+                    if (s.compare(test.labels()[corpusXLetterStartBoundsRel.size()])!=0)
+                        cout<<s<<" != "<<test.labels()[corpusXLetterStartBoundsRel.size()]<<endl;
+                    assert(s.compare(test.labels()[corpusXLetterStartBoundsRel.size()])==0);
                     getline(ss,s,',');
                     getline(ss,s,',');//x1
                     int x1=stoi(s);
@@ -131,13 +134,17 @@ int main(int argc, char** argv)
                 }
                 in.close();
                 
-                spotter.evalSubwordSpottingWithCharBounds(&exemplars, &test, &corpusXLetterStartBoundsRel, &corpusXLetterEndBoundsRel, hyarg.getValue());
+                spotter.evalSubwordSpottingWithCharBounds(&test, &corpusXLetterStartBoundsRel, &corpusXLetterEndBoundsRel, hyarg.getValue());
 
             }
-            else if ( evalSubF.getValue() )
-		spotter.evalSubwordSpotting(&exemplars, &test, hyarg.getValue());
             else
-		spotter.evalSubwordSpottingCombine(&exemplars, &test, hyarg.getValue());
+            {
+                GWDataset exemplars(exemplarFileArg.getValue(),exemplarDirArg.getValue());
+                if ( evalSubF.getValue() )
+                    spotter.evalSubwordSpotting(&exemplars, &test, hyarg.getValue());
+                else
+                    spotter.evalSubwordSpottingCombine(&exemplars, &test, hyarg.getValue());
+            }
 	}
 
 	
