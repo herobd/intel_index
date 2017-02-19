@@ -33,6 +33,6 @@ public:
     //    for (int i=0; i<size(); i++)
     //        wordImages[i] = lambda(wordImages[i]);
     //}
-
+    virtual unsigned int wordId(unsigned int i) const {return i;}
 };
 #endif

@@ -1,7 +1,7 @@
 #ifndef EMBATTSPOTTER_H
 #define EMBATTSPOTTER_H
 
-#define TEST_MODE 1
+#define TESTING_MODE 1
 #define DRAW 0
 
 #define USE_VL 1
@@ -41,7 +41,7 @@ extern "C" {
 #define FV_DIM (2*numGMMClusters*numSpatialX*numSpatialY*AUG_PCA_DIM)
 #define AUG_PCA_DIM (PCA_dim+2)
 
-#define LIVE_SCORE_OVERLAP_THRESH 0.65
+#define LIVE_SCORE_OVERLAP_THRESH 0.55
 
 using namespace std;
 using namespace cv;
@@ -171,7 +171,7 @@ private:
     vector<int> spottingNgramLengths;
     
     function< Mat(Mat) > pp;    
-    #if TEST_MODE
+    #if TESTING_MODE
         vector<string> testImages;
     #endif
     
@@ -273,7 +273,7 @@ private:
     Mat phowsByX(int i, int xS, int xE) const;
     int test_mode;
     
-    #if TEST_MODE
+    #if TESTING_MODE
         void sinMat_cosMat_test();
         void normalizeL2Columns_test();
         void otsuBinarization_test();
@@ -337,7 +337,7 @@ vector< SubwordSpottingResult > subwordSpot_eval(const Mat& exemplar, string wor
     void evalSubwordSpottingCombine(const Dataset* exemplars, const Dataset* data, double hyV=-1);
     
     float evalSubwordSpotting_singleScore(string ngram, const vector<SubwordSpottingResult>& res, const vector< vector<int> >* corpusXLetterStartBounds, const vector< vector<int> >* corpusXLetterEndBounds, int skip=-1) const;
-    #if TEST_MODE
+    #if TESTING_MODE
         void test();
     #else
         void test() {}

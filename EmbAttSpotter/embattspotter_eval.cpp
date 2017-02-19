@@ -101,7 +101,7 @@ void EmbAttSpotter::eval(const Dataset* data)
     }
 }
 
-#define LIVE_SCORE_OVERLAP_THRESH 0.65
+//#define LIVE_SCORE_OVERLAP_THRESH 0.55
 //This is a testing function for the simulator
 float EmbAttSpotter::evalSubwordSpotting_singleScore(string ngram, const vector<SubwordSpottingResult>& res, const vector< vector<int> >* corpusXLetterStartBounds, const vector< vector<int> >* corpusXLetterEndBounds, int skip) const
 {
@@ -118,32 +118,49 @@ float EmbAttSpotter::evalSubwordSpotting_singleScore(string ngram, const vector<
     vector<float> scores;
     vector<bool> rel;
     int l=ngram.length()-1;
-    vector<bool> checked(corpus_dataset->size());
+    vector<int> checked(corpus_dataset->size());
     for (int j=0; j<res.size(); j++)
     {
         SubwordSpottingResult r = res[j];
-        checked[r.imIdx]=true;
+        //checked[r.imIdx]=true;
         if (skip == r.imIdx)
             continue;
+        int letterBoundsIndex = corpus_dataset->wordId(r.imIdx);
         size_t loc = corpus_dataset->labels()[r.imIdx].find(ngram);
         if (loc==string::npos)
         {
             scores.push_back(r.score);
             rel.push_back(false);
+            checked[r.imIdx]++;
         }
         else
         {
+            int loc2 = corpus_dataset->labels()[r.imIdx].find(ngram,loc+1);
             vector<int> matching;
             for (int jj=0; jj < res.size(); jj++)
             {
                 if (res[jj].imIdx == r.imIdx && j!=jj && res[jj].imIdx!=skip)
                     matching.push_back(jj);
             }
-            float myOverlap = ( min(corpusXLetterEndBounds->at(r.imIdx)[loc+l], r.endX) 
-                                - max(corpusXLetterStartBounds->at(r.imIdx)[loc], r.startX) ) 
+            float myOverlap = ( min(corpusXLetterEndBounds->at(letterBoundsIndex)[loc+l], r.endX) 
+                                - max(corpusXLetterStartBounds->at(letterBoundsIndex)[loc], r.startX) ) 
                               /
-                              ( max(corpusXLetterEndBounds->at(r.imIdx)[loc+l], r.endX) 
-                                - min(corpusXLetterStartBounds->at(r.imIdx)[loc], r.startX) +0.0);
+                              ( max(corpusXLetterEndBounds->at(letterBoundsIndex)[loc+l], r.endX) 
+                                - min(corpusXLetterStartBounds->at(letterBoundsIndex)[loc], r.startX) +0.0);
+            if (loc2 != string::npos)
+            {
+                float myOverlap2 = ( min(corpusXLetterEndBounds->at(letterBoundsIndex)[loc+l], r.endX) 
+                                    - max(corpusXLetterStartBounds->at(letterBoundsIndex)[loc], r.startX) ) 
+                                  /
+                                  ( max(corpusXLetterEndBounds->at(letterBoundsIndex)[loc+l], r.endX) 
+                                    - min(corpusXLetterStartBounds->at(letterBoundsIndex)[loc], r.startX) +0.0);
+                if (myOverlap2>myOverlap)
+                {
+                    myOverlap=myOverlap2;
+                    loc=loc2;
+                }
+            }
+            
             if (matching.size()>0)
             {
                 //float relPos = (loc+(ngram.length()/2.0))/corpus_dataset->labels()[r.imIdx].length();
@@ -156,7 +173,8 @@ float EmbAttSpotter::evalSubwordSpotting_singleScore(string ngram, const vector<
                                           /
                                           ( max(corpusXLetterEndBounds->at(res[oi].imIdx)[loc+l], res[oi].endX) 
                                             - min(corpusXLetterStartBounds->at(res[oi].imIdx)[loc], res[oi].startX) +0.0);
-                    if (otherOverlap > myOverlap) {
+                    //if (otherOverlap > myOverlap) {
+                    if ((otherOverlap > myOverlap && checked[r.imIdx]==0) || otherOverlap >= myOverlap) {
                         other=true;
                         break;
                     }
@@ -170,6 +188,7 @@ float EmbAttSpotter::evalSubwordSpotting_singleScore(string ngram, const vector<
                 {
                     scores.push_back(r.score);
                     rel.push_back(true);
+                    checked[r.imIdx]++;
                 }
             }
             else
@@ -193,12 +212,14 @@ float EmbAttSpotter::evalSubwordSpotting_singleScore(string ngram, const vector<
                 }
                 else
                 {
+                    //cout<<"bad overlap["<<j<<"]: "<<myOverlap<<"  spot["<<r.startX<<","<<r.endX<<"]  bounds["<<corpusXLetterStartBounds->at(letterBoundsIndex)[loc]<<","<<corpusXLetterEndBounds->at(letterBoundsIndex)[loc+l]<<"]"<<endl;
                     scores.push_back(r.score);
                     rel.push_back(false);
                     //Insert a dummy result for the correct spotting to keep MAP accurate
                     scores.push_back(maxScore);
                     rel.push_back(true);
                 }
+                checked[r.imIdx]++;
 
             }
         }
@@ -210,6 +231,13 @@ float EmbAttSpotter::evalSubwordSpotting_singleScore(string ngram, const vector<
         {
             scores.push_back(maxScore);
             rel.push_back(true); 
+            checked[j]++;
+        }
+        if (loc !=string::npos && checked[j]<2 && corpus_dataset->labels()[j].find(ngram,loc+1) != string::npos)
+        {
+            scores.push_back(maxScore);
+            rel.push_back(true);
+            checked[j]++;
         }
     }
     vector<int> rank;

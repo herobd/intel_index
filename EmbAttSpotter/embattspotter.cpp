@@ -1,6 +1,6 @@
 
 #include "embattspotter_eval.cpp"
-#if TEST_MODE
+#if TESTING_MODE
     #include "embattspotter_test.cpp"
 #endif
 
@@ -40,7 +40,7 @@ EmbAttSpotter::EmbAttSpotter(string saveName, bool load, bool useNumbers, int te
     numWordsTrainGMM=500;
     minH = -1;//?
     PCA_dim = 62;
-    #if TEST_MODE
+    #if TESTING_MODE
     this->test_mode=test_mode;
     #else
     test_mode=0;
@@ -265,7 +265,7 @@ vector<float> EmbAttSpotter::spot(const Mat& exemplar, string word, float alpha)
     }
 #endif
 
-#ifdef TEST_MODE
+#ifdef TESTING_MODE
     if (test_mode==1)
     {
         //Read in from MATLAB's results
@@ -297,19 +297,19 @@ vector<float> EmbAttSpotter::spot(const Mat& exemplar, string word, float alpha)
     //checkNaN(maty);
     
     Mat tmp = matx*query_att;
-#ifdef TEST_MODE
+#ifdef TESTING_MODE
     if (test_mode==1)
         compareToCSV(tmp,"test/attReprTe_tmp_test2.csv");
 #endif
     vconcat(cosMat(tmp),sinMat(tmp),tmp);
     assert(embedding().matt.size() == tmp.size());
     Mat query_emb_att = (1/sqrt(embedding().M)) * tmp - embedding().matt;
-#ifdef TEST_MODE
+#ifdef TESTING_MODE
     if (test_mode==1)
         compareToCSV(query_emb_att,"test/attReprTe_emb_mean_test2.csv");
 #endif
     tmp = maty*query_phoc;
-#ifdef TEST_MODE
+#ifdef TESTING_MODE
     if (test_mode==1)
         compareToCSV(tmp,"test/phocsTe_tmp_test2.csv");
 #endif
@@ -319,7 +319,7 @@ vector<float> EmbAttSpotter::spot(const Mat& exemplar, string word, float alpha)
     //checkNaN(tmp);
     assert(embedding().mphoc.size() == tmp.size());
     Mat query_emb_phoc = (1/sqrt(embedding().M)) * tmp - embedding().mphoc;
-#ifdef TEST_MODE
+#ifdef TESTING_MODE
     if (test_mode==1)
         compareToCSV(query_emb_phoc,"test/phocsTe_emb_mean_test2.csv");
 #endif
@@ -330,7 +330,7 @@ vector<float> EmbAttSpotter::spot(const Mat& exemplar, string word, float alpha)
     Mat query_cca_att = embedding().Wx.t()*query_emb_att;
     Mat query_cca_phoc = embedding().Wy.t()*query_emb_phoc;
     
-#ifdef TEST_MODE
+#ifdef TESTING_MODE
     if (test_mode==1)
     {
         compareToCSV(query_cca_att,"test/attReprTe_cca_test2.csv");
@@ -342,7 +342,7 @@ vector<float> EmbAttSpotter::spot(const Mat& exemplar, string word, float alpha)
     
     normalizeL2Columns(query_cca_att);
     normalizeL2Columns(query_cca_phoc);
-#ifdef TEST_MODE
+#ifdef TESTING_MODE
     if (test_mode==1)
     {
         compareToCSV(query_cca_att,"test/attReprTe_cca_norm_test2.csv");
@@ -3269,7 +3269,7 @@ void EmbAttSpotter::learn_common_subspace()
     {
         //rndmatx = Mat::ones(M,Dx,CV_32F)*(1.0/(2.0*G));
         //rndmaty = Mat::ones(M,Dy,CV_32F)*(1.0/(2.0*G));
-        #if TEST_MODE
+        #if TESTING_MODE
         vector< vector<float> > f;///embedding_rndmatx_test2.csv
         readCSV("test/embedding_rndmatx_test2.csv", f);
         for (int r=0; r<f.size(); r++)
@@ -3298,7 +3298,7 @@ void EmbAttSpotter::learn_common_subspace()
     tmp = rndmaty*phocsTr();
     vconcat(cosMat(tmp),sinMat(tmp),tmp);
     Mat phocsTr_emb = (1/sqrt(M)) * tmp;
-#if TEST_MODE
+#if TESTING_MODE
     if (test_mode==1)
     {
         vector< vector<float> > attReprTr_cossin;
@@ -3331,7 +3331,7 @@ void EmbAttSpotter::learn_common_subspace()
     for (int c = 0; c < phocsTr_emb.cols; ++c) {
         phocsTr_emb.col(c) = phocsTr_emb.col(c) - mh;
     }
-#if TEST_MODE
+#if TESTING_MODE
     if (test_mode==1)
     {
         vector< vector<float> > attReprTr_ma;
@@ -3388,7 +3388,7 @@ void EmbAttSpotter::cca2(Mat X, Mat Y, float reg, int d, Mat& Wx, Mat& Wy)
     Mat Cyy = Y.t()*Y/N + reg*Mat::eye(Dy,Dy,CV_32F);
     Mat Cxy = X.t()*Y / N;
     Mat Cyx = Cxy.t();
-#if TEST_MODE
+#if TESTING_MODE
     if (test_mode==1)
     {
         vector< vector<float> > loadCxx;
@@ -3422,7 +3422,7 @@ void EmbAttSpotter::cca2(Mat X, Mat Y, float reg, int d, Mat& Wx, Mat& Wy)
         if (!solve(Cyy.t(),tmp.t(),tmp,cv::DECOMP_EIG))
             solve(Cyy.t(),tmp.t(),tmp);
     Mat M =  (tmp.t())*Cyx;
-#if TEST_MODE
+#if TESTING_MODE
     if (test_mode==1)
     {
         vector< vector<float> > loadM;
@@ -3668,7 +3668,7 @@ void EmbAttSpotter::get_GMM_PCA(int numWordsTrainGMM, string saveAs, bool retrai
             bins[i] = Mat(0,SIFT_DIM+2,CV_32F);
         }
         
-        #if TEST_MODE
+        #if TESTING_MODE
         Mat newFor_PCA;
         if (test_mode==1)
         {
@@ -3797,7 +3797,7 @@ void EmbAttSpotter::get_GMM_PCA(int numWordsTrainGMM, string saveAs, bool retrai
         }
         else
             cout <<"for_PCA is fullsized. "<<num_samples_PCA<<endl;
-        #if TEST_MODE
+        #if TESTING_MODE
         if (test_mode==1)
         {
             //canot compare to matlab becuase it orders by bin
@@ -4567,7 +4567,7 @@ vector< SubwordSpottingResult > EmbAttSpotter::subwordSpot_eval(const Mat& exemp
                     ( min(accumRes->at(i).endX,r.endX) - max(accumRes->at(i).startX,r.startX) ) /
                     ( max(accumRes->at(i).endX,r.endX) - min(accumRes->at(i).startX,r.startX) ) > LIVE_SCORE_OVERLAP_THRESH)
             {
-                if (r.score > accumRes->at(i).score)
+                if (r.score < accumRes->at(i).score)
                     accumRes->at(i)=r;
                 matchFound=true;
                 break;
