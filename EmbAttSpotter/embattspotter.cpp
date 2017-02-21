@@ -4563,14 +4563,22 @@ vector< SubwordSpottingResult > EmbAttSpotter::subwordSpot_eval(const Mat& exemp
     {
         for (int i=0; i<accumRes->size(); i++)
         {
-            if (accumRes->at(i).imIdx == r.imIdx && 
-                    ( min(accumRes->at(i).endX,r.endX) - max(accumRes->at(i).startX,r.startX) ) /
-                    ( max(accumRes->at(i).endX,r.endX) - min(accumRes->at(i).startX,r.startX) ) > LIVE_SCORE_OVERLAP_THRESH)
+            if (accumRes->at(i).imIdx == r.imIdx)
             {
-                if (r.score < accumRes->at(i).score)
-                    accumRes->at(i)=r;
-                matchFound=true;
-                break;
+                double ratio = ( min(accumRes->at(i).endX,r.endX) - max(accumRes->at(i).startX,r.startX) ) /
+                               ( max(accumRes->at(i).endX,r.endX) - min(accumRes->at(i).startX,r.startX) +0.0);
+                if (ratio > LIVE_SCORE_OVERLAP_THRESH)
+                {
+                    double ratioOff = 1.0 - (ratio-LIVE_SCORE_OVERLAP_THRESH)/(1.0-LIVE_SCORE_OVERLAP_THRESH);
+                    float worseScore = max(r.score,accumRes->at(i).score);
+                    float bestScore = min(r.score,accumRes->at(i).score);
+                    float combScore = (1.0f-ratioOff)*worseScore + (ratioOff)*bestScore;
+                    if (r.score < accumRes->at(i).score)
+                        accumRes->at(i)=r;
+                    accumRes->at(i).score = combScore;
+                    matchFound=true;
+                    break;
+                }
             }
         }
         if (!matchFound)

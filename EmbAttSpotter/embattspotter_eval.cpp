@@ -227,7 +227,8 @@ float EmbAttSpotter::evalSubwordSpotting_singleScore(string ngram, const vector<
     
     for (int j=0; j<corpus_dataset->size(); j++)
     {
-        if (!checked[j] &&  corpus_dataset->labels()[j].find(ngram)!=string::npos)
+        int loc = corpus_dataset->labels()[j].find(ngram);
+        if (!checked[j] &&  loc!=string::npos)
         {
             scores.push_back(maxScore);
             rel.push_back(true); 
