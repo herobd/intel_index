@@ -125,7 +125,10 @@ float EmbAttSpotter::evalSubwordSpotting_singleScore(string ngram, const vector<
         //checked[r.imIdx]=true;
         if (skip == r.imIdx)
             continue;
+
+        //the indices of the words and the seg file can be different, so
         int letterBoundsIndex = corpus_dataset->wordId(r.imIdx);
+
         size_t loc = corpus_dataset->labels()[r.imIdx].find(ngram);
         if (loc==string::npos)
         {
@@ -142,18 +145,21 @@ float EmbAttSpotter::evalSubwordSpotting_singleScore(string ngram, const vector<
                 if (res[jj].imIdx == r.imIdx && j!=jj && res[jj].imIdx!=skip)
                     matching.push_back(jj);
             }
-            float myOverlap = ( min(corpusXLetterEndBounds->at(letterBoundsIndex)[loc+l], r.endX) 
-                                - max(corpusXLetterStartBounds->at(letterBoundsIndex)[loc], r.startX) ) 
+            assert(corpusXLetterEndBounds->size() > letterBoundsIndex);
+            assert(corpusXLetterEndBounds->at(letterBoundsIndex).size()>loc+l);
+            float myOverlap = ( min(corpusXLetterEndBounds->at(letterBoundsIndex).at(loc+l), r.endX) 
+                                - max(corpusXLetterStartBounds->at(letterBoundsIndex).at(loc), r.startX) ) 
                               /
-                              ( max(corpusXLetterEndBounds->at(letterBoundsIndex)[loc+l], r.endX) 
-                                - min(corpusXLetterStartBounds->at(letterBoundsIndex)[loc], r.startX) +0.0);
+                              ( max(corpusXLetterEndBounds->at(letterBoundsIndex).at(loc+l), r.endX) 
+                                - min(corpusXLetterStartBounds->at(letterBoundsIndex).at(loc), r.startX) +0.0);
             if (loc2 != string::npos)
             {
-                float myOverlap2 = ( min(corpusXLetterEndBounds->at(letterBoundsIndex)[loc+l], r.endX) 
-                                    - max(corpusXLetterStartBounds->at(letterBoundsIndex)[loc], r.startX) ) 
+                assert(corpusXLetterEndBounds->at(letterBoundsIndex).size()>loc2+l);
+                float myOverlap2 = ( min(corpusXLetterEndBounds->at(letterBoundsIndex).at(loc2+l), r.endX) 
+                                    - max(corpusXLetterStartBounds->at(letterBoundsIndex).at(loc2), r.startX) ) 
                                   /
-                                  ( max(corpusXLetterEndBounds->at(letterBoundsIndex)[loc+l], r.endX) 
-                                    - min(corpusXLetterStartBounds->at(letterBoundsIndex)[loc], r.startX) +0.0);
+                                  ( max(corpusXLetterEndBounds->at(letterBoundsIndex).at(loc2+l), r.endX) 
+                                    - min(corpusXLetterStartBounds->at(letterBoundsIndex).at(loc2), r.startX) +0.0);
                 if (myOverlap2>myOverlap)
                 {
                     myOverlap=myOverlap2;
@@ -168,11 +174,11 @@ float EmbAttSpotter::evalSubwordSpotting_singleScore(string ngram, const vector<
                 bool other=false;
                 for (int oi : matching)
                 {
-                    float otherOverlap = ( min(corpusXLetterEndBounds->at(res[oi].imIdx)[loc+l], res[oi].endX) 
-                                            - max(corpusXLetterStartBounds->at(res[oi].imIdx)[loc], res[oi].startX) ) 
+                    float otherOverlap = ( min(corpusXLetterEndBounds->at(letterBoundsIndex).at(loc+l), res[oi].endX) 
+                                            - max(corpusXLetterStartBounds->at(letterBoundsIndex).at(loc), res[oi].startX) ) 
                                           /
-                                          ( max(corpusXLetterEndBounds->at(res[oi].imIdx)[loc+l], res[oi].endX) 
-                                            - min(corpusXLetterStartBounds->at(res[oi].imIdx)[loc], res[oi].startX) +0.0);
+                                          ( max(corpusXLetterEndBounds->at(letterBoundsIndex).at(loc+l), res[oi].endX) 
+                                            - min(corpusXLetterStartBounds->at(letterBoundsIndex).at(loc), res[oi].startX) +0.0);
                     //if (otherOverlap > myOverlap) {
                     if ((otherOverlap > myOverlap && checked[r.imIdx]==0) || otherOverlap >= myOverlap) {
                         other=true;
